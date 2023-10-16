@@ -74,6 +74,7 @@ class Tpu(Accelerator):
     network: The network that a TPU will be a part of.
     subnetwork: The subnetwork that a TPU will be a part of.
     reserved: The flag to define if a TPU is a Cloud reservation.
+    all_workers: The flag to define if run commands on all workers or worker 0 only.
   """
 
   version: str
@@ -82,6 +83,7 @@ class Tpu(Accelerator):
   network: str = 'default'
   subnetwork: str = 'default'
   reserved: bool = False
+  all_workers: bool = True
 
   @property
   def name(self):
@@ -140,6 +142,8 @@ class TpuVmTest(TestConfig[Tpu]):
   test_name: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
+  custom_tpu_name: str = ""
+  tpu_name_with_suffix: bool = True
 
   @property
   def benchmark_id(self) -> str:

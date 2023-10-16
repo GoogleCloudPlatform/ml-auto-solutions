@@ -81,16 +81,24 @@ class TpuTask(BaseTask):
     runs the test config's setup script on the TPU when it is ready.
 
     Returns:
-      A DAG node that will provision a TPU, an XCom value for the TPU name,
-        an XCom value for the qualified queued resource name, and an XCom value
-        for the SSH keys.
+      A DAG node that will provision a TPU, an XCom value for the qualified 
+      queued resource name, and an XCom value for the SSH keys.
 
     Raises:
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
     with TaskGroup(group_id="provision") as group:
       with TaskGroup(group_id="initialize"):
-        tpu_name = tpu.generate_tpu_name(self.task_test_config.benchmark_id)
+        if self.task_test_config.custom_tpu_name:
+          tpu_name = tpu.generate_tpu_name(
+              self.task_test_config.custom_tpu_name,
+              self.task_test_config.tpu_name_with_suffix,
+              )
+        else:
+          tpu_name = tpu.generate_tpu_name(
+              self.task_test_config.benchmark_id,
+              self.task_test_config.tpu_name_with_suffix,
+          )
         ssh_keys = ssh.generate_ssh_keys()
 
       queued_resource_op, queued_resource_name = tpu.create_queued_resource(
@@ -105,6 +113,7 @@ class TpuTask(BaseTask):
           # TODO(wcromar): remove split
           self.task_test_config.setup_script,
           ssh_keys,
+          self.task_test_config.accelerator.all_workers,
       )
 
     return group, queued_resource_name, ssh_keys
@@ -118,7 +127,7 @@ class TpuTask(BaseTask):
     """Run the TPU test in `task_test_config`.
 
     Args:
-      tpu_name: XCom value for the TPU name (string).
+      queued_resource: XCom value for the queued resource name (string).
       ssh_keys: And XCom value for the TPU's SSH keys (SshKeys).
 
     Returns:
@@ -134,7 +143,8 @@ class TpuTask(BaseTask):
         # TODO(wcromar): remove split
         self.task_test_config.test_script,
         ssh_keys,
-    )
+        self.task_test_config.accelerator.all_workers,
+      )
 
   def post_process(self) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.

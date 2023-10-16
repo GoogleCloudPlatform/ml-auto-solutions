@@ -37,8 +37,10 @@ from implementations.utils import ssh
 
 
 @task
-def generate_tpu_name(base_tpu_name: str) -> str:
-  return f'{base_tpu_name}-{str(uuid.uuid4())}'
+def generate_tpu_name(base_tpu_name: str, with_suffix: bool = True) -> str:
+  if with_suffix:
+    return f'{base_tpu_name}-{str(uuid.uuid4())}'
+  return base_tpu_name
 
 def create_queued_resource(tpu_name: airflow.XComArg, accelerator: test_config.Tpu, gcp: gcp_config.GCPConfig, ssh_keys: airflow.XComArg, timeout: datetime.timedelta) -> Tuple[TaskGroup, airflow.XComArg]:
   """Request a QueuedResource and wait until the nodes are created.
@@ -202,7 +204,8 @@ def delete_queued_resource(qualified_name: airflow.XComArg):
 def ssh_tpu(
     qualified_name: str,
     cmds: Iterable[str],
-    ssh_keys: ssh.SshKeys
+    ssh_keys: ssh.SshKeys,
+    all_workers: bool,
 ) -> None:
   """SSH TPU and run commands in multi process.
 
@@ -210,6 +213,7 @@ def ssh_tpu(
    qualified_name: The qualified name of a queued resource.
    cmds: The commands to run on a TPU.
    ssh_keys: The SSH key pair to use for authentication.
+   all_workers: The flag to define if run commands on all workers or worker 0 only.
   """
   creds, _ = google.auth.default()
   client = tpu_api.TpuClient(credentials=creds)
@@ -219,17 +223,20 @@ def ssh_tpu(
   nodes = [
     client.get_node(name=os.path.join(node.parent, 'nodes', node.node_id))
     for node in queued_resource.tpu.node_spec]
-  endpoints = itertools.chain.from_iterable(
-    node.network_endpoints for node in nodes)
-  ip_addresses = [endpoint.ip_address for endpoint in endpoints]
+
+  if all_workers:
+    endpoints = itertools.chain.from_iterable(
+      node.network_endpoints for node in nodes)
+    ip_addresses = [endpoint.ip_address for endpoint in endpoints]
+  else:
+    ip_addresses = [nodes[0].network_endpoints[0].ip_address]
   logging.info(f'Connecting to IP addresses {ip_addresses}')
 
   pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
   ssh_group = fabric.ThreadingGroup(
-    *ip_addresses,
-    connect_kwargs={
-      "auth_strategy":
-        paramiko.auth_strategy.InMemoryPrivateKey('xl-ml-test', pkey)
-    }
-  )
+      *ip_addresses,
+      connect_kwargs={
+          "auth_strategy":
+              paramiko.auth_strategy.InMemoryPrivateKey('xl-ml-test', pkey)
+      })
   ssh_group.run(cmds)
