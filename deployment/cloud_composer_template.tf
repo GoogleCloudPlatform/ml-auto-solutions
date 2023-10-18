@@ -98,7 +98,7 @@ resource "google_composer_environment" "example_environment" {
 
   config {
     software_config {
-      image_version = "composer-2.3.3-airflow-2.5.1"
+      image_version = "composer-2.4.5-airflow-2.5.3"
       airflow_config_overrides = {
         core-allowed_deserialization_classes = ".*"
       }
