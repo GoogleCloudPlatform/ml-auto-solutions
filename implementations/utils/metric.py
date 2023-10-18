@@ -364,6 +364,31 @@ def generate_process_id() -> str:
   return str(uuid.uuid4())
 
 
+def is_valid_entry() -> bool:
+  """Define if entries are valid to insert into the table.
+
+  Only scheduled runs from the prod composer environment
+  `ml-automation-solutions` are allowed.
+  """
+  # if it's a non-prod run, no entries are inserted
+  if os.environ.get("COMPOSER_ENVIRONMENT") != "ml-automation-solutions":
+    logging.info(
+        "This is a non-prod run, and no entries are inserted into tables."
+    )
+    return False
+
+  # if it's a manual run, no entries are inserted
+  context = get_current_context()
+  run_id = context["run_id"]
+  if run_id.startswith("manual"):
+    logging.info(
+        "This is a manual run, and no entries are inserted into tables."
+    )
+    return False
+
+  return True
+
+
 # TODO(ranran):
 # 1) handle job status
 # 2) handle Airflow retry to avoid duplicate records in tables
@@ -441,13 +466,5 @@ def process_metrics(
 
   print("Test run rows:", test_run_rows)
 
-  # if it's a manual run, no entries are inserted into tables
-  context = get_current_context()
-  run_id = context["run_id"]
-  if run_id.startswith("manual"):
-    logging.info(
-        "This is a manual run, and no entries are inserted into tables."
-    )
-    return
-
-  bigquery_metric.insert(test_run_rows)
+  if is_valid_entry():
+    bigquery_metric.insert(test_run_rows)

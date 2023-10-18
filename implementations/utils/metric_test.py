@@ -314,6 +314,43 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
               [], [], actual_value, expected_value
           )
 
+  @parameterized.named_parameters(
+      (
+          "prod_scheduled_run",
+          "ml-automation-solutions",
+          "scheduled__2023-08-07T21:03:49.181263+00:00",
+          True,
+      ),
+      (
+          "non-prod_scheduled_run",
+          "ml-automation-solutions-dev",
+          "scheduled__2023-08-07T21:03:49.181263+00:00",
+          False,
+      ),
+      (
+          "prod_manual_run",
+          "ml-automation-solutions",
+          "manual__2023-08-07T21:03:49.181263+00:00",
+          False,
+      ),
+  )
+  def test_is_valid_entry(self, env_name, run_id, expected_value):
+    with mock.patch(
+        "implementations.utils.metric.get_current_context"
+    ) as mock_context:
+      mock_context.return_value = {
+          "run_id": run_id,
+      }
+
+      with mock.patch.dict(
+          os.environ,
+          {
+              "COMPOSER_ENVIRONMENT": env_name,
+          },
+      ) as mock_variable:
+        actual_value = metric.is_valid_entry()
+        self.assertEqual(actual_value, expected_value)
+
 
 if __name__ == "__main__":
   absltest.main()
