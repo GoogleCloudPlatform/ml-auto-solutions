@@ -19,6 +19,125 @@ from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner, vm_resource
 from configs.xlml.tensorflow import common
 
+def get_tf_dlrm_config(
+    tpu_version: str,
+    tpu_cores: int,
+    tpu_zone: str,
+    time_out_in_min: int,
+    is_pod: bool = False,
+    criteo_dir: str = gcs_bucket.CRITEO_DIR,
+    tfds_data_dir: str = gcs_bucket.TFDS_DATA_DIR,
+    train_steps: int = 320,
+    validation_interval: int = 320,
+) -> task.TpuTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=vm_resource.PROJECT_TPU_PROD_ENV_ONE_VM,
+      zone=tpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+  )
+
+  set_up_cmds = common.set_up_google_tensorflow_models()
+  params_override = {
+      "runtime": {"distribution_strategy": "tpu"},
+      "task": {
+          "train_data": {
+              "input_path": criteo_dir + "/train/*",
+              "global_batch_size": 16384,
+          },
+          "validation_data": {
+              "input_path": criteo_dir + "/eval/*",
+              "global_batch_size": 16384,
+          },
+          "model": {
+            "num_dense_features": 13,
+            "bottom_mlp": [512, 256, 64],
+            "embedding_dim": 64,
+            "top_mlp": [1024, 1024, 512, 256, 1],
+            "vocab_sizes": [
+                39884406,
+                39043,
+                17289,
+                7420,
+                20263,
+                3,
+                7120,
+                1543,
+                63,
+                38532951,
+                2953546,
+                403346,
+                10,
+                2208,
+                11938,
+                155,
+                4,
+                976,
+                14,
+                39979771,
+                25641295,
+                39664984,
+                585935,
+                12972,
+                108,
+                36,
+            ],
+          },
+      },
+      "trainer": {
+          "use_orbit": "true",
+          "validation_interval": 90000,
+          "checkpoint_interval": 270000,
+          "validation_steps": 5440,
+          "train_steps": 256054,
+          "optimizer_config": {
+            "embedding_optimizer": 'SGD',
+            "lr_config": {
+              "decay_exp": 1.6,
+              "decay_start_steps": 150000,
+              "decay_steps": 136054,
+              "learning_rate": 30,
+              "warmup_steps": 8000,
+            },
+          },
+      },
+  }
+
+  test_name = "tf_dlrm_imagenet"
+  tpu_name = create_tpu_name(test_name, tpu_version, tpu_cores)
+  env_variable = export_env_variable(is_pod)
+  run_model_cmds = (
+      (
+          f"cd /usr/share/tpu/models && {env_variable} &&"
+          " PYTHONPATH='.' python3 official/recommendation/ranking/train.py"
+          f" --tpu={tpu_name} --experiment=resnet_imagenet"
+          " --mode=train_and_eval --model_dir=/tmp/output"
+          " --params_override='%s'"
+          % str(params_override)
+      ),
+  )
+
+  job_test_config = test_config.TpuVmTest(
+      test_config.Tpu(
+          version=tpu_version,
+          cores=tpu_cores,
+          runtime_version=get_tpu_runtime(is_pod),
+          reserved=True,
+      ),
+      test_name=test_name,
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      time_out_in_min=time_out_in_min,
+      task_owner=test_owner.CHANDRA_D,
+      custom_tpu_name=tpu_name,
+      tpu_name_with_suffix=False,
+      all_workers=not is_pod,
+  )
+
+  return task.TpuTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
 
 def get_tf_resnet_config(
     tpu_version: str,
@@ -183,7 +302,7 @@ def get_tpu_runtime(is_pod: bool) -> str:
   """Get TPU runtime image."""
   if is_pod:
     return vm_resource.RuntimeVersion.VM_NIGHTLY_POD.value
-  return vm_resource.RuntimeVersion.VM_NIGHTLY.value
+  return vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
 
 
 def create_tpu_name(test_name: str, tpu_version: str, tpu_cores: int) -> str:
