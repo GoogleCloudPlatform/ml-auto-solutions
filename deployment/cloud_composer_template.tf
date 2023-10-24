@@ -106,11 +106,13 @@ resource "google_composer_environment" "example_environment" {
       pypi_packages = {
         apache-airflow-providers-sendgrid = ""
         fabric                            = ""
-        google-cloud-bigquery             = ""
-        google-cloud-storage              = ""
         google-cloud-tpu                  = ">=1.16.0"
         jsonlines                         = ""
-        tensorflow-cpu                    = ""
+        # These packages are already in the default composer environment.
+        # See https://cloud.google.com/composer/docs/concepts/versioning/composer-versions
+        # google-cloud-bigquery             = ""
+        # google-cloud-storage              = ""
+        # tensorflow-cpu                    = ""
       }
     }
 
