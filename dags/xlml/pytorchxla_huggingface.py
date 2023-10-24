@@ -19,9 +19,9 @@ from configs import vm_resource
 
 # TODO(ranran): currently we have reserved v2-32 available in us-central1-a (b/295901728), and
 # requested v2-8 in the same zone (b/297217984). v2/v3 donuts and pods are not interchangeable.
-US_CENTRAL1_B = gcp_config.GCPConfig(
+US_CENTRAL1_C = gcp_config.GCPConfig(
     vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
-    vm_resource.Zone.US_CENTRAL1_B.value,
+    vm_resource.Zone.US_CENTRAL1_C.value,
     metric_config.DatasetOption.XLML_DATASET,
 )
 US_CENTRAL2_B = gcp_config.GCPConfig(
@@ -41,7 +41,7 @@ with models.DAG(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-accelerate-smoke-v2-8-1vm"
       ),
-      US_CENTRAL1_B,
+      US_CENTRAL1_C,
   ).run()
   accelerate_v4_8 = task.TpuTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
