@@ -21,5 +21,10 @@ def set_up_google_tensorflow_models() -> Tuple[str]:
   """Common set up for tensorflow."""
   return (
       "pip install -r /usr/share/tpu/models/official/requirements.txt",
+      "pip install tensorflow-text-nightly",
+      "gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/tensorflow/tf-nightly/latest/*.whl /tmp/ && pip install /tmp/tf*.whl --force",
+      "sudo gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/libtpu/latest/libtpu.so /lib/",
+      "sudo sed -i 's/TF_DOCKER_URL=.*/TF_DOCKER_URL=gcr.io\/cloud-tpu-v2-images-dev\/grpc_tpu_worker:nightly\"/' /etc/systemd/system/tpu-runtime.service",
+      "sudo systemctl daemon-reload && sudo systemctl restart tpu-runtime",
       "pip install tensorflow-recommenders --no-deps",
   )

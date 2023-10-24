@@ -18,6 +18,7 @@ import enum
 
 
 PROJECT_CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
+PROJECT_TPU_PROD_ENV_ONE_VM = "tpu-prod-env-one-vm"
 
 
 class Zone(enum.Enum):
@@ -25,9 +26,14 @@ class Zone(enum.Enum):
   US_CENTRAL2_B = "us-central2-b"  # reservation for v4-8 & v4-32 in cloud-ml-auto-solutions
   US_CENTRAL1_C = "us-central1-c"  # reservation for v2-8 in cloud-ml-auto-solutions
   US_EAST1_D = "us-east1-d"  # reservation for v3-8 & v3-32 in cloud-ml-auto-solutions
+  US_EAST1_C = "us-east1-c"
+  US_EAST5_A = "us-east5-a"
 
 
 class RuntimeVersion(enum.Enum):
   VM_NIGHTLY = "1vm-nightly"
   VM_NIGHTLY_POD = "1vm-nightly-pod"
   TPU_UBUNTU2204_BASE = "tpu-ubuntu2204-base"
+  V2_ALPHA_TPUV5_LITE = "v2-alpha-tpuv5-lite"
+  V2_ALPHA_TPUV5 = "v2-alpha-tpuv5"
+  

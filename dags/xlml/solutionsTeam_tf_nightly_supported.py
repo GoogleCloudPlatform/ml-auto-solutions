@@ -28,20 +28,9 @@ with models.DAG(
     catchup=False,
 ) as dag:
   # ResNet
-  tf_resnet_v2_8 = tf_config.get_tf_resnet_config(
-      tpu_version=2,
-      tpu_cores=8,
-      tpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
-      time_out_in_min=60,
-  ).run()
+  
 
-  tf_resnet_v3_8 = tf_config.get_tf_resnet_config(
-      tpu_version=3,
-      tpu_cores=8,
-      tpu_zone=vm_resource.Zone.US_EAST1_D.value,
-      time_out_in_min=60,
-  ).run()
-
+  '''
   tf_resnet_v4_8 = tf_config.get_tf_resnet_config(
       tpu_version="4",
       tpu_cores=8,
@@ -73,8 +62,40 @@ with models.DAG(
       is_pod=True,
   ).run()
 
+  
+  tf_resnet_v5lite_8 = tf_config.get_tf_resnet_config(
+      tpu_version="5lite",
+      tpu_cores=8,
+      tpu_zone=vm_resource.Zone.US_CENTRAL1_A.value,
+      time_out_in_min=60,
+      ).run()
+  tf_dlrm_v4_8 = tf_config.get_tf_dlrm_config(
+      tpu_version="4",
+      tpu_cores=8,
+      tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
+      time_out_in_min=60,
+      ).run()
+
+  '''
+  tf_dlrm_v5lite_8 = tf_config.get_tf_dlrm_config(
+      tpu_version="5lite",
+      tpu_cores=8,
+      tpu_zone=vm_resource.Zone.US_CENTRAL1_A.value,
+      time_out_in_min=60,
+      ).run()
+
+
+  tf_dlrm_v5lite_8 = tf_config.get_tf_dlrm_config(
+      tpu_version="5p",
+      tpu_cores=8,
+      tpu_zone=vm_resource.Zone.US_EAST5_A.value,
+      time_out_in_min=60,
+      ).run()  
+
   # Test dependencies
-  tf_resnet_v2_8
-  tf_resnet_v3_8
-  tf_resnet_v4_8 >> tf_resnet_v4_32
-  tf_bert_v4_8 >> tf_bert_v4_32
+  #tf_resnet_v2_8
+  #tf_resnet_v3_8
+  #tf_resnet_v4_8 >> tf_resnet_v4_32
+  #tf_bert_v4_8 >> tf_bert_v4_32
+  tf_dlrm_v5lite_8
+  #tf_resnet_v4_8
