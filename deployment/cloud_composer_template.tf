@@ -105,10 +105,11 @@ resource "google_composer_environment" "example_environment" {
       # Note: keep this in sync with .github/requirements.txt
       pypi_packages = {
         apache-airflow-providers-sendgrid = ""
-        jsonlines                         = ""
         fabric                            = ""
-        google-cloud-tpu                  = ">=1.16.0"
+        google-cloud-bigquery             = ""
         google-cloud-storage              = ""
+        google-cloud-tpu                  = ">=1.16.0"
+        jsonlines                         = ""
         tensorflow-cpu                    = ""
       }
     }
