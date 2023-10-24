@@ -1,5 +1,5 @@
 # Build generated files with JSonnet and run all DAG scripts
-name: Diff Generated Files
+name: DAG Check
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  diff:
+  dags:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
