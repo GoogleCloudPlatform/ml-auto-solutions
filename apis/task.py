@@ -97,14 +97,14 @@ class TpuTask(BaseTask):
     """
     with TaskGroup(group_id="provision") as group:
       with TaskGroup(group_id="initialize"):
-        if self.task_test_config.custom_tpu_name.strip():
-          base_tpu_name = self.task_test_config.custom_tpu_name
+        if self.custom_tpu_name.strip():
+          base_tpu_name = self.custom_tpu_name
         else:
           base_tpu_name = self.task_test_config.benchmark_id
 
         tpu_name = tpu.generate_tpu_name(
             base_tpu_name,
-            self.task_test_config.tpu_name_with_suffix,
+            self.tpu_name_with_suffix,
         )
         ssh_keys = ssh.generate_ssh_keys()
 
@@ -120,7 +120,7 @@ class TpuTask(BaseTask):
           # TODO(wcromar): remove split
           self.task_test_config.setup_script,
           ssh_keys,
-          self.task_test_config.all_workers,
+          self.all_workers,
       )
 
     return group, queued_resource_name, ssh_keys
@@ -151,7 +151,7 @@ class TpuTask(BaseTask):
         # TODO(wcromar): remove split
         self.task_test_config.test_script,
         ssh_keys,
-        self.task_test_config.all_workers,
+        self.all_workers,
     )
 
   def post_process(self) -> DAGNode:
