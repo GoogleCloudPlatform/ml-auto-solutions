@@ -48,6 +48,10 @@ class TpuTask(BaseTask):
     task_test_config: Test configs to run on this TPU.
     task_gcp_config: Runtime TPU creation parameters.
     task_metric_config: Metric configs to process metrics.
+    custom_tpu_name: A custom TPU name.
+    tpu_name_with_suffix: The flag to define if add auto-generated suffix.
+    all_workers: The flag to define if run commands on all workers or worker 0
+      only.
   """
 
   # TODO(wcromar): make these attributes less verbose
@@ -55,6 +59,9 @@ class TpuTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   tpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   task_metric_config: Optional[metric_config.MetricConfig] = None
+  custom_tpu_name: str = ''
+  tpu_name_with_suffix: bool = True
+  all_workers: bool = True
 
   def run(self) -> DAGNode:
     """Run a test job.
