@@ -48,8 +48,9 @@ class TpuTask(BaseTask):
     task_test_config: Test configs to run on this TPU.
     task_gcp_config: Runtime TPU creation parameters.
     task_metric_config: Metric configs to process metrics.
-    custom_tpu_name: A custom TPU name.
-    tpu_name_with_suffix: The flag to define if add auto-generated suffix.
+    custom_tpu_name: A custom TPU name. By default the name is 
+      test name + accelerator name.
+    suffix_tpu_name: The flag to define if add auto-generated suffix.
     all_workers: The flag to define if run commands on all workers or worker 0
       only.
   """
@@ -59,8 +60,8 @@ class TpuTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   tpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   task_metric_config: Optional[metric_config.MetricConfig] = None
-  custom_tpu_name: str = ''
-  tpu_name_with_suffix: bool = True
+  custom_tpu_name: Optional[str] = None
+  suffix_tpu_name: bool = True
   all_workers: bool = True
 
   def run(self) -> DAGNode:
@@ -97,14 +98,14 @@ class TpuTask(BaseTask):
     """
     with TaskGroup(group_id="provision") as group:
       with TaskGroup(group_id="initialize"):
-        if self.custom_tpu_name.strip():
+        if self.custom_tpu_name:
           base_tpu_name = self.custom_tpu_name
         else:
           base_tpu_name = self.task_test_config.benchmark_id
 
         tpu_name = tpu.generate_tpu_name(
             base_tpu_name,
-            self.tpu_name_with_suffix,
+            self.suffix_tpu_name,
         )
         ssh_keys = ssh.generate_ssh_keys()
 

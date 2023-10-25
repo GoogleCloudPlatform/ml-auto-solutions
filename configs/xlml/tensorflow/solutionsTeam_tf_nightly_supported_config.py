@@ -88,7 +88,7 @@ def get_tf_resnet_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       custom_tpu_name=tpu_name,
-      tpu_name_with_suffix=False,
+      suffix_tpu_name=False,
       all_workers=not is_pod,
   )
 
@@ -169,7 +169,7 @@ def get_tf_bert_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       custom_tpu_name=tpu_name,
-      tpu_name_with_suffix=False,
+      suffix_tpu_name=False,
       all_workers=not is_pod,
   )
 
