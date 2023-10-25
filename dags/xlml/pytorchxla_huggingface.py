@@ -17,8 +17,7 @@ from airflow import models
 from apis import gcp_config, metric_config, task, test_config
 from configs import vm_resource
 
-# TODO(ranran): currently we have reserved v2-32 available in us-central1-a (b/295901728), and
-# requested v2-8 in the same zone (b/297217984). v2/v3 donuts and pods are not interchangeable.
+
 US_CENTRAL1_C = gcp_config.GCPConfig(
     vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
     vm_resource.Zone.US_CENTRAL1_C.value,
