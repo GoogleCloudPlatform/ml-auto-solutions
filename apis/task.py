@@ -18,6 +18,7 @@ import abc
 import dataclasses
 import datetime
 from typing import Optional, Tuple
+from absl import logging
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
@@ -47,6 +48,11 @@ class TpuTask(BaseTask):
     task_test_config: Test configs to run on this TPU.
     task_gcp_config: Runtime TPU creation parameters.
     task_metric_config: Metric configs to process metrics.
+    custom_tpu_name: A custom TPU name. By default the name is 
+      test name + accelerator name.
+    suffix_tpu_name: The flag to define if add auto-generated suffix.
+    all_workers: The flag to define if run commands on all workers or worker 0
+      only.
   """
 
   # TODO(wcromar): make these attributes less verbose
@@ -54,6 +60,9 @@ class TpuTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   tpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   task_metric_config: Optional[metric_config.MetricConfig] = None
+  custom_tpu_name: Optional[str] = None
+  suffix_tpu_name: bool = True
+  all_workers: bool = True
 
   def run(self) -> DAGNode:
     """Run a test job.
@@ -81,16 +90,23 @@ class TpuTask(BaseTask):
     runs the test config's setup script on the TPU when it is ready.
 
     Returns:
-      A DAG node that will provision a TPU, an XCom value for the TPU name,
-        an XCom value for the qualified queued resource name, and an XCom value
-        for the SSH keys.
+      A DAG node that will provision a TPU, an XCom value for the qualified
+      queued resource name, and an XCom value for the SSH keys.
 
     Raises:
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
     with TaskGroup(group_id="provision") as group:
       with TaskGroup(group_id="initialize"):
-        tpu_name = tpu.generate_tpu_name(self.task_test_config.benchmark_id)
+        if self.custom_tpu_name:
+          base_tpu_name = self.custom_tpu_name
+        else:
+          base_tpu_name = self.task_test_config.benchmark_id
+
+        tpu_name = tpu.generate_tpu_name(
+            base_tpu_name,
+            self.suffix_tpu_name,
+        )
         ssh_keys = ssh.generate_ssh_keys()
 
       queued_resource_op, queued_resource_name = tpu.create_queued_resource(
@@ -105,6 +121,7 @@ class TpuTask(BaseTask):
           # TODO(wcromar): remove split
           self.task_test_config.setup_script,
           ssh_keys,
+          self.all_workers,
       )
 
     return group, queued_resource_name, ssh_keys
@@ -118,7 +135,7 @@ class TpuTask(BaseTask):
     """Run the TPU test in `task_test_config`.
 
     Args:
-      tpu_name: XCom value for the TPU name (string).
+      queued_resource: XCom value for the queued resource name (string).
       ssh_keys: And XCom value for the TPU's SSH keys (SshKeys).
 
     Returns:
@@ -127,13 +144,15 @@ class TpuTask(BaseTask):
     return tpu.ssh_tpu.override(
         task_id="run_model",
         execution_timeout=datetime.timedelta(
-            minutes=self.task_test_config.time_out_in_min),
+            minutes=self.task_test_config.time_out_in_min
+        ),
         owner=self.task_test_config.task_owner,
     )(
         queued_resource,
         # TODO(wcromar): remove split
         self.task_test_config.test_script,
         ssh_keys,
+        self.all_workers,
     )
 
   def post_process(self) -> DAGNode:
