@@ -16,13 +16,15 @@
 
 import datetime
 from airflow import models
-from configs import vm_resource
+from configs import composer_env, vm_resource
 from configs.xlml.jax import solutionsTeam_flax_latest_supported_config as flax_config
 
 
 with models.DAG(
     dag_id="flax_latest_supported",
-    schedule="0 2 * * *",  # Run once a day at 2 am
+    schedule=composer_env.get_env_schedule(
+        "0 2 * * *"
+    ),  # Run once a day at 2 am
     tags=["solutions_team", "flax", "latest", "supported"],
     start_date=datetime.datetime(2023, 8, 16),
     catchup=False,

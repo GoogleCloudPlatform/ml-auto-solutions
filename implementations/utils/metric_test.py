@@ -21,8 +21,10 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 from apis import metric_config
-from implementations.utils import bigquery, composer
+from configs import composer_env
+from implementations.utils import bigquery
 from implementations.utils import metric
+from implementations.utils import composer
 import jsonlines
 import tensorflow as tf
 
@@ -267,9 +269,9 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
               "COMPOSER_ENVIRONMENT": "test_env",
           },
       ) as mock_variable:
-        with mock.patch.object(
-            composer, "get_airflow_url", return_value="http://airflow"
-        ) as mock_object:
+        with mock.patch.object(composer,
+                               "get_airflow_url",
+                               return_value="http://airflow") as mock_object:
           raw_meta = [
               [
                   bigquery.MetadataHistoryRow(
@@ -317,19 +319,19 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
   @parameterized.named_parameters(
       (
           "prod_scheduled_run",
-          "ml-automation-solutions",
+          composer_env.PROD_COMPOSER_ENV_NAME,
           "scheduled__2023-08-07T21:03:49.181263+00:00",
           True,
       ),
       (
           "non-prod_scheduled_run",
-          "ml-automation-solutions-dev",
+          composer_env.DEV_COMPOSER_ENV_NAME,
           "scheduled__2023-08-07T21:03:49.181263+00:00",
           False,
       ),
       (
           "prod_manual_run",
-          "ml-automation-solutions",
+          composer_env.PROD_COMPOSER_ENV_NAME,
           "manual__2023-08-07T21:03:49.181263+00:00",
           False,
       ),
