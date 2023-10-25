@@ -20,11 +20,13 @@ from configs import composer_env, vm_resource
 from configs.xlml.tensorflow import solutionsTeam_tf_nightly_supported_config as tf_config
 
 
+# Run once a day at 6 am
+SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+
+
 with models.DAG(
     dag_id="tf_latest_supported",
-    schedule=composer_env.get_env_schedule(
-        "0 6 * * *"
-    ),  # Run once a day at 6 am
+    schedule=SCHEDULED_TIME,
     tags=["solutions_team", "tf", "nightly", "supported"],
     start_date=datetime.datetime(2023, 8, 16),
     catchup=False,

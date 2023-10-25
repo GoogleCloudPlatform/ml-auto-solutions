@@ -31,15 +31,3 @@ COMPOSER_LOCATION = "COMPOSER_LOCATION"
 def is_prod_env() -> bool:
   """Indicate if the composer environment is Prod."""
   return os.environ.get(COMPOSER_ENVIRONMENT) == PROD_COMPOSER_ENV_NAME
-
-
-def get_env_schedule(
-    schedule_interval: Optional[str],
-) -> Optional[str]:
-  """Get the shceudle interval for the current environment.
-
-  Scheduled run is only set for Prod.
-  """
-  if not is_prod_env:
-    return None
-  return schedule_interval
