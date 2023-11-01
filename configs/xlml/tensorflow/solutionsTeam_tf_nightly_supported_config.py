@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for solutionsTeam_tf_nightly_supported DAG."""
 
+from datetime import date
 import uuid
 from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner, vm_resource
@@ -58,12 +59,13 @@ def get_tf_resnet_config(
 
   test_name = "tf_resnet_imagenet"
   tpu_name = create_tpu_name(test_name, tpu_version, tpu_cores)
+  tpu_name_param = tpu_name if is_pod else "local"
   env_variable = export_env_variable(is_pod)
   run_model_cmds = (
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " PYTHONPATH='.' python3 official/vision/train.py"
-          f" --tpu={tpu_name} --experiment=resnet_imagenet"
+          f" --tpu={tpu_name_param} --experiment=resnet_imagenet"
           " --mode=train_and_eval --model_dir=/tmp/output"
           " --params_override='%s'"
           % str(params_override)
@@ -138,12 +140,13 @@ def get_tf_bert_config(
 
   test_name = "tf_bert_glue_mnli"
   tpu_name = create_tpu_name(test_name, tpu_version, tpu_cores)
+  tpu_name_param = tpu_name if is_pod else "local"
   env_variable = export_env_variable(is_pod)
   run_model_cmds = (
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " PYTHONPATH='.' python3 official/nlp/train.py"
-          f" --tpu={tpu_name} --experiment=bert/sentence_prediction_text"
+          f" --tpu={tpu_name_param} --experiment=bert/sentence_prediction_text"
           " --config_file=official/nlp/configs/experiments/glue_mnli_text.yaml"
           " --mode=train_and_eval --model_dir=/tmp/output"
           " --params_override='%s'"
@@ -182,10 +185,11 @@ def export_env_variable(is_pod: bool) -> str:
 def get_tpu_runtime(is_pod: bool) -> str:
   """Get TPU runtime image."""
   if is_pod:
-    return vm_resource.RuntimeVersion.VM_NIGHTLY_POD.value
-  return vm_resource.RuntimeVersion.VM_NIGHTLY.value
+    return vm_resource.RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value
+  return vm_resource.RuntimeVersion.TPU_VM_TF_NIGHTLY.value
 
 
 def create_tpu_name(test_name: str, tpu_version: str, tpu_cores: int) -> str:
-  """Create a custom TPU name."""
-  return f"{test_name}-v{tpu_version}-{tpu_cores}-{str(uuid.uuid4())}"
+  """Create a custom TPU name with date suffix."""
+  date_suffix = date.today().strftime("%Y%m%d")
+  return f"{test_name}-v{tpu_version}-{tpu_cores}-{date_suffix}"
