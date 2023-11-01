@@ -15,10 +15,10 @@
 """Utilities to construct configs for solutionsTeam_tf_nightly_supported DAG."""
 
 from datetime import date
-import uuid
 from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner, vm_resource
 from configs.xlml.tensorflow import common
+import hashlib
 
 
 def get_tf_resnet_config(
@@ -192,4 +192,5 @@ def get_tpu_runtime(is_pod: bool) -> str:
 def create_tpu_name(test_name: str, tpu_version: str, tpu_cores: int) -> str:
   """Create a custom TPU name with date suffix."""
   date_suffix = date.today().strftime("%Y%m%d")
-  return f"{test_name}-v{tpu_version}-{tpu_cores}-{date_suffix}"
+  date_uuid = hashlib.sha256(str(date_suffix).encode("utf-8")).hexdigest()[:36]
+  return f"{test_name}-v{tpu_version}-{tpu_cores}-{date_uuid}"
