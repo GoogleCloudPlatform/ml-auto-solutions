@@ -414,12 +414,12 @@ def get_job_status(benchmark_id: str) -> bigquery.JobStatus:
   setup_ti = TaskInstance(setup_task, execution_date)
   setup_state = setup_ti.current_state()
   if setup_state == TaskState.UPSTREAM_FAILED.value:
-    print("The setup state is upstream_failed, so the job status is missed.")
+    print("The setup state is upstream_failed, and the job status is missed.")
     return bigquery.JobStatus.MISSED
 
   # check setup status to see if setup step is successful
   if setup_state == TaskState.FAILED.value:
-    print("The setup state is failed, so the job status is failure.")
+    print("The setup state is failed, and the job status is failed.")
     return bigquery.JobStatus.FAILED
 
   # check run_model status to see if run_model step is successful
@@ -428,10 +428,10 @@ def get_job_status(benchmark_id: str) -> bigquery.JobStatus:
   run_model_state = run_model_ti.current_state()
 
   if run_model_state == TaskState.SUCCESS.value:
-    print("The run_model state is succuess, so the job status is success.")
+    print("The run_model state is succuess, and the job status is success.")
     return bigquery.JobStatus.SUCCESS
 
-  print("The run_model state is failed, so the job status is failed.")
+  print("The run_model state is failed, and the job status is failed.")
   return bigquery.JobStatus.FAILED
 
 
