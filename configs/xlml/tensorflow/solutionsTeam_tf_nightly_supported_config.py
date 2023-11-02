@@ -190,7 +190,7 @@ def get_tpu_runtime(is_pod: bool) -> str:
 
 
 def create_tpu_name(test_name: str, tpu_version: str, tpu_cores: int) -> str:
-  """Create a custom TPU name with date suffix."""
+  """Create a custom TPU name with hash value of the current date."""
   date_suffix = date.today().strftime("%Y%m%d")
-  date_uuid = hashlib.sha256(str(date_suffix).encode("utf-8")).hexdigest()[:36]
-  return f"{test_name}-v{tpu_version}-{tpu_cores}-{date_uuid}"
+  date_hash = hashlib.sha256(str(date_suffix).encode("utf-8")).hexdigest()[:36]
+  return f"{test_name}-v{tpu_version}-{tpu_cores}-{date_hash}"
