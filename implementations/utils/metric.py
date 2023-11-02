@@ -47,7 +47,7 @@ class TensorBoardScalar:
 
 class TaskState(enum.Enum):
   FAILED = "failed"
-  UPSTREAM_FAILED = "upstream_failed"
+  SKIPPED = "upstream_failed"
   SUCCESS = "success"
 
 
@@ -413,8 +413,8 @@ def get_job_status(benchmark_id: str) -> bigquery.JobStatus:
   setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
   setup_ti = TaskInstance(setup_task, execution_date)
   setup_state = setup_ti.current_state()
-  if setup_state == TaskState.UPSTREAM_FAILED.value:
-    print("The setup state is upstream_failed, and the job status is missed.")
+  if setup_state == TaskState.SKIPPED.value:
+    print("The setup state is skipped, and the job status is missed.")
     return bigquery.JobStatus.MISSED
 
   # check setup status to see if setup step is successful
@@ -428,7 +428,7 @@ def get_job_status(benchmark_id: str) -> bigquery.JobStatus:
   run_model_state = run_model_ti.current_state()
 
   if run_model_state == TaskState.SUCCESS.value:
-    print("The run_model state is succuess, and the job status is success.")
+    print("The run_model state is success, and the job status is success.")
     return bigquery.JobStatus.SUCCESS
 
   print("The run_model state is failed, and the job status is failed.")
