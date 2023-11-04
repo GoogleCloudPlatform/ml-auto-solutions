@@ -20,7 +20,7 @@ from configs.xlml.jax import common
 
 
 def get_flax_resnet_config(
-    tpu_version: int,
+    tpu_version: str,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -121,7 +121,7 @@ def get_flax_vit_config(
 
 
 def get_flax_gpt2_config(
-    tpu_version: int,
+    tpu_version: str,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -143,6 +143,7 @@ def get_flax_gpt2_config(
           " gs://cloud-tpu-tpuvm-artifacts/config/xl-ml-test/jax/gpt2"
           " /tmp/transformers/examples/flax/language-modeling"
       ),
+      "pip install ml_dtypes==0.2.0",
   )
 
   run_model_cmds = (
@@ -180,7 +181,7 @@ def get_flax_gpt2_config(
 
 
 def get_flax_sd_config(
-    tpu_version: int,
+    tpu_version: str,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
