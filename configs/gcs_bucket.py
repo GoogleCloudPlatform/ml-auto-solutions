@@ -18,6 +18,7 @@
 # TODO(ranran): migrate data to `cloud-ml-auto-solutions` project
 IMAGENET_DIR = "gs://xl-ml-test-us-central2/data/imagenet"
 TFDS_DATA_DIR = "gs://xl-ml-test-us-central2/tfds-data"
+CRITEO_DIR = "gs://xl-ml-test-us-central2/data/criteo/terabyte_processed_shuffled"
 TF_NLP_BERT_DIR = "gs://cloud-tpu-checkpoints/bert/tf_nlp_bert"
 
 # GCS bucket for output
