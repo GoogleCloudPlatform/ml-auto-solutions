@@ -27,6 +27,7 @@ def get_pax_resnet_config(
     time_out_in_min: int,
     exp_path: str,
     model_name: str,
+    log_dir: str,
     ckp_path: str = "",
     extraFlags: str = "",
 ) -> task.TpuTask:
@@ -37,13 +38,8 @@ def get_pax_resnet_config(
   )
 
   short_id = str(uuid.uuid4())[:8]
-  job_log_dir = f"/tmp/{model_name}_{short_id}"
-  ckp_cmds = (
-      f"sudo mkdir {job_log_dir} && sudo gsutil -m cp -r"
-      f" {ckp_path} {job_log_dir}"
-      if ckp_path
-      else "echo"
-  )
+  job_log_dir = f"{log_dir}/{model_name}-{short_id}"
+  ckp_cmds = f"gsutil -m cp -r {ckp_path} {job_log_dir}" if ckp_path else "echo"
   set_up_cmds = common.set_up_google_pax() + (ckp_cmds,)
 
   run_model_cmds = (

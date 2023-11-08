@@ -37,6 +37,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
+      log_dir=f"{gcs_bucket.XLML_OUTPUT_DIR}/pax/lmspmd2b/v4-8",
       exp_path="tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps",
       model_name="lmspmd2b",
   ).run()
@@ -46,6 +47,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
+      log_dir=f"{gcs_bucket.XLML_OUTPUT_DIR}/pax/lmspmd2b_ckpt/v4-8",
       exp_path="tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps",
       model_name="lmspmd2b_ckpt",
       ckp_path=f"{gcs_bucket.PAX_DIR}/lmcloudspmd2B/pax-nightly-lmspmd2b-func-v4-8-1vm-run1/*",
@@ -61,6 +63,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
+      log_dir=f"{gcs_bucket.XLML_OUTPUT_DIR}/pax/lmtransformeradam/v4-8",
       exp_path="tasks.lm.params.lm_cloud.LmCloudTransformerAdamLimitSteps",
       model_name="lmtransformeradam",
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
