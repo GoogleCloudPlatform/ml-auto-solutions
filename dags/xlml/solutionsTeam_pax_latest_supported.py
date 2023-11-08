@@ -28,11 +28,11 @@ with models.DAG(
     dag_id="pax_latest_supported",
     schedule=SCHEDULED_TIME,
     tags=["solutions_team", "pax", "latest", "supported", "xlml"],
-    start_date=datetime.datetime(2023, 11, 6),
+    start_date=datetime.datetime(2023, 11, 8),
     catchup=False,
 ) as dag:
   # Language model with SPMD
-  pax_lmspmd2b_v4_8 = pax_config.get_pax_resnet_config(
+  pax_lmspmd2b_v4_8 = pax_config.get_pax_lm_config(
       tpu_version="4",
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
@@ -42,7 +42,7 @@ with models.DAG(
       model_name="lmspmd2b",
   ).run()
 
-  pax_lmspmd2b_ckpt_v4_8 = pax_config.get_pax_resnet_config(
+  pax_lmspmd2b_ckpt_v4_8 = pax_config.get_pax_lm_config(
       tpu_version="4",
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
@@ -58,7 +58,7 @@ with models.DAG(
       "--jax_fully_async_checkpoint=False",
       "--pmap_use_tensorstore=True",
   ]
-  pax_lmtransformeradam_v4_8 = pax_config.get_pax_resnet_config(
+  pax_lmtransformeradam_v4_8 = pax_config.get_pax_lm_config(
       tpu_version="4",
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,

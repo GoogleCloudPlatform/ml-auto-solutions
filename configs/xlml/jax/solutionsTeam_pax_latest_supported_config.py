@@ -20,7 +20,7 @@ from configs import test_owner, vm_resource
 from configs.xlml.jax import common
 
 
-def get_pax_resnet_config(
+def get_pax_lm_config(
     tpu_version: str,
     tpu_cores: int,
     tpu_zone: str,
