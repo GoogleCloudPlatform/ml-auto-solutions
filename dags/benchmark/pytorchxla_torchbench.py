@@ -27,7 +27,7 @@ _MODELS = [
     "tts_angular",
 ]
 
-# Schudule the job to run every day at 5:00PM.
+# Schudule the job to run every day at 5:00PM UTC.
 SCHEDULED_TIME = "0 17 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
