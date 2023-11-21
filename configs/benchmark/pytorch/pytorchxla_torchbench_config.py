@@ -54,7 +54,7 @@ def set_up_torchbench(model_name: str = "") -> Tuple[str]:
       "pip install tqdm --no-dependencies",
       "pip install psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
-      "cd; git clone https://github.com/zpcore/xla.git xla",
+      "cd; git clone https://github.com/zpcore/xla.git",
       "cd ~/xla && git checkout benchmark",
   )
 
@@ -105,7 +105,7 @@ def get_torchbench_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       time_out_in_min=time_out_in_min,
-      task_owner=test_owner.RAN_R,
+      task_owner=test_owner.PEI_Z,
   )
 
   job_metric_config = metric_config.MetricConfig(
