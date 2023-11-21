@@ -16,7 +16,7 @@
 
 import datetime
 from airflow import models
-from configs import vm_resource
+from configs import composer_env, vm_resource
 from configs.benchmark.pytorch import pytorchxla_torchbench_config as config
 
 _MODELS = [
@@ -31,7 +31,7 @@ _MODELS = [
 SCHEDULED_TIME = "0 17 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
-    dag_id="pytorchxla-torchbench",
+    dag_id="pytorchxla-torchbench∑",
     schedule=SCHEDULED_TIME,
     tags=["pytorchxla", "nightly", "torchbench"],
     start_date=datetime.datetime(2023, 8, 29),
