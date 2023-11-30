@@ -49,6 +49,7 @@ import os
 import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 import attrs
+from configs import vm_resource
 
 
 class Accelerator(abc.ABC):
@@ -78,7 +79,7 @@ class Tpu(Accelerator):
 
   version: str
   cores: int
-  runtime_version: str
+  runtime_version: str = vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value
   network: str = 'default'
   subnetwork: str = 'default'
   reserved: bool = False
@@ -152,6 +153,28 @@ class TpuVmTest(TestConfig[Tpu]):
   @property
   def test_script(self) -> str:
     return '\n'.join(self.run_model_cmds)
+
+
+@attrs.define
+class TpuGkeTest(TestConfig[Tpu]):
+  test_name: str
+  cluster_name: str
+  cluster_config: str
+  docker_image: str
+  set_up_cmds: Iterable[str]
+  run_model_cmds: Iterable[str]
+
+  @property
+  def benchmark_id(self) -> str:
+    return f'{self.test_name}-{self.accelerator.name}'
+
+  @property
+  def setup_script(self) -> Optional[str]:
+    return ';'.join(self.set_up_cmds)
+
+  @property
+  def test_script(self) -> str:
+    return ';'.join(self.run_model_cmds)
 
 
 @attrs.define
