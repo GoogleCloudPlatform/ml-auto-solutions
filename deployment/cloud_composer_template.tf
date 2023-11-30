@@ -113,6 +113,7 @@ resource "google_composer_environment" "example_environment" {
         # google-cloud-bigquery             = ""
         # google-cloud-storage              = ""
         # tensorflow-cpu                    = ""
+        # apache-airflow-providers-cncf-kubernetes = ""
       }
     }
 

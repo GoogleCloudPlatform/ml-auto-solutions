@@ -33,7 +33,7 @@ def get_flax_resnet_config(
     time_out_in_min: int,
     data_dir: str = gcs_bucket.TFDS_DATA_DIR,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -66,7 +66,7 @@ def get_flax_resnet_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -134,7 +134,7 @@ def get_flax_vit_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -204,7 +204,7 @@ def get_flax_gpt2_config(
     tpu_zone: str,
     time_out_in_min: int,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -252,7 +252,7 @@ def get_flax_gpt2_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -265,7 +265,7 @@ def get_flax_sd_config(
     time_out_in_min: int,
     num_train_epochs: int,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -307,7 +307,7 @@ def get_flax_sd_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -319,7 +319,7 @@ def get_flax_bart_config(
     tpu_zone: str,
     time_out_in_min: int,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -358,7 +358,7 @@ def get_flax_bart_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -372,7 +372,7 @@ def get_flax_bert_config(
     task_name: str,
     num_train_epochs: int = 1,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -408,7 +408,7 @@ def get_flax_bert_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -422,7 +422,7 @@ def get_flax_wmt_config(
     num_train_steps: int,
     data_dir: str = gcs_bucket.TFDS_DATA_DIR,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -461,7 +461,7 @@ def get_flax_wmt_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
