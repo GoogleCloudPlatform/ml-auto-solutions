@@ -110,7 +110,7 @@ def get_flax_vit_config(
     time_out_in_min: int,
     num_train_epochs: int = 3,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuGceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -147,7 +147,7 @@ def get_flax_vit_conv_config(
     time_out_in_min: int,
     num_train_epochs: int = 30,
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuGceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -191,7 +191,7 @@ def get_flax_vit_conv_config(
       )
   )
 
-  return task.TpuTask(
+  return task.TpuGceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
