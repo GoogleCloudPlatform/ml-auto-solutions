@@ -12,58 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to construct configs for solutionsTeam_pax_latest_supported DAG."""
+"""Utilities to construct configs for example_dag."""
 
-import uuid
 from apis import gcp_config, metric_config, task, test_config
-from configs import test_owner, vm_resource
-from configs.xlml.jax import common
+from configs import test_owner
 
 
-def get_pax_lm_config(
+def get_flax_resnet_gke_config(
     tpu_version: str,
     tpu_cores: int,
     tpu_zone: str,
+    cluster_name: str,
+    cluster_config: str,
+    docker_image: str,
     time_out_in_min: int,
-    exp_path: str,
-    model_name: str,
-    log_dir: str,
-    ckp_path: str = "",
-    extraFlags: str = "",
-) -> task.TpuGceTask:
+) -> task.TpuGkeTask:
+  # TODO(ranran): update the project once quota is approved (b/311073979).
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
+      project_name="tpu-prod-env-one-vm",
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  short_id = str(uuid.uuid4())[:8]
-  job_log_dir = f"{log_dir}/{model_name}-{short_id}"
-  ckp_cmds = f"gsutil -m cp -r {ckp_path} {job_log_dir}" if ckp_path else "echo"
-  set_up_cmds = common.set_up_google_pax() + (ckp_cmds,)
-
   run_model_cmds = (
-      (
-          "python3 .local/lib/python3.8/site-packages/paxml/main.py"
-          f" --exp={exp_path} --job_log_dir={job_log_dir} {extraFlags}"
-      ),
+      "python3 /tmp/flax/examples/imagenet/main.py"
+      " --config=/tmp/flax/examples/imagenet/configs/tpu.py"
+      " --workdir=/tmp/imagenet --config.num_epochs=1"
   )
 
-  job_test_config = test_config.TpuVmTest(
+  job_test_config = test_config.TpuGkeTest(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=vm_resource.RuntimeVersion.TPU_VM_V4_BASE.value,
-          reserved=True,
       ),
-      test_name=f"pax_{model_name}_c4",
-      set_up_cmds=set_up_cmds,
+      test_name="flax-resnet-gke",
+      cluster_name=cluster_name,
+      cluster_config=cluster_config,
+      docker_image=docker_image,
       run_model_cmds=run_model_cmds,
+      set_up_cmds=None,
       time_out_in_min=time_out_in_min,
-      task_owner=test_owner.GERSON_K,
+      task_owner=test_owner.RAN_R,
   )
 
-  return task.TpuGceTask(
+  return task.TpuGkeTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

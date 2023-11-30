@@ -32,3 +32,20 @@ class RuntimeVersion(enum.Enum):
   TPU_VM_TF_NIGHTLY_POD = "tpu-vm-tf-nightly-pod"
   TPU_UBUNTU2204_BASE = "tpu-ubuntu2204-base"
   TPU_VM_V4_BASE = "tpu-vm-v4-base"
+
+
+# TODO(ranran): update the cluster name once quota is approved (b/311073979).
+class ClusterName(enum.Enum):
+  V4_CLUSTER = ""
+  V5E_CLUSTER = "ran-xpk-test-zone"
+
+
+# TODO(ranran): update the cluster name once quota is approved (b/311073979).
+class ClusterConfig(enum.Enum):
+  V4_CONFIG = "v4_cluster_config"
+  V5E_CONFIG = "v5e_cluster_config"
+
+
+# TODO(ranran): update the project once quota is approved (b/311073979).
+class DockerImage(enum.Enum):
+  DEMO_TEST = "gcr.io/tpu-prod-env-one-vm/xpk_jax_test:latest"

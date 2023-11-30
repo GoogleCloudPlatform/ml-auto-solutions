@@ -36,19 +36,19 @@ with models.DAG(
     tags=["pytorchxla", "latest", "supported"],
     start_date=datetime.datetime(2023, 7, 12),
 ):
-  accelerate_v2_8 = task.TpuTask(
+  accelerate_v2_8 = task.TpuGceTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-accelerate-smoke-v2-8-1vm"
       ),
       US_CENTRAL1_C,
   ).run()
-  accelerate_v4_8 = task.TpuTask(
+  accelerate_v4_8 = task.TpuGceTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-accelerate-smoke-v4-8-1vm"
       ),
       US_CENTRAL2_B,
   ).run()
-  diffusers_v4_8 = task.TpuTask(
+  diffusers_v4_8 = task.TpuGceTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-hf-diffusers-func-v4-8-1vm"
       ),
@@ -58,7 +58,7 @@ with models.DAG(
   accelerate_v4_8 >> accelerate_v2_8
   accelerate_v4_8 >> diffusers_v4_8
 
-  task.TpuTask(
+  task.TpuGceTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-hf-fsmt-pjrt-func-v4-8-1vm"
       ),

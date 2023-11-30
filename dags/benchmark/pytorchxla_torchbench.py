@@ -22,7 +22,7 @@ from configs.benchmark.pytorch import pytorchxla_torchbench_config as config
 with models.DAG(
     dag_id="pytorch_nightly_torchbench",
     schedule=None,
-    tags=["pytorch", "nightly", "torchbench"],
+    tags=["pytorch", "nightly", "torchbench", "benchmark"],
     start_date=datetime.datetime(2023, 8, 29),
     catchup=False,
 ) as dag:
