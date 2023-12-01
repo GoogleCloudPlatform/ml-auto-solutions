@@ -1,0 +1,8 @@
+steps:
+  - name: gcr.io/cloud-builders/gsutil
+    args:
+      - '-c'
+      - >
+        bash scripts/upload-tests.sh
+        gs://us-central1-ml-automation-s-bc954647-bucket/dags
+    entrypoint: bash
