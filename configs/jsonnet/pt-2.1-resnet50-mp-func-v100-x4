@@ -1,0 +1,121 @@
+{
+   "accelerator": {
+      "count": 4,
+      "name": "v100-x4",
+      "replicas": 4,
+      "type": "gpu",
+      "version": "v100"
+   },
+   "batch_size": null,
+   "command": [
+      "python3",
+      "pytorch/xla/test/test_train_mp_imagenet.py",
+      "--model=resnet50",
+      "--log_steps=200",
+      "--num_epochs=2",
+      "--datadir=/datasets/imagenet-mini",
+      "--nometrics_debug"
+   ],
+   "configMaps": [
+      "gcs-buckets",
+      "pytorch-nfs-ip"
+   ],
+   "cpu": "7.0",
+   "entrypoint": [
+      "bash",
+      "-cxue",
+      "if [[ ! -z \"$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)\" ]]; then\n  # Trim grpc:// prefix\n  export XRT_TPU_CONFIG=\"tpu_worker;0;${KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS:7}\"\nfi\n\n# Run whatever is in `command` here\ndocker-entrypoint.sh \"${@:0}\"\n"
+   ],
+   "frameworkPrefix": "pt-2.1",
+   "image": "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla",
+   "imageTag": "r2.1.0_3.8_cuda_11.8",
+   "labels": {
+      "accelerator": "v100-x4",
+      "benchmarkId": "pt-2.1-resnet50-mp-func-v100-x4",
+      "frameworkVersion": "pt-2.1",
+      "mode": "func",
+      "model": "resnet50-mp"
+   },
+   "memory": "40Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [
+                  {
+                     "assertion": {
+                        "inclusive_bounds": false,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 5
+                        },
+                        "wait_for_n_data_points": 10
+                     },
+                     "strategy": "FINAL",
+                     "tag": "ExecuteTime__Percentile_99_sec"
+                  },
+                  {
+                     "assertion": {
+                        "inclusive_bounds": true,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 0
+                        },
+                        "wait_for_n_data_points": 0
+                     },
+                     "strategy": "FINAL",
+                     "tag": "aten_ops_sum"
+                  }
+               ],
+               "exclude_tags": [
+                  "LearningRate"
+               ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": true
+            }
+         }
+      ]
+   },
+   "mode": "func",
+   "modelName": "resnet50-mp",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 7 * * *",
+   "testName": "pt-2.1-resnet50-mp-func-v100-x4",
+   "timeout": 3600,
+   "tpuSettings": {
+      "preemptible": false,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "pytorch-2.1"
+   },
+   "trainScript": "pytorch/xla/test/test_train_mp_imagenet.py",
+   "volumeMap": {
+      "datasets": {
+         "claim": {
+            "persistentVolumeClaim": {
+               "claimName": "pytorch-datasets-claim"
+            }
+         },
+         "mountPath": "/datasets",
+         "name": "pytorch-datasets-claim",
+         "readOnly": true
+      },
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      }
+   }
+}

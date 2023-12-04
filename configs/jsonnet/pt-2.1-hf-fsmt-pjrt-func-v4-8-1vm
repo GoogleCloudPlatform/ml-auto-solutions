@@ -1,0 +1,127 @@
+{
+   "accelerator": {
+      "name": "v4-8",
+      "numCores": 4,
+      "replicas": 1,
+      "size": 8,
+      "type": "tpu",
+      "variant": "",
+      "version": 4
+   },
+   "command": [
+      "python3",
+      "pytorch/xla/test/pjrt/test_train_hf_transformer.py",
+      "--logdir=$(MODEL_DIR)",
+      "--short_data"
+   ],
+   "configMaps": [
+      "gcs-buckets",
+      "pytorch-nfs-ip"
+   ],
+   "cpu": 1,
+   "entrypoint": [
+      "bash",
+      "-cxue",
+      "if [[ ! -z \"$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)\" ]]; then\n  # Trim grpc:// prefix\n  export XRT_TPU_CONFIG=\"tpu_worker;0;${KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS:7}\"\nfi\n\n# Run whatever is in `command` here\ndocker-entrypoint.sh \"${@:0}\"\n"
+   ],
+   "frameworkPrefix": "pt-2.1",
+   "image": "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla",
+   "imageTag": "r2.1.0_3.8",
+   "labels": {
+      "accelerator": "v4-8",
+      "benchmarkId": "pt-2.1-hf-fsmt-pjrt-func-v4-8-1vm",
+      "frameworkVersion": "pt-2.1",
+      "mode": "func",
+      "model": "hf-fsmt-pjrt"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [
+                  {
+                     "assertion": {
+                        "inclusive_bounds": false,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 5
+                        },
+                        "wait_for_n_data_points": 10
+                     },
+                     "strategy": "FINAL",
+                     "tag": "ExecuteTime__Percentile_99_sec"
+                  },
+                  {
+                     "assertion": {
+                        "inclusive_bounds": true,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 0
+                        },
+                        "wait_for_n_data_points": 0
+                     },
+                     "strategy": "FINAL",
+                     "tag": "aten_ops_sum"
+                  }
+               ],
+               "exclude_tags": [
+                  "LearningRate"
+               ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": true
+            }
+         }
+      ]
+   },
+   "mode": "func",
+   "modelName": "hf-fsmt-pjrt",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 7 * * *",
+   "testName": "pt-2.1-hf-fsmt-pjrt-func-v4-8-1vm",
+   "timeout": 7200,
+   "tpuSettings": {
+      "preemptible": false,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-ubuntu2204-base",
+      "tpuVmCreateSleepSeconds": 90,
+      "tpuVmDockerArgs": "",
+      "tpuVmExports": "export PJRT_DEVICE=TPU_C_API\n",
+      "tpuVmExtraSetup": "pip install tensorboardX google-cloud-storage transformers evaluate sacrebleu sacremoses\n",
+      "tpuVmMainCommandWorkers": "all",
+      "tpuVmPytorchSetup": "pip3 install -U setuptools\n# `unattended-upgr` blocks us from installing apt dependencies\nsudo systemctl stop unattended-upgrades\nsudo apt-get -y update\nsudo apt install -y libopenblas-base\n# for huggingface tests\nsudo apt install -y libsndfile-dev\n# TODO change back to torch2.1 once pytorch released torch2.1\npip install --user --pre --no-deps torch torchvision --extra-index-url https://download.pytorch.org/whl/test/cpu\npip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.1.0-cp310-cp310-manylinux_2_28_x86_64.whl\npip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html\npip3 install pillow\npip3 install typing_extensions\npip3 install sympy\ngit clone --depth=1 -b release/2.1 https://github.com/pytorch/pytorch.git\ncd pytorch\ngit clone -b r2.1 https://github.com/pytorch/xla.git\n",
+      "tpuVmStartupScript": "echo Running startup script",
+      "tpuVmXlaDistPrefix": null
+   },
+   "volumeMap": {
+      "datasets": null,
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      },
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}

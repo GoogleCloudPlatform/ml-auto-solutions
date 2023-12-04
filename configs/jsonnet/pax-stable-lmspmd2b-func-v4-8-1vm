@@ -1,0 +1,77 @@
+{
+   "accelerator": {
+      "name": "v4-8",
+      "numCores": 4,
+      "replicas": 1,
+      "size": 8,
+      "type": "tpu",
+      "variant": "",
+      "version": 4
+   },
+   "command": [
+      "bash",
+      "-c",
+      "set -x\nset -u\n\ncat > testsetup.sh << 'TEST_SCRIPT_EOF'\nset -x\nset -u\nset -e\n\n# .bash_logout sometimes causes a spurious bad exit code, remove it.\nrm .bash_logout\n\n# install Pax and dependencies\npip install paxml\n\npip install \"jax[tpu]\" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html\n\nnum_devices=`python3 -c \"import jax; print(jax.device_count())\"`\necho \"num_devices: $num_devices\"\nif [ \"$num_devices\" = \"1\" ]; then\n    echo \"No TPU devices detected\"\n    exit 1\nfi\n\n\npython3 .local/lib/python3.8/site-packages/paxml/main.py --exp=tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps --job_log_dir=$(MODEL_DIR) \n\nTEST_SCRIPT_EOF\n\ngcloud alpha compute tpus tpu-vm ssh xl-ml-test@$(cat /scripts/tpu_name) \\\n--zone=$(cat /scripts/zone) \\\n--ssh-key-file=/scripts/id_rsa \\\n--strict-host-key-checking=no \\\n--internal-ip \\\n--worker=all \\\n--command \"$(cat testsetup.sh)\"\n\nexit_code=$?\nbash /scripts/cleanup.sh\nexit $exit_code\n"
+   ],
+   "configMaps": [
+      "gcs-buckets"
+   ],
+   "cpu": 1,
+   "entrypoint": null,
+   "frameworkPrefix": "pax-stable",
+   "image": null,
+   "imageTag": "latest",
+   "labels": {
+      "accelerator": "v4-8",
+      "benchmarkId": "pax-stable-lmspmd2b-func-v4-8-1vm",
+      "frameworkVersion": "pax-stable",
+      "mode": "func",
+      "model": "lmspmd2b"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [ ],
+               "exclude_tags": [ ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": false
+            }
+         }
+      ]
+   },
+   "mode": "func",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 11 * * *",
+   "testName": "pax-stable-lmspmd2b-func-v4-8-1vm",
+   "timeout": 3600,
+   "tpuSettings": {
+      "preemptible": true,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-vm-v4-base",
+      "tpuVmCreateSleepSeconds": 60,
+      "tpuVmDockerArgs": "",
+      "tpuVmStartupScript": "echo Running startup script"
+   },
+   "volumeMap": {
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}

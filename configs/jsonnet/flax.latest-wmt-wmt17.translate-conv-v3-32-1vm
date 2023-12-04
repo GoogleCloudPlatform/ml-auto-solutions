@@ -1,0 +1,81 @@
+{
+   "accelerator": {
+      "name": "v3-32",
+      "numCores": 8,
+      "replicas": 4,
+      "size": 32,
+      "type": "tpu",
+      "variant": "",
+      "version": 3
+   },
+   "command": [
+      "bash",
+      "-c",
+      "set -x\nset -u\n\ncat > testsetup.sh << 'TEST_SCRIPT_EOF'\nset -x\nset -u\nset -e\n\n# .bash_logout sometimes causes a spurious bad exit code, remove it.\nrm .bash_logout\n\npip install --upgrade pip\npip install --upgrade clu tf-nightly-cpu tensorflow-datasets tensorflow-text-nightly sentencepiece\n\npip install jax[tpu] \\\n  -f https://storage.googleapis.com/jax-releases/libtpu_releases.html\n\n\npython3 -c 'import jax; print(\"jax version:\", jax.__version__)'\npython3 -c 'import jaxlib; print(\"jaxlib version:\", jaxlib.__version__)'\npython3 -c 'import jax; print(\"libtpu version:\",\n  jax.lib.xla_bridge.get_backend().platform_version)'\n\n\nnum_devices=`python3 -c \"import jax; print(jax.device_count())\"`\nif [ \"$num_devices\" = \"1\" ]; then\n  echo \"No TPU devices detected\"\n  exit 1\nfi\n\ngit clone https://github.com/google/flax\ncd flax\npip install --upgrade git+https://github.com/google/flax.git\n\ncd examples/wmt\nexport GCS_BUCKET=$(MODEL_DIR)\nexport TFDS_DATA_DIR=$(TFDS_DIR)\n\npython3 main.py --workdir=$(MODEL_DIR)  --config=configs/default.py --config.reverse_translation=True --config.per_device_batch_size=32 --config.num_train_steps=70000\n\n\nTEST_SCRIPT_EOF\n\ngcloud alpha compute tpus tpu-vm ssh xl-ml-test@$(cat /scripts/tpu_name) \\\n--zone=$(cat /scripts/zone) \\\n--ssh-key-file=/scripts/id_rsa \\\n--strict-host-key-checking=no \\\n--internal-ip \\\n--worker=all \\\n--command \"$(cat testsetup.sh)\"\n\nexit_code=$?\nbash /scripts/cleanup.sh\nexit $exit_code\n"
+   ],
+   "configMaps": [
+      "gcs-buckets"
+   ],
+   "cpu": 1,
+   "entrypoint": null,
+   "frameworkPrefix": "flax.latest",
+   "image": "google/cloud-sdk",
+   "imageTag": "latest",
+   "labels": {
+      "accelerator": "v3-32",
+      "benchmarkId": "flax.latest-wmt-wmt17.translate-conv-v3-32-1vm",
+      "frameworkVersion": "flax.latest",
+      "mode": "conv",
+      "model": "wmt-wmt17.translate"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [ ],
+               "exclude_tags": [
+                  "_hparams_/session_start_info"
+               ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": true
+            }
+         }
+      ]
+   },
+   "mode": "conv",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "runTest": "cd examples/wmt\nexport GCS_BUCKET=$(MODEL_DIR)\nexport TFDS_DATA_DIR=$(TFDS_DIR)\n\npython3 main.py --workdir=$(MODEL_DIR)  --config=configs/default.py --config.reverse_translation=True --config.per_device_batch_size=32 --config.num_train_steps=70000\n",
+   "schedule": "0 6 * * 0,5",
+   "setup": "pip install --upgrade pip\npip install --upgrade clu tf-nightly-cpu tensorflow-datasets tensorflow-text-nightly sentencepiece\n\npip install jax[tpu] \\\n  -f https://storage.googleapis.com/jax-releases/libtpu_releases.html\n\n\npython3 -c 'import jax; print(\"jax version:\", jax.__version__)'\npython3 -c 'import jaxlib; print(\"jaxlib version:\", jaxlib.__version__)'\npython3 -c 'import jax; print(\"libtpu version:\",\n  jax.lib.xla_bridge.get_backend().platform_version)'\n\n\nnum_devices=`python3 -c \"import jax; print(jax.device_count())\"`\nif [ \"$num_devices\" = \"1\" ]; then\n  echo \"No TPU devices detected\"\n  exit 1\nfi\n\ngit clone https://github.com/google/flax\ncd flax\npip install --upgrade git+https://github.com/google/flax.git\n",
+   "testName": "flax.latest-wmt-wmt17.translate-conv-v3-32-1vm",
+   "timeout": 36000,
+   "tpuSettings": {
+      "preemptible": false,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-ubuntu2204-base",
+      "tpuVmCreateSleepSeconds": 60,
+      "tpuVmDockerArgs": "",
+      "tpuVmStartupScript": "echo Running startup script"
+   },
+   "volumeMap": {
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}

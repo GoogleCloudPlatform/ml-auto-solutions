@@ -1,0 +1,131 @@
+{
+   "accelerator": {
+      "name": "v3-8",
+      "numCores": 8,
+      "replicas": 1,
+      "size": 8,
+      "type": "tpu",
+      "variant": "",
+      "version": 3
+   },
+   "batch_size": null,
+   "command": [
+      "python3",
+      "pytorch/xla/test/test_train_mp_imagenet.py",
+      "--model=resnet50",
+      "--log_steps=200",
+      "--logdir=$(MODEL_DIR)",
+      "--fake_data"
+   ],
+   "configMaps": [
+      "gcs-buckets",
+      "pytorch-nfs-ip"
+   ],
+   "cpu": 1,
+   "entrypoint": [
+      "bash",
+      "-cxue",
+      "if [[ ! -z \"$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)\" ]]; then\n  # Trim grpc:// prefix\n  export XRT_TPU_CONFIG=\"tpu_worker;0;${KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS:7}\"\nfi\n\n# Run whatever is in `command` here\ndocker-entrypoint.sh \"${@:0}\"\n"
+   ],
+   "frameworkPrefix": "pt-nightly",
+   "image": "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla",
+   "imageTag": "nightly_3.7",
+   "labels": {
+      "accelerator": "v3-8",
+      "benchmarkId": "pt-nightly-resnet50-pjrt-fake-v3-8-1vm",
+      "frameworkVersion": "pt-nightly",
+      "mode": "fake",
+      "model": "resnet50-pjrt"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [
+                  {
+                     "assertion": {
+                        "inclusive_bounds": false,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 5
+                        },
+                        "wait_for_n_data_points": 10
+                     },
+                     "strategy": "FINAL",
+                     "tag": "ExecuteTime__Percentile_99_sec"
+                  },
+                  {
+                     "assertion": {
+                        "inclusive_bounds": true,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 0
+                        },
+                        "wait_for_n_data_points": 0
+                     },
+                     "strategy": "FINAL",
+                     "tag": "aten_ops_sum"
+                  }
+               ],
+               "exclude_tags": [
+                  "LearningRate"
+               ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": true
+            }
+         }
+      ]
+   },
+   "mode": "fake",
+   "modelName": "resnet50-pjrt",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 7 * * *",
+   "testName": "pt-nightly-resnet50-pjrt-fake-v3-8-1vm",
+   "timeout": 7200,
+   "tpuSettings": {
+      "preemptible": false,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-ubuntu2204-base",
+      "tpuVmCreateSleepSeconds": 60,
+      "tpuVmDockerArgs": "",
+      "tpuVmExports": "export PJRT_DEVICE=TPU_C_API\n",
+      "tpuVmExtraSetup": "pip install tensorboardX google-cloud-storage\n",
+      "tpuVmMainCommandWorkers": "all",
+      "tpuVmPytorchSetup": "pip3 install -U setuptools\n# `unattended-upgr` blocks us from installing apt dependencies\nsudo systemctl stop unattended-upgrades\nsudo apt-get -y update\nsudo apt install -y libopenblas-base\n# for huggingface tests\nsudo apt install -y libsndfile-dev\npip3 install --user --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu\npip install --user \\\n  'torch_xla[tpuvm] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl'\npip3 install pillow\ngit clone --depth=1 https://github.com/pytorch/pytorch.git\ncd pytorch\ngit clone https://github.com/pytorch/xla.git\n",
+      "tpuVmStartupScript": "echo Running startup script",
+      "tpuVmXlaDistPrefix": null
+   },
+   "trainScript": "pytorch/xla/test/test_train_mp_imagenet.py",
+   "volumeMap": {
+      "datasets": null,
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      },
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}

@@ -1,0 +1,88 @@
+{
+   "accelerator": {
+      "count": 1,
+      "name": "v100-x1",
+      "replicas": 1,
+      "type": "gpu",
+      "version": "v100"
+   },
+   "command": [
+      "python3",
+      "official/recommendation/ranking/train.py",
+      "--params_override=\"runtime\":\n  \"distribution_strategy\": \"mirrored\"\n  \"num_gpus\": 1\n\"task\":\n  \"model\":\n    \"bottom_mlp\":\n    - 512\n    - 256\n    - 8\n    \"embedding_dim\": 8\n    \"interaction\": \"cross\"\n    \"num_dense_features\": 13\n    \"top_mlp\":\n    - 1024\n    - 1024\n    - 512\n    - 256\n    - 1\n    \"vocab_sizes\":\n    - 39884406\n    - 39043\n    - 17289\n    - 7420\n    - 20263\n    - 3\n    - 7120\n    - 1543\n    - 63\n    - 38532951\n    - 2953546\n    - 403346\n    - 10\n    - 2208\n    - 11938\n    - 155\n    - 4\n    - 976\n    - 14\n    - 39979771\n    - 25641295\n    - 39664984\n    - 585935\n    - 12972\n    - 108\n    - 36\n  \"train_data\":\n    \"global_batch_size\": 16384\n    \"input_path\": \"$(CRITEO_DATA_DIR)/train/*\"\n  \"validation_data\":\n    \"global_batch_size\": 16384\n    \"input_path\": \"$(CRITEO_DATA_DIR)/eval/*\"\n\"trainer\":\n  \"checkpoint_interval\": 270000\n  \"optimizer_config\":\n    \"embedding_optimizer\": \"SGD\"\n    \"lr_config\":\n      \"decay_exp\": 1.6000000000000001\n      \"decay_start_steps\": 150000\n      \"decay_steps\": 136054\n      \"learning_rate\": 30\n      \"warmup_steps\": 8000\n  \"train_steps\": 256054\n  \"use_orbit\": true\n  \"validation_interval\": 90000\n  \"validation_steps\": 5440\n",
+      "--model_dir=$(MODEL_DIR)",
+      "--mode=train_and_eval"
+   ],
+   "configMaps": [
+      "gcs-buckets"
+   ],
+   "cpu": 2,
+   "entrypoint": null,
+   "frameworkPrefix": "tf.exp",
+   "image": "gcr.io/xl-ml-test/tensorflow",
+   "imageTag": "nightly",
+   "labels": {
+      "accelerator": "v100-x1",
+      "benchmarkId": "tf.exp-dcn-criteo-conv-v100-x1",
+      "frameworkVersion": "tf.exp",
+      "mode": "conv",
+      "model": "dcn-criteo"
+   },
+   "memory": "20G",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [
+                  {
+                     "assertion": {
+                        "inclusive_bounds": true,
+                        "std_devs_from_mean": {
+                           "comparison": "GREATER",
+                           "std_devs": 2
+                        },
+                        "wait_for_n_data_points": 0
+                     },
+                     "strategy": "AVERAGE",
+                     "tag": "examples_per_second"
+                  }
+               ],
+               "exclude_tags": [ ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": false
+            }
+         }
+      ]
+   },
+   "mode": "conv",
+   "modelName": "dcn-criteo",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 5 * * 0,2,4",
+   "testName": "tf.exp-dcn-criteo-conv-v100-x1",
+   "timeout": 36000,
+   "tpuSettings": {
+      "preemptible": false,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "nightly"
+   },
+   "volumeMap": {
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      }
+   }
+}

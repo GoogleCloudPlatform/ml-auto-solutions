@@ -1,0 +1,108 @@
+{
+   "accelerator": {
+      "name": "v4-8",
+      "numCores": 4,
+      "replicas": 1,
+      "size": 8,
+      "type": "tpu",
+      "variant": "",
+      "version": 4
+   },
+   "command": [
+      "python3",
+      "official/vision/train.py",
+      "--tpu=$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)",
+      "--experiment=resnet_imagenet",
+      "--mode=train_and_eval",
+      "--model_dir=$(MODEL_DIR)",
+      "--params_override=\"runtime\":\n  \"distribution_strategy\": \"tpu\"\n\"task\":\n  \"train_data\":\n    \"input_path\": \"$(IMAGENET_DIR)/train*\"\n    \"tfds_data_dir\": \"$(TFDS_DIR)\"\n  \"validation_data\":\n    \"input_path\": \"$(IMAGENET_DIR)/valid*\"\n    \"tfds_data_dir\": \"$(TFDS_DIR)\"\n\"trainer\":\n  \"train_steps\": 320\n  \"validation_interval\": 320\n"
+   ],
+   "configMaps": [
+      "gcs-buckets"
+   ],
+   "cpu": 1,
+   "entrypoint": null,
+   "frameworkPrefix": "tf.2.14.0",
+   "image": "gcr.io/xl-ml-test/tensorflow",
+   "imageTag": "r2.14.0",
+   "labels": {
+      "accelerator": "v4-8",
+      "benchmarkId": "tf.2.14.0-resnet-imagenet-func-v4-8-1vm",
+      "frameworkVersion": "tf.2.14.0",
+      "mode": "func",
+      "model": "resnet-imagenet"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [
+                  {
+                     "assertion": {
+                        "inclusive_bounds": true,
+                        "std_devs_from_mean": {
+                           "comparison": "GREATER",
+                           "std_devs": 4
+                        },
+                        "wait_for_n_data_points": 0
+                     },
+                     "strategy": "AVERAGE",
+                     "tag": "examples_per_second"
+                  }
+               ],
+               "exclude_tags": [ ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": false
+            }
+         }
+      ]
+   },
+   "mode": "func",
+   "modelName": "resnet-imagenet",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 9 * * *",
+   "testName": "tf.2.14.0-resnet-imagenet-func-v4-8-1vm",
+   "timeout": 3600,
+   "tpuSettings": {
+      "preemptible": true,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-vm-tf-2.13.0",
+      "tpuVmCreateSleepSeconds": 90,
+      "tpuVmDockerArgs": "",
+      "tpuVmEnvVars": {
+         "PYTHONPATH": "${PWD}"
+      },
+      "tpuVmStartupScript": "echo Running startup script"
+   },
+   "volumeMap": {
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      },
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}

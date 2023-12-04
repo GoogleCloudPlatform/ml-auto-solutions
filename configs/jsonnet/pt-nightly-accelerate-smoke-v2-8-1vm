@@ -1,0 +1,125 @@
+{
+   "accelerator": {
+      "name": "v2-8",
+      "numCores": 8,
+      "replicas": 1,
+      "size": 8,
+      "type": "tpu",
+      "variant": "",
+      "version": 2
+   },
+   "command": [
+      "accelerate",
+      "test"
+   ],
+   "configMaps": [
+      "gcs-buckets",
+      "pytorch-nfs-ip"
+   ],
+   "cpu": 1,
+   "entrypoint": [
+      "bash",
+      "-cxue",
+      "if [[ ! -z \"$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)\" ]]; then\n  # Trim grpc:// prefix\n  export XRT_TPU_CONFIG=\"tpu_worker;0;${KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS:7}\"\nfi\n\n# Run whatever is in `command` here\ndocker-entrypoint.sh \"${@:0}\"\n"
+   ],
+   "frameworkPrefix": "pt-nightly",
+   "image": "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla",
+   "imageTag": "nightly_3.7",
+   "labels": {
+      "accelerator": "v2-8",
+      "benchmarkId": "pt-nightly-accelerate-smoke-v2-8-1vm",
+      "frameworkVersion": "pt-nightly",
+      "mode": "smoke",
+      "model": "accelerate"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [
+                  {
+                     "assertion": {
+                        "inclusive_bounds": false,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 5
+                        },
+                        "wait_for_n_data_points": 10
+                     },
+                     "strategy": "FINAL",
+                     "tag": "ExecuteTime__Percentile_99_sec"
+                  },
+                  {
+                     "assertion": {
+                        "inclusive_bounds": true,
+                        "std_devs_from_mean": {
+                           "comparison": "LESS",
+                           "std_devs": 0
+                        },
+                        "wait_for_n_data_points": 0
+                     },
+                     "strategy": "FINAL",
+                     "tag": "aten_ops_sum"
+                  }
+               ],
+               "exclude_tags": [
+                  "LearningRate"
+               ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": true
+            }
+         }
+      ]
+   },
+   "mode": "smoke",
+   "modelName": "accelerate",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 7 * * *",
+   "testName": "pt-nightly-accelerate-smoke-v2-8-1vm",
+   "timeout": 3600,
+   "tpuSettings": {
+      "preemptible": false,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-ubuntu2204-base",
+      "tpuVmCreateSleepSeconds": 60,
+      "tpuVmDockerArgs": "",
+      "tpuVmExports": "export PJRT_DEVICE=TPU_C_API\nexport PATH=~/.local/bin:$PATH\n",
+      "tpuVmExtraSetup": "git clone https://github.com/huggingface/accelerate.git\npip install --user ./accelerate\n\nmkdir -p ~/.cache/huggingface/accelerate/\ncat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'\ncompute_environment: LOCAL_MACHINE\ndistributed_type: TPU\ndowncast_bf16: 'no'\nmachine_rank: 0\nmain_training_function: main\nmixed_precision: 'no'\nnum_machines: 1\nnum_processes: 8\nrdzv_backend: static\nsame_network: true\ntpu_env: []\ntpu_use_cluster: false\ntpu_use_sudo: false\nuse_cpu: false\nHF_CONFIG_EOF\n\n.local/bin/accelerate env\n",
+      "tpuVmMainCommandWorkers": "all",
+      "tpuVmPytorchSetup": "pip3 install -U setuptools\n# `unattended-upgr` blocks us from installing apt dependencies\nsudo systemctl stop unattended-upgrades\nsudo apt-get -y update\nsudo apt install -y libopenblas-base\n# for huggingface tests\nsudo apt install -y libsndfile-dev\npip3 install --user --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu\npip install --user \\\n  'torch_xla[tpuvm] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl'\npip3 install pillow\ngit clone --depth=1 https://github.com/pytorch/pytorch.git\ncd pytorch\ngit clone https://github.com/pytorch/xla.git\n",
+      "tpuVmStartupScript": "echo Running startup script",
+      "tpuVmXlaDistPrefix": null
+   },
+   "volumeMap": {
+      "datasets": null,
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      },
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}

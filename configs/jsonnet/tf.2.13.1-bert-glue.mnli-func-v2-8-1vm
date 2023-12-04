@@ -1,0 +1,109 @@
+{
+   "accelerator": {
+      "name": "v2-8",
+      "numCores": 8,
+      "replicas": 1,
+      "size": 8,
+      "type": "tpu",
+      "variant": "",
+      "version": 2
+   },
+   "command": [
+      "python3",
+      "official/nlp/train.py",
+      "--tpu=$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)",
+      "--experiment=bert/sentence_prediction_text",
+      "--mode=train_and_eval",
+      "--model_dir=$(MODEL_DIR)",
+      "--params_override=\"runtime\":\n  \"distribution_strategy\": \"tpu\"\n\"task\":\n  \"init_checkpoint\": \"$(TF_NLP_BERT_DIR)/uncased_L-12_H-768_A-12/bert_model.ckpt\"\n  \"train_data\":\n    \"input_path\": \"\"\n    \"tfds_data_dir\": \"$(TFDS_DIR)\"\n    \"vocab_file\": \"$(TF_NLP_BERT_DIR)/uncased_L-12_H-768_A-12/vocab.txt\"\n  \"validation_data\":\n    \"input_path\": \"\"\n    \"tfds_data_dir\": \"$(TFDS_DIR)\"\n    \"vocab_file\": \"$(TF_NLP_BERT_DIR)/uncased_L-12_H-768_A-12/vocab.txt\"\n\"trainer\":\n  \"train_steps\": 2000\n  \"validation_interval\": 1000\n",
+      "--config_file=official/nlp/configs/experiments/glue_mnli_text.yaml"
+   ],
+   "configMaps": [
+      "gcs-buckets"
+   ],
+   "cpu": 1,
+   "entrypoint": null,
+   "frameworkPrefix": "tf.2.13.1",
+   "image": "gcr.io/xl-ml-test/tensorflow",
+   "imageTag": "r2.13.1",
+   "labels": {
+      "accelerator": "v2-8",
+      "benchmarkId": "tf.2.13.1-bert-glue.mnli-func-v2-8-1vm",
+      "frameworkVersion": "tf.2.13.1",
+      "mode": "func",
+      "model": "bert-glue.mnli"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [
+                  {
+                     "assertion": {
+                        "inclusive_bounds": true,
+                        "std_devs_from_mean": {
+                           "comparison": "GREATER",
+                           "std_devs": 4
+                        },
+                        "wait_for_n_data_points": 0
+                     },
+                     "strategy": "AVERAGE",
+                     "tag": "examples_per_second"
+                  }
+               ],
+               "exclude_tags": [ ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": false
+            }
+         }
+      ]
+   },
+   "mode": "func",
+   "modelName": "bert-glue.mnli",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 1 * * *",
+   "testName": "tf.2.13.1-bert-glue.mnli-func-v2-8-1vm",
+   "timeout": 3600,
+   "tpuSettings": {
+      "preemptible": true,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-vm-tf-2.12.0",
+      "tpuVmCreateSleepSeconds": 60,
+      "tpuVmDockerArgs": "",
+      "tpuVmEnvVars": {
+         "PYTHONPATH": "${PWD}"
+      },
+      "tpuVmStartupScript": "echo Running startup script"
+   },
+   "volumeMap": {
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      },
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}

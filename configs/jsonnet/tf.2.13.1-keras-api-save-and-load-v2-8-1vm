@@ -1,0 +1,91 @@
+{
+   "accelerator": {
+      "name": "v2-8",
+      "numCores": 8,
+      "replicas": 1,
+      "size": 8,
+      "type": "tpu",
+      "variant": "",
+      "version": 2
+   },
+   "command": [
+      "/bin/bash",
+      "-c",
+      "set -u\nset -e\nset -x\n\ncd ~\nexport PATH=$PATH:/root/google-cloud-sdk/bin\nexport PATH=$PATH:/home/xl-ml-test/.local/bin\nexport TPU_NAME=$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)\ngcloud source repos clone tf2-api-tests --project=xl-ml-test\ncd tf2-api-tests\npip3 install behave\nbehave -e ipynb_checkpoints --tags=-fails  -i save_and_load.feature\n\n"
+   ],
+   "configMaps": [
+      "gcs-buckets"
+   ],
+   "cpu": 1,
+   "entrypoint": null,
+   "frameworkPrefix": "tf.2.13.1",
+   "image": "gcr.io/xl-ml-test/tensorflow",
+   "imageTag": "r2.13.1",
+   "labels": {
+      "accelerator": "v2-8",
+      "benchmarkId": "tf.2.13.1-keras-api-save-and-load-v2-8-1vm",
+      "frameworkVersion": "tf.2.13.1",
+      "mode": "save-and-load",
+      "model": "keras-api"
+   },
+   "memory": "2Gi",
+   "metricConfig": {
+      "sources": [
+         {
+            "tensorboard": {
+               "aggregate_assertions": [ ],
+               "exclude_tags": [ ],
+               "include_tags": [
+                  {
+                     "strategies": [
+                        "FINAL"
+                     ],
+                     "tag_pattern": "*"
+                  }
+               ],
+               "merge_runs": false
+            }
+         }
+      ]
+   },
+   "mode": "save-and-load",
+   "modelName": "keras-api",
+   "outputBucket": "$(OUTPUT_BUCKET)",
+   "schedule": "0 1 * * *",
+   "testName": "tf.2.13.1-keras-api-save-and-load-v2-8-1vm",
+   "timeout": 7200,
+   "tpuSettings": {
+      "preemptible": true,
+      "requireTpuAvailableLabel": true,
+      "reserved": "false",
+      "softwareVersion": "tpu-vm-tf-2.12.0",
+      "tpuVmCreateSleepSeconds": 60,
+      "tpuVmDockerArgs": "",
+      "tpuVmEnvVars": {
+         "PYTHONPATH": "${PWD}"
+      },
+      "tpuVmStartupScript": "echo Running startup script"
+   },
+   "volumeMap": {
+      "dshm": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/dev/shm",
+         "name": "dshm",
+         "readOnly": false
+      },
+      "scripts": {
+         "claim": {
+            "emptyDir": {
+               "medium": "Memory"
+            }
+         },
+         "mountPath": "/scripts",
+         "name": "scripts",
+         "readOnly": false
+      }
+   }
+}
