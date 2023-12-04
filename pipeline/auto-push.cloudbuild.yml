@@ -3,8 +3,8 @@ steps:
   id: download-jsonnet
   entrypoint: 'go'
   args:
-  - 'install'
-  - 'github.com/google/go-jsonnet/cmd/jsonnet@latest'
+  - install
+  - github.com/google/go-jsonnet/cmd/jsonnet@latest
 - name: golang:alpine
   id: build-templates
   entrypoint: sh
