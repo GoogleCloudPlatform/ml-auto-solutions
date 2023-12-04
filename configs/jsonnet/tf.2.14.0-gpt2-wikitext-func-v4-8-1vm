@@ -64,7 +64,7 @@
    "mode": "func",
    "modelName": "gpt2-wikitext",
    "outputBucket": "$(OUTPUT_BUCKET)",
-   "schedule": "0 9 * * *",
+   "schedule": null,
    "script": {
       "initialSetup": "cd /tmp\ngit clone https://github.com/huggingface/transformers.git\ncd transformers\npip install .\npip install -r examples/tensorflow/_tests_requirements.txt\n"
    },
@@ -78,7 +78,8 @@
       "tpuVmCreateSleepSeconds": 90,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "PYTHONPATH": "${PWD}",
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

@@ -75,12 +75,14 @@
       "preemptible": false,
       "requireTpuAvailableLabel": true,
       "reserved": "false",
-      "softwareVersion": "v2-nightly-pod",
+      "softwareVersion": "v2-alpha-tpuv5-lite",
       "tpuVmCreateSleepSeconds": 60,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
          "PYTHONPATH": "${PWD}",
-         "TPU_LOAD_LIBRARY": "0"
+         "TF_USE_LEGACY_KERAS": 1,
+         "TPU_LOAD_LIBRARY": "0",
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

@@ -78,7 +78,8 @@
       "tpuVmCreateSleepSeconds": 60,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "PYTHONPATH": "${PWD}",
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

@@ -64,7 +64,7 @@
    "mode": "conv",
    "modelName": "dlrm-criteo",
    "outputBucket": "$(OUTPUT_BUCKET)",
-   "schedule": "0 5 * * 0,2,4",
+   "schedule": null,
    "testName": "tf.2.14.0-dlrm-criteo-conv-v100-x4",
    "timeout": 36000,
    "tpuSettings": {

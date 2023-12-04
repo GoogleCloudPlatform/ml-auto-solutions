@@ -9,28 +9,24 @@
       "version": 4
    },
    "command": [
-      "python3",
-      "official/vision/train.py",
-      "--tpu=$(KUBE_GOOGLE_CLOUD_TPU_ENDPOINTS)",
-      "--experiment=retinanet_resnetfpn_coco",
-      "--mode=train_and_eval",
-      "--model_dir=$(MODEL_DIR)",
-      "--params_override=\"runtime\":\n  \"distribution_strategy\": \"tpu\"\n\"task\":\n  \"annotation_file\": \"$(COCO_DIR)/instances_val2017.json\"\n  \"train_data\":\n    \"input_path\": \"$(COCO_DIR)/train*\"\n    \"tfds_data_dir\": \"$(TFDS_DIR)\"\n  \"validation_data\":\n    \"global_batch_size\": 8\n    \"input_path\": \"$(COCO_DIR)/val*\"\n    \"tfds_data_dir\": \"$(TFDS_DIR)\"\n\"trainer\":\n  \"train_steps\": 400\n  \"validation_interval\": 200\n  \"validation_steps\": 100\n"
+      "/bin/bash",
+      "-c",
+      "set -u\nset -e\nset -x\n\ncd /tmp\ngit clone https://github.com/huggingface/transformers.git\ncd transformers\npip install .\npip install -r examples/tensorflow/_tests_requirements.txt\n\ncd /tmp/transformers/examples/tensorflow/language-modeling\npip install -r requirements.txt\nmkdir /tmp/gpt2-wikitext\npython3 run_clm.py \\\n  --model_name_or_path distilgpt2 \\\n  --max_train_samples 1000 \\\n  --max_eval_samples 100 \\\n  --num_train_epochs 1 \\\n  --output_dir /tmp/gpt2-wikitext \\\n  --dataset_name wikitext \\\n  --dataset_config_name wikitext-103-raw-v1\n\n"
    ],
    "configMaps": [
       "gcs-buckets"
    ],
    "cpu": 1,
    "entrypoint": null,
-   "frameworkPrefix": "tf.2.13.1",
+   "frameworkPrefix": "tf.nightly",
    "image": "gcr.io/xl-ml-test/tensorflow",
-   "imageTag": "r2.13.1",
+   "imageTag": "nightly",
    "labels": {
       "accelerator": "v4-8",
-      "benchmarkId": "tf.2.13.1-retinanet-coco-func-v4-8-1vm",
-      "frameworkVersion": "tf.2.13.1",
+      "benchmarkId": "tf.nightly-gpt2-wikitext-func-v4-8-1vm",
+      "frameworkVersion": "tf.nightly",
       "mode": "func",
-      "model": "retinanet-coco"
+      "model": "gpt2-wikitext"
    },
    "memory": "2Gi",
    "metricConfig": {
@@ -66,20 +62,27 @@
       ]
    },
    "mode": "func",
-   "modelName": "retinanet-coco",
+   "modelName": "gpt2-wikitext",
    "outputBucket": "$(OUTPUT_BUCKET)",
-   "schedule": "0 1 * * *",
-   "testName": "tf.2.13.1-retinanet-coco-func-v4-8-1vm",
+   "schedule": "0 9 * * *",
+   "script": {
+      "initialSetup": "cd /tmp\ngit clone https://github.com/huggingface/transformers.git\ncd transformers\npip install .\npip install -r examples/tensorflow/_tests_requirements.txt\n"
+   },
+   "testName": "tf.nightly-gpt2-wikitext-func-v4-8-1vm",
    "timeout": 3600,
    "tpuSettings": {
       "preemptible": true,
       "requireTpuAvailableLabel": true,
       "reserved": "false",
-      "softwareVersion": "tpu-vm-tf-2.12.0",
+      "softwareVersion": "v2-alpha-tpuv5-lite",
       "tpuVmCreateSleepSeconds": 90,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "NEXT_PLUGGABLE_DEVICE_USE_C_API": "true",
+         "PYTHONPATH": "${PWD}",
+         "TF_PLUGGABLE_DEVICE_LIBRARY_PATH": "/lib/libtpu.so",
+         "TF_USE_LEGACY_KERAS": 1,
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

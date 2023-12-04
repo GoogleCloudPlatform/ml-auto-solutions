@@ -74,11 +74,13 @@
       "preemptible": true,
       "requireTpuAvailableLabel": true,
       "reserved": "false",
-      "softwareVersion": "v2-nightly",
+      "softwareVersion": "v2-alpha-tpuv5-lite",
       "tpuVmCreateSleepSeconds": 60,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "PYTHONPATH": "${PWD}",
+         "TF_USE_LEGACY_KERAS": 1,
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

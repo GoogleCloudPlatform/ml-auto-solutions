@@ -64,7 +64,7 @@
    "mode": "func",
    "modelName": "dlrm-criteo",
    "outputBucket": "$(OUTPUT_BUCKET)",
-   "schedule": "0 9 * * *",
+   "schedule": null,
    "testName": "tf.2.14.0-dlrm-criteo-func-v100-x4",
    "timeout": 3600,
    "tpuSettings": {

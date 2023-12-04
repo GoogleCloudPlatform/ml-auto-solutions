@@ -66,7 +66,7 @@
    "mode": "func",
    "modelName": "dlrm-criteo",
    "outputBucket": "$(OUTPUT_BUCKET)",
-   "schedule": "0 9 * * *",
+   "schedule": null,
    "testName": "tf.2.14.0-dlrm-criteo-func-v4-8-1vm",
    "timeout": 3600,
    "tpuSettings": {
@@ -77,7 +77,8 @@
       "tpuVmCreateSleepSeconds": 90,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "PYTHONPATH": "${PWD}",
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

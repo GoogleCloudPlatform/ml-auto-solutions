@@ -66,7 +66,7 @@
    "mode": "conv",
    "modelName": "dlrm-criteo",
    "outputBucket": "$(OUTPUT_BUCKET)",
-   "schedule": "0 5 * * 0,2,4",
+   "schedule": null,
    "testName": "tf.2.14.0-dlrm-criteo-conv-v2-32-1vm",
    "timeout": 36000,
    "tpuSettings": {
@@ -78,7 +78,8 @@
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
          "PYTHONPATH": "${PWD}",
-         "TPU_LOAD_LIBRARY": "0"
+         "TPU_LOAD_LIBRARY": "0",
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

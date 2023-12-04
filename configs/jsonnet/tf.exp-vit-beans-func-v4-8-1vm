@@ -78,7 +78,9 @@
       "tpuVmCreateSleepSeconds": 90,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "PYTHONPATH": "${PWD}",
+         "TF_USE_LEGACY_KERAS": 1,
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

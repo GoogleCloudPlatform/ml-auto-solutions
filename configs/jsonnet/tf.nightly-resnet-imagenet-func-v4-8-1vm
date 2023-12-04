@@ -75,11 +75,15 @@
       "preemptible": true,
       "requireTpuAvailableLabel": true,
       "reserved": "false",
-      "softwareVersion": "v2-nightly",
+      "softwareVersion": "v2-alpha-tpuv5-lite",
       "tpuVmCreateSleepSeconds": 90,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "NEXT_PLUGGABLE_DEVICE_USE_C_API": "true",
+         "PYTHONPATH": "${PWD}",
+         "TF_PLUGGABLE_DEVICE_LIBRARY_PATH": "/lib/libtpu.so",
+         "TF_USE_LEGACY_KERAS": 1,
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },

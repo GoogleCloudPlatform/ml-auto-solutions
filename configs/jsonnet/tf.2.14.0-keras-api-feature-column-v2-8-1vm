@@ -51,7 +51,7 @@
    "mode": "feature-column",
    "modelName": "keras-api",
    "outputBucket": "$(OUTPUT_BUCKET)",
-   "schedule": "0 9 * * *",
+   "schedule": null,
    "testName": "tf.2.14.0-keras-api-feature-column-v2-8-1vm",
    "timeout": 7200,
    "tpuSettings": {
@@ -62,7 +62,8 @@
       "tpuVmCreateSleepSeconds": 60,
       "tpuVmDockerArgs": "",
       "tpuVmEnvVars": {
-         "PYTHONPATH": "${PWD}"
+         "PYTHONPATH": "${PWD}",
+         "WRAPT_DISABLE_EXTENSIONS": "true"
       },
       "tpuVmStartupScript": "echo Running startup script"
    },
