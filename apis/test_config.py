@@ -79,7 +79,7 @@ class Tpu(Accelerator):
 
   version: str
   cores: int
-  runtime_version: str = vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value
+  runtime_version: Optional[str] = None
   network: str = 'default'
   subnetwork: str = 'default'
   reserved: bool = False
@@ -157,6 +157,17 @@ class TpuVmTest(TestConfig[Tpu]):
 
 @attrs.define
 class TpuGkeTest(TestConfig[Tpu]):
+  """Test config that runs on a single Cloud TPU VM instance.
+
+  Attributes:
+    test_name: Unique name for this test/model.
+    cluster_name: Name of the cluster that has provisioned TPUs.
+    cluster_config: Config of the cluster.
+    docker_image: Image of the docker to run.
+    set_up_cmds: List of commands to run once when TPU is created.
+    run_model_cmds: List of commands to run the model under test.
+  """
+
   test_name: str
   cluster_name: str
   cluster_config: str

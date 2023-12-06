@@ -26,7 +26,7 @@ def get_flax_resnet_gke_config(
     cluster_config: str,
     docker_image: str,
     time_out_in_min: int,
-) -> task.TpuGkeTask:
+) -> task.TpuXpkTask:
   # TODO(ranran): update the project once quota is approved (b/311073979).
   job_gcp_config = gcp_config.GCPConfig(
       project_name="tpu-prod-env-one-vm",
@@ -55,7 +55,7 @@ def get_flax_resnet_gke_config(
       task_owner=test_owner.RAN_R,
   )
 
-  return task.TpuGkeTask(
+  return task.TpuXpkTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

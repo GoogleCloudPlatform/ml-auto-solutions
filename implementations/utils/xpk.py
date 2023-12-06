@@ -18,7 +18,7 @@ import uuid
 from absl import logging
 from airflow.decorators import task
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from kubernetes import client, config
+from kubernetes import client as kubernetes_client, config as kubernetes_config
 
 
 @task
@@ -81,10 +81,10 @@ def wait_for_workload_completion(workload_id: str, cluster_config: str) -> bool:
   """Check the workload status."""
 
   # Load the config for the cluster with TPUs in the pool
-  config.load_kube_config(
+  kubernetes_config.load_kube_config(
       config_file=f"/home/airflow/gcs/dags/configs/cluster/{cluster_config}"
   )
-  core_api = client.CoreV1Api()
+  core_api = kubernetes_client.CoreV1Api()
 
   logging.info(f"workload_id: {workload_id}")
   pods = core_api.list_namespaced_pod(

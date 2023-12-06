@@ -41,8 +41,8 @@ class BaseTask(abc.ABC):
 
 
 @dataclasses.dataclass
-class TpuGceTask(BaseTask):
-  """This is a class to set up tasks for TPU in GCE.
+class TpuQueuedResourceTask(BaseTask):
+  """This is a class to set up tasks for TPU provisioned by Queued Resource.
 
   Attributes:
     task_test_config: Test configs to run on this TPU.
@@ -190,8 +190,8 @@ class TpuGceTask(BaseTask):
 
 
 @dataclasses.dataclass
-class TpuGkeTask(BaseTask):
-  """This is a class to set up tasks for TPU in GKE.
+class TpuXpkTask(BaseTask):
+  """This is a class to set up tasks for TPU provisioned by XPK tool.
 
   Attributes:
     task_test_config: Test configs to run on this TPU.

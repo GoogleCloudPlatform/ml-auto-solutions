@@ -39,13 +39,13 @@ with models.DAG(
     start_date=datetime.datetime(2023, 7, 12),
     catchup=False,
 ):
-  compilation_cache = task.TpuGceTask(
+  compilation_cache = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_jax(
           "jax-compilation-cache-test-func-v2-8-1vm"
       ),
       US_CENTRAL1_C,
   ).run()
-  pod = task.TpuGceTask(
+  pod = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_jax(
           "jax-pod-latest-tpu-ubuntu2204-base-func-v2-32-1vm"
       ),

@@ -31,9 +31,9 @@ _MODELS = [
 SCHEDULED_TIME = "0 17 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
-    dag_id="pytorch_nightly_torchbench",
-    schedule=None,
-    tags=["pytorch", "nightly", "torchbench", "benchmark"],
+    dag_id="pytorchxla-torchbench",
+    schedule=SCHEDULED_TIME,
+    tags=["pytorchxla", "nightly", "torchbench"],
     start_date=datetime.datetime(2023, 8, 29),
     catchup=False,
 ) as dag:
