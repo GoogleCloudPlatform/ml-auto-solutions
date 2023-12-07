@@ -34,10 +34,11 @@ class RuntimeVersion(enum.Enum):
   TPU_VM_V4_BASE = "tpu-vm-v4-base"
 
 
-# TODO(ranran): update the cluster name once quota is approved (b/311073979).
 class ClusterName(enum.Enum):
-  V4_CLUSTER = ""
-  V5E_CLUSTER = "ran-xpk-test-zone"
+  V4_8_CLUSTER = "mas-v4-8"
+  V4_32_CLUSTER = "mas-v4-32"
+  V5E_4_CLUSTER = "mas-v5e-4"
+  V5E_16_CLUSTER = "mas-v5e-16"
 
 
 # TODO(ranran): update the cluster name once quota is approved (b/311073979).

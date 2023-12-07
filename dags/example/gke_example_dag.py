@@ -32,10 +32,10 @@ with models.DAG(
     catchup=False,
 ) as dag:
   jax_resnet_tpu_example = config.get_flax_resnet_gke_config(
-      tpu_version="5litepod",
-      tpu_cores=16,
-      tpu_zone="us-west4-a",
-      cluster_name=vm_resource.ClusterName.V5E_CLUSTER.value,
+      tpu_version="4",
+      tpu_cores=8,
+      tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
+      cluster_name=vm_resource.ClusterName.V4_8_CLUSTER.value,
       cluster_config=vm_resource.ClusterConfig.V5E_CONFIG.value,
       docker_image=vm_resource.DockerImage.DEMO_TEST.value,
       time_out_in_min=60,
