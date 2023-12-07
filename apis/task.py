@@ -234,9 +234,10 @@ class TpuXpkTask(BaseTask):
           accelerator_type=self.task_test_config.accelerator.name,
           run_cmds=self.task_test_config.run_model_cmds,
           task_owner=self.task_test_config.task_owner,
+          num_slices=self.task_test_config.num_slices,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
-          timeout=self.task_test_config.time_out_in_min * 60
+          timeout=self.task_test_config.time_out_in_min * 60,
       )(
           workload_id=workload_id,
           project_id=self.task_gcp_config.project_name,

@@ -21,10 +21,11 @@ from absl import logging
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from configs import vm_resource
 import google.auth
 import google.auth.transport.requests
 from google.cloud import container_v1
-from kubernetes import client as k8s_client, config as k8s_config
+from kubernetes import client as k8s_client
 
 
 @task
@@ -80,50 +81,6 @@ def run_workload(
       kubernetes_conn_id="kubernetes_default",
       owner=task_owner,
   )
-
-
-# @task.docker(image="python:3.10")
-# def run_workload(
-#     task_id: str,
-#     project_id: str,
-#     zone: str,
-#     cluster_name: str,
-#     benchmark_id: str,
-#     workload_id: str,
-#     docker_image: str,
-#     accelerator_type: str,
-#     run_cmds: str,
-#     task_owner: str,
-#     num_slices: int = 1,
-# ) -> None:
-
-#   cmds = (
-#       "set -x",
-#       f"gcloud config set project {project_id}",
-#       f"gcloud config set compute/zone {zone}",
-#       "git clone https://github.com/google/xpk.git /tmp/xpk",
-#       "cd /tmp/xpk",
-#       (
-#           "python3 xpk.py workload create"
-#           f" --cluster={cluster_name} --workload={workload_id} --command='{run_cmds}'"
-#           f" --tpu-type={accelerator_type} --num-slices={num_slices} --docker-image={docker_image}"
-#       ),
-#   )
-
-#   hook = SubprocessHook()
-
-
-# return KubernetesPodOperator(
-#     task_id=task_id,
-#     name=benchmark_id,
-#     cmds=["/bin/bash", "-c"],
-#     arguments=[";".join(cmds)],
-#     namespace="composer-user-workloads",
-#     image=docker_image,
-#     config_file="/home/airflow/composer_kube_config",
-#     kubernetes_conn_id="kubernetes_default",
-#     owner=task_owner,
-# )
 
 
 @task.sensor(poke_interval=60, timeout=600, mode="reschedule")

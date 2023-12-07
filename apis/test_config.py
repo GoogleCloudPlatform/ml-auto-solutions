@@ -165,6 +165,7 @@ class TpuGkeTest(TestConfig[Tpu]):
     docker_image: Image of the docker to run.
     set_up_cmds: List of commands to run once when TPU is created.
     run_model_cmds: List of commands to run the model under test.
+    num_slices: The number of slices.
   """
 
   test_name: str
@@ -172,6 +173,7 @@ class TpuGkeTest(TestConfig[Tpu]):
   docker_image: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
+  num_slices: int = attrs.field(default=1, kw_only=True)
 
   @property
   def benchmark_id(self) -> str:
