@@ -17,13 +17,13 @@
 import datetime
 from airflow import models
 from configs import vm_resource
-from configs.example import gke_example_config as config
+from configs.example import xpk_example_config as config
 
 
 # TODO(ranran): add following examples:
-# 1) jax_resnet_tpu_example (gce example dag)
-# 2) jax_vit_tpu_benchmark_example (gce example dag)
-# 3) jax_vit_tpu_benchmark_example (same dag)
+# 1) jax_resnet_tpu_qr (diff dag)
+# 2) jax_vit_tpu_qr_benchmark (diff dag)
+# 3) jax_vit_tpu_xpk_benchmark (same dag)
 with models.DAG(
     dag_id="gke_example_dag",
     schedule=None,
@@ -31,15 +31,11 @@ with models.DAG(
     start_date=datetime.datetime(2023, 11, 29),
     catchup=False,
 ) as dag:
-  jax_resnet_tpu_example = config.get_flax_resnet_gke_config(
+  jax_resnet_tpu_xpk = config.get_flax_resnet_xpk_config(
       tpu_version="4",
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       cluster_name=vm_resource.ClusterName.V4_8_CLUSTER.value,
-      cluster_config=vm_resource.ClusterConfig.V5E_CONFIG.value,
-      docker_image=vm_resource.DockerImage.DEMO_TEST.value,
+      docker_image=vm_resource.DockerImage.XPK_JAX_TEST.value,
       time_out_in_min=60,
   ).run()
-
-  # Test dependencies
-  jax_resnet_tpu_example

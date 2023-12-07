@@ -15,21 +15,19 @@
 """Utilities to construct configs for example_dag."""
 
 from apis import gcp_config, metric_config, task, test_config
-from configs import test_owner
+from configs import test_owner, vm_resource
 
 
-def get_flax_resnet_gke_config(
+def get_flax_resnet_xpk_config(
     tpu_version: str,
     tpu_cores: int,
     tpu_zone: str,
     cluster_name: str,
-    cluster_config: str,
     docker_image: str,
     time_out_in_min: int,
 ) -> task.TpuXpkTask:
-  # TODO(ranran): update the project once quota is approved (b/311073979).
   job_gcp_config = gcp_config.GCPConfig(
-      project_name="tpu-prod-env-one-vm",
+      project_name=vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
@@ -45,9 +43,8 @@ def get_flax_resnet_gke_config(
           version=tpu_version,
           cores=tpu_cores,
       ),
-      test_name="flax-resnet-gke",
+      test_name="flax-resnet-xpk-example",
       cluster_name=cluster_name,
-      cluster_config=cluster_config,
       docker_image=docker_image,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,

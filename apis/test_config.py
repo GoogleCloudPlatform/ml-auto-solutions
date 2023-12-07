@@ -162,7 +162,6 @@ class TpuGkeTest(TestConfig[Tpu]):
   Attributes:
     test_name: Unique name for this test/model.
     cluster_name: Name of the cluster that has provisioned TPUs.
-    cluster_config: Config of the cluster.
     docker_image: Image of the docker to run.
     set_up_cmds: List of commands to run once when TPU is created.
     run_model_cmds: List of commands to run the model under test.
@@ -170,7 +169,6 @@ class TpuGkeTest(TestConfig[Tpu]):
 
   test_name: str
   cluster_name: str
-  cluster_config: str
   docker_image: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]

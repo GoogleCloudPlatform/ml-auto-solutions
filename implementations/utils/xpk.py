@@ -14,11 +14,17 @@
 
 """Utilities to run workloads with xpk (https://github.com/google/xpk)."""
 
+import base64
+from tempfile import NamedTemporaryFile
 import uuid
 from absl import logging
 from airflow.decorators import task
+from airflow.hooks.subprocess import SubprocessHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from kubernetes import client as kubernetes_client, config as kubernetes_config
+import google.auth
+import google.auth.transport.requests
+from google.cloud import container_v1
+from kubernetes import client as k8s_client, config as k8s_config
 
 
 @task
@@ -54,12 +60,12 @@ def run_workload(
       "set -x",
       f"gcloud config set project {project_id}",
       f"gcloud config set compute/zone {zone}",
-      "git clone -b xpk-namespace https://github.com/google/xpk.git /tmp/xpk",
+      "git clone https://github.com/google/xpk.git /tmp/xpk",
       "cd /tmp/xpk",
       (
           "python3 xpk.py workload create"
           f" --cluster={cluster_name} --workload={workload_id} --command='{run_cmds}'"
-          f" --tpu-type={accelerator_type} --num-slices={num_slices} --docker-image={docker_image} --namespace=default"
+          f" --tpu-type={accelerator_type} --num-slices={num_slices} --docker-image={docker_image}"
       ),
   )
 
@@ -76,24 +82,88 @@ def run_workload(
   )
 
 
+# @task.docker(image="python:3.10")
+# def run_workload(
+#     task_id: str,
+#     project_id: str,
+#     zone: str,
+#     cluster_name: str,
+#     benchmark_id: str,
+#     workload_id: str,
+#     docker_image: str,
+#     accelerator_type: str,
+#     run_cmds: str,
+#     task_owner: str,
+#     num_slices: int = 1,
+# ) -> None:
+
+#   cmds = (
+#       "set -x",
+#       f"gcloud config set project {project_id}",
+#       f"gcloud config set compute/zone {zone}",
+#       "git clone https://github.com/google/xpk.git /tmp/xpk",
+#       "cd /tmp/xpk",
+#       (
+#           "python3 xpk.py workload create"
+#           f" --cluster={cluster_name} --workload={workload_id} --command='{run_cmds}'"
+#           f" --tpu-type={accelerator_type} --num-slices={num_slices} --docker-image={docker_image}"
+#       ),
+#   )
+
+#   hook = SubprocessHook()
+
+
+# return KubernetesPodOperator(
+#     task_id=task_id,
+#     name=benchmark_id,
+#     cmds=["/bin/bash", "-c"],
+#     arguments=[";".join(cmds)],
+#     namespace="composer-user-workloads",
+#     image=docker_image,
+#     config_file="/home/airflow/composer_kube_config",
+#     kubernetes_conn_id="kubernetes_default",
+#     owner=task_owner,
+# )
+
+
 @task.sensor(poke_interval=60, timeout=600, mode="reschedule")
-def wait_for_workload_completion(workload_id: str, cluster_config: str) -> bool:
+def wait_for_workload_completion(
+    workload_id: str, project_id: str, region: str, cluster_name: str
+) -> bool:
   """Check the workload status."""
 
-  # Load the config for the cluster with TPUs in the pool
-  kubernetes_config.load_kube_config(
-      config_file=f"/home/airflow/gcs/dags/configs/cluster/{cluster_config}"
+  # Get cluster configuration
+  container_client = container_v1.ClusterManagerClient()
+  cluster_path = (
+      f"projects/{project_id}/locations/{region}/clusters/{cluster_name}"
   )
-  core_api = kubernetes_client.CoreV1Api()
+  response = container_client.get_cluster(name=cluster_path)
+  creds, _ = google.auth.default()
+  auth_req = google.auth.transport.requests.Request()
+  creds.refresh(auth_req)
+  configuration = k8s_client.Configuration()
+  configuration.host = f"https://{response.endpoint}"
+  with NamedTemporaryFile(delete=False) as ca_cert:
+    ca_cert.write(base64.b64decode(response.master_auth.cluster_ca_certificate))
+  configuration.ssl_ca_cert = ca_cert.name
+  configuration.api_key_prefix["authorization"] = "Bearer"
+  configuration.api_key["authorization"] = creds.token
 
-  logging.info(f"workload_id: {workload_id}")
+  # Initilize the client
+  core_api = k8s_client.CoreV1Api(k8s_client.ApiClient(configuration))
+  logging.info("Successful initilize k8s client from cluster response.")
+
+  # Get pods for the workload
+  logging.info(f"Getting pods for workload_id: {workload_id}")
   pods = core_api.list_namespaced_pod(
       label_selector=f"jobset.sigs.k8s.io/jobset-name={workload_id}",
       namespace="default",
   )
 
+  # Check status of pods
   if not pods.items:
     RuntimeError(f"No pod is found for workload selector: {pods}.")
+  print(f"pods: {pods}")
 
   for pod in pods.items:
     if pod.status.phase in ["Pending", "Running"]:

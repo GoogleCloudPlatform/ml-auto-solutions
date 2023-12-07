@@ -239,7 +239,9 @@ class TpuXpkTask(BaseTask):
           timeout=self.task_test_config.time_out_in_min * 60
       )(
           workload_id=workload_id,
-          cluster_config=self.task_test_config.cluster_config,
+          project_id=self.task_gcp_config.project_name,
+          region=self.task_gcp_config.zone[:-2],
+          cluster_name=self.task_test_config.cluster_name,
       )
 
       workload_id >> run_workload >> wait_for_workload_completion

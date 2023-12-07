@@ -41,12 +41,5 @@ class ClusterName(enum.Enum):
   V5E_16_CLUSTER = "mas-v5e-16"
 
 
-# TODO(ranran): update the cluster name once quota is approved (b/311073979).
-class ClusterConfig(enum.Enum):
-  V4_CONFIG = "v4_cluster_config"
-  V5E_CONFIG = "v5e_cluster_config"
-
-
-# TODO(ranran): update the project once quota is approved (b/311073979).
 class DockerImage(enum.Enum):
-  DEMO_TEST = "gcr.io/tpu-prod-env-one-vm/xpk_jax_test:latest"
+  XPK_JAX_TEST = "gcr.io/cloud-ml-auto-solutions/xpk_jax_test:latest"
