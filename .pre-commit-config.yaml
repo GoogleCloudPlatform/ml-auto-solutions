@@ -3,5 +3,7 @@ repos:
     rev: 23.3.0
     hooks:
       - id: pyink
-        args: [--pyink-indentation 2, --pyink-use-majority-quotes]
+        name: Format Codes
+        args: [--pyink-indentation=2, --pyink-use-majority-quotes]
         language_version: python3.8
+        verbose: true
