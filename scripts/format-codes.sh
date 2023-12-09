@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Format Python codes using Pyformat
+# Format Python codes using Pyink
 
 set -e
 
@@ -20,7 +20,7 @@ FOLDERS_TO_CHECK=("apis" "configs" "dags" "implementations")
 
 for folder in "${FOLDERS_TO_UPLOAD[@]}"
 do
-  pyink "$folder" --pyink-indentation 2 --pyink-use-majority-quotes
+  pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes
 done
 
 echo "Successfully format codes."

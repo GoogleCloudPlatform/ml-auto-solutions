@@ -281,15 +281,13 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
         with mock.patch.object(
             composer, "get_airflow_url", return_value="http://airflow"
         ) as mock_object:
-          raw_meta = [
-              [
-                  bigquery.MetadataHistoryRow(
-                      job_uuid=uuid,
-                      metadata_key="framework",
-                      metadata_value="jax",
-                  )
-              ]
-          ]
+          raw_meta = [[
+              bigquery.MetadataHistoryRow(
+                  job_uuid=uuid,
+                  metadata_key="framework",
+                  metadata_value="jax",
+              )
+          ]]
           actual_value = metric.add_airflow_metadata(
               base_id,
               "test_project",
