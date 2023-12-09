@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from configs import composer_env, gcs_bucket, vm_resource
-from configs.xlml.jax import solutionsTeam_pax_latest_supported_config as pax_config
+from configs.xlml.pax import solutionsteam_pax_supported_config as pax_config
 
 
 # Run once a day at 10 am UTC (2 am PST)
@@ -31,24 +31,27 @@ with models.DAG(
     start_date=datetime.datetime(2023, 11, 8),
     catchup=False,
 ) as dag:
+  log_dir_prefix = f"{gcs_bucket.XLML_OUTPUT_DIR}/pax/stable"
+
   # Language model with SPMD
-  pax_lmspmd2b_v4_8 = pax_config.get_pax_lm_config(
+  lmspmd2b_exp_path = "tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps"
+  pax_stable_lmspmd2b_v4_8 = pax_config.get_pax_lm_config(
       tpu_version="4",
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      log_dir=f"{gcs_bucket.XLML_OUTPUT_DIR}/pax/lmspmd2b/v4-8",
-      exp_path="tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps",
+      log_dir=f"{log_dir_prefix}/lmspmd2b/v4-8",
+      exp_path=lmspmd2b_exp_path,
       model_name="lmspmd2b",
   ).run()
 
-  pax_lmspmd2b_ckpt_v4_8 = pax_config.get_pax_lm_config(
+  pax_stable_lmspmd2b_ckpt_v4_8 = pax_config.get_pax_lm_config(
       tpu_version="4",
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      log_dir=f"{gcs_bucket.XLML_OUTPUT_DIR}/pax/lmspmd2b_ckpt/v4-8",
-      exp_path="tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps",
+      log_dir=f"{log_dir_prefix}/lmspmd2b_ckpt/v4-8",
+      exp_path=lmspmd2b_exp_path,
       model_name="lmspmd2b_ckpt",
       ckp_path=f"{gcs_bucket.PAX_DIR}/lmcloudspmd2B/pax-nightly-lmspmd2b-func-v4-8-1vm-run1/*",
   ).run()
@@ -58,18 +61,17 @@ with models.DAG(
       "--jax_fully_async_checkpoint=False",
       "--pmap_use_tensorstore=True",
   ]
-  pax_lmtransformeradam_v4_8 = pax_config.get_pax_lm_config(
+  pax_stable_lmtransformeradam_v4_8 = pax_config.get_pax_lm_config(
       tpu_version="4",
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      log_dir=f"{gcs_bucket.XLML_OUTPUT_DIR}/pax/lmtransformeradam/v4-8",
+      log_dir=f"{log_dir_prefix}/lmtransformeradam/v4-8",
       exp_path="tasks.lm.params.lm_cloud.LmCloudTransformerAdamLimitSteps",
       model_name="lmtransformeradam",
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
   ).run()
 
   # Test dependencies
-  pax_lmspmd2b_v4_8
-  pax_lmspmd2b_ckpt_v4_8
-  pax_lmtransformeradam_v4_8
+  pax_stable_lmspmd2b_v4_8 >> pax_stable_lmspmd2b_ckpt_v4_8
+  pax_stable_lmtransformeradam_v4_8

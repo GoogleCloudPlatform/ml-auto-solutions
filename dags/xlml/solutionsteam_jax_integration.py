@@ -33,21 +33,29 @@ US_CENTRAL1_C = gcp_config.GCPConfig(
 
 
 with models.DAG(
-    dag_id="jax_latest_integration",
+    dag_id="jax_integration",
     schedule=SCHEDULED_TIME,
-    tags=["solutions_team", "jax", "latest", "integration", "xlml"],
+    tags=["solutions_team", "jax", "integration", "xlml"],
     start_date=datetime.datetime(2023, 7, 12),
     catchup=False,
 ):
-  compilation_cache = task.TpuTask(
+  compilation_cache = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_jax(
           "jax-compilation-cache-test-func-v2-8-1vm"
       ),
       US_CENTRAL1_C,
   ).run()
-  pod = task.TpuTask(
+
+  pod_latest = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_jax(
           "jax-pod-latest-tpu-ubuntu2204-base-func-v2-32-1vm"
+      ),
+      US_CENTRAL1_A,
+  ).run()
+
+  pod_head = task.TpuQueuedResourceTask(
+      test_config.JSonnetTpuVmTest.from_jax(
+          "jax-pod-head-tpu-ubuntu2204-base-func-v2-32-1vm"
       ),
       US_CENTRAL1_A,
   ).run()
