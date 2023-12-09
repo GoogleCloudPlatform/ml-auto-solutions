@@ -61,7 +61,6 @@ class Accelerator(abc.ABC):
     raise NotImplementedError
 
 
-# TODO(wcromar): GPU implementation
 @attrs.define
 class Tpu(Accelerator):
   """Represents a single Cloud TPU instance.
@@ -87,6 +86,31 @@ class Tpu(Accelerator):
   def name(self):
     """Name of this TPU type in the Cloud TPU API (e.g. 'v4-8')."""
     return f'v{self.version}-{self.cores}'
+
+
+# We may want to use GKE in the future.
+@attrs.define
+class Gpu(Accelerator):
+  """Represents a single Cloud GPU instance.
+
+  Attributes:
+    machine_type: The host type of the GPU. E.g., `a2-highgpu-1g`.
+    image_family: Family of the image.
+    count: number of the GPU devices.
+    accelerator_type: Type of the accelerator. E.g., `nvidia-test-v100`.
+    runtime_version: Runtime image version.
+  """
+
+  machine_type: str
+  image_family: str
+  count: str
+  accelerator_type: str
+  runtime_version: str
+
+  @property
+  def name(self):
+    """Name of this GPU type in the Cloud GPU API (e.g. 'a2-highgpu-1g')."""
+    return self.accelerator_type
 
 
 A = TypeVar('A', bound=Accelerator)
@@ -134,6 +158,33 @@ class TpuVmTest(TestConfig[Tpu]):
   Attributes:
     test_name: Unique name for this test/model.
     set_up_cmds: List of commands to run once when TPU is created.
+    run_model_cmds: List of commands to run the model under test.
+  """
+
+  test_name: str
+  set_up_cmds: Iterable[str]
+  run_model_cmds: Iterable[str]
+
+  @property
+  def benchmark_id(self) -> str:
+    return f'{self.test_name}-{self.accelerator.name}'
+
+  @property
+  def setup_script(self) -> Optional[str]:
+    return '\n'.join(self.set_up_cmds)
+
+  @property
+  def test_script(self) -> str:
+    return '\n'.join(self.run_model_cmds)
+
+
+@attrs.define
+class GpuVmTest(TestConfig[Gpu]):
+  """Test config that runs on a single Cloud GPU VM instance.
+
+  Attributes:
+    test_name: Unique name for this test/model.
+    set_up_cmds: List of commands to run once when GPU is created.
     run_model_cmds: List of commands to run the model under test.
   """
 
@@ -228,8 +279,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     return JSonnetTpuVmTest._from_json_helper(
         test,
         setup=test['tpuSettings']['tpuVmPytorchSetup']
-        # HACK: Extra setup assumes a new shell in home directory
-        + '\ncd ~\n' + test['tpuSettings']['tpuVmExtraSetup'],
+        + test['tpuSettings']['tpuVmExtraSetup'],
         exports=test['tpuSettings']['tpuVmExports'],
         test_command=test['command'],
         reserved=reserved_tpu,

@@ -21,7 +21,7 @@ from configs import gcs_bucket, test_owner, vm_resource
 
 # TODO(ranran or PyTroch/XLA team): this is an example for benchmark test with hardcode compatible versions,
 # we need to dynamically generate date on daily basis.
-def set_up_torchbench(model_name: str = "") -> Tuple[str]:
+def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
   """Common set up for TorchBench."""
   return (
       "pip install -U setuptools",
@@ -30,40 +30,28 @@ def set_up_torchbench(model_name: str = "") -> Tuple[str]:
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",
       "sudo apt-get install libgl1 -y",
+      "sudo chmod 777 /usr/local/lib/python3.10/dist-packages/",
+      "sudo chmod 777 /usr/local/bin/",
       "pip install numpy pandas",
       (
-          "pip install --user --pre torch torchvision --index-url"
+          "pip install --user --pre torchvision torchaudio torchtext -i"
           " https://download.pytorch.org/whl/nightly/cpu"
       ),
       (
           "pip install --user 'torch_xla[tpuvm] @"
           " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl'"
       ),
-      (
-          "pip install --pre torchtext==0.17.0.dev20231025+cpu --index-url "
-          " https://download.pytorch.org/whl/nightly/cpu --no-dependencies"
-      ),
-      (
-          "pip install --pre torchaudio==2.2.0.dev20231118+cpu --index-url"
-          " https://download.pytorch.org/whl/nightly/cpu --no-dependencies"
-      ),
-      "pip install Pillow --no-dependencies",
-      "sudo chmod 777 /usr/local/lib/python3.10/dist-packages/",
-      "sudo chmod 777 /usr/local/bin/",
-      "pip install torchdata --no-dependencies",
-      "pip install tqdm --no-dependencies",
       "pip install psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
-      "cd; git clone https://github.com/zpcore/xla.git",
-      "cd ~/xla && git checkout benchmark",
+      f"cd benchmark && python install.py models {model_name}",
+      "cd; git clone https://github.com/pytorch/xla.git",
   )
 
 
 # TODO(ranran or PyTroch/XLA team) & notes:
 # 1) If you want to run all models, do not pass in model_name
 # 2) All filters of benchmark can be passed via extraFlags
-# 3) Update test owner to PyTroch/XLA team
-def get_torchbench_config(
+def get_torchbench_tpu_config(
     tpu_version: int,
     tpu_cores: int,
     tpu_zone: str,
@@ -77,11 +65,9 @@ def get_torchbench_config(
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
-  set_up_cmds = set_up_torchbench(model_name)
+  set_up_cmds = set_up_torchbench_tpu(model_name)
   local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = (
-      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report.jsonl"
-  )
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_tpu.jsonl"
 
   run_script_cmds = (
       (
@@ -89,7 +75,7 @@ def get_torchbench_config(
           " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar"
           f" {extraFlags}"
       ),
-      "python ~/xla/benchmarks/result_analyzer.py",
+      "python ~/xla/benchmarks/result_analyzer.py --output-format=jsonl",
       f"gsutil cp {local_output_location} {gcs_location}",
   )
 
@@ -115,6 +101,134 @@ def get_torchbench_config(
   )
 
   return task.TpuTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+      task_metric_config=job_metric_config,
+  )
+
+
+# Below is the setup for torchbench GPU run.
+def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
+  """Common set up for TorchBench."""
+  # TODO(piz): There is issue with driver install through fabric.
+  # Currently we use pre-installed driver to avoid driver reinstall.
+  nvidia_install_clean = (
+      "sudo /usr/bin/nvidia-uninstall",
+      (
+          'sudo apt-get -y --purge remove "*cuda*" "*cublas*" "*cufft*"'
+          ' "*cufile*" "*curand*" "*cusolver*" "*cusparse*" "*gds-tools*"'
+          ' "*npp*" "*nvjpeg*" "nsight*" "*nvvm*"'
+      ),
+      'sudo apt-get -y --purge remove "*nvidia*" "libxnvctrl*"',
+      "sudo apt-get -y autoremove",
+      "sudo rm -rf /usr/local/cuda*",
+  )
+  nvidia_driver_install = (
+      (
+          "lsof -n -w /dev/nvidia* | awk '{print $2}' | sort -u | xargs -I {}"
+          " kill {}"
+      ),
+      (
+          "wget -q"
+          " https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
+      ),
+      (
+          "sudo service lightdm stop ; sudo sh cuda_12.1.0_530.30.02_linux.run"
+          " --silent --driver --toolkit --no-drm --override"
+      ),
+      "cat /var/log/nvidia-installer.log",
+  )
+  docker_cmds = (
+      " apt-get update && apt-get install -y libgl1 &&"
+      " pip install numpy pandas &&"
+      " pip install --pre torchvision torchaudio -i"
+      " https://download.pytorch.org/whl/nightly/cu121 &&"
+      " cd /tmp/ && git clone https://github.com/pytorch/benchmark.git &&"
+      f" cd benchmark && python install.py models {model_name} &&"
+      " cd /tmp/ && git clone https://github.com/pytorch/xla.git"
+  )
+  return (
+      "sudo apt-get install -y nvidia-container-toolkit",
+      (
+          "sudo docker pull"
+          " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
+      ),
+      (
+          "sudo docker run --gpus all -it -d"
+          " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
+      ),
+      (
+          "sudo docker exec -i $(sudo docker ps | awk 'NR==2 { print $1 }')"
+          f" /bin/bash -c '{docker_cmds}'"
+      ),
+  )
+
+
+def get_torchbench_gpu_config(
+    machine_type: str,
+    image_project: str,
+    image_family: str,
+    accelerator_type: str,
+    count: int,
+    gpu_zone: str,
+    time_out_in_min: int,
+    model_name: str = "",
+    extraFlags: str = "",
+) -> task.GpuTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
+      zone=gpu_zone,
+      dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
+  )
+
+  set_up_cmds = set_up_torchbench_gpu(model_name)
+  local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_gpu.jsonl"
+
+  cmds = (
+      f" export PJRT_DEVICE=CUDA && export GPU_NUM_DEVICES={count} &&"
+      " cd /tmp/xla/benchmarks &&"
+      " python experiment_runner.py  --suite-name=torchbench --accelerator=cuda"
+      f" --progress-bar --xla=PJRT --xla=None --filter={model_name} &&"
+      " python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl"
+  )
+  run_script_cmds = (
+      (
+          "sudo docker exec -i $(sudo docker ps | awk 'NR==2 { print $1 }')"
+          f" /bin/bash -c '{cmds}'"
+      ),
+      (
+          "sudo docker cp $(sudo docker ps | awk 'NR==2 { print $1 }')"
+          f":{local_output_location} ./"
+      ),
+      f"gsutil cp metric_report.jsonl {gcs_location}",
+  )
+
+  test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
+  job_test_config = test_config.GpuVmTest(
+      test_config.Gpu(
+          machine_type=machine_type,
+          image_family=image_family,
+          count=str(count),
+          accelerator_type=accelerator_type,
+          runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+      ),
+      test_name=test_name,
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_script_cmds,
+      time_out_in_min=time_out_in_min,
+      task_owner=test_owner.PEI_Z,
+  )
+
+  job_metric_config = metric_config.MetricConfig(
+      json_lines=metric_config.JSONLinesConfig(
+          file_location=gcs_location,
+      )
+  )
+
+  return task.GpuTask(
+      image_project,
+      image_family,
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,

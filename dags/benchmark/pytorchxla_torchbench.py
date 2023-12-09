@@ -39,10 +39,24 @@ with models.DAG(
 ) as dag:
   for model in _MODELS:
     torchbench_extra_flags = [f"--filter={model}"]
-    config.get_torchbench_config(
+    # Running on TPU:
+    config.get_torchbench_tpu_config(
         tpu_version=4,
         tpu_cores=8,
         tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
+        model_name=model,
+        time_out_in_min=60,
+        extraFlags=" ".join(torchbench_extra_flags),
+    ).run()
+
+    # Running on GPU
+    config.get_torchbench_gpu_config(
+        machine_type="n1-standard-32",
+        image_project="deeplearning-platform-release",
+        image_family="common-cu121-debian-11 ",
+        accelerator_type="nvidia-tesla-v100",
+        count=4,
+        gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
         model_name=model,
         time_out_in_min=60,
         extraFlags=" ".join(torchbench_extra_flags),
