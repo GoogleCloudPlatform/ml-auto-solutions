@@ -16,9 +16,9 @@
 
 set -e
 
-FOLDERS_TO_CHECK=("apis" "configs" "dags" "implementations")
+FOLDERS_TO_FORMAT=("apis" "configs" "dags" "implementations")
 
-for folder in "${FOLDERS_TO_UPLOAD[@]}"
+for folder in "${FOLDERS_TO_FORMAT[@]}"
 do
   pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes
 done

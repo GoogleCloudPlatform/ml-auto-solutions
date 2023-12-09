@@ -64,9 +64,7 @@ def create_queued_resource(
   """
 
   @task
-  def create_queued_resource_request(
-      tpu_name: str, ssh_keys: ssh.SshKeys
-  ) -> str:
+  def create_queued_resource_request(tpu_name: str, ssh_keys: ssh.SshKeys) -> str:
     creds, _ = google.auth.default()
     client = tpu_api.TpuClient(credentials=creds)
 
@@ -111,9 +109,7 @@ def create_queued_resource(
 
     return response.name
 
-  @task.sensor(
-      poke_interval=60, timeout=timeout.total_seconds(), mode='reschedule'
-  )
+  @task.sensor(poke_interval=60, timeout=timeout.total_seconds(), mode='reschedule')
   def wait_for_ready_queued_resource(qualified_name: str):
     creds, _ = google.auth.default()
     client = tpu_api.TpuClient(credentials=creds)
@@ -214,12 +210,10 @@ def delete_queued_resource(qualified_name: airflow.XComArg):
     op = client.get_operation(operations.GetOperationRequest(name=op_name))
     return op.done
 
-  delete_tpu_nodes = delete_tpu_nodes_request(
-      qualified_name
-  ) >> wait_for_tpu_deletion(qualified_name)
-  qr_op_name = delete_tpu_nodes >> delete_queued_resource_request(
+  delete_tpu_nodes = delete_tpu_nodes_request(qualified_name) >> wait_for_tpu_deletion(
       qualified_name
   )
+  qr_op_name = delete_tpu_nodes >> delete_queued_resource_request(qualified_name)
   wait_for_queued_resource_deletion(qr_op_name)
 
 
@@ -250,9 +244,7 @@ def ssh_tpu(
   ]
 
   if all_workers:
-    endpoints = itertools.chain.from_iterable(
-        node.network_endpoints for node in nodes
-    )
+    endpoints = itertools.chain.from_iterable(node.network_endpoints for node in nodes)
     ip_addresses = [endpoint.ip_address for endpoint in endpoints]
     logging.info(f'Connecting to IP addresses of all workers: {ip_addresses}')
   else:
