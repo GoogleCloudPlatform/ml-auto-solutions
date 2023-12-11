@@ -67,7 +67,9 @@ def get_torchbench_tpu_config(
 
   set_up_cmds = set_up_torchbench_tpu(model_name)
   local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_tpu.jsonl"
+  gcs_location = (
+      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_tpu.jsonl"
+  )
 
   run_script_cmds = (
       (
@@ -124,10 +126,7 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       "sudo rm -rf /usr/local/cuda*",
   )
   nvidia_driver_install = (
-      (
-          "lsof -n -w /dev/nvidia* | awk '{print $2}' | sort -u | xargs -I {}"
-          " kill {}"
-      ),
+      ("lsof -n -w /dev/nvidia* | awk '{print $2}' | sort -u | xargs -I {}" " kill {}"),
       (
           "wget -q"
           " https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
@@ -183,7 +182,9 @@ def get_torchbench_gpu_config(
 
   set_up_cmds = set_up_torchbench_gpu(model_name)
   local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_gpu.jsonl"
+  gcs_location = (
+      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_gpu.jsonl"
+  )
 
   cmds = (
       f" export PJRT_DEVICE=CUDA && export GPU_NUM_DEVICES={count} &&"

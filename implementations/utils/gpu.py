@@ -75,8 +75,7 @@ def create_resource(
         ssh_keys,
     )
     logging.info(
-        'CREATE TPU RESOURCE: create_node_request. IP:'
-        f' {gpu_api.node.ip_address}'
+        'CREATE TPU RESOURCE: create_node_request. IP:' f' {gpu_api.node.ip_address}'
     )
     return gpu_api.node.ip_address
 
@@ -88,9 +87,7 @@ def create_resource(
 
 
 @task
-def ssh_gpu(
-    ip_address: str, cmds: Iterable[str], ssh_keys: ssh.SshKeys
-) -> None:
+def ssh_gpu(ip_address: str, cmds: Iterable[str], ssh_keys: ssh.SshKeys) -> None:
   """SSH TPU and run commands in multi process.
 
   Args:
