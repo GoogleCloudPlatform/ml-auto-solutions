@@ -287,8 +287,8 @@ class GpuCreateResourceTask(BaseTask):
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
-      provision, queued_resource, ssh_keys = self.provision()
-      run_model = self.run_model(queued_resource, ssh_keys)
+      provision, resource, ssh_keys = self.provision()
+      run_model = self.run_model(resource, ssh_keys)
       # TODO(piz): Add back the clean up process to release the resource.
       post_process = self.post_process()
       provision >> run_model >> post_process
@@ -313,7 +313,7 @@ class GpuCreateResourceTask(BaseTask):
         gpu_name = gpu.generate_gpu_name(self.task_test_config.benchmark_id)
         ssh_keys = ssh.generate_ssh_keys()
 
-      queued_resource_op, ip_address = gpu.create_resource(
+      resource_op, ip_address = gpu.create_resource(
           gpu_name,
           self.image_project,
           self.image_family,
@@ -322,7 +322,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_gcp_config,
           ssh_keys,
       )
-      queued_resource_op >> gpu.ssh_gpu.override(task_id="setup")(
+      resource_op >> gpu.ssh_gpu.override(task_id="setup")(
           ip_address,
           self.task_test_config.setup_script,
           ssh_keys,
@@ -332,7 +332,7 @@ class GpuCreateResourceTask(BaseTask):
 
   def run_model(
       self,
-      queued_resource: airflow.XComArg,
+      resource: airflow.XComArg,
       ssh_keys: airflow.XComArg,
   ) -> DAGNode:
     """Run the GPU test in `task_test_config`.
@@ -351,7 +351,7 @@ class GpuCreateResourceTask(BaseTask):
         ),
         owner=self.task_test_config.task_owner,
     )(
-        queued_resource,
+        resource,
         self.task_test_config.test_script,
         ssh_keys,
     )
