@@ -26,8 +26,6 @@ from apis import gcp_config, test_config
 import fabric
 import google.api_core.exceptions
 import google.auth
-# There is no GPU api to reserve for resources. So we use gcloud cmdline to reserve resouces.
-# import google.cloud.tpu_v2alpha1 as tpu_api
 import google.longrunning.operations_pb2 as operations
 from implementations.utils import ssh
 from implementations.utils.vm_api import gpu_api
