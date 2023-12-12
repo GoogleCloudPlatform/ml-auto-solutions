@@ -129,7 +129,7 @@ class gpu_api:
           '--scopes=https://www.googleapis.com/auth/cloud-platform',
           '--on-host-maintenance=TERMINATE',
           '--instance-termination-action=DELETE',
-          f'--max-run-duration={self.vm_duration}'
+          f'--max-run-duration={self.vm_duration}',
       ]
       try:
         stdout = open(self.stdout_file, 'a+')
