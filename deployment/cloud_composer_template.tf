@@ -83,6 +83,14 @@ resource "google_project_iam_member" "vertex_ai_admin_role" {
   role     = "roles/aiplatform.admin"
 }
 
+resource "google_project_iam_member" "artifactr_registry_admin_role" {
+  provider = google-beta
+  for_each = local.environment_config_dict
+  project  = var.project_config.project_name
+  member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
+  role     = "roles/artifactregistry.admin"
+}
+
 resource "google_service_account_iam_member" "custom_service_account" {
   provider           = google-beta
   for_each           = local.environment_config_dict

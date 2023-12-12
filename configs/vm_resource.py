@@ -17,7 +17,9 @@
 import enum
 
 
-PROJECT_CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
+class Project(enum.Enum):
+  CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
+  TPU_PROD_ENV_MULTIPOD = "tpu-prod-env-multipod"
 
 
 class Zone(enum.Enum):
@@ -41,6 +43,9 @@ class ClusterName(enum.Enum):
   V4_32_CLUSTER = "mas-v4-32"
   V5E_4_CLUSTER = "mas-v5e-4"
   V5E_16_CLUSTER = "mas-v5e-16"
+  V4_128_MULTISLICE_CLUSTER = "v4-bodaborg"
+  V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
+  V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
 
 
 class DockerImage(enum.Enum):
