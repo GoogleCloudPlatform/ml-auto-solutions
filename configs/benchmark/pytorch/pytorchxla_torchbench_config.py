@@ -173,7 +173,7 @@ def get_torchbench_gpu_config(
     time_out_in_min: int,
     model_name: str = "",
     extraFlags: str = "",
-) -> task.GpuTask:
+) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
       zone=gpu_zone,
@@ -215,6 +215,8 @@ def get_torchbench_gpu_config(
           runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value,
       ),
       test_name=test_name,
+      # Uses the task time out as the VM max run duration. VM resource will be automatically released after the duration.
+      vm_duration=time_out_in_min,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       time_out_in_min=time_out_in_min,
@@ -227,7 +229,7 @@ def get_torchbench_gpu_config(
       )
   )
 
-  return task.GpuTask(
+  return task.GpuCreateResourceTask(
       image_project,
       image_family,
       task_test_config=job_test_config,

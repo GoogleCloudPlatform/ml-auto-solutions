@@ -95,18 +95,20 @@ class gpu_api:
         image_project,
         image_family,
         accelerator,
+        vm_duration,
         ssh_keys,
     ):
       self.stdout_file = '/tmp/airflow_gpurun.out'
       self.stderr_file = '/tmp/airflow_gpurun.err'
       self.image_project = image_project
       self.image_family = image_family
-      self.accelerator_type = accelerator.accelerator_type
-      self.count = accelerator.count
-      self.machine_type = accelerator.machine_type
       self.instance_name = instance_name
       self.instance_zone = instance_zone
       self.project = project
+      self.accelerator_type = accelerator.accelerator_type
+      self.count = accelerator.count
+      self.machine_type = accelerator.machine_type
+      self.vm_duration = vm_duration
       self.ssh_keys = ssh_keys
       stdout = open(self.stdout_file, 'w')
       stdout.close()
@@ -127,7 +129,7 @@ class gpu_api:
           '--scopes=https://www.googleapis.com/auth/cloud-platform',
           '--on-host-maintenance=TERMINATE',
           '--instance-termination-action=DELETE',
-          '--max-run-duration=60m',  # TODO(piz): for prototype purpose
+          f'--max-run-duration={self.vm_duration}'
       ]
       try:
         stdout = open(self.stdout_file, 'a+')
@@ -181,6 +183,7 @@ class gpu_api:
       image_project,
       image_family,
       accelerator,
+      vm_duration,
       ssh_keys,
   ):
     gpu_api.node = gpu_api.Node(
@@ -190,6 +193,7 @@ class gpu_api:
         image_project,
         image_family,
         accelerator,
+        vm_duration,
         ssh_keys,
     )
     gpu_api.node.build()

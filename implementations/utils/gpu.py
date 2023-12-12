@@ -36,6 +36,7 @@ import paramiko
 def generate_gpu_name(base_gpu_name: str) -> str:
   # note: GPU vm name need to match regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)', while TPU vm allows '_'.
   # return f'{base_gpu_name}-{str(uuid.uuid4())}'.replace('_', '-')
+  # If we use the above base_gpu_name in the return, some potion of the can be longer than 61 as in the regex.
   return f'gpu-{str(uuid.uuid4())}'
 
 
@@ -44,6 +45,7 @@ def create_resource(
     image_project: str,
     image_family: str,
     accelerator,
+    vm_duration,
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
 ) -> Tuple[TaskGroup, airflow.XComArg]:
@@ -70,6 +72,7 @@ def create_resource(
         image_project,
         image_family,
         accelerator,
+        vm_duration,
         ssh_keys,
     )
     logging.info(

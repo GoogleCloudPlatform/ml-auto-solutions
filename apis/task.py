@@ -262,7 +262,7 @@ class TpuXpkTask(BaseTask):
 
 
 @dataclasses.dataclass
-class GpuTask(BaseTask):
+class GpuCreateResourceTask(BaseTask):
   """This is a class to set up tasks for GPU.
 
   Attributes:
@@ -318,6 +318,7 @@ class GpuTask(BaseTask):
           self.image_project,
           self.image_family,
           self.task_test_config.accelerator,
+          self.task_test_config.vm_duration,
           self.task_gcp_config,
           ssh_keys,
       )

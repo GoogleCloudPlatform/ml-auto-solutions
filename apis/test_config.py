@@ -190,6 +190,7 @@ class GpuVmTest(TestConfig[Gpu]):
   """
 
   test_name: str
+  vm_duration: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
 
