@@ -316,7 +316,6 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         setup=test['tpuSettings']['tpuVmPytorchSetup']
         # HACK: Extra setup assumes a new shell in home directory
         + '\ncd ~\n' + test['tpuSettings']['tpuVmExtraSetup'],
-        # + test['tpuSettings']['tpuVmExtraSetup'],
         exports=test['tpuSettings']['tpuVmExports'],
         test_command=test['command'],
         reserved=reserved_tpu,
