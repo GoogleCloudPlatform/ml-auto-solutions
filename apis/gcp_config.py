@@ -17,6 +17,7 @@
 import dataclasses
 from apis import metric_config
 from typing import Optional
+from configs import vm_resource
 
 
 @dataclasses.dataclass
@@ -24,15 +25,13 @@ class GCPConfig:
   """This is a class to set up configs of GCP.
 
   Attributes:
-    project_name: The name of a project for Composer env to run a test job.
-    zone: The zone to run a test job.
+    project_name: The name of a project to provision resource and run a test job.
+    zone: The zone to provision resource and run a test job.
     dataset_name: The option of dataset for metrics.
-    cluster_project: The project of a cluster, i.e. a cluster running xpk workloads.
-    cluster_name: The name of a cluster that has provisioned resources.
+    composer_project: The name of a project that hosts the composer env.
   """
 
   project_name: str
   zone: str
   dataset_name: metric_config.DatasetOption
-  cluster_project: Optional[str] = None
-  cluster_name: Optional[str] = None
+  composer_project: str = vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value
