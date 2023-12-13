@@ -11,6 +11,7 @@ RUN mkdir -p /usr/local/gcloud \
   && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
   && /usr/local/gcloud/google-cloud-sdk/install.sh
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+# Package kubectl & gke-gcloud-auth-plugin needed for KubernetesPodOperator
 RUN gcloud components install kubectl
 RUN gcloud components install gke-gcloud-auth-plugin
 ENV TFDS_DATA_DIR=gs://xl-ml-test-us-central2/tfds-data

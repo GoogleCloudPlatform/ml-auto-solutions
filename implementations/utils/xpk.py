@@ -46,6 +46,7 @@ def run_workload(
     accelerator_type: str,
     run_cmds: str,
     task_owner: str,
+    startup_timeout: int,
     num_slices: int = 1,
 ) -> KubernetesPodOperator:
   """Run workload through xpk tool.
@@ -79,6 +80,7 @@ def run_workload(
       image=docker_image,
       config_file="/home/airflow/composer_kube_config",
       kubernetes_conn_id="kubernetes_default",
+      startup_timeout_seconds=startup_timeout,
       owner=task_owner,
   )
 
@@ -118,10 +120,10 @@ def wait_for_workload_completion(
   # Check status of pods
   if not pods.items:
     # This could happen when workload is in the queue (not initialized yet)
-    logging.info(f"No pod is found for workload selector: {pods}.")
+    logging.info(f"No pod is found for workload selector: {workload_id}.")
     return False
 
-  print(f"pods: {pods}")
+  logging.info(f"pods: {pods}")
   for pod in pods.items:
     if pod.status.phase in ["Pending", "Running"]:
       logging.info(f"One pod phase is: {pod.status.phase}")

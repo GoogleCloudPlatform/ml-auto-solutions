@@ -223,24 +223,25 @@ class TpuXpkTask(BaseTask):
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
       run_workload = xpk.run_workload(
           task_id="run_workload",
-          cluster_project=self.task_gcp_config.cluster_project,
+          cluster_project=self.task_gcp_config.project_name,
           zone=self.task_gcp_config.zone,
-          cluster_name=self.task_gcp_config.cluster_name,
+          cluster_name=self.task_test_config.cluster_name,
           benchmark_id=self.task_test_config.benchmark_id,
           workload_id=workload_id,
           docker_image=self.task_test_config.docker_image,
           accelerator_type=self.task_test_config.accelerator.name,
           run_cmds=self.task_test_config.run_model_cmds,
           task_owner=self.task_test_config.task_owner,
+          startup_timeout=self.task_test_config.startup_time_out_in_sec,
           num_slices=self.task_test_config.num_slices,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=self.task_test_config.time_out_in_min * 60,
       )(
           workload_id=workload_id,
-          project_id=self.task_gcp_config.cluster_project,
+          project_id=self.task_gcp_config.project_name,
           region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_gcp_config.cluster_name,
+          cluster_name=self.task_test_config.cluster_name,
       )
 
       workload_id >> run_workload >> wait_for_workload_completion
