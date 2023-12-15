@@ -218,7 +218,7 @@ def delete_queued_resource(qualified_name: airflow.XComArg):
 
 
 @task
-def ssh_tpu(
+def ssh_host(
     qualified_name: str,
     cmds: Iterable[str],
     ssh_keys: ssh.SshKeys,

@@ -97,7 +97,7 @@ class Gpu(Accelerator):
   Attributes:
     machine_type: The host type of the GPU. E.g., `a2-highgpu-1g`.
     image_family: Family of the image.
-    count: number of the GPU devices.
+    count: Number of the GPU devices.
     accelerator_type: Type of the accelerator. E.g., `nvidia-test-v100`.
     runtime_version: Runtime image version.
   """

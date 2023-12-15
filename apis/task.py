@@ -114,7 +114,7 @@ class TpuQueuedResourceTask(BaseTask):
           ssh_keys,
           self.tpu_create_timeout,
       )
-      queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
+      queued_resource_op >> tpu.ssh_host.override(task_id="setup")(
           queued_resource_name,
           # TODO(wcromar): remove split
           self.task_test_config.setup_script,
@@ -139,7 +139,7 @@ class TpuQueuedResourceTask(BaseTask):
     Returns:
       A DAG node that executes the model test.
     """
-    return tpu.ssh_tpu.override(
+    return tpu.ssh_host.override(
         task_id="run_model",
         execution_timeout=datetime.timedelta(
             minutes=self.task_test_config.time_out_in_min
@@ -281,7 +281,7 @@ class GpuCreateResourceTask(BaseTask):
 
     Returns:
       A task group with the following tasks chained: provision, run_model,
-      post_process and clean_up.
+      post_process.
     """
     # piz: We skip the queued resource for GPU for now since there is no queued resource command for GPU.
     with TaskGroup(
@@ -295,9 +295,9 @@ class GpuCreateResourceTask(BaseTask):
     return group
 
   def provision(self) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg]:
-    """Provision a GPU accelerator via a Queued Resource.
+    """Provision a GPU accelerator via a resource creation.
 
-    Generates a random GPU name and SSH keys, creates a Queued Resource, and
+    Generates a random GPU name and SSH keys, creates a VM Resource, and
     runs the test config's setup script on the GPU when it is ready.
 
     Returns:
@@ -313,7 +313,7 @@ class GpuCreateResourceTask(BaseTask):
         gpu_name = gpu.generate_gpu_name(self.task_test_config.benchmark_id)
         ssh_keys = ssh.generate_ssh_keys()
 
-      resource_op, ip_address = gpu.create_resource(
+      ip_address = gpu.create_resource.override(task_id="create_resource")(
           gpu_name,
           self.image_project,
           self.image_family,
@@ -322,12 +322,12 @@ class GpuCreateResourceTask(BaseTask):
           self.task_gcp_config,
           ssh_keys,
       )
-      resource_op >> gpu.ssh_gpu.override(task_id="setup")(
+
+      gpu.ssh_host.override(task_id="setup")(
           ip_address,
           self.task_test_config.setup_script,
           ssh_keys,
       )
-
     return group, ip_address, ssh_keys
 
   def run_model(
@@ -344,7 +344,7 @@ class GpuCreateResourceTask(BaseTask):
     Returns:
       A DAG node that executes the model test.
     """
-    return gpu.ssh_gpu.override(
+    return gpu.ssh_host.override(
         task_id="run_model",
         execution_timeout=datetime.timedelta(
             minutes=self.task_test_config.time_out_in_min

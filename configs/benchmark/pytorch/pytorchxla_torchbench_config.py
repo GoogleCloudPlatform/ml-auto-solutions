@@ -144,7 +144,8 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       " https://download.pytorch.org/whl/nightly/cu121 &&"
       " cd /tmp/ && git clone https://github.com/pytorch/benchmark.git &&"
       f" cd benchmark && python install.py models {model_name} &&"
-      " cd /tmp/ && git clone https://github.com/pytorch/xla.git"
+      " cd /tmp/ && git clone https://github.com/pytorch/xla.git &&"
+      " cd xla && git reset --hard 3f3068b1d26acba0ddc8d71aef887508fd98cf6d"
   )
   return (
       "sudo apt-get install -y nvidia-container-toolkit",

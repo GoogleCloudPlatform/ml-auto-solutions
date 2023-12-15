@@ -24,9 +24,7 @@ from airflow.decorators import task, task_group
 from airflow.utils.task_group import TaskGroup
 from apis import gcp_config, test_config
 import fabric
-import google.api_core.exceptions
 import google.auth
-import google.longrunning.operations_pb2 as operations
 from implementations.utils import ssh
 from implementations.utils.vm_api import gpu_api
 import paramiko
@@ -40,6 +38,7 @@ def generate_gpu_name(base_gpu_name: str) -> str:
   return f'gpu-{str(uuid.uuid4())}'
 
 
+@task
 def create_resource(
     gpu_name: airflow.XComArg,
     image_project: str,
@@ -48,7 +47,7 @@ def create_resource(
     vm_duration,
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
-) -> Tuple[TaskGroup, airflow.XComArg]:
+) -> str:
   """Request a resource and wait until the nodes are created.
 
   Args:
@@ -62,38 +61,29 @@ def create_resource(
     A TaskGroup for the entire create operation and an XCom value for the
     qualified queued_resource name.
   """
-
-  @task
-  def create_resource_request(gpu_name: str, ssh_keys: ssh.SshKeys) -> str:
-    gpu_api.create_node_request(
-        gpu_name,
-        gcp.zone,
-        gcp.project_name,
-        image_project,
-        image_family,
-        accelerator,
-        vm_duration,
-        ssh_keys,
-    )
-    logging.info(
-        'CREATE TPU RESOURCE: create_node_request. IP:' f' {gpu_api.node.ip_address}'
-    )
-    return gpu_api.node.ip_address
-
-  with TaskGroup(group_id='create_queued_resource') as tg:
-    qualified_name = create_resource_request(gpu_name, ssh_keys)
-    # It takes time for the SSH key to be propagated to the instance.
-    # We may fail to connect in the first trial.
-  return tg, qualified_name
+  gpu_api.create_node_request(
+      gpu_name,
+      gcp.zone,
+      gcp.project_name,
+      image_project,
+      image_family,
+      accelerator,
+      vm_duration,
+      ssh_keys,
+  )
+  logging.info(
+      'Create GPU resource with IP:' f' {gpu_api.node.ip_address}.'
+  )
+  return gpu_api.node.ip_address
 
 
 @task
-def ssh_gpu(ip_address: str, cmds: Iterable[str], ssh_keys: ssh.SshKeys) -> None:
-  """SSH TPU and run commands in multi process.
+def ssh_host(ip_address: str, cmds: Iterable[str], ssh_keys: ssh.SshKeys) -> None:
+  """SSH GPU and run commands in multi process.
 
   Args:
-   qualified_name: The qualified name of a queued resource.
-   cmds: The commands to run on a TPU.
+   ip_address: The ip address of the vm resource.
+   cmds: The commands to run on a GPU.
    ssh_keys: The SSH key pair to use for authentication.
   """
   pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
