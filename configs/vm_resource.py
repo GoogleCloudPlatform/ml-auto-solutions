@@ -17,6 +17,12 @@
 import enum
 
 
+V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
+V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
+V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
+V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
+
+
 # TODO(ranran): update to enum class (this change has been included in an on-going PR)
 PROJECT_CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
 PROJECT_TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
