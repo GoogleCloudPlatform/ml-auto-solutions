@@ -87,11 +87,12 @@ def get_pax_lm_config(
     model_name: str,
     log_dir: str,
     pax_version: PaxVersion = PaxVersion.STABLE,
+    project_name: str = vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
     ckp_path: str = "",
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
+      project_name=project_name,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
