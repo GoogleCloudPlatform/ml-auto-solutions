@@ -23,9 +23,10 @@ V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
 
 
-# TODO(ranran): update to enum class (this change has been included in an on-going PR)
-PROJECT_CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
-PROJECT_TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
+class Project(enum.Enum):
+  CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
+  TPU_PROD_ENV_MULTIPOD = "tpu-prod-env-multipod"
+  TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
 
 
 class Zone(enum.Enum):
@@ -53,6 +54,9 @@ class ClusterName(enum.Enum):
   V4_32_CLUSTER = "mas-v4-32"
   V5E_4_CLUSTER = "mas-v5e-4"
   V5E_16_CLUSTER = "mas-v5e-16"
+  V4_128_MULTISLICE_CLUSTER = "v4-bodaborg"
+  V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
+  V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
 
 
 class DockerImage(enum.Enum):

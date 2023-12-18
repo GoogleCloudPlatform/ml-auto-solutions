@@ -162,8 +162,8 @@ class TpuQueuedResourceTask(BaseTask):
       A DAG node that executes the post process.
     """
     with TaskGroup(group_id="post_process") as group:
-      process_id = metric.generate_process_id.override(retries=1)()
-      metric.process_metrics.override(retries=1)(
+      process_id = metric.generate_process_id.override(retries=0)()
+      metric.process_metrics.override(retries=0)(
           process_id,
           self.task_test_config,
           self.task_metric_config,
@@ -223,7 +223,7 @@ class TpuXpkTask(BaseTask):
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
       run_workload = xpk.run_workload(
           task_id="run_workload",
-          project_id=self.task_gcp_config.project_name,
+          cluster_project=self.task_gcp_config.project_name,
           zone=self.task_gcp_config.zone,
           cluster_name=self.task_test_config.cluster_name,
           benchmark_id=self.task_test_config.benchmark_id,
@@ -232,6 +232,7 @@ class TpuXpkTask(BaseTask):
           accelerator_type=self.task_test_config.accelerator.name,
           run_cmds=self.task_test_config.run_model_cmds,
           task_owner=self.task_test_config.task_owner,
+          startup_timeout=self.task_test_config.startup_time_out_in_sec,
           num_slices=self.task_test_config.num_slices,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
@@ -253,8 +254,8 @@ class TpuXpkTask(BaseTask):
       A DAG node that executes the post process.
     """
     with TaskGroup(group_id="post_process") as group:
-      process_id = metric.generate_process_id.override(retries=1)()
-      metric.process_metrics.override(retries=1)(
+      process_id = metric.generate_process_id.override(retries=0)()
+      metric.process_metrics.override(retries=0)(
           process_id,
           self.task_test_config,
           self.task_metric_config,
