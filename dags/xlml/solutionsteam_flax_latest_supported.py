@@ -119,7 +119,7 @@ with models.DAG(
   ).run()
 
   # ViT
-  jax_vit_v4_extra_flags = [
+  jax_vit_func_extra_flags = [
       "--per_device_train_batch_size=64",
       "--per_device_eval_batch_size=64",
   ]
@@ -128,10 +128,10 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      extraFlags=" ".join(jax_vit_v4_extra_flags),
+      extraFlags=" ".join(jax_vit_func_extra_flags),
   ).run()
 
-  jax_vit_v4_32_extra_flags = jax_vit_v4_extra_flags + [
+  jax_vit_conv_extra_flags = jax_vit_func_extra_flags + [
       "--model_name_or_path google/vit-base-patch16-224-in21k",
   ]
   jax_vit_v4_32 = flax_config.get_flax_vit_conv_config(
@@ -139,11 +139,23 @@ with models.DAG(
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      extraFlags=" ".join(jax_vit_v4_32_extra_flags),
+      extraFlags=" ".join(jax_vit_conv_extra_flags),
+  ).run()
+
+  jax_vit_v5e_4 = flax_config.get_flax_vit_config(
+      tpu_version="5litepod",
+      tpu_cores=4,
+      tpu_zone=vm_resource.Zone.US_EAST1_C.value,
+      project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
+      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
+      time_out_in_min=60,
+      network=vm_resource.V5_NETWORKS,
+      subnetwork=vm_resource.V5E_SUBNETWORKS,
+      extraFlags=" ".join(jax_vit_func_extra_flags),
   ).run()
 
   # GPT2
-  jax_gpt2_v4_extra_flags = [
+  jax_gpt2_extra_flags = [
       "--per_device_train_batch_size=64",
       "--per_device_eval_batch_size=64",
   ]
@@ -152,7 +164,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=120,
-      extraFlags=" ".join(jax_gpt2_v4_extra_flags),
+      extraFlags=" ".join(jax_gpt2_extra_flags),
   ).run()
 
   jax_gpt2_v4_32 = flax_config.get_flax_gpt2_config(
@@ -160,7 +172,19 @@ with models.DAG(
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=120,
-      extraFlags=" ".join(jax_gpt2_v4_extra_flags),
+      extraFlags=" ".join(jax_gpt2_extra_flags),
+  ).run()
+
+  jax_gpt2_v5e_4 = flax_config.get_flax_gpt2_config(
+      tpu_version="5litepod",
+      tpu_cores=4,
+      tpu_zone=vm_resource.Zone.US_EAST1_C.value,
+      project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
+      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
+      network=vm_resource.V5_NETWORKS,
+      subnetwork=vm_resource.V5E_SUBNETWORKS,
+      time_out_in_min=120,
+      extraFlags=" ".join(jax_gpt2_extra_flags),
   ).run()
 
   # Stable Diffusion
@@ -177,6 +201,19 @@ with models.DAG(
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
+      num_train_epochs=1,
+  ).run()
+
+  jax_sd_v5e_4 = flax_config.get_flax_sd_config(
+      tpu_version="5litepod",
+      tpu_cores=4,
+      tpu_zone=vm_resource.Zone.US_EAST1_C.value,
+      project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
+      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
+      network=vm_resource.V5_NETWORKS,
+      subnetwork=vm_resource.V5E_SUBNETWORKS,
+      time_out_in_min=60,
+      resolution=128,
       num_train_epochs=1,
   ).run()
 
@@ -274,8 +311,11 @@ with models.DAG(
   jax_resnet_v5e_4 >> jax_resnet_v5e_16
   jax_resnet_v5p_8 >> jax_resnet_v5p_32
   jax_vit_v4_8 >> jax_vit_v4_32
+  jax_vit_v5e_4
   jax_gpt2_v4_8 >> jax_gpt2_v4_32
+  jax_gpt2_v5e_4
   jax_sd_v4_8 >> jax_sd_v4_32
+  jax_sd_v5e_4
   jax_bart_v4_8 >> jax_bart_v4_32
   jax_bert_mnli_v4_8 >> jax_bert_mnli_v4_32
   jax_bert_mrpc_v4_8 >> jax_bert_mrpc_v4_32
