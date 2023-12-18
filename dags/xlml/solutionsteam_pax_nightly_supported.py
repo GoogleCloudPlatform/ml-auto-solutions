@@ -95,7 +95,7 @@ with models.DAG(
   ).run()
 
   pax_nightly_lmtransformeradam_v5e_4 = pax_config.get_pax_lm_config(
-      project_name=vm_resource.PROJECT_TPU_PROD_ENV_AUTOMATED,
+      project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
       tpu_version="5litepod",
       tpu_cores=4,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
@@ -110,7 +110,7 @@ with models.DAG(
   ).run()
 
   pax_nightly_lmtransformeradam_v5e_16 = pax_config.get_pax_lm_config(
-      project_name=vm_resource.PROJECT_TPU_PROD_ENV_AUTOMATED,
+      project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
       tpu_version="5litepod",
       tpu_cores=16,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
