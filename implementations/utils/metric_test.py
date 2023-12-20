@@ -16,15 +16,17 @@
 
 import hashlib
 import os
+import sys
 from typing import Iterable, Optional
 from unittest import mock
+from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
 from apis import metric_config
 from configs import composer_env
 from implementations.utils import bigquery
-from implementations.utils import metric
 from implementations.utils import composer
+from implementations.utils import metric
 import jsonlines
 import tensorflow as tf
 
@@ -34,8 +36,15 @@ import tensorflow as tf
 
 class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
 
+  def get_tempdir(self):
+    try:
+      flags.FLAGS.test_tmpdir
+    except flags.UnparsedFlagAccessError:
+      flags.FLAGS(sys.argv)
+    return self.create_tempdir().full_path
+
   def generate_tb_file(self):
-    temp_dir = self.create_tempdir().full_path
+    temp_dir = self.get_tempdir()
     summary_writer = tf.summary.create_file_writer(temp_dir)
 
     with summary_writer.as_default():
@@ -87,9 +96,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
       exclude_tag_patterns: Optional[Iterable[str]],
       expected_value: bool,
   ):
-    actual_value = metric.is_valid_tag(
-        tag, include_tag_patterns, exclude_tag_patterns
-    )
+    actual_value = metric.is_valid_tag(tag, include_tag_patterns, exclude_tag_patterns)
     self.assertEqual(actual_value, expected_value)
 
   def test_read_from_tb(self):
@@ -160,9 +167,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
       writer.write_all([test_run1, test_run2])
 
     base_id = "test_json_lines"
-    actual_metrics, actual_metadata = metric.process_json_lines(
-        "test_json_lines", path
-    )
+    actual_metrics, actual_metadata = metric.process_json_lines("test_json_lines", path)
     uuid_1 = hashlib.sha256(str(base_id + "0").encode("utf-8")).hexdigest()
 
     accuracy_metric_1 = bigquery.MetricHistoryRow(
@@ -247,9 +252,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
     base_id = "test_run"
     uuid = hashlib.sha256(str(base_id + str(0)).encode("utf-8")).hexdigest()
 
-    with mock.patch(
-        "implementations.utils.metric.get_current_context"
-    ) as mock_context:
+    with mock.patch("implementations.utils.metric.get_current_context") as mock_context:
       mock_dag_id = mock.MagicMock()
       mock_dag_id.dag_id.return_value = "benchmark_test"
       mock_task_id = mock.MagicMock()
@@ -269,9 +272,9 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
               "COMPOSER_ENVIRONMENT": "test_env",
           },
       ) as mock_variable:
-        with mock.patch.object(composer,
-                               "get_airflow_url",
-                               return_value="http://airflow") as mock_object:
+        with mock.patch.object(
+            composer, "get_airflow_url", return_value="http://airflow"
+        ) as mock_object:
           raw_meta = [
               [
                   bigquery.MetadataHistoryRow(
@@ -312,9 +315,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
               )
           )
 
-          self.assert_metric_and_dimension_equal(
-              [], [], actual_value, expected_value
-          )
+          self.assert_metric_and_dimension_equal([], [], actual_value, expected_value)
 
   @parameterized.named_parameters(
       (
@@ -337,9 +338,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
       ),
   )
   def test_is_valid_entry(self, env_name, run_id, expected_value):
-    with mock.patch(
-        "implementations.utils.metric.get_current_context"
-    ) as mock_context:
+    with mock.patch("implementations.utils.metric.get_current_context") as mock_context:
       mock_context.return_value = {
           "run_id": run_id,
       }

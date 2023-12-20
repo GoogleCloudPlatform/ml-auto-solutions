@@ -17,17 +17,17 @@
 import datetime
 from airflow import models
 from configs import composer_env, vm_resource
-from configs.xlml.tensorflow import solutionsTeam_tf_nightly_supported_config as tf_config
+from configs.xlml.tensorflow import solutionsteam_tf_nightly_supported_config as tf_config
 
 
-# Run once a day at 6 am
+# Run once a day at 6 am UTC (10 pm PST)
 SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
     dag_id="tf_latest_supported",
     schedule=SCHEDULED_TIME,
-    tags=["solutions_team", "tf", "nightly", "supported"],
+    tags=["solutions_team", "tf", "nightly", "supported", "xlml"],
     start_date=datetime.datetime(2023, 8, 16),
     catchup=False,
 ) as dag:
@@ -61,24 +61,7 @@ with models.DAG(
       is_pod=True,
   ).run()
 
-  # BERT
-  tf_bert_v4_8 = tf_config.get_tf_bert_config(
-      tpu_version="4",
-      tpu_cores=8,
-      tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
-      time_out_in_min=60,
-  ).run()
-
-  tf_bert_v4_32 = tf_config.get_tf_bert_config(
-      tpu_version="4",
-      tpu_cores=32,
-      tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
-      time_out_in_min=60,
-      is_pod=True,
-  ).run()
-
   # Test dependencies
   tf_resnet_v2_8
   tf_resnet_v3_8
   tf_resnet_v4_8 >> tf_resnet_v4_32
-  tf_bert_v4_8 >> tf_bert_v4_32

@@ -83,6 +83,22 @@ resource "google_project_iam_member" "vertex_ai_admin_role" {
   role     = "roles/aiplatform.admin"
 }
 
+resource "google_project_iam_member" "artifact_registry_admin_role" {
+  provider = google-beta
+  for_each = local.environment_config_dict
+  project  = var.project_config.project_name
+  member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
+  role     = "roles/artifactregistry.admin"
+}
+
+resource "google_project_iam_member" "monitoring_viewer_role" {
+  provider = google-beta
+  for_each = local.environment_config_dict
+  project  = var.project_config.project_name
+  member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
+  role     = "roles/monitoring.viewer"
+}
+
 resource "google_service_account_iam_member" "custom_service_account" {
   provider           = google-beta
   for_each           = local.environment_config_dict
@@ -112,7 +128,30 @@ resource "google_composer_environment" "example_environment" {
         # See https://cloud.google.com/composer/docs/concepts/versioning/composer-versions
         # google-cloud-bigquery             = ""
         # google-cloud-storage              = ""
+        # google-cloud-container            = ""
         # tensorflow-cpu                    = ""
+        # apache-airflow-providers-cncf-kubernetes = ""
+      }
+    }
+
+    workloads_config {
+      scheduler {
+        cpu        = 2
+        memory_gb  = 8
+        storage_gb = 10
+        count      = 2
+      }
+      web_server {
+        cpu        = 2
+        memory_gb  = 8
+        storage_gb = 10
+      }
+      worker {
+        cpu        = 2
+        memory_gb  = 8
+        storage_gb = 10
+        min_count  = 1
+        max_count  = 3
       }
     }
 

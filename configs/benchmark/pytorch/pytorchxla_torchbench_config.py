@@ -24,51 +24,38 @@ from configs import gcs_bucket, test_owner, vm_resource
 def set_up_torchbench(model_name: str = "") -> Tuple[str]:
   """Common set up for TorchBench."""
   return (
+      "pip install -U setuptools",
+      "sudo systemctl stop unattended-upgrades",
+      "sudo apt-get -y update",
+      "sudo apt install -y libopenblas-base",
+      "sudo apt install -y libsndfile-dev",
+      "sudo apt-get install libgl1 -y",
+      "pip install numpy pandas",
       (
-          "pip3 install torch --index-url"
-          " https://download.pytorch.org/whl/test/cpu"
+          "pip install --user --pre torch torchvision --index-url"
+          " https://download.pytorch.org/whl/nightly/cpu"
       ),
       (
-          "pip3 install"
-          " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly%2B20230829-cp310-cp310-linux_x86_64.whl"
-          " --no-dependencies"
+          "pip install --user 'torch_xla[tpuvm] @"
+          " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl'"
       ),
       (
-          "pip3 install --pre"
-          " torchvision==0.16.0.dev20230828+cpu --index-url"
+          "pip install --pre torchtext==0.17.0.dev20231025+cpu --index-url "
           " https://download.pytorch.org/whl/nightly/cpu --no-dependencies"
       ),
       (
-          "pip3 install --pre"
-          " torchtext==0.16.0.dev20230828+cpu --index-url"
+          "pip install --pre torchaudio==2.2.0.dev20231118+cpu --index-url"
           " https://download.pytorch.org/whl/nightly/cpu --no-dependencies"
       ),
-      (
-          "pip3 install --pre"
-          " torchaudio==2.1.0.dev20230828+cpu --index-url"
-          " https://download.pytorch.org/whl/nightly/cpu --no-dependencies"
-      ),
-      "pip3 install Pillow --no-dependencies",
-      "pip3 install torchdata --no-dependencies",
-      "pip3 install tqdm --no-dependencies",
-      "pip3 install numpy --no-dependencies",
-      "git clone https://github.com/RissyRan/benchmark.git /tmp/benchmark",
-      "cd /tmp/benchmark && git checkout xla_benchmark",
-      f"cd /tmp/benchmark && python3 install.py {model_name}",
-      "pip3 install numpy",
-      "pip3 install pandas",
-      "sudo apt-get update -y && sudo apt-get install libgl1 -y",
-      "git clone https://github.com/RissyRan/xla.git /tmp/xla",
-      "cd /tmp/xla && git checkout benchmark",
-      (
-          "pip3 install --upgrade --force-reinstall torch --index-url"
-          " https://download.pytorch.org/whl/test/cpu --no-dependencies"
-      ),
-      (
-          "pip3 install --upgrade --force-reinstall"
-          " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly%2B20230829-cp310-cp310-linux_x86_64.whl"
-          " --no-dependencies"
-      ),
+      "pip install Pillow --no-dependencies",
+      "sudo chmod 777 /usr/local/lib/python3.10/dist-packages/",
+      "sudo chmod 777 /usr/local/bin/",
+      "pip install torchdata --no-dependencies",
+      "pip install tqdm --no-dependencies",
+      "pip install psutil",
+      "cd; git clone https://github.com/pytorch/benchmark.git",
+      "cd; git clone https://github.com/zpcore/xla.git",
+      "cd ~/xla && git checkout benchmark",
   )
 
 
@@ -83,26 +70,26 @@ def get_torchbench_config(
     time_out_in_min: int,
     model_name: str = "",
     extraFlags: str = "",
-) -> task.TpuTask:
+) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS,
+      project_name=vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
   set_up_cmds = set_up_torchbench(model_name)
-  local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
+  local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
   gcs_location = (
       f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report.jsonl"
   )
 
   run_script_cmds = (
       (
-          "cd /tmp/xla/benchmarks && python3 experiment_runner.py"
-          " --suite-name=torchbench --accelerator=tpu --progress-bar"
+          "cd ~/xla/benchmarks && python experiment_runner.py"
+          " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar"
           f" {extraFlags}"
       ),
-      "python3 /tmp/xla/benchmarks/result_analyzer.py",
+      "python ~/xla/benchmarks/result_analyzer.py",
       f"gsutil cp {local_output_location} {gcs_location}",
   )
 
@@ -118,7 +105,7 @@ def get_torchbench_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       time_out_in_min=time_out_in_min,
-      task_owner=test_owner.RAN_R,
+      task_owner=test_owner.PEI_Z,
   )
 
   job_metric_config = metric_config.MetricConfig(
@@ -127,7 +114,7 @@ def get_torchbench_config(
       )
   )
 
-  return task.TpuTask(
+  return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,

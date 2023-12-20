@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The file of test owners."""
+"""Utilities to construct common configs."""
 
-# XLML - JAX/FLAX
-SHIVA_S = "Shiva S."
+from typing import Tuple
 
-# XLML - PAX
-GERSON_K = "Gerson K."
+UPGRADE_PIP = "pip install --upgrade pip"
+INSTALL_LATEST_JAX = (
+    "pip install jax[tpu] -f"
+    " https://storage.googleapis.com/jax-releases/libtpu_releases.html"
+)
 
-# XLML - TensorFlow
-ERIC_L = "Eric L."
-CHANDRA_D = "Chandra D."
-GAGIK_A = "Gagik A."
-RAN_R = "Ran R."
 
-# PYTORCH
-PEI_Z = "Pei Z."
+def set_up_google_pax() -> Tuple[str]:
+  """Common set up for pax repo."""
+  return (
+      "pip install paxml",
+      INSTALL_LATEST_JAX,
+  )
