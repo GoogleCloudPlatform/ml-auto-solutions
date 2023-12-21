@@ -25,10 +25,11 @@ US_CENTRAL2_B = gcp_config.GCPConfig(
     Zone.US_CENTRAL2_B.value,
     metric_config.DatasetOption.XLML_DATASET,
 )
+DAG_ID = "pytorchxla-llama"
 
 
 with models.DAG(
-    dag_id="pytorchxla-llama",
+    dag_id=DAG_ID,
     schedule=SCHEDULED_TIME,
     tags=["pytorchxla", "latest", "supported", "xlml"],
     start_date=datetime.datetime(2023, 7, 12),

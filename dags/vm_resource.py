@@ -37,6 +37,7 @@ class Zone(enum.Enum):
   US_CENTRAL1_C = "us-central1-c"  # reservation for v2-8 in cloud-ml-auto-solutions
   US_EAST1_C = "us-east1-c"  # reservation for v5e in tpu-prod-env-automated
   US_EAST1_D = "us-east1-d"  # reservation for v3-8 & v3-32 in cloud-ml-auto-solutions
+  US_EAST5_B = "us-east5-b"  # zone for v5e-256-bodaborg in tpu-prod-env-multipod
   US_EAST5_A = "us-east5-a"  # reservation for v5p in tpu-prod-env-automated
 
 

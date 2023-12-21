@@ -17,9 +17,12 @@
 import abc
 import dataclasses
 import datetime
+import os
+import time
 from typing import Optional, Tuple
 import airflow
 from airflow.models.taskmixin import DAGNode
+from airflow.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
 from xlml.utils import metric, ssh, tpu, xpk
@@ -36,6 +39,51 @@ class BaseTask(abc.ABC):
       A DAG node that executes this test.
     """
     ...
+
+
+@dataclasses.dataclass
+class DockerBuildTask(BaseTask):
+  """This is a class to set up a Docker build task for XPK workloads.
+
+  XPK runs on Kubernetes, which requires a docker image to execute the workload.
+  To ensure freshness of the images and reduce unnecessary setup on workers, a
+  single BashOperator runs the docker build to prepare the image for execution,
+  then all workers will use the resulting image for their containers.
+
+  The resulting image can be shared across multiple tasks within the DAG, and
+  the unique image name is accessible as the output of the DockerBuildTask.
+
+  Attributes:
+    build_dir: Relative path within the repository to run the build. This path must contain a Dockerfile.
+    image_name: The tag to use for the image. The Airflow worker must have write access to the Docker repository referenced.
+    task_id: Task ID to use for the operator. Defaults to ``DockerBuildTask.TASK_ID``.
+  """
+
+  build_dir: str
+  image_name: str
+  task_id: Optional[str] = None
+
+  # Path on the Airflow worker which contains the Airflow GCS bucket contents.
+  GCS_PATH = "/home/airflow/gcs/dags"
+  DEFAULT_TASK_ID = "docker_image_build"
+  BUILD_SCRIPT = """
+  set -xe
+  gcloud builds submit -t {image_tag} {build_path}
+  # The last line of output is pushed to XCom.
+  echo '{image_tag}'
+  """
+
+  def run(self) -> DAGNode:
+    # The image tag is the current timestamp.
+    image_tag = f"{self.image_name}:{str(int(time.time()))}"
+    build_path = os.path.join(DockerBuildTask.GCS_PATH, self.build_dir)
+    return BashOperator(
+        task_id=self.task_id or DockerBuildTask.DEFAULT_TASK_ID,
+        bash_command=DockerBuildTask.BUILD_SCRIPT.format(
+            build_path=build_path,
+            image_tag=image_tag,
+        ),
+    )
 
 
 @dataclasses.dataclass
@@ -220,7 +268,7 @@ class TpuXpkTask(BaseTask):
           workload_id=workload_id,
           docker_image=self.task_test_config.docker_image,
           accelerator_type=self.task_test_config.accelerator.name,
-          run_cmds=self.task_test_config.run_model_cmds,
+          run_cmds=self.task_test_config.test_script,
           task_owner=self.task_test_config.task_owner,
           startup_timeout=self.task_test_config.startup_time_out_in_sec,
           num_slices=self.task_test_config.num_slices,
