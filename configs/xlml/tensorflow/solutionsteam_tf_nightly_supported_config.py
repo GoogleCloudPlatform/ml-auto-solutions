@@ -19,6 +19,7 @@ from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner, vm_resource
 from configs.xlml.tensorflow import common
 import hashlib
+from airflow.models import Variable
 
 
 def get_tf_resnet_config(
@@ -58,14 +59,15 @@ def get_tf_resnet_config(
   }
 
   test_name = "tf_resnet_imagenet"
-  tpu_name = create_tpu_name(test_name, tpu_version, tpu_cores)
-  tpu_name_param = tpu_name if is_pod else "local"
+  benchmark_id = f"{test_name}-v{tpu_version}-{tpu_cores}"
+  tpu_name = Variable.get(benchmark_id) if is_pod else "local"
+
   env_variable = export_env_variable(is_pod)
   run_model_cmds = (
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " PYTHONPATH='.' python3 official/vision/train.py"
-          f" --tpu={tpu_name_param} --experiment=resnet_imagenet"
+          f" --tpu={tpu_name} --experiment=resnet_imagenet"
           " --mode=train_and_eval --model_dir=/tmp/output"
           " --params_override='%s'" % str(params_override)
       ),
@@ -88,8 +90,6 @@ def get_tf_resnet_config(
   return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
-      custom_tpu_name=tpu_name,
-      suffix_tpu_name=False,
       all_workers=not is_pod,
   )
 
@@ -104,10 +104,3 @@ def get_tpu_runtime(is_pod: bool) -> str:
   if is_pod:
     return vm_resource.RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value
   return vm_resource.RuntimeVersion.TPU_VM_TF_NIGHTLY.value
-
-
-def create_tpu_name(test_name: str, tpu_version: str, tpu_cores: int) -> str:
-  """Create a custom TPU name with hash value of the current date."""
-  date_suffix = date.today().strftime("%Y%m%d")
-  date_hash = hashlib.sha256(str(date_suffix).encode("utf-8")).hexdigest()[:36]
-  return f"{test_name}-v{tpu_version}-{tpu_cores}-{date_hash}"
