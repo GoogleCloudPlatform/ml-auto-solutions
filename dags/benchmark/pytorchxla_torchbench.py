@@ -19,16 +19,21 @@ from airflow import models
 from configs import composer_env, vm_resource
 from configs.benchmark.pytorch import pytorchxla_torchbench_config as config
 
-_MODELS = [
-    "BERT_pytorch",
-    "Background_Matting",
-    "hf_Bert",
-    "Super_SloMo",
-    "tts_angular",
-]
+# _MODELS = [
+#     "BERT_pytorch",
+#     "Background_Matting",
+#     "hf_Bert",
+#     "Super_SloMo",
+#     "tts_angular",
+# ]
 
 # Schudule the job to run every day at 5:00PM UTC.
 SCHEDULED_TIME = "0 17 * * *" if composer_env.is_prod_env() else None
+NETWORK_PREFIX = "projects/tpu-prod-env-automated"
+V5_NETWORKS = f"{NETWORK_PREFIX}/global/networks/mas-test"
+V5E_SUBNETWORKS = f"{NETWORK_PREFIX}/regions/us-east1/subnetworks/mas-test"
+V5P_SUBNETWORKS = f"{NETWORK_PREFIX}/regions/us-east5/subnetworks/mas-test"
+
 
 with models.DAG(
     dag_id="pytorchxla-torchbench",
@@ -37,27 +42,72 @@ with models.DAG(
     start_date=datetime.datetime(2023, 8, 29),
     catchup=False,
 ) as dag:
-  for model in _MODELS:
-    torchbench_extra_flags = [f"--filter={model}"]
-    # Running on TPU:
-    config.get_torchbench_tpu_config(
-        tpu_version=4,
-        tpu_cores=8,
-        tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
-        model_name=model,
-        time_out_in_min=60,
-        extraFlags=" ".join(torchbench_extra_flags),
-    ).run()
+  model = "BERT_pytorch"
+  model = "all"
+  torchbench_extra_flags = [f"--filter={model}"]
+  # Running on V4-8:
+  config.get_torchbench_tpu_config(
+      tpu_version="4",
+      tpu_cores=8,
+      tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
+      runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+      model_name=model,
+      time_out_in_min=1600,  # 1600
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
 
-    # Running on GPU
-    config.get_torchbench_gpu_config(
-        machine_type="n1-standard-32",
-        image_project="deeplearning-platform-release",
-        image_family="common-cu121-debian-11 ",
-        accelerator_type="nvidia-tesla-v100",
-        count=4,
-        gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
-        model_name=model,
-        time_out_in_min=60,
-        extraFlags=" ".join(torchbench_extra_flags),
-    ).run()
+  # Running on V5P
+  config.get_torchbench_tpu_config(
+      tpu_version="5p",
+      tpu_cores=8,
+      project_name=vm_resource.PROJECT_TPU_PROD_ENV_AUTOMATED,
+      tpu_zone=vm_resource.Zone.US_EAST5_A.value,
+      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5.value,
+      network=V5_NETWORKS,
+      subnetwork=V5E_SUBNETWORKS,
+      time_out_in_min=700,
+      # tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
+      model_name=model,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
+
+  # Running on V5E
+  config.get_torchbench_tpu_config(
+      tpu_version="5litepod",
+      tpu_cores=4,
+      project_name=vm_resource.PROJECT_TPU_PROD_ENV_AUTOMATED,
+      tpu_zone=vm_resource.Zone.US_EAST1_C.value,
+      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
+      network=V5_NETWORKS,
+      subnetwork=V5E_SUBNETWORKS,
+      time_out_in_min=1600,
+      # tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
+      model_name=model,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
+
+  # Running on V100 GPU
+  config.get_torchbench_gpu_config(
+      machine_type="n1-standard-32",
+      image_project="deeplearning-platform-release",
+      image_family="common-cu121-debian-11 ",
+      accelerator_type="nvidia-tesla-v100",
+      count=4,
+      gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
+      model_name=model,
+      time_out_in_min=1600,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
+
+  # Running on A100 GPU
+  config.get_torchbench_gpu_config(
+      machine_type="a2-highgpu-4g",
+      image_project="deeplearning-platform-release",
+      image_family="common-cu121-debian-11 ",
+      accelerator_type="nvidia-tesla-a100",
+      count=4,
+      gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
+      model_name=model,
+      time_out_in_min=1600,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()

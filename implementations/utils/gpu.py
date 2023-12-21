@@ -71,9 +71,7 @@ def create_resource(
       vm_duration,
       ssh_keys,
   )
-  logging.info(
-      'Create GPU resource with IP:' f' {gpu_api.node.ip_address}.'
-  )
+  logging.info('Create GPU resource with IP:' f' {gpu_api.node.ip_address}.')
   return gpu_api.node.ip_address
 
 
