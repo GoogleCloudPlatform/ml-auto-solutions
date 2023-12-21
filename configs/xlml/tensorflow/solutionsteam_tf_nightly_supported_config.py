@@ -60,7 +60,8 @@ def get_tf_resnet_config(
 
   test_name = "tf_resnet_imagenet"
   benchmark_id = f"{test_name}-v{tpu_version}-{tpu_cores}"
-  tpu_name = Variable.get(benchmark_id) if is_pod else "local"
+  # Add default_var to pass DAG check
+  tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
 
   env_variable = export_env_variable(is_pod)
   run_model_cmds = (
