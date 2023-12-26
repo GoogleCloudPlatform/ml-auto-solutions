@@ -21,7 +21,7 @@ from configs.xlml.tensorflow import common
 
 
 def get_tf_resnet_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -110,6 +110,8 @@ def export_env_variable(is_pod: bool) -> str:
   return "export TPU_LOAD_LIBRARY=0" if is_pod else "echo"
 
 
-def create_tpu_name(test_name: str, tpu_version: str, tpu_cores: int) -> str:
+def create_tpu_name(
+    test_name: str, tpu_version: vm_resource.TpuVersion, tpu_cores: int
+) -> str:
   """Create a custom TPU name."""
-  return f"{test_name}-v{tpu_version}-{tpu_cores}-{str(uuid.uuid4())}"
+  return f"{test_name}-v{tpu_version.value}-{tpu_cores}-{str(uuid.uuid4())}"

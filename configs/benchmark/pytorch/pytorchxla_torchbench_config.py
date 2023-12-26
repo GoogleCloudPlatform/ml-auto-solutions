@@ -59,12 +59,8 @@ def set_up_torchbench(model_name: str = "") -> Tuple[str]:
   )
 
 
-# TODO(ranran or PyTroch/XLA team) & notes:
-# 1) If you want to run all models, do not pass in model_name
-# 2) All filters of benchmark can be passed via extraFlags
-# 3) Update test owner to PyTroch/XLA team
 def get_torchbench_config(
-    tpu_version: int,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,

@@ -33,42 +33,42 @@ with models.DAG(
 ) as dag:
   # ResNet
   jax_resnet_v2_8 = flax_config.get_flax_resnet_config(
-      tpu_version="2",
+      tpu_version=vm_resource.TpuVersion.V2,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
       time_out_in_min=60,
   ).run()
 
   jax_resnet_v2_32 = flax_config.get_flax_resnet_config(
-      tpu_version="2",
+      tpu_version=vm_resource.TpuVersion.V2,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL1_A.value,
       time_out_in_min=60,
   ).run()
 
   jax_resnet_v3_8 = flax_config.get_flax_resnet_config(
-      tpu_version="3",
+      tpu_version=vm_resource.TpuVersion.V3,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_EAST1_D.value,
       time_out_in_min=60,
   ).run()
 
   jax_resnet_v3_32 = flax_config.get_flax_resnet_config(
-      tpu_version="3",
+      tpu_version=vm_resource.TpuVersion.V3,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_EAST1_D.value,
       time_out_in_min=60,
   ).run()
 
   jax_resnet_v4_8 = flax_config.get_flax_resnet_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
   ).run()
 
   jax_resnet_v4_32 = flax_config.get_flax_resnet_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -76,7 +76,7 @@ with models.DAG(
 
   jax_resnet_v5e_4 = flax_config.get_flax_resnet_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5litepod",
+      tpu_version=vm_resource.TpuVersion.V5E,
       tpu_cores=4,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
@@ -87,7 +87,7 @@ with models.DAG(
 
   jax_resnet_v5e_16 = flax_config.get_flax_resnet_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5litepod",
+      tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=16,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
@@ -98,7 +98,7 @@ with models.DAG(
 
   jax_resnet_v5p_8 = flax_config.get_flax_resnet_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5p",
+      tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_EAST5_A.value,
       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5.value,
@@ -109,7 +109,7 @@ with models.DAG(
 
   jax_resnet_v5p_32 = flax_config.get_flax_resnet_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5p",
+      tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_EAST5_A.value,
       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5.value,
@@ -124,7 +124,7 @@ with models.DAG(
       "--per_device_eval_batch_size=64",
   ]
   jax_vit_v4_8 = flax_config.get_flax_vit_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -135,7 +135,7 @@ with models.DAG(
       "--model_name_or_path google/vit-base-patch16-224-in21k",
   ]
   jax_vit_v4_32 = flax_config.get_flax_vit_conv_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -148,7 +148,7 @@ with models.DAG(
       "--per_device_eval_batch_size=64",
   ]
   jax_gpt2_v4_8 = flax_config.get_flax_gpt2_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=120,
@@ -156,7 +156,7 @@ with models.DAG(
   ).run()
 
   jax_gpt2_v4_32 = flax_config.get_flax_gpt2_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=120,
@@ -165,7 +165,7 @@ with models.DAG(
 
   # Stable Diffusion
   jax_sd_v4_8 = flax_config.get_flax_sd_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -173,7 +173,7 @@ with models.DAG(
   ).run()
 
   jax_sd_v4_32 = flax_config.get_flax_sd_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -186,7 +186,7 @@ with models.DAG(
       "--per_device_eval_batch_size=64",
   ]
   jax_bart_v4_8 = flax_config.get_flax_bart_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -198,7 +198,7 @@ with models.DAG(
       "--per_device_eval_batch_size=32",
   ]
   jax_bart_v4_32 = flax_config.get_flax_bart_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -215,7 +215,7 @@ with models.DAG(
       "--per_device_eval_batch_size=8",
   ]
   jax_bert_mnli_v4_8 = flax_config.get_flax_bert_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -224,7 +224,7 @@ with models.DAG(
   ).run()
 
   jax_bert_mnli_v4_32 = flax_config.get_flax_bert_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -241,7 +241,7 @@ with models.DAG(
       "--per_device_eval_batch_size=8",
   ]
   jax_bert_mrpc_v4_8 = flax_config.get_flax_bert_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -250,7 +250,7 @@ with models.DAG(
   ).run()
 
   jax_bert_mrpc_v4_32 = flax_config.get_flax_bert_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -260,7 +260,7 @@ with models.DAG(
 
   # WMT
   jax_wmt_v4_8 = flax_config.get_flax_wmt_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,

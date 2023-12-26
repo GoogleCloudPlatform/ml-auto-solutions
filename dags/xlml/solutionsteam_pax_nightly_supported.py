@@ -39,7 +39,7 @@ with models.DAG(
   ]
   lmspmd2b_exp_path = "tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps"
   pax_nightly_lmspmd2b_v4_8 = pax_config.get_pax_lm_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -51,7 +51,7 @@ with models.DAG(
   ).run()
 
   pax_nightly_lmspmd2b_ckpt_v4_8 = pax_config.get_pax_lm_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -71,7 +71,7 @@ with models.DAG(
       "tasks.lm.params.lm_cloud.LmCloudTransformerAdamLimitSteps"
   )
   pax_nightly_lmtransformeradam_v4_8 = pax_config.get_pax_lm_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -83,7 +83,7 @@ with models.DAG(
   ).run()
 
   pax_nightly_lmtransformeradam_v4_16 = pax_config.get_pax_lm_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=16,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -96,7 +96,7 @@ with models.DAG(
 
   pax_nightly_lmtransformeradam_v5e_4 = pax_config.get_pax_lm_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5litepod",
+      tpu_version=vm_resource.TpuVersion.V5E,
       tpu_cores=4,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
       time_out_in_min=60,
@@ -111,7 +111,7 @@ with models.DAG(
 
   pax_nightly_lmtransformeradam_v5e_16 = pax_config.get_pax_lm_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5litepod",
+      tpu_version=vm_resource.TpuVersion.V5E,
       tpu_cores=16,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
       time_out_in_min=60,

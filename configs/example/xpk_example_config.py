@@ -19,7 +19,7 @@ from configs import test_owner, vm_resource
 
 
 def get_flax_resnet_xpk_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     test_name: str,

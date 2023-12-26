@@ -69,10 +69,12 @@ def get_setup_cmds(
     raise RuntimeError(f"Please specify set up cmds for: {pax_version.value}.")
 
 
-def get_runtime_version(pax_version: PaxVersion, tpu_version: str) -> str:
-  if tpu_version == "5litepod":
+def get_runtime_version(
+    pax_version: PaxVersion, tpu_version: vm_resource.TpuVersion
+) -> str:
+  if tpu_version is vm_resource.TpuVersion.V5E:
     return vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
-  elif tpu_version == "5p":
+  elif tpu_version is vm_resource.TpuVersion.V5P:
     return vm_resource.RuntimeVersion.V2_ALPHA_TPUV5.value
   else:
     if pax_version is PaxVersion.STABLE:
@@ -84,7 +86,7 @@ def get_runtime_version(pax_version: PaxVersion, tpu_version: str) -> str:
 
 
 def get_pax_lm_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,

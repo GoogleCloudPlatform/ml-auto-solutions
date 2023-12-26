@@ -77,7 +77,7 @@ class Tpu(Accelerator):
     reserved: The flag to define if a TPU is a Cloud reservation.
   """
 
-  version: str
+  version: vm_resource.TpuVersion
   cores: int
   runtime_version: Optional[str] = None
   network: str = 'default'
@@ -87,7 +87,7 @@ class Tpu(Accelerator):
   @property
   def name(self):
     """Name of this TPU type in the Cloud TPU API (e.g. 'v4-8')."""
-    return f'v{self.version}-{self.cores}'
+    return f'v{self.version.value}-{self.cores}'
 
 
 A = TypeVar('A', bound=Accelerator)
@@ -232,7 +232,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     return JSonnetTpuVmTest(
         test_name=test['testName'],
         accelerator=Tpu(
-            version=test['accelerator']['version'],
+            version=vm_resource.TpuVersion(str(test['accelerator']['version'])),
             cores=test['accelerator']['size'],
             runtime_version=test['tpuSettings']['softwareVersion'],
             reserved=reserved,

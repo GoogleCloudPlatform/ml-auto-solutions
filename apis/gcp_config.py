@@ -16,7 +16,6 @@
 
 import dataclasses
 from apis import metric_config
-from typing import Optional
 from configs import vm_resource
 
 

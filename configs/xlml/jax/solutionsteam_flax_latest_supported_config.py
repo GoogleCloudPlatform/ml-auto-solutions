@@ -27,7 +27,7 @@ IS_TPU_RESERVED = True
 
 
 def get_flax_resnet_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -110,7 +110,7 @@ def get_flax_vit_run_model_cmds(
 
 
 def get_flax_vit_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -147,7 +147,7 @@ def get_flax_vit_config(
 
 
 def get_flax_vit_conv_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -207,7 +207,7 @@ def get_flax_vit_conv_config(
 
 
 def get_flax_gpt2_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -267,7 +267,7 @@ def get_flax_gpt2_config(
 
 
 def get_flax_sd_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -322,7 +322,7 @@ def get_flax_sd_config(
 
 
 def get_flax_bart_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -373,7 +373,7 @@ def get_flax_bart_config(
 
 
 def get_flax_bert_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -423,7 +423,7 @@ def get_flax_bert_config(
 
 
 def get_flax_wmt_config(
-    tpu_version: str,
+    tpu_version: vm_resource.TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,

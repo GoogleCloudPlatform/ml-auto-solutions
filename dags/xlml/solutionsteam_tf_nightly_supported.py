@@ -33,7 +33,7 @@ with models.DAG(
 ) as dag:
   # ResNet
   tf_resnet_v2_8 = tf_config.get_tf_resnet_config(
-      tpu_version="2",
+      tpu_version=vm_resource.TpuVersion.V2,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
       time_out_in_min=60,
@@ -41,14 +41,14 @@ with models.DAG(
   ).run()
 
   tf_resnet_v3_8 = tf_config.get_tf_resnet_config(
-      tpu_version="3",
+      tpu_version=vm_resource.TpuVersion.V3,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_EAST1_D.value,
       time_out_in_min=60,
   ).run()
 
   tf_resnet_v4_8 = tf_config.get_tf_resnet_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
@@ -56,7 +56,7 @@ with models.DAG(
 
   tf_resnet_v5e_4 = tf_config.get_tf_resnet_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5litepod",
+      tpu_version=vm_resource.TpuVersion.V5E,
       tpu_cores=4,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
       time_out_in_min=60,
@@ -67,7 +67,7 @@ with models.DAG(
 
   tf_resnet_v5p_8 = tf_config.get_tf_resnet_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version="5p",
+      tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_EAST5_A.value,
       time_out_in_min=60,

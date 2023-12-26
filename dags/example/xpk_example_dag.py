@@ -32,7 +32,7 @@ with models.DAG(
     catchup=False,
 ) as dag:
   flax_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       test_name="resnet-single-slice",
@@ -43,7 +43,7 @@ with models.DAG(
   ).run()
 
   flax_resnet_tpu_multislice_v4_128 = config.get_flax_resnet_xpk_config(
-      tpu_version="4",
+      tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=128,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       test_name="resnet-multi-slice",
