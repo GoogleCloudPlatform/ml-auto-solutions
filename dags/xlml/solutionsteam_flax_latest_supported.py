@@ -87,7 +87,7 @@ with models.DAG(
 
   jax_resnet_v5e_16 = flax_config.get_flax_resnet_config(
       project_name=vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version=vm_resource.TpuVersion.V5P,
+      tpu_version=vm_resource.TpuVersion.V5E,
       tpu_cores=16,
       tpu_zone=vm_resource.Zone.US_EAST1_C.value,
       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
