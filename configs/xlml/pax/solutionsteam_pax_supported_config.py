@@ -94,7 +94,7 @@ def get_pax_lm_config(
     model_name: str,
     log_dir: str,
     pax_version: PaxVersion = PaxVersion.STABLE,
-    project_name: str = vm_resource.Project.TPU_PROD_ENV_AUTOMATED.value,
+    project_name: str = vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     ckp_path: str = "",
     extraFlags: str = "",
     network: str = "default",
