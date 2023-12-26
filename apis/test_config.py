@@ -49,7 +49,7 @@ import os
 import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 import attrs
-from configs import vm_resource
+from configs.vm_resource import TpuVersion
 
 
 class Accelerator(abc.ABC):
@@ -77,7 +77,7 @@ class Tpu(Accelerator):
     reserved: The flag to define if a TPU is a Cloud reservation.
   """
 
-  version: vm_resource.TpuVersion
+  version: TpuVersion
   cores: int
   runtime_version: Optional[str] = None
   network: str = 'default'
@@ -232,7 +232,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     return JSonnetTpuVmTest(
         test_name=test['testName'],
         accelerator=Tpu(
-            version=vm_resource.TpuVersion(str(test['accelerator']['version'])),
+            version=TpuVersion(str(test['accelerator']['version'])),
             cores=test['accelerator']['size'],
             runtime_version=test['tpuSettings']['softwareVersion'],
             reserved=reserved,

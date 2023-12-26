@@ -16,7 +16,8 @@
 
 from typing import Tuple
 from apis import gcp_config, metric_config, task, test_config
-from configs import gcs_bucket, test_owner, vm_resource
+from configs import gcs_bucket, test_owner
+from configs.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
 # TODO(ranran or PyTroch/XLA team): this is an example for benchmark test with hardcode compatible versions,
@@ -60,7 +61,7 @@ def set_up_torchbench(model_name: str = "") -> Tuple[str]:
 
 
 def get_torchbench_config(
-    tpu_version: vm_resource.TpuVersion,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -68,7 +69,7 @@ def get_torchbench_config(
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
@@ -94,7 +95,7 @@ def get_torchbench_config(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+          runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
           reserved=True,
       ),
       test_name=test_name,
