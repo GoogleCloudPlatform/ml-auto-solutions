@@ -103,7 +103,7 @@ with models.DAG(
   tf_keras_v5p_8 = [
       tf_config.get_tf_keras_config(
           project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
-          tpu_version=TpuVersion.V5E,
+          tpu_version=TpuVersion.V5P,
           tpu_cores=8,
           tpu_zone=Zone.US_EAST5_A.value,
           time_out_in_min=feature_timeout.get(feature),
