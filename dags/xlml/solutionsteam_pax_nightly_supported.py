@@ -22,7 +22,7 @@ from configs.xlml.pax import solutionsteam_pax_supported_config as pax_config
 
 
 # Run once a day at 12 am UTC (4 am PST)
-SCHEDULED_TIME = "* 12 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 12 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
