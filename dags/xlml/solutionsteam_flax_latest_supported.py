@@ -177,7 +177,7 @@ with models.DAG(
   ).run()
 
   jax_gpt2_v5e_4 = flax_config.get_flax_gpt2_config(
-      tpu_version="5litepod",
+      tpu_version=TpuVersion.V5E,
       tpu_cores=4,
       tpu_zone=Zone.US_EAST1_C.value,
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
