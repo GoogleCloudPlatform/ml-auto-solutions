@@ -182,6 +182,8 @@ with models.DAG(
   ).run()
 
   # Test dependencies
+  pax_nightly_c4spmd1b_pretraining_v4_8
+  pax_nightly_lmcloudspmdadam_v4_16
   pax_nightly_lmspmd2b_v4_8 >> pax_nightly_lmspmd2b_ckpt_v4_8
   pax_nightly_lmtransformeradam_v4_8 >> pax_nightly_lmtransformeradam_v4_16
   pax_nightly_lmtransformeradam_v5p_4 >> pax_nightly_lmtransformeradam_v5p_16
