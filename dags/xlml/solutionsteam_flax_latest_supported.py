@@ -144,7 +144,7 @@ with models.DAG(
   ).run()
 
   jax_vit_v5e_4 = flax_config.get_flax_vit_config(
-      tpu_version="5litepod",
+      tpu_version=TpuVersion.V5E,
       tpu_cores=4,
       tpu_zone=Zone.US_EAST1_C.value,
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -206,7 +206,7 @@ with models.DAG(
   ).run()
 
   jax_sd_v5e_4 = flax_config.get_flax_sd_config(
-      tpu_version="5litepod",
+      tpu_version=TpuVersion.V5E,
       tpu_cores=4,
       tpu_zone=Zone.US_EAST1_C.value,
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
