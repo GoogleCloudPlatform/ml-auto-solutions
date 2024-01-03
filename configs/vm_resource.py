@@ -40,9 +40,19 @@ class Zone(enum.Enum):
   US_EAST5_A = "us-east5-a"  # reservation for v5p in tpu-prod-env-automated
 
 
+class TpuVersion(enum.Enum):
+  V2 = "2"
+  V3 = "3"
+  V4 = "4"
+  V5E = "5litepod"
+  V5P = "5p"
+
+
 class RuntimeVersion(enum.Enum):
   TPU_VM_TF_NIGHTLY = "tpu-vm-tf-nightly"
   TPU_VM_TF_NIGHTLY_POD = "tpu-vm-tf-nightly-pod"
+  TPU_VM_TF_2150_PJRT = "tpu-vm-tf-2.15.0-pjrt"
+  TPU_VM_TF_2150_POD_PJRT = "tpu-vm-tf-2.15.0-pod-pjrt"
   TPU_UBUNTU2204_BASE = "tpu-ubuntu2204-base"
   TPU_VM_V4_BASE = "tpu-vm-v4-base"
   V2_ALPHA_TPUV5_LITE = "v2-alpha-tpuv5-lite"

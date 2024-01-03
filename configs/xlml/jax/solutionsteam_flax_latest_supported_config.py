@@ -17,17 +17,18 @@
 from typing import Tuple
 import uuid
 from apis import gcp_config, metric_config, task, test_config
-from configs import gcs_bucket, test_owner, vm_resource
+from configs import gcs_bucket, test_owner
 from configs.xlml.jax import common
+from configs.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
-PROJECT_NAME = vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value
-RUNTIME_IMAGE = vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value
+PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 IS_TPU_RESERVED = True
 
 
 def get_flax_resnet_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -110,15 +111,19 @@ def get_flax_vit_run_model_cmds(
 
 
 def get_flax_vit_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
+    project_name: str = PROJECT_NAME,
+    runtime_version: str = RUNTIME_IMAGE,
+    network: str = "default",
+    subnetwork: str = "default",
     num_train_epochs: int = 3,
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=PROJECT_NAME,
+      project_name=project_name,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
@@ -130,8 +135,10 @@ def get_flax_vit_config(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=RUNTIME_IMAGE,
-          reserved=True,
+          runtime_version=runtime_version,
+          reserved=IS_TPU_RESERVED,
+          network=network,
+          subnetwork=subnetwork,
       ),
       test_name="flax_vit_imagenette",
       set_up_cmds=set_up_cmds,
@@ -147,15 +154,19 @@ def get_flax_vit_config(
 
 
 def get_flax_vit_conv_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
+    project_name: str = PROJECT_NAME,
+    runtime_version: str = RUNTIME_IMAGE,
     num_train_epochs: int = 30,
+    network: str = "default",
+    subnetwork: str = "default",
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=PROJECT_NAME,
+      project_name=project_name,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
@@ -182,8 +193,10 @@ def get_flax_vit_conv_config(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=RUNTIME_IMAGE,
-          reserved=True,
+          runtime_version=runtime_version,
+          reserved=IS_TPU_RESERVED,
+          network=network,
+          subnetwork=subnetwork,
       ),
       test_name="flax_vit_imagenette_conv",
       set_up_cmds=set_up_cmds,
@@ -207,14 +220,18 @@ def get_flax_vit_conv_config(
 
 
 def get_flax_gpt2_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
+    project_name: str = PROJECT_NAME,
+    runtime_version: str = RUNTIME_IMAGE,
+    network: str = "default",
+    subnetwork: str = "default",
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=PROJECT_NAME,
+      project_name=project_name,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
@@ -250,8 +267,10 @@ def get_flax_gpt2_config(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=RUNTIME_IMAGE,
+          runtime_version=runtime_version,
           reserved=IS_TPU_RESERVED,
+          network=network,
+          subnetwork=subnetwork,
       ),
       test_name="flax_gpt2_oscar",
       set_up_cmds=set_up_cmds,
@@ -267,15 +286,20 @@ def get_flax_gpt2_config(
 
 
 def get_flax_sd_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
     num_train_epochs: int,
+    project_name: str = PROJECT_NAME,
+    runtime_version: str = RUNTIME_IMAGE,
+    network: str = "default",
+    subnetwork: str = "default",
+    resolution: int = 512,
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=PROJECT_NAME,
+      project_name=project_name,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
@@ -293,7 +317,7 @@ def get_flax_sd_config(
           "cd /tmp/diffusers/examples/text_to_image && JAX_PLATFORM_NAME=TPU"
           " python3 train_text_to_image_flax.py"
           " --pretrained_model_name_or_path='duongna/stable-diffusion-v1-4-flax'"
-          " --dataset_name='lambdalabs/pokemon-blip-captions' --resolution=512"
+          f" --dataset_name='lambdalabs/pokemon-blip-captions' --resolution={resolution}"
           " --center_crop --random_flip --train_batch_size=8"
           f" --num_train_epochs={num_train_epochs} --learning_rate=1e-05"
           f" --max_grad_norm=1 --output_dir={work_dir} --cache_dir /tmp"
@@ -305,8 +329,10 @@ def get_flax_sd_config(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=RUNTIME_IMAGE,
+          runtime_version=runtime_version,
           reserved=IS_TPU_RESERVED,
+          network=network,
+          subnetwork=subnetwork,
       ),
       test_name="flax_sd_pokemon",
       set_up_cmds=set_up_cmds,
@@ -322,7 +348,7 @@ def get_flax_sd_config(
 
 
 def get_flax_bart_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -373,7 +399,7 @@ def get_flax_bart_config(
 
 
 def get_flax_bert_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
@@ -423,7 +449,7 @@ def get_flax_bert_config(
 
 
 def get_flax_wmt_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
