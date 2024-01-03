@@ -61,6 +61,7 @@ def get_tf_resnet_config(
   test_name = "tf_resnet_imagenet"
   benchmark_id = f"{test_name}-v{tpu_version}-{tpu_cores}"
   # Add default_var to pass DAG check
+  # TODO(ranran): replace Variable.get() to XCOM when it applies
   tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
 
   env_variable = export_env_variable(is_pod)
@@ -91,6 +92,7 @@ def get_tf_resnet_config(
   return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
+      tpu_name_env_var=is_pod,
       all_workers=not is_pod,
   )
 

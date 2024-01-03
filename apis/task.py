@@ -47,6 +47,7 @@ class TpuQueuedResourceTask(BaseTask):
     task_test_config: Test configs to run on this TPU.
     task_gcp_config: Runtime TPU creation parameters.
     task_metric_config: Metric configs to process metrics.
+    tpu_name_env_var: The flag to define if set up env variable for tpu name.
     all_workers: The flag to define if run commands on all workers or worker 0
       only.
   """
@@ -56,6 +57,7 @@ class TpuQueuedResourceTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   tpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   task_metric_config: Optional[metric_config.MetricConfig] = None
+  tpu_name_env_var: bool = False
   all_workers: bool = True
 
   def run(self) -> DAGNode:
@@ -93,7 +95,7 @@ class TpuQueuedResourceTask(BaseTask):
     with TaskGroup(group_id="provision") as group:
       with TaskGroup(group_id="initialize"):
         tpu_name = tpu.generate_tpu_name(
-            self.task_test_config.benchmark_id,
+            self.task_test_config.benchmark_id, self.tpu_name_env_var
         )
         ssh_keys = ssh.generate_ssh_keys()
 

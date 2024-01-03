@@ -37,9 +37,13 @@ from airflow.models import Variable
 
 
 @task
-def generate_tpu_name(base_tpu_name: str) -> str:
+def generate_tpu_name(
+    base_tpu_name: str,
+    set_env_var: bool,
+) -> str:
   tpu_name = f'{base_tpu_name}-{str(uuid.uuid4())}'
-  Variable.set(base_tpu_name, tpu_name)
+  if set_env_var:
+    Variable.set(base_tpu_name, tpu_name)
   return tpu_name
 
 
