@@ -111,3 +111,29 @@ with models.DAG(
       time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
   ).run()
+
+  # Running on H100 GPU
+  config.get_torchbench_gpu_config(
+      machine_type="a3-highgpu-8g",
+      image_project="deeplearning-platform-release",
+      image_family="common-cu121-debian-11 ",
+      accelerator_type="nvidia-h100-80gb",
+      count=8,
+      gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
+      model_name=model,
+      time_out_in_min=1600,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
+
+  # Running on L4 GPU
+  config.get_torchbench_gpu_config(
+      machine_type="g2-standard-4",
+      image_project="deeplearning-platform-release",
+      image_family="common-cu121-debian-11 ",
+      accelerator_type="nvidia-l4",
+      count=1,
+      gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
+      model_name=model,
+      time_out_in_min=1600,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
