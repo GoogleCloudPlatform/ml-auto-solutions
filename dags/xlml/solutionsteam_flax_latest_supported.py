@@ -135,7 +135,7 @@ with models.DAG(
   jax_vit_conv_extra_flags = jax_vit_func_extra_flags + [
       "--model_name_or_path google/vit-base-patch16-224-in21k",
   ]
-  jax_vit_v4_32 = flax_config.get_flax_vit_conv_config(
+  jax_vit_conv_v4_32 = flax_config.get_flax_vit_conv_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL2_B.value,
@@ -197,12 +197,12 @@ with models.DAG(
       num_train_epochs=1,
   ).run()
 
-  jax_sd_v4_32 = flax_config.get_flax_sd_config(
+  jax_sd_conv_v4_32 = flax_config.get_flax_sd_conv_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      num_train_epochs=1,
+      num_train_epochs=10,
   ).run()
 
   jax_sd_v5e_4 = flax_config.get_flax_sd_config(
@@ -228,6 +228,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
+      num_train_epochs=3,
       extraFlags=" ".join(jax_bart_v4_8_extra_flags),
   ).run()
 
@@ -235,11 +236,12 @@ with models.DAG(
       "--per_device_train_batch_size=32",
       "--per_device_eval_batch_size=32",
   ]
-  jax_bart_v4_32 = flax_config.get_flax_bart_config(
+  jax_bart_conv_v4_32 = flax_config.get_flax_bart_conv_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
+      num_train_epochs=30,
       extraFlags=" ".join(jax_bart_v4_32_extra_flags),
   ).run()
 
@@ -311,13 +313,13 @@ with models.DAG(
   jax_resnet_v4_8 >> jax_resnet_v4_32
   jax_resnet_v5e_4 >> jax_resnet_v5e_16
   jax_resnet_v5p_8 >> jax_resnet_v5p_32
-  jax_vit_v4_8 >> jax_vit_v4_32
+  jax_vit_v4_8 >> jax_vit_conv_v4_32
   jax_vit_v5e_4
   jax_gpt2_v4_8 >> jax_gpt2_v4_32
   jax_gpt2_v5e_4
-  jax_sd_v4_8 >> jax_sd_v4_32
+  jax_sd_v4_8 >> jax_sd_conv_v4_32
   jax_sd_v5e_4
-  jax_bart_v4_8 >> jax_bart_v4_32
+  jax_bart_v4_8 >> jax_bart_conv_v4_32
   jax_bert_mnli_v4_8 >> jax_bert_mnli_v4_32
   jax_bert_mrpc_v4_8 >> jax_bert_mrpc_v4_32
   jax_wmt_v4_8
