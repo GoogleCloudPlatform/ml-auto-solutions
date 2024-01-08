@@ -27,8 +27,8 @@ from configs.benchmark.pytorch import pytorchxla_torchbench_config as config
 #     "tts_angular",
 # ]
 
-# Schudule the job to run every day at 5:00PM UTC.
-SCHEDULED_TIME = "0 17 * * *" if composer_env.is_prod_env() else None
+# Schudule the job to run once per two days at 5:00PM UTC.
+SCHEDULED_TIME = "0 17 */2 * *" if composer_env.is_prod_env() else None
 NETWORK_PREFIX = "projects/tpu-prod-env-automated"
 V5_NETWORKS = f"{NETWORK_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{NETWORK_PREFIX}/regions/us-east1/subnetworks/mas-test"
@@ -39,7 +39,7 @@ with models.DAG(
     dag_id="pytorchxla-torchbench",
     schedule=SCHEDULED_TIME,
     tags=["pytorchxla", "nightly", "torchbench"],
-    start_date=datetime.datetime(2023, 8, 29),
+    start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
   model = "BERT_pytorch"
@@ -52,7 +52,7 @@ with models.DAG(
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value,
       model_name=model,
-      time_out_in_min=1600,  # 1600
+      time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
   ).run()
 
@@ -66,7 +66,6 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5E_SUBNETWORKS,
       time_out_in_min=700,
-      # tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       model_name=model,
       extraFlags=" ".join(torchbench_extra_flags),
   ).run()
@@ -81,7 +80,6 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5E_SUBNETWORKS,
       time_out_in_min=1600,
-      # tpu_zone=vm_resource.Zone.US_CENTRAL2_B.value,
       model_name=model,
       extraFlags=" ".join(torchbench_extra_flags),
   ).run()
@@ -90,7 +88,7 @@ with models.DAG(
   config.get_torchbench_gpu_config(
       machine_type="n1-standard-32",
       image_project="deeplearning-platform-release",
-      image_family="common-cu121-debian-11 ",
+      image_family="common-cu121-debian-11",
       accelerator_type="nvidia-tesla-v100",
       count=4,
       gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
@@ -103,7 +101,7 @@ with models.DAG(
   config.get_torchbench_gpu_config(
       machine_type="a2-highgpu-4g",
       image_project="deeplearning-platform-release",
-      image_family="common-cu121-debian-11 ",
+      image_family="common-cu121-debian-11",
       accelerator_type="nvidia-tesla-a100",
       count=4,
       gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
@@ -116,7 +114,7 @@ with models.DAG(
   config.get_torchbench_gpu_config(
       machine_type="a3-highgpu-8g",
       image_project="deeplearning-platform-release",
-      image_family="common-cu121-debian-11 ",
+      image_family="common-cu121-debian-11",
       accelerator_type="nvidia-h100-80gb",
       count=8,
       gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,
@@ -129,7 +127,7 @@ with models.DAG(
   config.get_torchbench_gpu_config(
       machine_type="g2-standard-4",
       image_project="deeplearning-platform-release",
-      image_family="common-cu121-debian-11 ",
+      image_family="common-cu121-debian-11",
       accelerator_type="nvidia-l4",
       count=1,
       gpu_zone=vm_resource.Zone.US_CENTRAL1_C.value,

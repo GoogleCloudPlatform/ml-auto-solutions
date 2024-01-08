@@ -46,20 +46,15 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
       (
           "pip install --user --pre torchvision torchaudio torchtext -i"
           " https://download.pytorch.org/whl/nightly/cpu"
-          #   "pip install --user --pre torchvision==0.17.0.dev20231211 torchaudio==2.2.0.dev20231211 torchtext==0.17.0.dev20231211 -i"
-          #   " https://download.pytorch.org/whl/nightly/cpu"
       ),
       (
           "pip install --user 'torch_xla[tpuvm] @"
           " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl'"
-          #   "pip install --user 'torch_xla[tpuvm] @"
-          #   " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly+20231211-cp310-cp310-linux_x86_64.whl'"
       ),
       "pip install psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
       f"cd benchmark && {model_install_cmds()}",
       "cd; git clone https://github.com/pytorch/xla.git",
-      "cd xla; git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77",
   )
 
 
@@ -105,7 +100,6 @@ def get_torchbench_tpu_config(
   )
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
-  #   test_name = ""
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
@@ -174,23 +168,19 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       " pip install numpy pandas &&"
       " pip install --pre torchvision torchaudio -i"
       " https://download.pytorch.org/whl/nightly/cu121 &&"
-      # " pip install --user --pre torchvision==0.17.0.dev20231211 torchaudio==2.2.0.dev20231211 torchtext==0.17.0.dev20231211 -i"
-      # " https://download.pytorch.org/whl/nightly/cu121 &&"
       " cd /tmp/ && git clone https://github.com/pytorch/benchmark.git &&"
       f" cd benchmark && {model_install_cmds()} &&"
-      " cd /tmp/ && git clone https://github.com/pytorch/xla.git &&"
-      "cd /tmp/xla && git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77"
+      " cd /tmp/ && git clone https://github.com/pytorch/xla.git"
   )
   return (
       "sudo apt-get install -y nvidia-container-toolkit",
+      "sudo nvidia-smi -pm 1",
       (
           "sudo docker pull"
-          # " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1_20231211"
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
       (
-          "sudo docker run --gpus all -it -d"
-          # " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1_20231211"
+          "sudo docker run --gpus all -it -d --network host "
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
       (
@@ -248,18 +238,15 @@ def get_torchbench_gpu_config(
   )
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
-  #   test_name = ""
   job_test_config = test_config.GpuVmTest(
       test_config.Gpu(
           machine_type=machine_type,
           image_family=image_family,
-          count=str(count),
+          count=count,
           accelerator_type=accelerator_type,
           runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value,
       ),
       test_name=test_name,
-      # Uses the task time out as the VM max run duration. VM resource will be automatically released after the duration.
-      vm_duration=time_out_in_min,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       time_out_in_min=time_out_in_min,

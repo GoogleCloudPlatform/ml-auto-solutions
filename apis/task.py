@@ -287,14 +287,18 @@ class GpuCreateResourceTask(BaseTask):
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
-      provision, resource, ssh_keys = self.provision()
-      run_model = self.run_model(resource, ssh_keys)
-      # TODO(piz): Add back the clean up process to release the resource.
+      provision, ip_address, instance_name, ssh_keys = self.provision()
+      run_model = self.run_model(ip_address, ssh_keys)
       post_process = self.post_process()
-      provision >> run_model >> post_process
+      clean_up_process = self.clean_up(
+          instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone
+      )
+      provision >> run_model >> post_process >> clean_up_process
     return group
 
-  def provision(self) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg]:
+  def provision(
+      self,
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
     """Provision a GPU accelerator via a resource creation.
 
     Generates a random GPU name and SSH keys, creates a VM Resource, and
@@ -318,7 +322,6 @@ class GpuCreateResourceTask(BaseTask):
           self.image_project,
           self.image_family,
           self.task_test_config.accelerator,
-          self.task_test_config.vm_duration,
           self.task_gcp_config,
           ssh_keys,
       )
@@ -328,7 +331,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_test_config.setup_script,
           ssh_keys,
       )
-    return group, ip_address, ssh_keys
+    return group, ip_address, gpu_name, ssh_keys
 
   def run_model(
       self,
@@ -369,5 +372,24 @@ class GpuCreateResourceTask(BaseTask):
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
+      )
+      return group
+
+  def clean_up(self, resource: airflow.XComArg, project_id: str, zone: str) -> DAGNode:
+    """Clean up GPU resources created by `provision`.
+
+    Args:
+      resource: an XCom value for the qualified instance name.
+      project_id: project of the instance.
+      zone: zone of the instance.
+    Returns:
+      A DAG node that deletes the queued resource and its owned nodes.
+
+    Raises:
+      AirflowTaskTimeout: An error occurs when execution_timeout is breached.
+    """
+    with TaskGroup(group_id="clean_up") as group:
+      gpu.delete_resource.override(task_id="release_resource")(
+          resource, project_id, zone
       )
       return group

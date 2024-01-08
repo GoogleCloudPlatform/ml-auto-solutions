@@ -104,7 +104,7 @@ class Gpu(Accelerator):
 
   machine_type: str
   image_family: str
-  count: str
+  count: int
   accelerator_type: str
   runtime_version: str
 
@@ -190,7 +190,6 @@ class GpuVmTest(TestConfig[Gpu]):
   """
 
   test_name: str
-  vm_duration: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
 
