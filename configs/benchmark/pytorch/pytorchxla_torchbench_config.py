@@ -40,9 +40,7 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",
       "sudo apt-get install libgl1 -y",
-      "sudo chmod 777 /usr/local/lib/python3.10/dist-packages/",
-      "sudo chmod 777 /usr/local/bin/",
-      "pip install numpy pandas",
+      "pip install --user numpy pandas",
       (
           "pip install --user --pre torchvision torchaudio torchtext -i"
           " https://download.pytorch.org/whl/nightly/cpu"
@@ -51,7 +49,7 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
           "pip install --user 'torch_xla[tpuvm] @"
           " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl'"
       ),
-      "pip install psutil",
+      "pip install --user psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
       f"cd benchmark && {model_install_cmds()}",
       "cd; git clone https://github.com/pytorch/xla.git",
@@ -165,8 +163,8 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
   )
   docker_cmds = (
       " apt-get update && apt-get install -y libgl1 &&"
-      " pip install numpy pandas &&"
-      " pip install --pre torchvision torchaudio -i"
+      " pip install --user numpy pandas &&"
+      " pip install --user --pre torchvision torchaudio -i"
       " https://download.pytorch.org/whl/nightly/cu121 &&"
       " cd /tmp/ && git clone https://github.com/pytorch/benchmark.git &&"
       f" cd benchmark && {model_install_cmds()} &&"

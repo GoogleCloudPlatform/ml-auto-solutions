@@ -19,14 +19,6 @@ from airflow import models
 from configs import composer_env, vm_resource
 from configs.benchmark.pytorch import pytorchxla_torchbench_config as config
 
-# _MODELS = [
-#     "BERT_pytorch",
-#     "Background_Matting",
-#     "hf_Bert",
-#     "Super_SloMo",
-#     "tts_angular",
-# ]
-
 # Schudule the job to run once per two days at 5:00PM UTC.
 SCHEDULED_TIME = "0 17 */2 * *" if composer_env.is_prod_env() else None
 NETWORK_PREFIX = "projects/tpu-prod-env-automated"
