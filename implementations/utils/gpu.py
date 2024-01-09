@@ -348,7 +348,7 @@ def create_with_subnet(
 
 
 @task
-def generate_gpu_name(base_gpu_name: str) -> str:
+def generate_gpu_name() -> str:
   # note: GPU vm name need to match regex '(?:[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?)', while TPU vm allows '_'.
   # return f'{base_gpu_name}-{str(uuid.uuid4())}'.replace('_', '-')
   # If we use the above base_gpu_name in the return, some potion of the can be longer than 61 as in the regex.

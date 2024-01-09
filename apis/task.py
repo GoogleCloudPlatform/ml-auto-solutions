@@ -273,19 +273,20 @@ class GpuCreateResourceTask(BaseTask):
 
     Returns:
       A task group with the following tasks chained: provision, run_model,
-      post_process.
+      post_process, clean_up.
     """
-    # piz: We skip the queued resource for GPU for now since there is no queued resource command for GPU.
+    # piz: We skip the queued resource for GPU for now since there is no queued
+    # resource command for GPU.
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
       provision, ip_address, instance_name, ssh_keys = self.provision()
       run_model = self.run_model(ip_address, ssh_keys)
       post_process = self.post_process()
-      clean_up_process = self.clean_up(
+      clean_up = self.clean_up(
           instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone
       )
-      provision >> run_model >> post_process >> clean_up_process
+      provision >> run_model >> post_process >> clean_up
     return group
 
   def provision(
@@ -297,16 +298,16 @@ class GpuCreateResourceTask(BaseTask):
     runs the test config's setup script on the GPU when it is ready.
 
     Returns:
-      A DAG node that will provision a GPU, an XCom value for the GPU name,
-        an XCom value for the qualified queued resource name, and an XCom value
-        for the SSH keys.
+      A DAG node that will provision a GPU, an XCome value of the ip address
+      for the host, an XCom value for the GPU name, and an XCom value for
+      the SSH keys.
 
     Raises:
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
     with TaskGroup(group_id="provision") as group:
       with TaskGroup(group_id="initialize"):
-        gpu_name = gpu.generate_gpu_name(self.task_test_config.benchmark_id)
+        gpu_name = gpu.generate_gpu_name()
         ssh_keys = ssh.generate_ssh_keys()
 
       ip_address = gpu.create_resource.override(task_id="create_resource")(
@@ -358,8 +359,8 @@ class GpuCreateResourceTask(BaseTask):
       A DAG node that executes the post process.
     """
     with TaskGroup(group_id="post_process") as group:
-      process_id = metric.generate_process_id.override(retries=1)()
-      metric.process_metrics(
+      process_id = metric.generate_process_id.override(retries=0)()
+      metric.process_metrics.override(retries=0)(
           process_id,
           self.task_test_config,
           self.task_metric_config,
