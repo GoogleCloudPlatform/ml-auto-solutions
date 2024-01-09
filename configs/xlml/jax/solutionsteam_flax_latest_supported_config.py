@@ -175,7 +175,7 @@ def get_flax_vit_conv_config(
 
   set_up_cmds = get_flax_vit_setup_cmds()
   tf_summary_location = (
-      "/tmp/transformers/vit-imagenette/events.out.tfevents.jax-vit.v2"
+      "/tmp/transformers/vit-imagenette/events.out.tfevents.flax-vit.v2"
   )
   gcs_location = f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/vit/{RUN_DATE}/events.out.tfevents.flax-vit.v2"
   extra_run_cmds = (
@@ -285,36 +285,6 @@ def get_flax_gpt2_config(
   )
 
 
-def get_flax_sd_setup_cmds() -> Tuple[str]:
-  return common.set_up_hugging_face_diffusers() + (
-      (
-          "pip install -U -r"
-          " /tmp/diffusers/examples/text_to_image/requirements_flax.txt"
-      ),
-  )
-
-
-def get_flax_sd_run_model_cmds(
-    resolution: int,
-    num_train_epochs: int,
-    work_dir: str,
-    extraFlags: str = "",
-    extra_run_cmds: Tuple[str] = ("echo",),
-) -> Tuple[str]:
-  return (
-      (
-          "cd /tmp/diffusers/examples/text_to_image && JAX_PLATFORM_NAME=TPU"
-          " python3 train_text_to_image_flax.py"
-          " --pretrained_model_name_or_path='duongna/stable-diffusion-v1-4-flax'"
-          f" --dataset_name='lambdalabs/pokemon-blip-captions' --resolution={resolution}"
-          " --center_crop --random_flip --train_batch_size=8"
-          f" --num_train_epochs={num_train_epochs} --learning_rate=1e-05"
-          f" --max_grad_norm=1 --output_dir={work_dir} --cache_dir /tmp"
-          f" {extraFlags}"
-      ),
-  ) + extra_run_cmds
-
-
 def get_flax_sd_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
@@ -334,10 +304,25 @@ def get_flax_sd_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = get_flax_sd_setup_cmds()
+  set_up_cmds = common.set_up_hugging_face_diffusers() + (
+      (
+          "pip install -U -r"
+          " /tmp/diffusers/examples/text_to_image/requirements_flax.txt"
+      ),
+  )
+
   work_dir = generate_unique_dir("./sd-pokemon-model")
-  run_model_cmds = get_flax_sd_run_model_cmds(
-      resolution, num_train_epochs, work_dir, extraFlags
+  run_model_cmds = (
+      (
+          "cd /tmp/diffusers/examples/text_to_image && JAX_PLATFORM_NAME=TPU"
+          " python3 train_text_to_image_flax.py"
+          " --pretrained_model_name_or_path='duongna/stable-diffusion-v1-4-flax'"
+          f" --dataset_name='lambdalabs/pokemon-blip-captions' --resolution={resolution}"
+          " --center_crop --random_flip --train_batch_size=8"
+          f" --num_train_epochs={num_train_epochs} --learning_rate=1e-05"
+          f" --max_grad_norm=1 --output_dir={work_dir} --cache_dir /tmp"
+          f" {extraFlags}"
+      ),
   )
 
   job_test_config = test_config.TpuVmTest(
@@ -359,63 +344,6 @@ def get_flax_sd_config(
   return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
-  )
-
-
-def get_flax_sd_conv_config(
-    tpu_version: TpuVersion,
-    tpu_cores: int,
-    tpu_zone: str,
-    time_out_in_min: int,
-    num_train_epochs: int,
-    project_name: str = PROJECT_NAME,
-    runtime_version: str = RUNTIME_IMAGE,
-    network: str = "default",
-    subnetwork: str = "default",
-    resolution: int = 512,
-    extraFlags: str = "",
-) -> task.TpuQueuedResourceTask:
-  job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
-      dataset_name=metric_config.DatasetOption.XLML_DATASET,
-  )
-
-  set_up_cmds = get_flax_sd_setup_cmds()
-  work_dir = generate_unique_dir("/tmp/diffusers/sd-pokemon-model")
-  tf_summary_location = f"{work_dir}/events.out.tfevents.jax-sd.v2"
-  gcs_location = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/sd/{RUN_DATE}/events.out.tfevents.flax-sd.v2"
-  )
-  extra_run_cmds = (
-      f"cp {work_dir}/events.out.tfevents.* {tf_summary_location} || exit 0",
-      f"gsutil cp {tf_summary_location} {gcs_location} || exit 0",
-  )
-  run_model_cmds = get_flax_sd_run_model_cmds(
-      resolution, num_train_epochs, work_dir, extraFlags, extra_run_cmds
-  )
-
-  job_test_config = test_config.TpuVmTest(
-      test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
-          runtime_version=runtime_version,
-          reserved=IS_TPU_RESERVED,
-          network=network,
-          subnetwork=subnetwork,
-      ),
-      test_name="flax_sd_pokemon_conv",
-      set_up_cmds=set_up_cmds,
-      run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
-      task_owner=test_owner.SHIVA_S,
-  )
-
-  job_metric_config = metric_config.MetricConfig(
-      tensorboard_summary=metric_config.SummaryConfig(
-          file_location=gcs_location,
-          aggregation_strategy=metric_config.AggregationStrategy.LAST,
-      )
   )
 
   return task.TpuQueuedResourceTask(
@@ -504,7 +432,7 @@ def get_flax_bart_conv_config(
 
   set_up_cmds = get_flax_bart_setup_cmds()
   work_dir = "/tmp/transformers/bart-base-wiki"
-  tf_summary_location = f"{work_dir}/events.out.tfevents.jax-bart.v2"
+  tf_summary_location = f"{work_dir}/events.out.tfevents.flax-bart.v2"
   gcs_location = f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/bart/{RUN_DATE}/events.out.tfevents.flax-bart.v2"
   extra_run_cmds = (
       f"cp {work_dir}/events.out.tfevents.* {tf_summary_location} || exit 0",
@@ -542,6 +470,30 @@ def get_flax_bart_conv_config(
   )
 
 
+def get_flax_bert_setup_cmds() -> Tuple[str]:
+  return common.set_up_hugging_face_transformers() + (
+      "pip install -r examples/flax/text-classification/requirements.txt",
+      "pip install ml_dtypes==0.2.0",
+  )
+
+
+def get_flax_bert_run_model_cmds(
+    task_name: str,
+    num_train_epochs: int,
+    extraFlags: str = "",
+    extra_run_cmds: Tuple[str] = ("echo",),
+) -> Tuple[str]:
+  return (
+      (
+          "cd /tmp/transformers/examples/flax/text-classification &&"
+          " JAX_PLATFORM_NAME=TPU python3 run_flax_glue.py --output_dir"
+          " /tmp/bert-glue --model_name_or_path bert-base-cased"
+          f" --overwrite_output_dir --task_name {task_name} --num_train_epochs"
+          f" {num_train_epochs} --logging_dir ./bert-glue {extraFlags}"
+      ),
+  ) + extra_run_cmds
+
+
 def get_flax_bert_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
@@ -557,20 +509,8 @@ def get_flax_bert_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = common.set_up_hugging_face_transformers() + (
-      "pip install -r examples/flax/text-classification/requirements.txt",
-      "pip install ml_dtypes==0.2.0",
-  )
-
-  run_model_cmds = (
-      (
-          "cd /tmp/transformers/examples/flax/text-classification &&"
-          " JAX_PLATFORM_NAME=TPU python3 run_flax_glue.py --output_dir"
-          " ./bert-glue --model_name_or_path bert-base-cased"
-          f" --overwrite_output_dir --task_name {task_name} --num_train_epochs"
-          f" {num_train_epochs} --logging_dir ./bert-glue {extraFlags}"
-      ),
-  )
+  set_up_cmds = get_flax_bert_setup_cmds()
+  run_model_cmds = get_flax_bert_run_model_cmds(task_name, num_train_epochs, extraFlags)
 
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
@@ -589,6 +529,61 @@ def get_flax_bert_config(
   return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
+  )
+
+
+def get_flax_bert_conv_config(
+    tpu_version: TpuVersion,
+    tpu_cores: int,
+    tpu_zone: str,
+    time_out_in_min: int,
+    task_name: str,
+    num_train_epochs: int = 1,
+    extraFlags: str = "",
+) -> task.TpuQueuedResourceTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=PROJECT_NAME,
+      zone=tpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+  )
+
+  set_up_cmds = get_flax_bert_setup_cmds()
+  work_dir = "/tmp/transformers/bert-glue"
+  tf_summary_location = f"{work_dir}/events.out.tfevents.flax-bert.v2"
+  gcs_location = f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/bert/{task_name}/{RUN_DATE}/events.out.tfevents.flax-bert.v2"
+  extra_run_cmds = (
+      f"cp {work_dir}/events.out.tfevents.* {tf_summary_location} || exit 0",
+      f"gsutil cp {tf_summary_location} {gcs_location} || exit 0",
+  )
+  run_model_cmds = get_flax_bert_run_model_cmds(
+      task_name, num_train_epochs, extraFlags, extra_run_cmds
+  )
+
+  job_test_config = test_config.TpuVmTest(
+      test_config.Tpu(
+          version=tpu_version,
+          cores=tpu_cores,
+          runtime_version=RUNTIME_IMAGE,
+          reserved=IS_TPU_RESERVED,
+      ),
+      test_name=f"flax_bert_{task_name}_conv",
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      time_out_in_min=time_out_in_min,
+      task_owner=test_owner.SHIVA_S,
+  )
+
+  job_metric_config = metric_config.MetricConfig(
+      tensorboard_summary=metric_config.SummaryConfig(
+          file_location=gcs_location,
+          aggregation_strategy=metric_config.AggregationStrategy.LAST,
+      )
+  )
+
+  return task.TpuQueuedResourceTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+      task_metric_config=job_metric_config,
   )
 
 

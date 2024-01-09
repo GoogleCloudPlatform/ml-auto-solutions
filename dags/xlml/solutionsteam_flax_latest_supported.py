@@ -197,12 +197,12 @@ with models.DAG(
       num_train_epochs=1,
   ).run()
 
-  jax_sd_conv_v4_32 = flax_config.get_flax_sd_conv_config(
+  jax_sd_v4_32 = flax_config.get_flax_sd_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      num_train_epochs=10,
+      num_train_epochs=1,
   ).run()
 
   jax_sd_v5e_4 = flax_config.get_flax_sd_config(
@@ -246,14 +246,24 @@ with models.DAG(
   ).run()
 
   # BERT
+  jax_bert_v4_batch_size = [
+      "--per_device_train_batch_size=8",
+      "--per_device_eval_batch_size=8",
+  ]
+  jax_bert_conv_extra_flags = [
+      "--learning_rate 2e-5",
+      "--eval_steps 500",
+  ]
+
   jax_bert_mnli_extra_flags = [
       "--max_seq_length 512",
       "--eval_steps 1000",
   ]
-  jax_bert_v4_mnli_extra_flags = jax_bert_mnli_extra_flags + [
-      "--per_device_train_batch_size=8",
-      "--per_device_eval_batch_size=8",
-  ]
+  jax_bert_v4_mnli_extra_flags = jax_bert_mnli_extra_flags + jax_bert_v4_batch_size
+  jax_bert_v4_mnli_conv_extra_flags = (
+      jax_bert_mnli_extra_flags + jax_bert_v4_batch_size + jax_bert_conv_extra_flags
+  )
+
   jax_bert_mnli_v4_8 = flax_config.get_flax_bert_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=8,
@@ -263,23 +273,25 @@ with models.DAG(
       extraFlags=" ".join(jax_bert_v4_mnli_extra_flags),
   ).run()
 
-  jax_bert_mnli_v4_32 = flax_config.get_flax_bert_config(
+  jax_bert_mnli_conv_v4_32 = flax_config.get_flax_bert_conv_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       task_name="mnli",
-      extraFlags=" ".join(jax_bert_v4_mnli_extra_flags),
+      num_train_epochs=3,
+      extraFlags=" ".join(jax_bert_v4_mnli_conv_extra_flags),
   ).run()
 
   jax_bert_mrpc_extra_flags = [
       "--max_seq_length 128",
       "--eval_steps 100",
   ]
-  jax_bert_v4_mrpc_extra_flags = jax_bert_mrpc_extra_flags + [
-      "--per_device_train_batch_size=8",
-      "--per_device_eval_batch_size=8",
-  ]
+  jax_bert_v4_mrpc_extra_flags = jax_bert_mrpc_extra_flags + jax_bert_v4_batch_size
+  jax_bert_v4_mrpc_conv_extra_flags = (
+      jax_bert_mrpc_extra_flags + jax_bert_v4_batch_size + jax_bert_conv_extra_flags
+  )
+
   jax_bert_mrpc_v4_8 = flax_config.get_flax_bert_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=8,
@@ -289,13 +301,14 @@ with models.DAG(
       extraFlags=" ".join(jax_bert_v4_mrpc_extra_flags),
   ).run()
 
-  jax_bert_mrpc_v4_32 = flax_config.get_flax_bert_config(
+  jax_bert_mrpc_conv_v4_32 = flax_config.get_flax_bert_conv_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       task_name="mrpc",
-      extraFlags=" ".join(jax_bert_v4_mrpc_extra_flags),
+      num_train_epochs=3,
+      extraFlags=" ".join(jax_bert_v4_mrpc_conv_extra_flags),
   ).run()
 
   # WMT
@@ -317,9 +330,9 @@ with models.DAG(
   jax_vit_v5e_4
   jax_gpt2_v4_8 >> jax_gpt2_v4_32
   jax_gpt2_v5e_4
-  jax_sd_v4_8 >> jax_sd_conv_v4_32
+  jax_sd_v4_8 >> jax_sd_v4_32
   jax_sd_v5e_4
   jax_bart_v4_8 >> jax_bart_conv_v4_32
-  jax_bert_mnli_v4_8 >> jax_bert_mnli_v4_32
-  jax_bert_mrpc_v4_8 >> jax_bert_mrpc_v4_32
+  jax_bert_mnli_v4_8 >> jax_bert_mnli_conv_v4_32
+  jax_bert_mrpc_v4_8 >> jax_bert_mrpc_conv_v4_32
   jax_wmt_v4_8
