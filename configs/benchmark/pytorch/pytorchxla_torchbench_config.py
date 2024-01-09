@@ -160,13 +160,10 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
       (
-          "sudo docker run --gpus all -it -d --network host "
+          "sudo docker run --gpus all -it -d --network host --name ml-automation-torchbench"
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
-      (
-          "sudo docker exec -i $(sudo docker ps | awk 'NR==2 { print $1 }')"
-          f" /bin/bash -c '{docker_cmds}'"
-      ),
+      f"sudo docker exec -i ml-automation-torchbench /bin/bash -c '{docker_cmds}'",
   )
 
 
