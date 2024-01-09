@@ -102,7 +102,6 @@ def create_instance(
     accelerators: list[compute_v1.AcceleratorConfig] = None,
     metadata: compute_v1.Metadata = None,
     service_account: compute_v1.ServiceAccount = None,
-    preemptible: bool = False,
     spot: bool = False,
     instance_termination_action: str = "STOP",
     custom_hostname: str = None,
@@ -138,8 +137,6 @@ def create_instance(
           be attached to the new instance.
       metadata: Sets up metadata of the instance.
       service_account: Sets up service account email address and scopes.
-      preemptible: boolean value indicating if the new instance should be preemptible
-          or not. Preemptible VMs have been deprecated and you should now use Spot VMs.
       spot: boolean value indicating if the new instance should be a Spot VM or not.
       instance_termination_action: What action should be taken once a Spot VM is terminated.
           Possible values: "STOP", "DELETE"
@@ -193,12 +190,6 @@ def create_instance(
   if service_account:
     instance.service_accounts = [service_account]
 
-  if preemptible:
-    # Set the preemptible setting
-    logging.warn("Preemptible VMs are being replaced by Spot VMs.", DeprecationWarning)
-    instance.scheduling = compute_v1.Scheduling()
-    instance.scheduling.preemptible = True
-
   if spot:
     # Set the Spot VM setting
     instance.scheduling.provisioning_model = (
@@ -231,6 +222,7 @@ def create_instance(
   return instance_client.get(project=project_id, zone=zone, instance=instance_name)
 
 
+@task.sensor(poke_interval=60, timeout=3600, mode="reschedule")
 def wait_for_extended_operation(
     operation: ExtendedOperation, verbose_name: str = "operation", timeout: int = 300
 ) -> Any:

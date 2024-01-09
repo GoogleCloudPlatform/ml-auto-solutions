@@ -105,7 +105,7 @@ class TpuQueuedResourceTask(BaseTask):
           ssh_keys,
           self.tpu_create_timeout,
       )
-      queued_resource_op >> tpu.ssh_host.override(task_id="setup")(
+      queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
           queued_resource_name,
           # TODO(wcromar): remove split
           self.task_test_config.setup_script,
@@ -130,7 +130,7 @@ class TpuQueuedResourceTask(BaseTask):
     Returns:
       A DAG node that executes the model test.
     """
-    return tpu.ssh_host.override(
+    return tpu.ssh_tpu.override(
         task_id="run_model",
         execution_timeout=datetime.timedelta(
             minutes=self.task_test_config.time_out_in_min

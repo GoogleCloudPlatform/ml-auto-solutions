@@ -194,14 +194,15 @@ def get_torchbench_gpu_config(
     run_filter = " "
   else:
     run_filter = f" --filter={model_name} "
-  cmds = (
-      f" export PJRT_DEVICE=CUDA && export GPU_NUM_DEVICES={count} &&"
-      " cd /tmp/xla/benchmarks &&"
-      " python experiment_runner.py  --suite-name=torchbench --accelerator=cuda"
-      f" --progress-bar --xla=PJRT --xla=None {run_filter} &&"
-      " rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl &&"
-      " python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl"
+  cmd_list = (
+      "export PJRT_DEVICE=CUDA",
+      f"export GPU_NUM_DEVICES={count}",
+      "cd /tmp/xla/benchmarks",
+      f"python experiment_runner.py  --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None {run_filter}",
+      "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
+      "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
   )
+  cmds = cmd_list.join("\n")
   run_script_cmds = (
       (
           "sudo docker exec -i $(sudo docker ps | awk 'NR==2 { print $1 }')"
