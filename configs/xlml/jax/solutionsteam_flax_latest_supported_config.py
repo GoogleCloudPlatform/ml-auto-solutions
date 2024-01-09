@@ -177,9 +177,7 @@ def get_flax_vit_conv_config(
   tf_summary_location = (
       "/tmp/transformers/vit-imagenette/events.out.tfevents.jax-vit.v2"
   )
-  gcs_location = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/vit/{RUN_DATE}/events.out.tfevents.jax-vit.v2"
-  )
+  gcs_location = f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/vit/{RUN_DATE}/events.out.tfevents.flax-vit.v2"
   extra_run_cmds = (
       (
           "cp /tmp/transformers/vit-imagenette/events.out.tfevents.*"
@@ -387,7 +385,7 @@ def get_flax_sd_conv_config(
   work_dir = generate_unique_dir("/tmp/diffusers/sd-pokemon-model")
   tf_summary_location = f"{work_dir}/events.out.tfevents.jax-sd.v2"
   gcs_location = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/sd/{RUN_DATE}/events.out.tfevents.jax-sd.v2"
+      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/sd/{RUN_DATE}/events.out.tfevents.flax-sd.v2"
   )
   extra_run_cmds = (
       f"cp {work_dir}/events.out.tfevents.* {tf_summary_location} || exit 0",
@@ -507,9 +505,7 @@ def get_flax_bart_conv_config(
   set_up_cmds = get_flax_bart_setup_cmds()
   work_dir = "/tmp/transformers/bart-base-wiki"
   tf_summary_location = f"{work_dir}/events.out.tfevents.jax-bart.v2"
-  gcs_location = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/bart/{RUN_DATE}/events.out.tfevents.jax-bart.v2"
-  )
+  gcs_location = f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/bart/{RUN_DATE}/events.out.tfevents.flax-bart.v2"
   extra_run_cmds = (
       f"cp {work_dir}/events.out.tfevents.* {tf_summary_location} || exit 0",
       f"gsutil cp {tf_summary_location} {gcs_location} || exit 0",
