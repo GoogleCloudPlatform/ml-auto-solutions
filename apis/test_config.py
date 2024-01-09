@@ -44,12 +44,12 @@ When Composer updates to a recent Python version, we can use dataclasses.
 """
 
 import abc
+import attrs
+import configs.vm_resource as resource
 import json
 import os
 import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
-import attrs
-from configs.vm_resource import TpuVersion
 
 
 class Accelerator(abc.ABC):
@@ -76,7 +76,7 @@ class Tpu(Accelerator):
     reserved: The flag to define if a TPU is a Cloud reservation.
   """
 
-  version: TpuVersion
+  version: resource.TpuVersion
   cores: int
   runtime_version: Optional[str] = None
   network: str = 'default'
@@ -89,7 +89,6 @@ class Tpu(Accelerator):
     return f'v{self.version.value}-{self.cores}'
 
 
-# TODO(ranran): We may want to use GKE in the future.
 @attrs.define
 class Gpu(Accelerator):
   """Represents a single Cloud GPU instance.
@@ -283,7 +282,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     return JSonnetTpuVmTest(
         test_name=test['testName'],
         accelerator=Tpu(
-            version=TpuVersion(str(test['accelerator']['version'])),
+            version=resource.TpuVersion(str(test['accelerator']['version'])),
             cores=test['accelerator']['size'],
             runtime_version=test['tpuSettings']['softwareVersion'],
             reserved=reserved,

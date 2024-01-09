@@ -17,7 +17,7 @@
 from typing import Tuple
 from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner
-from configs.vm_resource import TpuVersion, Project, RuntimeVersion
+import configs.vm_resource as resource
 
 
 # TODO(ranran or PyTroch/XLA team): this is an example for benchmark test with hardcode compatible versions,
@@ -54,10 +54,11 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
 
 
 def get_torchbench_tpu_config(
-    tpu_version: TpuVersion,
+    tpu_version: resource.TpuVersion,
     tpu_cores: int,
-    tpu_zone: str,
-    runtime_version: str,
+    project: resource.Project,
+    tpu_zone: resource.Zone,
+    runtime_version: resource.RuntimeVersion,
     time_out_in_min: int,
     network: str = "default",
     subnetwork: str = "default",
@@ -65,8 +66,8 @@ def get_torchbench_tpu_config(
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-      zone=tpu_zone,
+      project_name=project.value,
+      zone=tpu_zone.value,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
@@ -95,7 +96,7 @@ def get_torchbench_tpu_config(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=runtime_version,
+          runtime_version=runtime_version.value,
           network=network,
           subnetwork=subnetwork,
           reserved=True,
@@ -131,37 +132,16 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       return "python install.py --continue_on_fail"
     return f"python install.py models {model_name}"
 
-  nvidia_install_clean = (
-      "sudo /usr/bin/nvidia-uninstall",
-      (
-          'sudo apt-get -y --purge remove "*cuda*" "*cublas*" "*cufft*"'
-          ' "*cufile*" "*curand*" "*cusolver*" "*cusparse*" "*gds-tools*"'
-          ' "*npp*" "*nvjpeg*" "nsight*" "*nvvm*"'
-      ),
-      'sudo apt-get -y --purge remove "*nvidia*" "libxnvctrl*"',
-      "sudo apt-get -y autoremove",
-      "sudo rm -rf /usr/local/cuda*",
-  )
   nvidia_driver_install = (
-      ("lsof -n -w /dev/nvidia* | awk '{print $2}' | sort -u | xargs -I {}" " kill {}"),
-      (
-          "wget -q"
-          " https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run"
-      ),
-      (
-          "sudo service lightdm stop ; sudo sh cuda_12.1.0_530.30.02_linux.run"
-          " --silent --driver --toolkit --no-drm --override"
-      ),
-      "cat /var/log/nvidia-installer.log",
-  )
-  nvidia_driver_install_official = (
       "curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py",
       # Command `apt update/upgrade` receives 403 bad gateway error when connecting to the google apt repo.
       # This can be a transient error. We use the following command to fix the issue for now.
+      # TODO(piz): remove the following statement for temporary fix once the `apt update/upgrade` is removed or updated.
       "sed -i '/^\s*run(\"apt update\")/,/^\s*return True/ s/^/# /'  install_gpu_driver.py",
       "sudo python3 install_gpu_driver.py --force",
       "sudo nvidia-smi",
   )
+
   docker_cmds = (
       " apt-get update && apt-get install -y libgl1 &&"
       " pip install --user numpy pandas &&"
@@ -172,7 +152,7 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       " cd /tmp/ && git clone https://github.com/pytorch/xla.git"
   )
   return (
-      *nvidia_driver_install_official,
+      *nvidia_driver_install,
       "sudo apt-get install -y nvidia-container-toolkit",
       "sudo nvidia-smi -pm 1",
       (
@@ -191,19 +171,19 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
 
 
 def get_torchbench_gpu_config(
-    machine_type: str,
-    image_project: str,
-    image_family: str,
-    accelerator_type: str,
+    machine_type: resource.MachineVersion,
+    image_project: resource.ImageProject,
+    image_family: resource.ImageFamily,
+    accelerator_type: resource.GpuVersion,
     count: int,
-    gpu_zone: str,
+    gpu_zone: resource.Zone,
     time_out_in_min: int,
     model_name: str = "",
     extraFlags: str = "",
 ) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-      zone=gpu_zone,
+      project_name=resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      zone=gpu_zone.value,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
@@ -240,11 +220,11 @@ def get_torchbench_gpu_config(
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
   job_test_config = test_config.GpuVmTest(
       test_config.Gpu(
-          machine_type=machine_type,
-          image_family=image_family,
+          machine_type=machine_type.value,
+          image_family=image_family.value,
           count=count,
-          accelerator_type=accelerator_type,
-          runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+          accelerator_type=accelerator_type.value,
+          runtime_version=resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value,
       ),
       test_name=test_name,
       set_up_cmds=set_up_cmds,
@@ -260,8 +240,8 @@ def get_torchbench_gpu_config(
   )
 
   return task.GpuCreateResourceTask(
-      image_project,
-      image_family,
+      image_project.value,
+      image_family.value,
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,

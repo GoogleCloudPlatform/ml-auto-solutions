@@ -33,34 +33,6 @@ from typing import Iterable, Any
 import uuid
 
 
-def print_images_list(project: str) -> str:
-  """
-  Prints a list of all non-deprecated image names available in given project.
-
-  Args:
-    project: project ID or project number of the Cloud project you want to list images from.
-
-  Returns:
-    The output as a string.
-  """
-  images_client = compute_v1.ImagesClient()
-  # Listing only non-deprecated images to reduce the size of the reply.
-  images_list_request = compute_v1.ListImagesRequest(
-      project=project,
-      max_results=100,
-      # filter="deprecated.state != DEPRECATED",
-  )
-  output = []
-
-  # Although the `max_results` parameter is specified in the request, the iterable returned
-  # by the `list()` method hides the pagination mechanic. The library makes multiple
-  # requests to the API for you, so you can simply iterate over all the images.
-  for img in images_client.list(request=images_list_request):
-    print(f" -  {img.name}")
-    output.append(f" -  {img.name}")
-  return "\n".join(output)
-
-
 def get_image_from_family(project: str, family: str) -> compute_v1.Image:
   """
   Retrieve the newest image that is part of a given family in a project.
@@ -249,13 +221,13 @@ def create_instance(
   request.instance_resource = instance
 
   # Wait for the create operation to complete.
-  print(f"Creating the {instance_name} instance in {zone}...")
+  logging.info(f"Creating the {instance_name} instance in {zone}...")
 
   operation = instance_client.insert(request=request)
 
   wait_for_extended_operation(operation, "instance creation")
 
-  print(f"Instance {instance_name} created.")
+  logging.info(f"Instance {instance_name} created.")
   return instance_client.get(project=project_id, zone=zone, instance=instance_name)
 
 
@@ -291,18 +263,16 @@ def wait_for_extended_operation(
   result = operation.result(timeout=timeout)
 
   if operation.error_code:
-    print(
+    logging.error(
         f"Error during {verbose_name}: [Code: {operation.error_code}]: {operation.error_message}",
-        file=sys.stderr,
-        flush=True,
     )
-    print(f"Operation ID: {operation.name}", file=sys.stderr, flush=True)
+    logging.error(f"Operation ID: {operation.name}")
     raise operation.exception() or RuntimeError(operation.error_message)
 
   if operation.warnings:
-    print(f"Warnings during {verbose_name}:\n", file=sys.stderr, flush=True)
+    logging.warning(f"Warnings during {verbose_name}:\n")
     for warning in operation.warnings:
-      print(f" - {warning.code}: {warning.message}", file=sys.stderr, flush=True)
+      logging.warning(f" - {warning.code}: {warning.message}")
 
   return result
 
@@ -311,40 +281,6 @@ def create_metadata(key_val: dict[str, str]) -> compute_v1.Metadata:
   metadata = compute_v1.Metadata()
   metadata.items = [{"key": key, "value": val} for key, val in key_val.items()]
   return metadata
-
-
-def create_with_subnet(
-    project_id: str, zone: str, instance_name: str, network_link: str, subnet_link: str
-) -> compute_v1.Instance:
-  """
-  Create a new VM instance with Debian 10 operating system in specified network and subnetwork.
-
-  Args:
-      project_id: project ID or project number of the Cloud project you want to use.
-      zone: name of the zone to create the instance in. For example: "us-west3-b"
-      instance_name: name of the new virtual machine (VM) instance.
-      network_link: name of the network you want the new instance to use.
-          For example: "global/networks/default" represents the network
-          named "default", which is created automatically for each project.
-      subnetwork_link: name of the subnetwork you want the new instance to use.
-          This value uses the following format:
-          "regions/{region}/subnetworks/{subnetwork_name}"
-
-  Returns:
-      Instance object.
-  """
-  newest_debian = get_image_from_family(project="debian-cloud", family="debian-10")
-  disk_type = f"zones/{zone}/diskTypes/pd-standard"
-  disks = [disk_from_image(disk_type, 100, True, newest_debian.self_link)]
-  instance = create_instance(
-      project_id,
-      zone,
-      instance_name,
-      disks,
-      network_link=network_link,
-      subnetwork_link=subnet_link,
-  )
-  return instance
 
 
 @task
@@ -367,11 +303,12 @@ def create_resource(
   """Request a resource and wait until the nodes are created.
 
   Args:
-    gpu_name: XCom value for unique GPU name
+    gpu_name: XCom value for unique GPU name.
+    image_project: project of the image.
+    image_family: family of the image.
     accelerator: Description of GPU to create.
     gcp: GCP project/zone configuration.
     ssh_keys: XCom value for SSH keys to communicate with these GPUs.
-    timeout: Amount of time to wait for GPUs to be created.
 
   Returns:
     The ip address of the GPU VM.
@@ -405,7 +342,7 @@ def create_resource(
       metadata=metadata,
       instance_termination_action="DELETE",
   )
-  print("instance: ", instance)
+  logging.info("instance info: {instance}")
 
   ip_pattern = re.compile(r'network_i_p:\s+"([^"]+)"')
   match = ip_pattern.search(str(instance))
@@ -414,9 +351,9 @@ def create_resource(
   ip_address = "0.0.0.0"
   if match:
     ip_address = match.group(1)
-    print(ip_address)
+    logging.info(f"Created vm with ip address {ip_address}.")
   else:
-    print("No IP address found.")
+    logging.error(f"No IP address found for instance: {gpu_name}.")
   return ip_address
 
 
@@ -454,4 +391,4 @@ def delete_resource(instance_name: str, project_id: str, zone: str) -> str:
   )
   operation = client.delete(request=request)
   response = wait_for_extended_operation(operation, "delete instance")
-  print(response)
+  logging.info(response)

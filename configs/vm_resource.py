@@ -30,7 +30,7 @@ class Project(enum.Enum):
 
 
 class ImageProject(enum.Enum):
-  DEEP_LEARNING_PLATFORM_RELEASE = ("deeplearning-platform-release",)
+  DEEP_LEARNING_PLATFORM_RELEASE = "deeplearning-platform-release"
 
 
 class ImageFamily(enum.Enum):
