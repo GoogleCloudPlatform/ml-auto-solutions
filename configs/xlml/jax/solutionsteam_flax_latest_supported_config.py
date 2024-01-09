@@ -309,7 +309,7 @@ def get_flax_sd_run_model_cmds(
           f" --dataset_name='lambdalabs/pokemon-blip-captions' --resolution={resolution}"
           " --center_crop --random_flip --train_batch_size=8"
           f" --num_train_epochs={num_train_epochs} --learning_rate=1e-05"
-          f" --max_grad_norm=1 --output_dir=/tmp/diffusers/{work_dir} --cache_dir /tmp"
+          f" --max_grad_norm=1 --output_dir={work_dir} --cache_dir /tmp"
           f" {extraFlags}"
       ),
   ) + extra_run_cmds
