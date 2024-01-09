@@ -17,9 +17,24 @@
 import enum
 
 
-# TODO(ranran): update to enum class (this change has been included in an on-going PR)
-PROJECT_CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
-PROJECT_TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
+V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
+V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
+V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
+V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
+
+
+class Project(enum.Enum):
+  CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
+  TPU_PROD_ENV_MULTIPOD = "tpu-prod-env-multipod"
+  TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
+
+
+class ImageProject(enum.Enum):
+  DEEP_LEARNING_PLATFORM_RELEASE = ("deeplearning-platform-release",)
+
+
+class ImageFamily(enum.Enum):
+  COMMON_CU121_DEBIAN_11 = "common-cu121-debian-11"
 
 
 class Zone(enum.Enum):
@@ -33,9 +48,33 @@ class Zone(enum.Enum):
   US_EAST5_A = "us-east5-a"  # reservation for v5p in tpu-prod-env-automated
 
 
+class MachineVersion(enum.Enum):
+  N1_STANDARD_32 = "n1-standard-32"
+  A2_HIGHGPU_4G = "a2-highgpu-4g"
+  A3_HIGHGPU_8G = "a3-highgpu-8g"
+  G2_STAND_4 = "g2-standard-4"
+
+
+class TpuVersion(enum.Enum):
+  V2 = "2"
+  V3 = "3"
+  V4 = "4"
+  V5E = "5litepod"
+  V5P = "5p"
+
+
+class GpuVersion(enum.Enum):
+  L4 = "nvidia-l4"
+  A100 = "nvidia-tesla-a100"
+  H100 = "nvidia-h100-80gb"
+  V100 = "nvidia-tesla-v100"
+
+
 class RuntimeVersion(enum.Enum):
   TPU_VM_TF_NIGHTLY = "tpu-vm-tf-nightly"
   TPU_VM_TF_NIGHTLY_POD = "tpu-vm-tf-nightly-pod"
+  TPU_VM_TF_2150_PJRT = "tpu-vm-tf-2.15.0-pjrt"
+  TPU_VM_TF_2150_POD_PJRT = "tpu-vm-tf-2.15.0-pod-pjrt"
   TPU_UBUNTU2204_BASE = "tpu-ubuntu2204-base"
   TPU_VM_V4_BASE = "tpu-vm-v4-base"
   V2_ALPHA_TPUV5_LITE = "v2-alpha-tpuv5-lite"
@@ -47,6 +86,9 @@ class ClusterName(enum.Enum):
   V4_32_CLUSTER = "mas-v4-32"
   V5E_4_CLUSTER = "mas-v5e-4"
   V5E_16_CLUSTER = "mas-v5e-16"
+  V4_128_MULTISLICE_CLUSTER = "v4-bodaborg"
+  V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
+  V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
 
 
 class DockerImage(enum.Enum):

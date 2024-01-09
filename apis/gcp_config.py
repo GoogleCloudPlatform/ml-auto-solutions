@@ -16,7 +16,7 @@
 
 import dataclasses
 from apis import metric_config
-from configs import vm_resource
+from configs.vm_resource import Project
 
 
 @dataclasses.dataclass
@@ -34,5 +34,5 @@ class GCPConfig:
   project_name: str
   zone: str
   dataset_name: metric_config.DatasetOption
-  dataset_project: str = vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS
-  composer_project: str = vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS
+  dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+  composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value

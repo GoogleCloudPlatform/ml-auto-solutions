@@ -16,11 +16,8 @@
 
 from typing import Tuple
 from apis import gcp_config, metric_config, task, test_config
-from configs import gcs_bucket, test_owner, vm_resource
-
-PROJECT_NAME = vm_resource.PROJECT_CLOUD_ML_AUTO_SOLUTIONS
-RUNTIME_IMAGE = vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE.value
-IS_TPU_RESERVED = True
+from configs import gcs_bucket, test_owner
+from configs.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
 # TODO(ranran or PyTroch/XLA team): this is an example for benchmark test with hardcode compatible versions,
@@ -56,23 +53,16 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
   )
 
 
-# TODO(ranran or PyTroch/XLA team) & notes:
-# 1) If you want to run all models, do not pass in model_name
-# 2) All filters of benchmark can be passed via extraFlags
 def get_torchbench_tpu_config(
-    tpu_version: str,
+    tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
     model_name: str = "",
-    project_name: str = PROJECT_NAME,
-    runtime_version: str = RUNTIME_IMAGE,
-    network: str = "default",
-    subnetwork: str = "default",
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
+      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
@@ -102,10 +92,8 @@ def get_torchbench_tpu_config(
       test_config.Tpu(
           version=tpu_version,
           cores=tpu_cores,
-          runtime_version=runtime_version,
-          network=network,
-          subnetwork=subnetwork,
-          reserved=IS_TPU_RESERVED,
+          runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+          reserved=True,
       ),
       test_name=test_name,
       set_up_cmds=set_up_cmds,
@@ -209,7 +197,7 @@ def get_torchbench_gpu_config(
     extraFlags: str = "",
 ) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=PROJECT_NAME,
+      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       zone=gpu_zone,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )

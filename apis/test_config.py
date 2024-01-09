@@ -49,7 +49,7 @@ import os
 import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 import attrs
-from configs import vm_resource
+from configs.vm_resource import TpuVersion
 
 
 class Accelerator(abc.ABC):
@@ -76,7 +76,7 @@ class Tpu(Accelerator):
     reserved: The flag to define if a TPU is a Cloud reservation.
   """
 
-  version: str
+  version: TpuVersion
   cores: int
   runtime_version: Optional[str] = None
   network: str = 'default'
@@ -86,7 +86,7 @@ class Tpu(Accelerator):
   @property
   def name(self):
     """Name of this TPU type in the Cloud TPU API (e.g. 'v4-8')."""
-    return f'v{self.version}-{self.cores}'
+    return f'v{self.version.value}-{self.cores}'
 
 
 # TODO(ranran): We may want to use GKE in the future.
@@ -216,6 +216,7 @@ class TpuGkeTest(TestConfig[Tpu]):
     docker_image: Image of the docker to run.
     set_up_cmds: List of commands to run once when TPU is created.
     run_model_cmds: List of commands to run the model under test.
+    startup_time_out_in_sec: Timeout to start up the pod.
     num_slices: The number of slices.
   """
 
@@ -224,6 +225,7 @@ class TpuGkeTest(TestConfig[Tpu]):
   docker_image: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
+  startup_time_out_in_sec: int = attrs.field(default=300, kw_only=True)
   num_slices: int = attrs.field(default=1, kw_only=True)
 
   @property
@@ -281,7 +283,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     return JSonnetTpuVmTest(
         test_name=test['testName'],
         accelerator=Tpu(
-            version=test['accelerator']['version'],
+            version=TpuVersion(str(test['accelerator']['version'])),
             cores=test['accelerator']['size'],
             runtime_version=test['tpuSettings']['softwareVersion'],
             reserved=reserved,
