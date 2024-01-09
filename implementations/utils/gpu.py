@@ -380,7 +380,8 @@ def create_resource(
   disk_type = f"zones/{gcp.zone}/diskTypes/pd-standard"
   disks = [disk_from_image(disk_type, 100, True, image.self_link)]
   metadata = create_metadata({
-      "install-nvidia-driver": "True",
+      # "install-nvidia-driver": "True",
+      "install-nvidia-driver": "False",
       "proxy-mode": "project_editors",
       "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
   })

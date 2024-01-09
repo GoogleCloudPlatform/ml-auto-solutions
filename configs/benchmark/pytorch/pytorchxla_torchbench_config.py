@@ -161,6 +161,14 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       ),
       "cat /var/log/nvidia-installer.log",
   )
+  nvidia_driver_install_official = (
+      "curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py",
+      # Command `apt update/upgrade` receives 403 bad gateway error when connecting to the google apt repo.
+      # This can be a transient error. We use the following command to fix the issue for now.
+      "sed -i '/^\s*run(\"apt update\")/,/^\s*return True/ s/^/# /'  install_gpu_driver.py",
+      "sudo python3 install_gpu_driver.py --force",
+      "sudo nvidia-smi",
+  )
   docker_cmds = (
       " apt-get update && apt-get install -y libgl1 &&"
       " pip install --user numpy pandas &&"
@@ -171,6 +179,7 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       " cd /tmp/ && git clone https://github.com/pytorch/xla.git"
   )
   return (
+      *nvidia_driver_install_official,
       "sudo apt-get install -y nvidia-container-toolkit",
       "sudo nvidia-smi -pm 1",
       (
