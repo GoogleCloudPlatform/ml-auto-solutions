@@ -49,7 +49,6 @@ with models.DAG(
   config.get_torchbench_tpu_config(
       tpu_version=TpuVersion.V5P,
       tpu_cores=8,
-      project_name=Project.TPU_PROD_ENV_AUTOMATED,
       tpu_zone=Zone.US_EAST5_A.value,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
       network=vm.V5_NETWORKS,
@@ -63,7 +62,6 @@ with models.DAG(
   config.get_torchbench_tpu_config(
       tpu_version=TpuVersion.V5E,
       tpu_cores=4,
-      project_name=Project.TPU_PROD_ENV_AUTOMATED,
       tpu_zone=Zone.US_EAST1_C.value,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
       network=vm.V5_NETWORKS,
@@ -75,10 +73,10 @@ with models.DAG(
 
   # Running on V100 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.N1_STANDARD_32,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.V100,
+      machine_type=MachineVersion.N1_STANDARD_32.value,
+      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE.value,
+      image_family=ImageFamily.COMMON_CU121_DEBIAN_11.value,
+      accelerator_type=GpuVersion.V100.value,
       count=4,
       gpu_zone=Zone.US_CENTRAL1_C.value,
       model_name=model,
@@ -88,10 +86,10 @@ with models.DAG(
 
   # Running on A100 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.A2_HIGHGPU_4G,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.A100,
+      machine_type=MachineVersion.A2_HIGHGPU_4G.value,
+      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE.value,
+      image_family=ImageFamily.COMMON_CU121_DEBIAN_11.value,
+      accelerator_type=GpuVersion.A100.value,
       count=4,
       gpu_zone=Zone.US_CENTRAL1_C.value,
       model_name=model,
@@ -101,10 +99,10 @@ with models.DAG(
 
   # Running on H100 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.A3_HIGHGPU_8G,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.H100,
+      machine_type=MachineVersion.A3_HIGHGPU_8G.value,
+      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE.value,
+      image_family=ImageFamily.COMMON_CU121_DEBIAN_11.value,
+      accelerator_type=GpuVersion.H100.value,
       count=8,
       gpu_zone=Zone.US_CENTRAL1_C.value,
       model_name=model,
@@ -114,10 +112,10 @@ with models.DAG(
 
   # Running on L4 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.G2_STAND_4,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.L4,
+      machine_type=MachineVersion.G2_STAND_4.value,
+      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE.value,
+      image_family=ImageFamily.COMMON_CU121_DEBIAN_11.value,
+      accelerator_type=GpuVersion.L4.value,
       count=1,
       gpu_zone=Zone.US_CENTRAL1_C.value,
       model_name=model,
