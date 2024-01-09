@@ -20,11 +20,13 @@ from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner
 from configs.xlml.jax import common
 from configs.vm_resource import TpuVersion, Project, RuntimeVersion
+from datetime import datetime
 
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 IS_TPU_RESERVED = True
+RUN_DATE = datetime.now().strftime("%Y_%m_%d")
 
 
 def get_flax_resnet_config(
@@ -176,7 +178,7 @@ def get_flax_vit_conv_config(
       "/tmp/transformers/vit-imagenette/events.out.tfevents.jax-vit.v2"
   )
   gcs_location = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/vit/metric/events.out.tfevents.jax-vit.v2"
+      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/vit/{RUN_DATE}/events.out.tfevents.jax-vit.v2"
   )
   extra_run_cmds = (
       (
@@ -385,7 +387,7 @@ def get_flax_sd_conv_config(
   work_dir = generate_unique_dir("/tmp/diffusers/sd-pokemon-model")
   tf_summary_location = f"{work_dir}/events.out.tfevents.jax-sd.v2"
   gcs_location = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/sd/metric/events.out.tfevents.jax-sd.v2"
+      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/sd/{RUN_DATE}/events.out.tfevents.jax-sd.v2"
   )
   extra_run_cmds = (
       f"cp {work_dir}/events.out.tfevents.* {tf_summary_location} || exit 0",
@@ -506,7 +508,7 @@ def get_flax_bart_conv_config(
   work_dir = "/tmp/transformers/bart-base-wiki"
   tf_summary_location = f"{work_dir}/events.out.tfevents.jax-bart.v2"
   gcs_location = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/bart/metric/events.out.tfevents.jax-bart.v2"
+      f"{gcs_bucket.XLML_OUTPUT_DIR}/flax/bart/{RUN_DATE}/events.out.tfevents.jax-bart.v2"
   )
   extra_run_cmds = (
       f"cp {work_dir}/events.out.tfevents.* {tf_summary_location} || exit 0",
