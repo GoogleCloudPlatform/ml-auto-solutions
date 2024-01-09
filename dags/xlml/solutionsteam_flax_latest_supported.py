@@ -277,7 +277,7 @@ with models.DAG(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL2_B.value,
-      time_out_in_min=60,
+      time_out_in_min=120,
       task_name="mnli",
       num_train_epochs=3,
       extraFlags=" ".join(jax_bert_v4_mnli_conv_extra_flags),
