@@ -346,6 +346,7 @@ def create_resource(
     logging.info(f"Created vm with ip address {ip_address}.")
   else:
     logging.error(f"No IP address found for instance: {gpu_name}.")
+    raise(f"Failed to create GPU resource {gpu_name}.")
   return ip_address
 
 
