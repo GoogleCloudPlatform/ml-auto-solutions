@@ -381,8 +381,6 @@ class GpuCreateResourceTask(BaseTask):
     Raises:
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
-    with TaskGroup(group_id="clean_up") as group:
-      gpu.delete_resource.override(task_id="release_resource")(
-          resource, project_id, zone
-      )
-      return group
+    return gpu.delete_resource.override(task_id="release_resource")(
+        resource, project_id, zone
+    )

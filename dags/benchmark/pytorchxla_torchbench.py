@@ -18,7 +18,7 @@ from airflow import models
 import datetime
 from configs import composer_env
 from configs.benchmark.pytorch import pytorchxla_torchbench_config as config
-from configs.vm_resource import *
+import configs.vm_resource as resource
 
 # Schudule the job to run once per two days at 5:00PM UTC.
 SCHEDULED_TIME = "0 17 */2 * *" if composer_env.is_prod_env() else None
@@ -35,11 +35,11 @@ with models.DAG(
   torchbench_extra_flags = [f"--filter={model}"]
   # Running on V4-8:
   config.get_torchbench_tpu_config(
-      tpu_version=TpuVersion.V4,
+      tpu_version=resource.TpuVersion.V4,
       tpu_cores=8,
-      project=Project.CLOUD_ML_AUTO_SOLUTIONS,
-      tpu_zone=Zone.US_CENTRAL2_B,
-      runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE,
+      project=resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
+      tpu_zone=resource.Zone.US_CENTRAL2_B,
+      runtime_version=resource.RuntimeVersion.TPU_UBUNTU2204_BASE,
       model_name=model,
       time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
@@ -47,13 +47,13 @@ with models.DAG(
 
   # Running on V5P
   config.get_torchbench_tpu_config(
-      tpu_version=TpuVersion.V5P,
+      tpu_version=resource.TpuVersion.V5P,
       tpu_cores=8,
-      project=Project.TPU_PROD_ENV_AUTOMATED,
-      tpu_zone=Zone.US_EAST5_A,
-      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5,
-      network=V5_NETWORKS,
-      subnetwork=V5E_SUBNETWORKS,
+      project=resource.Project.TPU_PROD_ENV_AUTOMATED,
+      tpu_zone=resource.Zone.US_EAST5_A,
+      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5,
+      network=resource.V5_NETWORKS,
+      subnetwork=resource.V5E_SUBNETWORKS,
       time_out_in_min=700,
       model_name=model,
       extraFlags=" ".join(torchbench_extra_flags),
@@ -61,13 +61,13 @@ with models.DAG(
 
   # Running on V5E
   config.get_torchbench_tpu_config(
-      tpu_version=TpuVersion.V5E,
+      tpu_version=resource.TpuVersion.V5E,
       tpu_cores=4,
-      project=Project.TPU_PROD_ENV_AUTOMATED,
-      tpu_zone=Zone.US_EAST1_C,
-      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5_LITE,
-      network=V5_NETWORKS,
-      subnetwork=V5E_SUBNETWORKS,
+      project=resource.Project.TPU_PROD_ENV_AUTOMATED,
+      tpu_zone=resource.Zone.US_EAST1_C,
+      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE,
+      network=resource.V5_NETWORKS,
+      subnetwork=resource.V5E_SUBNETWORKS,
       time_out_in_min=1600,
       model_name=model,
       extraFlags=" ".join(torchbench_extra_flags),
@@ -75,12 +75,12 @@ with models.DAG(
 
   # Running on V100 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.N1_STANDARD_32,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.V100,
+      machine_type=resource.MachineVersion.N1_STANDARD_32,
+      image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=resource.GpuVersion.V100,
       count=4,
-      gpu_zone=Zone.US_CENTRAL1_C,
+      gpu_zone=resource.Zone.US_CENTRAL1_C,
       model_name=model,
       time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
@@ -88,12 +88,12 @@ with models.DAG(
 
   # Running on A100 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.A2_HIGHGPU_4G,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.A100,
+      machine_type=resource.MachineVersion.A2_HIGHGPU_4G,
+      image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=resource.GpuVersion.A100,
       count=4,
-      gpu_zone=Zone.US_CENTRAL1_C,
+      gpu_zone=resource.Zone.US_CENTRAL1_C,
       model_name=model,
       time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
@@ -101,12 +101,12 @@ with models.DAG(
 
   # Running on H100 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.A3_HIGHGPU_8G,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.H100,
+      machine_type=resource.MachineVersion.A3_HIGHGPU_8G,
+      image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=resource.GpuVersion.H100,
       count=8,
-      gpu_zone=Zone.US_CENTRAL1_C,
+      gpu_zone=resource.Zone.US_CENTRAL1_C,
       model_name=model,
       time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
@@ -114,12 +114,12 @@ with models.DAG(
 
   # Running on L4 GPU
   config.get_torchbench_gpu_config(
-      machine_type=MachineVersion.G2_STAND_4,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.L4,
+      machine_type=resource.MachineVersion.G2_STAND_4,
+      image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=resource.GpuVersion.L4,
       count=1,
-      gpu_zone=Zone.US_CENTRAL1_C,
+      gpu_zone=resource.Zone.US_CENTRAL1_C,
       model_name=model,
       time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
