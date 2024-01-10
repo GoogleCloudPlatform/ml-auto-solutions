@@ -202,7 +202,7 @@ def get_torchbench_gpu_config(
       "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
       "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
   )
-  cmds = cmd_list.join("\n")
+  cmds = '\n'.join(cmd_list)
   run_script_cmds = (
       (
           "sudo docker exec -i $(sudo docker ps | awk 'NR==2 { print $1 }')"
