@@ -222,7 +222,6 @@ def create_instance(
   return instance_client.get(project=project_id, zone=zone, instance=instance_name)
 
 
-@task.sensor(poke_interval=60, timeout=3600, mode="reschedule")
 def wait_for_extended_operation(
     operation: ExtendedOperation, verbose_name: str = "operation", timeout: int = 300
 ) -> Any:
