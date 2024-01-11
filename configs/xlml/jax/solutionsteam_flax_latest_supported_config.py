@@ -25,7 +25,6 @@ from datetime import datetime
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
-IS_TPU_RESERVED = True
 RUN_DATE = datetime.now().strftime("%Y_%m_%d")
 
 
@@ -384,6 +383,7 @@ def get_flax_bart_config(
     tpu_zone: str,
     time_out_in_min: int,
     num_train_epochs: int,
+    is_tpu_reserved: bool = True,
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
@@ -447,7 +447,7 @@ def get_flax_bart_conv_config(
           version=tpu_version,
           cores=tpu_cores,
           runtime_version=RUNTIME_IMAGE,
-          reserved=IS_TPU_RESERVED,
+          reserved=is_tpu_reserved,
       ),
       test_name="flax_bart_wiki_conv",
       set_up_cmds=set_up_cmds,
@@ -501,6 +501,7 @@ def get_flax_bert_config(
     time_out_in_min: int,
     task_name: str,
     num_train_epochs: int = 1,
+    is_tpu_reserved: bool = True,
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
@@ -539,6 +540,7 @@ def get_flax_bert_conv_config(
     time_out_in_min: int,
     task_name: str,
     num_train_epochs: int = 1,
+    is_tpu_reserved: bool = True,
     extraFlags: str = "",
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
@@ -564,7 +566,7 @@ def get_flax_bert_conv_config(
           version=tpu_version,
           cores=tpu_cores,
           runtime_version=RUNTIME_IMAGE,
-          reserved=IS_TPU_RESERVED,
+          reserved=is_tpu_reserved,
       ),
       test_name=f"flax_bert_{task_name}_conv",
       set_up_cmds=set_up_cmds,
