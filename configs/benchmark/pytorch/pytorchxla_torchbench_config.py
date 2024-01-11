@@ -50,6 +50,7 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
       "cd; git clone https://github.com/pytorch/benchmark.git",
       f"cd benchmark && {model_install_cmds()}",
       "cd; git clone https://github.com/pytorch/xla.git",
+      "cd xla; git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77",
   )
 
 
@@ -81,6 +82,7 @@ def get_torchbench_tpu_config(
   else:
     run_filter = f" --filter={model_name} "
   run_script_cmds = (
+      "export PJRT_DEVICE=TPU",
       (
           "cd ~/xla/benchmarks && python experiment_runner.py"
           " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar"
@@ -142,15 +144,17 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       "sudo nvidia-smi",
   )
 
-  docker_cmds = (
-      " apt-get update && apt-get install -y libgl1 &&"
-      " pip install --user numpy pandas &&"
-      " pip install --user --pre torchvision torchaudio -i"
-      " https://download.pytorch.org/whl/nightly/cu121 &&"
-      " cd /tmp/ && git clone https://github.com/pytorch/benchmark.git &&"
-      f" cd benchmark && {model_install_cmds()} &&"
-      " cd /tmp/ && git clone https://github.com/pytorch/xla.git"
+  docker_cmds_ls = (
+      "apt-get update && apt-get install -y libgl1",
+      "pip install --user numpy pandas",
+      "pip install --user --pre torchvision torchaudio -i https://download.pytorch.org/whl/nightly/cu121",
+      "cd /tmp/ && git clone https://github.com/pytorch/benchmark.git",
+      f" cd benchmark && {model_install_cmds()}",
+      "cd /tmp/ && git clone https://github.com/pytorch/xla.git",
+      "cd /tmp/xla; git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77",
   )
+  docker_cmds = "\n".join(docker_cmds_ls)
+
   return (
       *nvidia_driver_install,
       "sudo apt-get install -y nvidia-container-toolkit",
