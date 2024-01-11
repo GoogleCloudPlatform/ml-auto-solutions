@@ -30,7 +30,6 @@ def get_maxtext_nightly_config(
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
-    num_train_epochs: int,
     project_name: str = PROJECT_NAME,
     runtime_version: str = RUNTIME_IMAGE,
     network: str = "default",
