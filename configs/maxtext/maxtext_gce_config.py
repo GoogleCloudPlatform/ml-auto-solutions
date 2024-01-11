@@ -20,6 +20,7 @@ from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner
 from configs.maxtext import common
 from configs.vm_resource import TpuVersion, Project, RuntimeVersion
+import datetime
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
@@ -43,17 +44,19 @@ def get_maxtext_nightly_config(
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
+  current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+  run_name = f"1slice-{tpu_version}_{tpu_cores}-maxtext-nightly-{current_datetime}"
 
   set_up_cmds = common.download_maxtext()
   run_model_cmds = (
       (
           "cd /tmp/maxtext && bash setup.sh MODE=nightly;"
-          ' JAX_PLATFORM_NAME=TPU XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/" RUN_NAME=maxtext-nightly-$(date +%Y-%m-%d-%H-%M-%S) &&'
+          f' JAX_PLATFORM_NAME=TPU XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/" RUN_NAME="{run_name}" &&'
           " python3 MaxText/train.py MaxText/configs/base.yml run_name=$RUN_NAME"
-          " base_output_directory=gs://tonyjohnchen-mxla-debug/"
+          " base_output_directory=gs://tonyjohnchen-maxtext-nightly/"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
           " per_device_batch_size=6 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
-          " steps=50 enable_checkpointing=false enable_profiler=true gcs_metrics=false;"
+          " steps=50 enable_checkpointing=false enable_profiler=true gcs_metrics=true;"
       ),
   )
 
