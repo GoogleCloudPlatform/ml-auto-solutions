@@ -47,19 +47,13 @@ def get_maxtext_nightly_config(
   set_up_cmds = common.download_maxtext()
   run_model_cmds = (
       (
-          "cd /tmp/maxtext"
-          " bash setup.sh MODE=nightly; \
-            DATETIME=$(date +%Y-%m-%d-%H-%M-%S) \
-            RUN_NAME=maxtext-nightly-${DATETIME} \
-            JAX_PLATFORM_NAME=TPU \
-            XLA_FLAGS=\"--xla_dump_to=/tmp/xla_dump/\" \
-            python3 MaxText/train.py MaxText/configs/base.yml run_name=$RUN_NAME \
-            base_output_directory=gs://tonyjohnchen-mxla-debug/ dataset_path=gs://max-datasets-rogue \
-            dataset_type=synthetic \
-            per_device_batch_size=6 reuse_example_batch=1 \
-            global_parameter_scale=1 \
-            metrics_file='metrics.txt' \
-            steps=50 enable_checkpointing=false enable_profiler=true gcs_metrics=false;"
+          "cd /tmp/maxtext && bash setup.sh MODE=nightly;"
+          ' JAX_PLATFORM_NAME=TPU XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/" RUN_NAME=maxtext-nightly-$(date +%Y-%m-%d-%H-%M-%S) &&'
+          " python3 MaxText/train.py MaxText/configs/base.yml run_name=$RUN_NAME"
+          " base_output_directory=gs://tonyjohnchen-mxla-debug/"
+          " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
+          " per_device_batch_size=6 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
+          " steps=50 enable_checkpointing=false enable_profiler=true gcs_metrics=false;"
       ),
   )
 
