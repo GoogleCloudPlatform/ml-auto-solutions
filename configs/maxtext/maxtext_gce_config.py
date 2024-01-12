@@ -35,8 +35,6 @@ def get_maxtext_nightly_config(
     runtime_version: str = RUNTIME_IMAGE,
     network: str = "default",
     subnetwork: str = "default",
-    resolution: int = 512,
-    extraFlags: str = "",
     is_tpu_reserved: bool = True,
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
