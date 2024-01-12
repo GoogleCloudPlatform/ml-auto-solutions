@@ -31,7 +31,7 @@ import google.api_core.exceptions
 import google.auth
 import google.cloud.tpu_v2alpha1 as tpu_api
 import google.longrunning.operations_pb2 as operations
-from xlml import ssh
+from xlml.utils import ssh
 import paramiko
 from airflow.models import Variable
 

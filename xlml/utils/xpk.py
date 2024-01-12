@@ -19,9 +19,7 @@ from tempfile import NamedTemporaryFile
 import uuid
 from absl import logging
 from airflow.decorators import task
-from airflow.hooks.subprocess import SubprocessHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from configs import vm_resource
 import google.auth
 import google.auth.transport.requests
 from google.cloud import container_v1

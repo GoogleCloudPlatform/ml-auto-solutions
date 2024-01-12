@@ -28,9 +28,9 @@ from airflow.models import TaskInstance
 from airflow.operators.python import get_current_context
 from apis import gcp_config, test_config
 from apis import metric_config
-from configs import composer_env
+from dags import composer_env
 from google.cloud import storage
-from xlml import bigquery, composer
+from xlml.utils import bigquery, composer
 import jsonlines
 import numpy as np
 import tensorflow as tf
