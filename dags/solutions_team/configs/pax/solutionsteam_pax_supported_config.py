@@ -110,7 +110,7 @@ def get_pax_lm_config(
   job_log_dir = f"{log_dir}/{model_name}-{short_id}"
   set_up_cmds = get_setup_cmds(pax_version, ckp_path, job_log_dir)
 
-  runtime_version = get_runtime_version(pax_version, tpu_version),
+  runtime_version = (get_runtime_version(pax_version, tpu_version),)
 
   if runtime_version == RuntimeVersion.TPU_VM_V4_BASE.value:
     training_script_path = ".local/lib/python3.8/site-packages/paxml/main.py"
