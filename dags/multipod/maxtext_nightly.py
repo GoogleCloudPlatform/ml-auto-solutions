@@ -50,6 +50,26 @@ with models.DAG(
       test_name="maxtext-nightly-2slice-v4-8",
   ).run()
 
+  maxtext_nightly_4slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
+      tpu_version=TpuVersion.V4,
+      tpu_cores=8,
+      tpu_zone=Zone.US_CENTRAL2_B.value,
+      time_out_in_min=60,
+      num_slices=4,
+      test_name="maxtext-nightly-2slice-v4-8",
+  ).run()
+
+  maxtext_nightly_8slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
+      tpu_version=TpuVersion.V4,
+      tpu_cores=8,
+      tpu_zone=Zone.US_CENTRAL2_B.value,
+      time_out_in_min=60,
+      num_slices=8,
+      test_name="maxtext-nightly-2slice-v4-8",
+  ).run()
+
   # Test dependencie
   maxtext_nightly_1slice_v4_8
   maxtext_nightly_2slice_v4_8
+  maxtext_nightly_4slice_v4_8
+  maxtext_nightly_8slice_v4_8
