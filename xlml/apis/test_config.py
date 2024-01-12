@@ -141,6 +141,7 @@ class TpuVmTest(TestConfig[Tpu]):
   test_name: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
+  num_slices: int = 1
 
   @property
   def benchmark_id(self) -> str:

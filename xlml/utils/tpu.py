@@ -53,6 +53,7 @@ def create_queued_resource(
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
+    num_slices: int,
 ) -> Tuple[TaskGroup, airflow.XComArg]:
   """Request a QueuedResource and wait until the nodes are created.
 
@@ -74,13 +75,25 @@ def create_queued_resource(
     client = tpu_api.TpuClient(credentials=creds)
 
     parent = f'projects/{gcp.project_name}/locations/{gcp.zone}'
+
+    # Determine node_id and multiNodeParams based on num_slices
+    if num_slices == 1:
+      node_id = tpu_name
+      multi_node_params = None
+    else:
+      node_id = None
+      multi_node_params = tpu_api.types.QueuedResource.Tpu.NodeSpec.MultiNodeParams(
+          node_count=num_slices, node_id_prefix=tpu_name
+      )
+
     queued_resource = tpu_api.QueuedResource(
         # TODO(wcromar): Implement `validUntilDuration` based on `timeout`
         # TODO(ranran): enable configuration via `AcceleratorConfig`
         tpu=tpu_api.QueuedResource.Tpu(
             node_spec=[
                 tpu_api.QueuedResource.Tpu.NodeSpec(
-                    node_id=tpu_name,
+                    node_id=node_id,
+                    multi_node_params=multi_node_params,
                     parent=parent,
                     node=tpu_api.Node(
                         accelerator_type=accelerator.name,
