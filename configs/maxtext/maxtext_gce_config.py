@@ -31,11 +31,13 @@ def get_maxtext_nightly_config(
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
+    test_name: str,
     project_name: str = PROJECT_NAME,
     runtime_version: str = RUNTIME_IMAGE,
     network: str = "default",
     subnetwork: str = "default",
     is_tpu_reserved: bool = True,
+    num_slices: int = 1,
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -67,9 +69,10 @@ def get_maxtext_nightly_config(
           network=network,
           subnetwork=subnetwork,
       ),
-      test_name="maxtext_nightly",
+      test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
+      num_slices=num_slices,
       time_out_in_min=time_out_in_min,
       task_owner=test_owner.Tony_C,
   )
