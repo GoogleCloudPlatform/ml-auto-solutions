@@ -24,9 +24,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from apis import metric_config
 from configs import composer_env
-from implementations.utils import bigquery
-from implementations.utils import composer
-from implementations.utils import metric
+from utils import bigquery, composer, metric
 import jsonlines
 import tensorflow as tf
 
