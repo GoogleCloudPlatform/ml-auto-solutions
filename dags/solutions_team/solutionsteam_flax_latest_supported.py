@@ -16,9 +16,9 @@
 
 import datetime
 from airflow import models
-from configs import composer_env
-from configs.vm_resource import Project, TpuVersion, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
-from configs.solutions_team.flax import solutionsteam_flax_latest_supported_config as flax_config
+from dags import composer_env
+from dags.vm_resource import Project, TpuVersion, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
+from dags.solutions_team.configs.flax import solutionsteam_flax_latest_supported_config as flax_config
 
 
 # Run once a day at 2 am UTC (6 pm PST)

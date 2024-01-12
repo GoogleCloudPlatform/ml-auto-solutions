@@ -16,8 +16,8 @@
 
 import datetime
 from airflow import models
-from configs.vm_resource import TpuVersion, Project, Zone, ClusterName, DockerImage
-from configs.examples import xpk_example_config as config
+from dags.vm_resource import TpuVersion, Project, Zone, ClusterName, DockerImage
+from dags.examples.configs import xpk_example_config as config
 
 
 # TODO(ranran): add following examples:

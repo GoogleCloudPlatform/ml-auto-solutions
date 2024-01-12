@@ -14,9 +14,9 @@
 
 import datetime
 from airflow import models
-from apis import gcp_config, metric_config, task, test_config
+from xlml.apis import gcp_config, metric_config, task, test_config
 from configs import composer_env
-from configs.vm_resource import Project, Zone
+from dags.vm_resource import Project, Zone
 
 # Run once a day at 6 pm UTC (10 am PST)
 SCHEDULED_TIME = "0 18 * * *" if composer_env.is_prod_env() else None

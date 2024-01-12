@@ -21,7 +21,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import google.auth
 from google.cloud import bigquery
-from utils import bigquery as test_bigquery
+from xlml import bigquery as test_bigquery
 
 
 class BenchmarkBigQueryMetricTest(parameterized.TestCase, absltest.TestCase):

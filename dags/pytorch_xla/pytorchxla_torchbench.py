@@ -16,9 +16,9 @@
 
 import datetime
 from airflow import models
-from configs import composer_env
-from configs.pytorch_xla import pytorchxla_torchbench_config as config
-from configs.vm_resource import TpuVersion, Zone
+from dags import composer_env
+from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
+from dags.vm_resource import TpuVersion, Zone
 
 _MODELS = [
     "BERT_pytorch",

@@ -30,7 +30,7 @@ from apis import gcp_config, test_config
 from apis import metric_config
 from configs import composer_env
 from google.cloud import storage
-from utils import bigquery, composer
+from xlml import bigquery, composer
 import jsonlines
 import numpy as np
 import tensorflow as tf
