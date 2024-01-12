@@ -136,6 +136,7 @@ class TpuVmTest(TestConfig[Tpu]):
     test_name: Unique name for this test/model.
     set_up_cmds: List of commands to run once when TPU is created.
     run_model_cmds: List of commands to run the model under test.
+    num_slices: The number of slices.
   """
 
   test_name: str
@@ -203,12 +204,14 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     setup: Multi-line script that configures the TPU instance.
     exports: Extra setup commands to run in same shell as test_command.
     test_command: Command and arguments to execute on the TPU VM.
+    num_slices: The number of slices.
   """
 
   test_name: str
   setup: str
   exports: str
   test_command: List[str]
+  num_slices: int = 1
 
   @staticmethod
   def _load_compiled_jsonnet(test_name: str) -> Any:
