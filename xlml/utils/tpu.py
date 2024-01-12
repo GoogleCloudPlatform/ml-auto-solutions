@@ -25,7 +25,7 @@ from absl import logging
 import airflow
 from airflow.decorators import task, task_group
 from airflow.utils.task_group import TaskGroup
-from apis import gcp_config, test_config
+from xlml.apis import gcp_config, test_config
 import fabric
 import google.api_core.exceptions
 import google.auth

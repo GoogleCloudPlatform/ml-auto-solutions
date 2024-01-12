@@ -49,7 +49,7 @@ import os
 import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 import attrs
-from configs.vm_resource import TpuVersion
+from dags.vm_resource import TpuVersion
 
 
 class Accelerator(abc.ABC):
@@ -213,7 +213,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   def _load_compiled_jsonnet(test_name: str) -> Any:
     # TODO(wcromar): Parse GPU tests too
     config_dir = os.environ.get(
-        'XLMLTEST_CONFIGS', '/home/airflow/gcs/dags/configs/jsonnet'
+        'XLMLTEST_CONFIGS', '/home/airflow/gcs/dags/dags/jsonnet'
     )
     test_path = os.path.join(config_dir, test_name)
     with open(test_path, 'r') as f:

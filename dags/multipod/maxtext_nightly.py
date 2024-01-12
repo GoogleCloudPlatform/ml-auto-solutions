@@ -16,9 +16,9 @@
 
 import datetime
 from airflow import models
-from configs import composer_env
-from configs.vm_resource import Project, TpuVersion, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
-from configs.maxtext import maxtext_gce_config
+from dags import composer_env
+from dags.vm_resource import TpuVersion, Zone
+from dags.multipod.configs import maxtext_gce_config
 
 
 # Run once a day at 2 am UTC (6 pm PST)

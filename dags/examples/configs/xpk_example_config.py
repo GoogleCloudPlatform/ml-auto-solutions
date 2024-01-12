@@ -14,9 +14,9 @@
 
 """Utilities to construct configs for example_dag."""
 
-from apis import gcp_config, metric_config, task, test_config
-from configs import test_owner
-from configs.vm_resource import TpuVersion
+from xlml.apis import gcp_config, metric_config, task, test_config
+from dags import test_owner
+from dags.vm_resource import TpuVersion
 
 
 def get_flax_resnet_xpk_config(

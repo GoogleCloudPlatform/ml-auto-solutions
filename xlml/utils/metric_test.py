@@ -22,7 +22,7 @@ from unittest import mock
 from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
-from apis import metric_config
+from xlml.apis import metric_config
 from dags import composer_env
 from xlml.utils import bigquery, composer, metric
 import jsonlines

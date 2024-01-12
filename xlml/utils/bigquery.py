@@ -21,7 +21,7 @@ import enum
 import math
 from typing import Iterable, Optional
 from absl import logging
-from apis import metric_config
+from xlml.apis import metric_config
 import google.auth
 from google.cloud import bigquery
 

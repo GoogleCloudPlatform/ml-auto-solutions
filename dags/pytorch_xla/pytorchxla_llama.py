@@ -15,7 +15,7 @@
 import datetime
 from airflow import models
 from xlml.apis import gcp_config, metric_config, task, test_config
-from configs import composer_env
+from dags import composer_env
 from dags.vm_resource import Project, Zone
 
 # Run once a day at 6 pm UTC (10 am PST)

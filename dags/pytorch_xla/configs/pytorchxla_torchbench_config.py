@@ -15,9 +15,9 @@
 """Utilities to construct configs for pytorchxla_torchbench DAG."""
 
 from typing import Tuple
-from apis import gcp_config, metric_config, task, test_config
-from configs import gcs_bucket, test_owner
-from configs.vm_resource import TpuVersion, Project, RuntimeVersion
+from xlml.apis import gcp_config, metric_config, task, test_config
+from dags import gcs_bucket, test_owner
+from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
 # TODO(ranran or PyTroch/XLA team): this is an example for benchmark test with hardcode compatible versions,

@@ -19,10 +19,10 @@ import enum
 from typing import Tuple
 import uuid
 from absl import logging
-from apis import gcp_config, metric_config, task, test_config
-from configs import test_owner
-from configs.solutions_team.pax import common
-from configs.vm_resource import TpuVersion, RuntimeVersion, Project
+from xlml.apis import gcp_config, metric_config, task, test_config
+from dags import test_owner
+from dags.solutions_team.configs.pax import common
+from dags.vm_resource import TpuVersion, RuntimeVersion, Project
 
 
 class PaxVersion(enum.Enum):

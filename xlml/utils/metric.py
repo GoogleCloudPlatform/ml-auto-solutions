@@ -26,8 +26,8 @@ from absl import logging
 from airflow.decorators import task
 from airflow.models import TaskInstance
 from airflow.operators.python import get_current_context
-from apis import gcp_config, test_config
-from apis import metric_config
+from xlml.apis import gcp_config, test_config
+from xlml.apis import metric_config
 from dags import composer_env
 from google.cloud import storage
 from xlml.utils import bigquery, composer

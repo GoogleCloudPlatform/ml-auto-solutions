@@ -14,12 +14,10 @@
 
 """Utilities to construct configs for maxtext DAG."""
 
-from typing import Tuple
-import uuid
-from apis import gcp_config, metric_config, task, test_config
-from configs import gcs_bucket, test_owner
-from configs.maxtext import common
-from configs.vm_resource import TpuVersion, Project, RuntimeVersion
+from xlml.apis import gcp_config, metric_config, task, test_config
+from dags import test_owner
+from dags.multipod.configs import common
+from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 import datetime
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value

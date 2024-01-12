@@ -14,11 +14,11 @@
 
 """Utilities to construct configs for solutionsteam_tf_nightly_supported DAG."""
 
-from apis import gcp_config, metric_config, task, test_config
-from configs import gcs_bucket, test_owner
-from configs.solutions_team.tensorflow import common
+from xlml.apis import gcp_config, metric_config, task, test_config
+from dags import gcs_bucket, test_owner
+from dags.solutions_team.configs.tensorflow import common
 from airflow.models import Variable
-from configs.vm_resource import TpuVersion, Project, RuntimeVersion
+from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 from typing import List
 
 
