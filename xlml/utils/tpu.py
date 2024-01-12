@@ -53,6 +53,7 @@ def create_queued_resource(
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
+    num_slices: int,
 ) -> Tuple[TaskGroup, airflow.XComArg]:
   """Request a QueuedResource and wait until the nodes are created.
 
@@ -62,6 +63,7 @@ def create_queued_resource(
     gcp: GCP project/zone configuration.
     ssh_keys: XCom value for SSH keys to communicate with these TPUs.
     timeout: Amount of time to wait for TPUs to be created.
+    num_slices: Number of TPU slices
 
   Returns:
     A TaskGroup for the entire create operation and an XCom value for the
@@ -69,39 +71,72 @@ def create_queued_resource(
   """
 
   @task
-  def create_queued_resource_request(tpu_name: str, ssh_keys: ssh.SshKeys) -> str:
+  def create_queued_resource_request(tpu_name: str, num_slices: int, ssh_keys: ssh.SshKeys) -> str:
     creds, _ = google.auth.default()
     client = tpu_api.TpuClient(credentials=creds)
 
     parent = f'projects/{gcp.project_name}/locations/{gcp.zone}'
-    queued_resource = tpu_api.QueuedResource(
-        # TODO(wcromar): Implement `validUntilDuration` based on `timeout`
-        # TODO(ranran): enable configuration via `AcceleratorConfig`
-        tpu=tpu_api.QueuedResource.Tpu(
-            node_spec=[
-                tpu_api.QueuedResource.Tpu.NodeSpec(
-                    node_id=tpu_name,
-                    parent=parent,
-                    node=tpu_api.Node(
-                        accelerator_type=accelerator.name,
-                        description='noteardown',
-                        runtime_version=accelerator.runtime_version,
-                        network_config=tpu_api.NetworkConfig(
-                            network=accelerator.network,
-                            subnetwork=accelerator.subnetwork,
-                            enable_external_ips=True,
-                        ),
-                        metadata={
-                            'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
-                        },
-                    ),
-                )
-            ],
-        ),
-        guaranteed=tpu_api.QueuedResource.Guaranteed(
-            reserved=accelerator.reserved,
-        ),
-    )
+    if num_slices > 1:
+      queued_resource = tpu_api.QueuedResource(
+          # TODO(wcromar): Implement `validUntilDuration` based on `timeout`
+          # TODO(ranran): enable configuration via `AcceleratorConfig`
+          tpu=tpu_api.QueuedResource.Tpu(
+              node_spec=[
+                  tpu_api.QueuedResource.Tpu.NodeSpec(
+                      multi_node_params=tpu_api.QueuedResource.Tpu.NodeSpec.MultiNodeParams(
+                          node_count=num_slices,
+                          node_id_prefix=tpu_name,
+                      ),
+                      parent=parent,
+                      node=tpu_api.Node(
+                          accelerator_type=accelerator.name,
+                          description='noteardown',
+                          runtime_version=accelerator.runtime_version,
+                          network_config=tpu_api.NetworkConfig(
+                              network=accelerator.network,
+                              subnetwork=accelerator.subnetwork,
+                              enable_external_ips=True,
+                          ),
+                          metadata={
+                              'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
+                          },
+                      ),
+                  )
+              ],
+          ),
+          guaranteed=tpu_api.QueuedResource.Guaranteed(
+              reserved=accelerator.reserved,
+          ),
+      )
+    else:
+      queued_resource = tpu_api.QueuedResource(
+          # TODO(wcromar): Implement `validUntilDuration` based on `timeout`
+          # TODO(ranran): enable configuration via `AcceleratorConfig`
+          tpu=tpu_api.QueuedResource.Tpu(
+              node_spec=[
+                  tpu_api.QueuedResource.Tpu.NodeSpec(
+                      node_id=tpu_name,
+                      parent=parent,
+                      node=tpu_api.Node(
+                          accelerator_type=accelerator.name,
+                          description='noteardown',
+                          runtime_version=accelerator.runtime_version,
+                          network_config=tpu_api.NetworkConfig(
+                              network=accelerator.network,
+                              subnetwork=accelerator.subnetwork,
+                              enable_external_ips=True,
+                          ),
+                          metadata={
+                              'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
+                          },
+                      ),
+                  )
+              ],
+          ),
+          guaranteed=tpu_api.QueuedResource.Guaranteed(
+              reserved=accelerator.reserved,
+          ),
+      )
 
     qr_operation = client.create_queued_resource(
         parent=parent,
@@ -135,7 +170,7 @@ def create_queued_resource(
       raise RuntimeError(f'Bad queued resource state {state.name}')
 
   with TaskGroup(group_id='create_queued_resource') as tg:
-    qualified_name = create_queued_resource_request(tpu_name, ssh_keys)
+    qualified_name = create_queued_resource_request(tpu_name, num_slices, ssh_keys)
     wait_for_ready_queued_resource(qualified_name)
 
   return tg, qualified_name
