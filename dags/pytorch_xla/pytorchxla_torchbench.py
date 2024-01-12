@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from configs import composer_env
-from configs.benchmark.pytorch import pytorchxla_torchbench_config as config
+from configs.pytorch_xla import pytorchxla_torchbench_config as config
 from configs.vm_resource import TpuVersion, Zone
 
 _MODELS = [

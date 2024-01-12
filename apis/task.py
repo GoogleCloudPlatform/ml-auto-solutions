@@ -22,8 +22,7 @@ import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from apis import gcp_config, metric_config, test_config
-from implementations.utils import metric
-from implementations.utils import ssh, tpu, xpk
+from utils import metric, ssh, tpu, xpk
 
 
 class BaseTask(abc.ABC):

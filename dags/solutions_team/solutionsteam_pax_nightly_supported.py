@@ -18,7 +18,7 @@ import datetime
 from airflow import models
 from configs import composer_env, gcs_bucket
 from configs.vm_resource import Project, TpuVersion, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
-from configs.xlml.pax import solutionsteam_pax_supported_config as pax_config
+from configs.solutions_team.pax import solutionsteam_pax_supported_config as pax_config
 
 
 # Run once a day at 12 am UTC (4 am PST)

@@ -18,7 +18,7 @@ from typing import Tuple
 import uuid
 from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner
-from configs.xlml.jax import common
+from configs.solutions_team.flax import common
 from configs.vm_resource import TpuVersion, Project, RuntimeVersion
 from datetime import datetime
 

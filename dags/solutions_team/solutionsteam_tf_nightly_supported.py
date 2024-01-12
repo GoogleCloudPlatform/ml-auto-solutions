@@ -18,8 +18,8 @@ import datetime
 from airflow import models
 from configs import composer_env
 from configs.vm_resource import TpuVersion, Project, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
-from configs.xlml.tensorflow import solutionsteam_tf_nightly_supported_config as tf_config
-from configs.xlml.tensorflow import common
+from configs.solutions_team.tensorflow import solutionsteam_tf_nightly_supported_config as tf_config
+from configs.solutions_team.tensorflow import common
 from airflow.operators.dummy import DummyOperator
 
 

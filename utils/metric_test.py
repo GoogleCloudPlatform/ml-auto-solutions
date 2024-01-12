@@ -24,9 +24,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from apis import metric_config
 from configs import composer_env
-from implementations.utils import bigquery
-from implementations.utils import composer
-from implementations.utils import metric
+from utils import bigquery, composer, metric
 import jsonlines
 import tensorflow as tf
 
@@ -151,7 +149,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
     actual_value = metric.aggregate_metrics(metrics, strategy)
     self.assertAlmostEqual(actual_value, expected_value)
 
-  @mock.patch("implementations.utils.metric.download_object_from_gcs")
+  @mock.patch("utils.metric.download_object_from_gcs")
   def test_process_json_lines(self, download_object_from_gcs):
     path = "/tmp/ml-auto-solutions-metrics.jsonl"
     test_run1 = {
@@ -252,7 +250,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
     base_id = "test_run"
     uuid = hashlib.sha256(str(base_id + str(0)).encode("utf-8")).hexdigest()
 
-    with mock.patch("implementations.utils.metric.get_current_context") as mock_context:
+    with mock.patch("utils.metric.get_current_context") as mock_context:
       mock_dag_id = mock.MagicMock()
       mock_dag_id.dag_id.return_value = "benchmark_test"
       mock_task_id = mock.MagicMock()
@@ -338,7 +336,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
       ),
   )
   def test_is_valid_entry(self, env_name, run_id, expected_value):
-    with mock.patch("implementations.utils.metric.get_current_context") as mock_context:
+    with mock.patch("utils.metric.get_current_context") as mock_context:
       mock_context.return_value = {
           "run_id": run_id,
       }

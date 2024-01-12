@@ -16,7 +16,7 @@
 
 from apis import gcp_config, metric_config, task, test_config
 from configs import gcs_bucket, test_owner
-from configs.xlml.tensorflow import common
+from configs.solutions_team.tensorflow import common
 from airflow.models import Variable
 from configs.vm_resource import TpuVersion, Project, RuntimeVersion
 from typing import List

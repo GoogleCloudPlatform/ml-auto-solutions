@@ -21,7 +21,7 @@ import uuid
 from absl import logging
 from apis import gcp_config, metric_config, task, test_config
 from configs import test_owner
-from configs.xlml.pax import common
+from configs.solutions_team.pax import common
 from configs.vm_resource import TpuVersion, RuntimeVersion, Project
 
 
