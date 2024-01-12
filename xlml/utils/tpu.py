@@ -63,6 +63,7 @@ def create_queued_resource(
     gcp: GCP project/zone configuration.
     ssh_keys: XCom value for SSH keys to communicate with these TPUs.
     timeout: Amount of time to wait for TPUs to be created.
+    num_slices: Number of TPU slices
 
   Returns:
     A TaskGroup for the entire create operation and an XCom value for the
