@@ -56,7 +56,7 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       num_slices=4,
-      test_name="maxtext-nightly-2slice-v4-8",
+      test_name="maxtext-nightly-4slice-v4-8",
   ).run()
 
   maxtext_nightly_8slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
@@ -65,7 +65,7 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       num_slices=8,
-      test_name="maxtext-nightly-2slice-v4-8",
+      test_name="maxtext-nightly-8slice-v4-8",
   ).run()
 
   # Test dependencie
