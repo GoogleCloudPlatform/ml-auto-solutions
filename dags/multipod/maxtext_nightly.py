@@ -39,7 +39,7 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       is_tpu_reserved=False,
-      test_name="maxtext-nightly-1slice-v4-8",
+      test_name="maxtext-nightly-1slice",
   ).run()
 
   maxtext_nightly_2slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
@@ -49,7 +49,7 @@ with models.DAG(
       time_out_in_min=60,
       is_tpu_reserved=False,
       num_slices=2,
-      test_name="maxtext-nightly-2slice-v4-8",
+      test_name="maxtext-nightly-2slice",
   ).run()
 
   maxtext_nightly_4slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
@@ -59,7 +59,7 @@ with models.DAG(
       time_out_in_min=60,
       is_tpu_reserved=False,
       num_slices=4,
-      test_name="maxtext-nightly-4slice-v4-8",
+      test_name="maxtext-nightly-4slice",
   ).run()
 
   maxtext_nightly_8slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
@@ -69,7 +69,7 @@ with models.DAG(
       time_out_in_min=60,
       is_tpu_reserved=False,
       num_slices=8,
-      test_name="maxtext-nightly-8slice-v4-8",
+      test_name="maxtext-nightly-8slice",
   ).run()
 
   # Test dependencie

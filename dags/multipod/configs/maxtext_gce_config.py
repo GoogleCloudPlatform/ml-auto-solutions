@@ -15,7 +15,7 @@
 """Utilities to construct configs for maxtext DAG."""
 
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import test_owner
+from dags import test_owner, gcs_bucket
 from dags.multipod.configs import common
 from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 import datetime
@@ -53,7 +53,7 @@ def get_maxtext_nightly_config(
           "cd /tmp/maxtext && bash setup.sh MODE=nightly;"
           f' JAX_PLATFORM_NAME=TPU XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/" RUN_NAME="{run_name}" &&'
           " python3 MaxText/train.py MaxText/configs/base.yml run_name=$RUN_NAME"
-          " base_output_directory=gs://airflow-automated-maxtext-nightly-test/"
+          f" base_output_directory={gcs_bucket.BENCHMARK_OUTPUT_DIR}"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
           " per_device_batch_size=6 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
           " steps=50 enable_checkpointing=false enable_profiler=true gcs_metrics=true;"
