@@ -24,4 +24,4 @@ PAX_DIR = "gs://cloud-tpu-checkpoints/pax"
 # GCS bucket for output
 BENCHMARK_OUTPUT_DIR = "gs://ml-auto-solutions/output/benchmark"
 XLML_OUTPUT_DIR = "gs://ml-auto-solutions/output/xlml"
-MAXTEXT_OUTPUT_DIR = "gs://airflow-automated-maxtext-nightly-test"
+MAXTEXT_OUTPUT_DIR = "gs://ml-auto-solutions/output/maxtext/nightly"
