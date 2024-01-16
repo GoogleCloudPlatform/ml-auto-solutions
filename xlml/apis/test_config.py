@@ -146,7 +146,11 @@ class TpuVmTest(TestConfig[Tpu]):
 
   @property
   def benchmark_id(self) -> str:
-    return f'{self.test_name}-{self.num_slices}x{self.accelerator.name}'
+    return (
+        f'{self.test_name}-{self.accelerator.name}'
+        if self.num_slices == 1
+        else f'{self.test_name}-{self.num_slices}x{self.accelerator.name}'
+    )
 
   @property
   def setup_script(self) -> Optional[str]:
@@ -181,7 +185,11 @@ class TpuGkeTest(TestConfig[Tpu]):
 
   @property
   def benchmark_id(self) -> str:
-    return f'{self.test_name}-{self.num_slices}x{self.accelerator.name}'
+    return (
+        f'{self.test_name}-{self.accelerator.name}'
+        if self.num_slices == 1
+        else f'{self.test_name}-{self.num_slices}x{self.accelerator.name}'
+    )
 
   @property
   def setup_script(self) -> Optional[str]:
