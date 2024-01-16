@@ -142,11 +142,11 @@ class TpuVmTest(TestConfig[Tpu]):
   test_name: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
-  num_slices: int = 1
+  num_slices: int = attrs.field(default=1, kw_only=True)
 
   @property
   def benchmark_id(self) -> str:
-    return f'{self.test_name}-{self.accelerator.name}'
+    return f'{self.test_name}-{self.num_slices}x{self.accelerator.name}'
 
   @property
   def setup_script(self) -> Optional[str]:
@@ -181,7 +181,7 @@ class TpuGkeTest(TestConfig[Tpu]):
 
   @property
   def benchmark_id(self) -> str:
-    return f'{self.test_name}-{self.accelerator.name}'
+    return f'{self.test_name}-{self.num_slices}x{self.accelerator.name}'
 
   @property
   def setup_script(self) -> Optional[str]:
