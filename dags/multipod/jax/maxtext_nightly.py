@@ -18,7 +18,7 @@ import datetime
 from airflow import models
 from dags import composer_env
 from dags.vm_resource import TpuVersion, Zone
-from dags.multipod.configs import maxtext_gce_config
+from dags.multipod.jax.configs import maxtext_gce_config
 
 
 # Run once a day at 10 am UTC (2 am PST)

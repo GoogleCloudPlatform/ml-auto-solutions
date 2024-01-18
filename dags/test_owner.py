@@ -26,6 +26,9 @@ CHANDRA_D = "Chandra D."
 GAGIK_A = "Gagik A."
 RAN_R = "Ran R."
 
+# XLML - Multipod
+JON_B = "Jon B."
+
 # PYTORCH
 PEI_Z = "Pei Z."
 

@@ -109,6 +109,11 @@ def read_from_tb(
         metrics[value.tag].append(TensorBoardScalar(float(t), event.step))
       elif value_type == "text":
         metadata[value.tag] = bytes(value.tensor.string_val[0]).decode("utf-8")
+      elif value.HasField("simple_value"):
+        # simple_value indicates the value is a float:
+        # https://github.com/tensorflow/tensorflow/blob/4dacf3f/tensorflow/core/framework/summary.proto#L122
+        scalar = TensorBoardScalar(value.simple_value, event.step)
+        metrics.setdefault(value.tag, []).append(scalar)
       else:
         logging.info(f"Discarding data point {value.tag} with type {value_type}.")
 

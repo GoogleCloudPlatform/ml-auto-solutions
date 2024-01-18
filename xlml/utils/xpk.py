@@ -19,6 +19,7 @@ from tempfile import NamedTemporaryFile
 import uuid
 from absl import logging
 from airflow.decorators import task
+from airflow.exceptions import AirflowFailException
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 import google.auth
 import google.auth.transport.requests
@@ -28,9 +29,8 @@ from kubernetes import client as k8s_client
 
 @task
 def generate_workload_id(benchmark_id: str) -> str:
-  """Generate a workload ID."""
-  short_id = str(uuid.uuid4())[:8]
-  return f"{benchmark_id}-{short_id}"
+  """Generate a workload ID. The maximum length of XPK workload names is 40."""
+  return f"{benchmark_id}-{uuid.uuid4()}"[:40]
 
 
 def run_workload(
@@ -64,8 +64,8 @@ def run_workload(
       "cd /tmp/xpk",
       (
           "python3 xpk.py workload create"
-          f" --cluster={cluster_name} --workload={workload_id} --command='{run_cmds}'"
-          f" --tpu-type={accelerator_type} --num-slices={num_slices} --docker-image={docker_image}"
+          f" --cluster={cluster_name} --workload={workload_id} --command '{run_cmds}'"
+          f" --device-type={accelerator_type} --num-slices={num_slices} --docker-image={docker_image}"
       ),
   )
 
@@ -126,7 +126,9 @@ def wait_for_workload_completion(
     if pod.status.phase in ["Pending", "Running"]:
       logging.info(f"One pod phase is: {pod.status.phase}")
       return False
-    elif pod.status.phase in ["Failed", "Unknown"]:
+    elif pod.status.phase in ["Failed"]:
+      raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
+    elif pod.status.phase in ["Unknown"]:
       raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
 
   logging.info("All pod(s) phase are succeeded.")
