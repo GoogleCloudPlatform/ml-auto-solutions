@@ -20,7 +20,7 @@ from __future__ import annotations
 from absl import logging
 import airflow
 from airflow.decorators import task
-from apis import gcp_config, test_config
+from xlml.apis import gcp_config, test_config
 import fabric
 from google.api_core.extended_operation import ExtendedOperation
 from google.cloud import compute_v1
@@ -28,7 +28,6 @@ from implementations.utils import ssh
 import io
 import paramiko
 import re
-import sys
 from typing import Iterable, Any
 import uuid
 
