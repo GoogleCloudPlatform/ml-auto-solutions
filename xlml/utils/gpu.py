@@ -20,16 +20,16 @@ from __future__ import annotations
 from absl import logging
 import airflow
 from airflow.decorators import task
-from xlml.apis import gcp_config, test_config
 import fabric
 from google.api_core.extended_operation import ExtendedOperation
 from google.cloud import compute_v1
-from implementations.utils import ssh
 import io
 import paramiko
 import re
 from typing import Iterable, Any
 import uuid
+from xlml.apis import gcp_config, test_config
+from xlml.utils import ssh
 
 
 def get_image_from_family(project: str, family: str) -> compute_v1.Image:
