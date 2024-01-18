@@ -12,16 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Format Python codes using Pyink
-# Googlers: please run `sudo apt install pipx; pipx install pyink` in advance
+"""The file of test owners."""
 
-set -e
+# XLML - JAX/FLAX
+SHIVA_S = "Shiva S."
 
-FOLDERS_TO_FORMAT=("dags" "xlml")
+# XLML - PAX
+GERSON_K = "Gerson K."
 
-for folder in "${FOLDERS_TO_FORMAT[@]}"
-do
-  pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes
-done
+# XLML - TensorFlow
+ERIC_L = "Eric L."
+CHANDRA_D = "Chandra D."
+GAGIK_A = "Gagik A."
+RAN_R = "Ran R."
 
-echo "Successfully format codes."
+# PYTORCH
+PEI_Z = "Pei Z."
+
+# Maxtext
+Tony_C = "Tony C."

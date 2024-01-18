@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Format Python codes using Pyink
-# Googlers: please run `sudo apt install pipx; pipx install pyink` in advance
+"""Utilities to construct common configs."""
 
-set -e
+from typing import Tuple
 
-FOLDERS_TO_FORMAT=("dags" "xlml")
+UPGRADE_PIP = "pip install --upgrade pip"
 
-for folder in "${FOLDERS_TO_FORMAT[@]}"
-do
-  pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes
-done
 
-echo "Successfully format codes."
+def download_maxtext() -> Tuple[str]:
+  """Common set up for flax repo."""
+  return (
+      UPGRADE_PIP,
+      "git clone https://github.com/google/maxtext.git /tmp/maxtext",
+  )
