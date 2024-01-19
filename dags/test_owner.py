@@ -30,4 +30,5 @@ RAN_R = "Ran R."
 PEI_Z = "Pei Z."
 
 # Maxtext
-Tony_C = "Tony C."
+TONY_C = "Tony C."
+JON_B = "Jon B."
