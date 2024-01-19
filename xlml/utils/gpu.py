@@ -221,37 +221,6 @@ def create_instance(
   return instance_client.get(project=project_id, zone=zone, instance=instance_name)
 
 
-def wait_for_operation(operation_name: str, project_id: str, zone: str):
-  # Retrives the delete opeartion to check the status.
-  client = compute_v1.ZoneOperationsClient()
-  request = compute_v1.GetZoneOperationRequest(
-      operation=operation_name,
-      project=project_id,
-      zone=zone,
-  )
-  operation = client.get(request=request)
-
-  status = operation.status.name
-
-  if status in ("RUNNING", "PENDING"):
-    logging.info(
-        f"operation {operation_name} status: {status}, {operation.status_message}"
-    )
-    return False
-  else:
-    if operation.error:
-      logging.error(
-          f"Error during {operation_name}: [Code: {operation.http_error_status_code}]: {operation.http_error_message}",
-      )
-      logging.error(f"Operation ID: {operation_name}")
-      raise operation.exception() or RuntimeError(operation.http_error_message)
-    if operation.warnings:
-      logging.warning(f"Warnings during operation {operation_name}:\n")
-      for warning in operation.warnings:
-        logging.warning(f" - {warning.code}: {warning.message}")
-    return True
-
-
 def wait_for_extended_operation(
     operation: ExtendedOperation, verbose_name: str = "operation", timeout: int = 300
 ) -> Any:
@@ -422,7 +391,31 @@ def delete_resource(instance_name: airflow.XComArg, project_id: str, zone: str):
   @task.sensor(poke_interval=60, timeout=1800, mode="reschedule")
   def wait_for_resource_deletion(operation_name: airflow.XComArg):
     # Retrives the delete opeartion to check the status.
-    wait_for_operation(operation_name, project_id, zone)
+    client = compute_v1.ZoneOperationsClient()
+    request = compute_v1.GetZoneOperationRequest(
+        operation=operation_name,
+        project=project_id,
+        zone=zone,
+    )
+    operation = client.get(request=request)
+
+    status = operation.status.name
+
+    if status in ("RUNNING", "PENDING"):
+      logging.info(f"Resource deletion status: {status}, {operation.status_message}")
+      return False
+    else:
+      if operation.error:
+        logging.error(
+            f"Error during resource deletion: [Code: {operation.http_error_status_code}]: {operation.http_error_message}",
+        )
+        logging.error(f"Operation ID: {operation.name}")
+        raise operation.exception() or RuntimeError(operation.http_error_message)
+      if operation.warnings:
+        logging.warning(f"Warnings during resource deletion:\n")
+        for warning in operation.warnings:
+          logging.warning(f" - {warning.code}: {warning.message}")
+      return True
 
   op = delete_resource_request(instance_name, project_id, zone)
   wait_for_resource_deletion(op)
