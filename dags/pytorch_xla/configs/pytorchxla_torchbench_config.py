@@ -82,9 +82,8 @@ def get_torchbench_tpu_config(
   else:
     run_filter = f" --filter={model_name} "
   run_script_cmds = (
-      "export PJRT_DEVICE=TPU",
       (
-          "cd ~/xla/benchmarks && python experiment_runner.py"
+          "export PJRT_DEVICE=TPU && cd ~/xla/benchmarks && python experiment_runner.py"
           " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar"
           f" {run_filter}"
       ),

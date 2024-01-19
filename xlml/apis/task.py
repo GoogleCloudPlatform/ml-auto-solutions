@@ -377,11 +377,9 @@ class GpuCreateResourceTask(BaseTask):
       project_id: project of the instance.
       zone: zone of the instance.
     Returns:
-      A DAG node that deletes the queued resource and its owned nodes.
+      A DAG node that deletes the resource and its owned nodes.
 
     Raises:
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
-    return gpu.delete_resource.override(task_id="release_resource")(
-        resource, project_id, zone
-    )
+    return gpu.delete_resource(resource, project_id, zone)
