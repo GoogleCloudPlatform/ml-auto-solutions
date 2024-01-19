@@ -361,7 +361,7 @@ def create_resource(
       external_access=True,
       accelerators=[acceleratorConfig],
       metadata=metadata,
-      instance_termination_action="DELETE",
+      instance_termination_action="STOP",
   )
   logging.info("instance info: {instance}")
 
