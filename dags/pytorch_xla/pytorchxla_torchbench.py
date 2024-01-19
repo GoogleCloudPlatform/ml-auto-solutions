@@ -31,7 +31,7 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
-  model = "all"
+  model = "BERT_pytorch"
   torchbench_extra_flags = [f"--filter={model}"]
   # Running on V4-8:
   config.get_torchbench_tpu_config(
@@ -53,7 +53,7 @@ with models.DAG(
       tpu_zone=resource.Zone.US_EAST5_A,
       runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5,
       network=resource.V5_NETWORKS,
-      subnetwork=resource.V5E_SUBNETWORKS,
+      subnetwork=resource.V5P_SUBNETWORKS,
       time_out_in_min=700,
       model_name=model,
       extraFlags=" ".join(torchbench_extra_flags),

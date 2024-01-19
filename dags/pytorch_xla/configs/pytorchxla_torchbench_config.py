@@ -20,8 +20,6 @@ import dags.vm_resource as resource
 from dags import gcs_bucket, test_owner
 
 
-# TODO(ranran or PyTroch/XLA team): this is an example for benchmark test with hardcode compatible versions,
-# we need to dynamically generate date on daily basis.
 def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
   """Common set up for TorchBench."""
 
