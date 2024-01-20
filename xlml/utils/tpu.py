@@ -55,6 +55,7 @@ def create_queued_resource(
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
     num_slices: int,
+    startup_script: str,
 ) -> Tuple[TaskGroup, airflow.XComArg]:
   """Request a QueuedResource and wait until the nodes are created.
 
@@ -88,6 +89,13 @@ def create_queued_resource(
           node_count=num_slices, node_id_prefix=tpu_name
       )
 
+    metadata = {
+        'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
+    }
+
+    if startup_script is not None:
+      metadata['startup-script'] = f'{startup_script}'
+
     queued_resource = tpu_api.QueuedResource(
         # TODO(ranran): enable configuration via `AcceleratorConfig`
         tpu=tpu_api.QueuedResource.Tpu(
@@ -105,9 +113,7 @@ def create_queued_resource(
                             subnetwork=accelerator.subnetwork,
                             enable_external_ips=True,
                         ),
-                        metadata={
-                            'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
-                        },
+                        metadata=metadata,
                     ),
                 )
             ],

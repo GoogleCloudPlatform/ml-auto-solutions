@@ -166,6 +166,7 @@ class TpuVmTest(TestConfig[Tpu]):
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
   num_slices: int = attrs.field(default=1, kw_only=True)
+  use_startup_script: bool = attrs.field(default=False, kw_only=True)
 
   @property
   def benchmark_id(self) -> str:
@@ -182,6 +183,22 @@ class TpuVmTest(TestConfig[Tpu]):
   @property
   def test_script(self) -> str:
     return '\n'.join(self.run_model_cmds)
+
+  @property
+  def startup_script(self) -> str:
+    if self.use_startup_script == False:
+      return None
+
+    main_command = '\n'.join(self.set_up_cmds + self.run_model_cmds)
+    final_command = f"""
+({main_command}) > /tmp/logs 2>&1 &
+pid=$!
+echo $pid > /tmp/main_process_id.txt
+wait $pid
+exit_status=$?
+echo $exit_status > /tmp/process_exit_status.txt
+"""
+    return final_command
 
 
 @attrs.define
