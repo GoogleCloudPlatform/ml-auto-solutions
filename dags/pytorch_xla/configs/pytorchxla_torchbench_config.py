@@ -37,7 +37,7 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
       "sudo apt-get install libgl1 -y",
       "pip install --user numpy pandas",
       (
-          "pip install --user --pre torchvision torchaudio torchtext -i"
+          "pip install --user --pre torch torchvision torchaudio torchtext -i"
           " https://download.pytorch.org/whl/nightly/cpu"
       ),
       (
@@ -48,7 +48,6 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
       "cd; git clone https://github.com/pytorch/benchmark.git",
       f"cd benchmark && {model_install_cmds()}",
       "cd; git clone https://github.com/pytorch/xla.git",
-      "cd xla; git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77",
   )
 
 
@@ -137,6 +136,7 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       # This can be a transient error. We use the following command to fix the issue for now.
       # TODO(piz): remove the following statement for temporary fix once the `apt update/upgrade` is removed or updated.
       "sed -i '/^\s*run(\"apt update\")/,/^\s*return True/ s/^/# /'  install_gpu_driver.py",
+      'sed -i \'s/DRIVER_VERSION = "525.125.06"/DRIVER_VERSION = "535.86.10"/\' your_python_file.py',
       "sudo python3 install_gpu_driver.py --force",
       "sudo nvidia-smi",
   )
@@ -144,11 +144,10 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
   docker_cmds_ls = (
       "apt-get update && apt-get install -y libgl1",
       "pip install --user numpy pandas",
-      "pip install --user --pre torchvision torchaudio -i https://download.pytorch.org/whl/nightly/cu121",
+      "pip install --user --pre torch torchvision torchaudio torchtext -i https://download.pytorch.org/whl/nightly/cu121",
       "cd /tmp/ && git clone https://github.com/pytorch/benchmark.git",
       f" cd benchmark && {model_install_cmds()}",
       "cd /tmp/ && git clone https://github.com/pytorch/xla.git",
-      "cd /tmp/xla; git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77",
   )
   docker_cmds = "\n".join(docker_cmds_ls)
 
