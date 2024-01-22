@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,13 +20,9 @@ from dags import composer_env
 from dags.vm_resource import TpuVersion, Zone
 from dags.multipod.configs import maxtext_gce_config
 
-
-# Run once a day at 10 am UTC (2 am PST)
-SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
-
 with models.DAG(
     dag_id="maxtext_nightly_startup_script",
-    schedule=SCHEDULED_TIME,
+    schedule=None,
     tags=["multipod_team", "maxtext"],
     start_date=datetime.datetime(2024, 1, 10),
     catchup=False,
@@ -46,16 +42,18 @@ with models.DAG(
       ).run()
   )
 
-  maxtext_nightly_8slice_v4_8_startup_script = maxtext_gce_config.get_maxtext_nightly_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
-      time_out_in_min=60,
-      is_tpu_reserved=False,
-      num_slices=8,
-      test_name=default_test_name,
-      use_startup_script=True,
-  ).run()
+  maxtext_nightly_8slice_v4_8_startup_script = (
+      maxtext_gce_config.get_maxtext_nightly_config(
+          tpu_version=TpuVersion.V4,
+          tpu_cores=8,
+          tpu_zone=Zone.US_CENTRAL2_B.value,
+          time_out_in_min=60,
+          is_tpu_reserved=False,
+          num_slices=8,
+          test_name=default_test_name,
+          use_startup_script=True,
+      ).run()
+  )
 
   # Test dependencie
   (
