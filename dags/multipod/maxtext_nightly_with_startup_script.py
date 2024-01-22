@@ -46,5 +46,19 @@ with models.DAG(
       ).run()
   )
 
+  maxtext_nightly_8slice_v4_8_startup_script = maxtext_gce_config.get_maxtext_nightly_config(
+      tpu_version=TpuVersion.V4,
+      tpu_cores=8,
+      tpu_zone=Zone.US_CENTRAL2_B.value,
+      time_out_in_min=60,
+      is_tpu_reserved=False,
+      num_slices=8,
+      test_name=default_test_name,
+      use_startup_script=True,
+  ).run()
+
   # Test dependencie
-  (maxtext_nightly_1slice_v4_8_startup_script)
+  (
+      maxtext_nightly_1slice_v4_8_startup_script
+      >> maxtext_nightly_8slice_v4_8_startup_script
+  )
