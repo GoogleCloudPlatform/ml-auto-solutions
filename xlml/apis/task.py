@@ -103,43 +103,32 @@ class TpuQueuedResourceTask(BaseTask):
 # File paths
 pid_file="/tmp/main_process_id.txt"
 status_file="/tmp/process_exit_status.txt"
+log_file="/tmp/logs"
 
-# Check if the PID file exists
-if [ ! -f "$pid_file" ]; then
-    echo "PID file not found."
-    exit 1
-fi
+# Wait until the PID file exists
+while [ ! -f "$pid_file" ]; do
+  echo "Waiting for the workload to show up in $pid_file"
+  sleep 1
+done
 
-# Read the process ID
+# Extract PID from pid_file
 pid=$(cat "$pid_file")
 
-# Loop to continuously check if the process is still running
-while ps -p $pid > /dev/null 2>&1; do
-    echo "Process $pid is still running."
-    sleep 10
-done
+# Tail the log file and terminate when the process with $pid exits
+tail -f --pid=$pid --retry $log_file
 
 echo "Process $pid has finished."
 
-# Check if the status file exists
-if [ ! -f "$status_file" ]; then
-    echo "Status file not found."
-    exit 1
+# Read and output the exit status
+exit_status=$(cat "$status_file")
+if [ "$exit_status" -eq 0 ]; then
+  echo "The process exited successfully."
 else
-    echo "Printing logs"
-    cat /tmp/logs
-    
-    # Read and output the exit status
-    exit_status=$(cat "$status_file")
-    # Check if the exit status is success or failure
-    if [ "$exit_status" -eq 0 ]; then
-        echo "The process exited successfully."
-        exit 0
-    else
-        echo "The process failed with exit status $exit_status."
-        exit 1
-    fi
+  echo "The process failed with exit status $exit_status."
+  exit 1
 fi
+
+exit 0
 """
 
     return tpu.ssh_tpu.override(

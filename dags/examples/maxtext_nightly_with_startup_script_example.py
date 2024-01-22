@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run all supported ML models with the latest JAX/FLAX version."""
+"""
+An example DAG to run maxtext on 1 and 8 slices of v4-8 with startup script on GCE.
+"""
 
 import datetime
 from airflow import models

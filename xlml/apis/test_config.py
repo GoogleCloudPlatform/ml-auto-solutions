@@ -160,6 +160,7 @@ class TpuVmTest(TestConfig[Tpu]):
     set_up_cmds: List of commands to run once when TPU is created.
     run_model_cmds: List of commands to run the model under test.
     num_slices: Number of TPU slices.
+    use_startup_script: If true, use startup script in GCE.
   """
 
   test_name: str
@@ -187,16 +188,16 @@ class TpuVmTest(TestConfig[Tpu]):
   @property
   def startup_script(self) -> str:
     if self.use_startup_script == False:
-      return None
+      return ''
 
     main_command = '\n'.join(self.set_up_cmds + self.run_model_cmds)
     final_command = f"""
-({main_command}) > /tmp/logs 2>&1 &
+bash -c '{main_command} 2>&1 | tee /tmp/logs &
 pid=$!
 echo $pid > /tmp/main_process_id.txt
 wait $pid
 exit_status=$?
-echo $exit_status > /tmp/process_exit_status.txt
+echo $exit_status > /tmp/process_exit_status.txt'
 """
     return final_command
 
@@ -280,6 +281,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     exports: Extra setup commands to run in same shell as test_command.
     test_command: Command and arguments to execute on the TPU VM.
     num_slices: Number of TPU slices.
+    use_startup_script: If true, use startup script in GCE.
   """
 
   test_name: str
@@ -287,6 +289,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   exports: str
   test_command: List[str]
   num_slices: int = 1
+  use_startup_script: bool = attrs.field(default=False, kw_only=True)
 
   @staticmethod
   def _load_compiled_jsonnet(test_name: str) -> Any:
@@ -366,3 +369,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         self.exports,
         ' '.join(shlex.quote(s) for s in self.test_command),
     ])
+
+  @property
+  def startup_script(self) -> str:
+    return None

@@ -91,10 +91,8 @@ def create_queued_resource(
 
     metadata = {
         'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
+        'startup-script': f'{startup_script}',
     }
-
-    if startup_script is not None:
-      metadata['startup-script'] = f'{startup_script}'
 
     queued_resource = tpu_api.QueuedResource(
         # TODO(ranran): enable configuration via `AcceleratorConfig`
