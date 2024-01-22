@@ -21,7 +21,7 @@ from dags.vm_resource import TpuVersion, Zone
 from dags.multipod.configs import maxtext_gce_config
 
 with models.DAG(
-    dag_id="maxtext_nightly_startup_script",
+    dag_id="maxtext_nightly_startup_script_example_dag",
     schedule=None,
     tags=["multipod_team", "maxtext"],
     start_date=datetime.datetime(2024, 1, 10),
