@@ -48,6 +48,10 @@ class BenchmarkBigQueryMetricTest(parameterized.TestCase, absltest.TestCase):
             [self.metadata_history_row],
         )
     ]
+    self.row_ids = [
+        "test1_id",
+        "test2_id",
+    ]
 
   @parameterized.named_parameters(
       ("-math.inf", -math.inf, False),
@@ -64,16 +68,29 @@ class BenchmarkBigQueryMetricTest(parameterized.TestCase, absltest.TestCase):
       self.assertEqual(actual_value, expected_value)
 
   @mock.patch.object(google.auth, "default", return_value=["mock", "mock_project"])
+  @mock.patch.object(bigquery.Client, "query")
+  def test_delete_failure(self, query, default):
+    bq_metric = test_bigquery.BigQueryMetricClient()
+    query.return_value.result.side_effect = Exception("Test")
+    self.assertRaises(RuntimeError, bq_metric.delete, self.row_ids)
+
+  @mock.patch.object(google.auth, "default", return_value=["mock", "mock_project"])
+  @mock.patch.object(bigquery.Client, "query")
+  def test_delete_success(self, query, default):
+    bq_metric = test_bigquery.BigQueryMetricClient()
+    bq_metric.delete(self.row_ids)
+
+  @mock.patch.object(google.auth, "default", return_value=["mock", "mock_project"])
   @mock.patch.object(bigquery.Client, "get_table", return_value="mock_table")
   @mock.patch.object(bigquery.Client, "insert_rows", return_value=["there is an error"])
-  def test_insert_failure(self, default, get_table, insert_rows):
+  def test_insert_failure(self, insert_rows, get_table, default):
     bq_metric = test_bigquery.BigQueryMetricClient()
     self.assertRaises(RuntimeError, bq_metric.insert, self.test_runs)
 
   @mock.patch.object(google.auth, "default", return_value=["mock", "mock_project"])
   @mock.patch.object(bigquery.Client, "get_table", return_value="mock_table")
   @mock.patch.object(bigquery.Client, "insert_rows", return_value=[])
-  def test_insert_success(self, default, get_table, insert_rows):
+  def test_insert_success(self, insert_rows, get_table, default):
     bq_metric = test_bigquery.BigQueryMetricClient()
     bq_metric.insert(self.test_runs)
 

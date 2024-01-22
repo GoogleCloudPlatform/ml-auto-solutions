@@ -26,9 +26,9 @@ import google.auth
 from google.cloud import bigquery
 
 
-BENCHMARK_BQ_JOB_TABLE_NAME = "job_history"
-BENCHMARK_BQ_METRIC_TABLE_NAME = "metric_history"
-BENCHMARK_BQ_METADATA_TABLE_NAME = "metadata_history"
+BQ_JOB_TABLE_NAME = "job_history"
+BQ_METRIC_TABLE_NAME = "metric_history"
+BQ_METADATA_TABLE_NAME = "metadata_history"
 
 
 @dataclasses.dataclass
@@ -82,9 +82,7 @@ class BigQueryMetricClient:
   ):
     self.project = google.auth.default()[1] if project is None else project
     self.database = (
-        metric_config.DatasetOption.BENCHMARK_DATASET.value
-        if database is None
-        else database
+        metric_config.DatasetOption.XLML_DATASET.value if database is None else database
     )
     self.client = bigquery.Client(
         project=project,
@@ -95,20 +93,58 @@ class BigQueryMetricClient:
 
   @property
   def job_history_table_id(self):
-    return ".".join((self.project, self.database, BENCHMARK_BQ_JOB_TABLE_NAME))
+    return ".".join((self.project, self.database, BQ_JOB_TABLE_NAME))
 
   @property
   def metric_history_table_id(self):
-    return ".".join((self.project, self.database, BENCHMARK_BQ_METRIC_TABLE_NAME))
+    return ".".join((self.project, self.database, BQ_METRIC_TABLE_NAME))
 
   @property
   def metadata_history_table_id(self):
-    return ".".join((self.project, self.database, BENCHMARK_BQ_METADATA_TABLE_NAME))
+    return ".".join((self.project, self.database, BQ_METADATA_TABLE_NAME))
 
   def is_valid_metric(self, value: float):
     """Check if float metric is valid for BigQuery table."""
     invalid_values = [math.inf, -math.inf, math.nan]
     return not (value in invalid_values or math.isnan(value))
+
+  def delete(self, row_ids: Iterable[str]) -> None:
+    """Delete records from tables.
+
+    There is a known issue that you cannot delete or update over table
+    in the streaming buffer period, which can last up to 90 min. The
+    error message is like `BigQuery Error : UPDATE or DELETE statement
+    over table would affect rows in the streaming buffer, which is not supported`
+
+    More context at https://cloud.google.com/knowledge/kb/update-or-delete-over-streaming-tables-fails-for-bigquery-000004334
+
+    Args:
+     row_ids: A list of ids to remove.
+    """
+    table_index_dict = {
+        self.job_history_table_id: "uuid",
+        self.metric_history_table_id: "job_uuid",
+        self.metadata_history_table_id: "job_uuid",
+    }
+
+    for table, index in table_index_dict.items():
+      for row_id in row_ids:
+        query_statement = f"DELETE FROM `{table}` WHERE {index}='{row_id}'"
+        query_job = self.client.query(query_statement)
+
+        try:
+          query_job.result()
+          logging.info(
+              f"No matching records or successfully deleted records in {table} with id {row_id}."
+          )
+        except Exception as e:
+          raise RuntimeError(
+              (
+                  f"Failed to delete records in {table} with id {row_id} and error: `{e}`"
+                  " Please note you cannot delete or update table in the streaming"
+                  " buffer period, which can last up to 90 min after data insertion."
+              )
+          )
 
   def insert(self, test_runs: Iterable[TestRun]) -> None:
     """Insert Benchmark test runs into the table.
