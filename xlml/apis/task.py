@@ -105,9 +105,10 @@ pid_file="/tmp/main_process_id.txt"
 status_file="/tmp/process_exit_status.txt"
 log_file="/tmp/logs"
 
+echo "Waiting for the workload to show up in $pid_file"
+
 # Wait until the PID file exists
 while [ ! -f "$pid_file" ]; do
-  echo "Waiting for the workload to show up in $pid_file"
   sleep 1
 done
 
