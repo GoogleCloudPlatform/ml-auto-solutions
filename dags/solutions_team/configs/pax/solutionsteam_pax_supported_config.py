@@ -113,13 +113,13 @@ def get_pax_lm_config(
   runtime_version = get_runtime_version(pax_version, tpu_version)
 
   if runtime_version == RuntimeVersion.TPU_VM_V4_BASE.value:
-    training_script_path = ".local/lib/python3.8/site-packages/paxml/main.py"
+    package_version = "python3.8"
   else:
-    training_script_path = ".local/lib/python3.10/site-packages/paxml/main.py"
+    package_version = "python3.10"
 
   run_model_cmds = (
       (
-          f"python3 {training_script_path}"
+          f"python3 .local/lib/{package_version}/site-packages/paxml/main.py"
           f" --exp={exp_path} --job_log_dir={job_log_dir} {extraFlags}"
       ),
   )
