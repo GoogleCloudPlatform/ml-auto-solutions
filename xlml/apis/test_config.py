@@ -289,6 +289,8 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   exports: str
   test_command: List[str]
   num_slices: int = 1
+  
+  # We need to add `use_startup_script` here since `JSonnetTpuVmTest` and `TpuVmTest` both use `TpuQueuedResourceTask`
   use_startup_script: bool = attrs.field(default=False, kw_only=True)
 
   @staticmethod
@@ -370,6 +372,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         ' '.join(shlex.quote(s) for s in self.test_command),
     ])
 
+  # We need to return None here since `JSonnetTpuVmTest` and `TpuVmTest` both use `TpuQueuedResourceTask`
   @property
   def startup_script(self) -> str:
     return None
