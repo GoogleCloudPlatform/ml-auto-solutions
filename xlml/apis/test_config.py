@@ -50,6 +50,7 @@ import json
 import os
 import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
+from xlml.utils import startup_script_util
 
 
 class Accelerator(abc.ABC):
@@ -191,15 +192,7 @@ class TpuVmTest(TestConfig[Tpu]):
       return ''
 
     main_command = '\n'.join(self.set_up_cmds + self.run_model_cmds)
-    final_command = f"""
-bash -c '{main_command} 2>&1 | tee /tmp/logs &
-pid=$!
-echo $pid > /tmp/main_process_id.txt
-wait $pid
-exit_status=$?
-echo $exit_status > /tmp/process_exit_status.txt'
-"""
-    return final_command
+    return startup_script_util.genereate_startup_script(main_command)
 
 
 @attrs.define
@@ -289,7 +282,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   exports: str
   test_command: List[str]
   num_slices: int = 1
-  
+
   # We need to add `use_startup_script` here since `JSonnetTpuVmTest` and `TpuVmTest` both use `TpuQueuedResourceTask`
   use_startup_script: bool = attrs.field(default=False, kw_only=True)
 

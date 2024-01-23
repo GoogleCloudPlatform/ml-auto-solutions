@@ -22,7 +22,7 @@ import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
-from xlml.utils import gpu, metric, ssh, tpu, xpk
+from xlml.utils import gpu, metric, ssh, tpu, xpk, startup_script_util
 
 
 class BaseTask(abc.ABC):
@@ -99,38 +99,7 @@ class TpuQueuedResourceTask(BaseTask):
       A DAG node that executes the model test.
     """
 
-    check_script = """
-# File paths
-pid_file="/tmp/main_process_id.txt"
-status_file="/tmp/process_exit_status.txt"
-log_file="/tmp/logs"
-
-echo "Waiting for the workload to show up in $pid_file"
-
-# Wait until the PID file exists
-while [ ! -f "$pid_file" ]; do
-  sleep 1
-done
-
-# Extract PID from pid_file
-pid=$(cat "$pid_file")
-
-# Tail the log file and terminate when the process with $pid exits
-tail -f --pid=$pid --retry $log_file
-
-echo "Process $pid has finished."
-
-# Read and output the exit status
-exit_status=$(cat "$status_file")
-if [ "$exit_status" -eq 0 ]; then
-  echo "The process exited successfully."
-else
-  echo "The process failed with exit status $exit_status."
-  exit 1
-fi
-
-exit 0
-"""
+    check_script = startup_script_util.check_if_startup_script_finish()
 
     return tpu.ssh_tpu.override(
         task_id="check_if_startup_script_end",
