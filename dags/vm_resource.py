@@ -29,15 +29,36 @@ class Project(enum.Enum):
   TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
 
 
+class ImageProject(enum.Enum):
+  DEEP_LEARNING_PLATFORM_RELEASE = "deeplearning-platform-release"
+
+
+class ImageFamily(enum.Enum):
+  COMMON_CU121_DEBIAN_11 = "common-cu121-debian-11"
+
+
 class Zone(enum.Enum):
-  US_CENTRAL1_A = "us-central1-a"  # reservation for v2-32 in cloud-ml-auto-solutions
-  US_CENTRAL2_B = (  # reservation for v4-8 & v4-32 in cloud-ml-auto-solutions
-      "us-central2-b"
-  )
-  US_CENTRAL1_C = "us-central1-c"  # reservation for v2-8 in cloud-ml-auto-solutions
-  US_EAST1_C = "us-east1-c"  # reservation for v5e in tpu-prod-env-automated
-  US_EAST1_D = "us-east1-d"  # reservation for v3-8 & v3-32 in cloud-ml-auto-solutions
-  US_EAST5_A = "us-east5-a"  # reservation for v5p in tpu-prod-env-automated
+  # reserved/on-demand v2-32 in cloud-ml-auto-solutions
+  US_CENTRAL1_A = "us-central1-a"
+  # on-demand v3-8 in cloud-ml-auto-solutions
+  US_CENTRAL1_B = "us-central1-b"
+  # reserved v4-8 & v4-32 in cloud-ml-auto-solutions
+  US_CENTRAL2_B = "us-central2-b"
+  # reserved/on-demand v2-8 in cloud-ml-auto-solutions
+  US_CENTRAL1_C = "us-central1-c"
+  # reserved v5e in tpu-prod-env-automated
+  US_EAST1_C = "us-east1-c"
+  # reserved v3-8 & reserved/on-demand v3-32 in cloud-ml-auto-solutions
+  US_EAST1_D = "us-east1-d"
+  # reserved v5p in tpu-prod-env-automated
+  US_EAST5_A = "us-east5-a"
+
+
+class MachineVersion(enum.Enum):
+  N1_STANDARD_32 = "n1-standard-32"
+  A2_HIGHGPU_4G = "a2-highgpu-4g"
+  A3_HIGHGPU_8G = "a3-highgpu-8g"
+  G2_STAND_4 = "g2-standard-4"
 
 
 class TpuVersion(enum.Enum):
@@ -46,6 +67,13 @@ class TpuVersion(enum.Enum):
   V4 = "4"
   V5E = "5litepod"
   V5P = "5p"
+
+
+class GpuVersion(enum.Enum):
+  L4 = "nvidia-l4"
+  A100 = "nvidia-tesla-a100"
+  H100 = "nvidia-h100-80gb"
+  V100 = "nvidia-tesla-v100"
 
 
 class RuntimeVersion(enum.Enum):
@@ -73,3 +101,4 @@ class ClusterName(enum.Enum):
 
 class DockerImage(enum.Enum):
   XPK_JAX_TEST = "gcr.io/cloud-ml-auto-solutions/xpk_jax_test:latest"
+  XPK_MAXTEXT_TEST = "gcr.io/tpu-prod-env-multipod/xpk_maxtext_test:latest"
