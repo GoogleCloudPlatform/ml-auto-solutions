@@ -106,6 +106,13 @@ class TpuQueuedResourceTask(BaseTask):
           self.tpu_create_timeout,
           self.task_test_config.num_slices,
       )
+      queued_resource_op >> tpu.ssh_tpu.override(task_id="common_setup")(
+          queued_resource_name,
+          self.task_test_config.common_script,
+          ssh_keys,
+          # It executes on all workers
+          True,
+      )
       queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
           queued_resource_name,
           # TODO(wcromar): remove split

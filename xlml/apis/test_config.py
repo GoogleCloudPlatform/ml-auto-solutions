@@ -137,6 +137,11 @@ class TestConfig(abc.ABC, Generic[A]):
     ...
 
   @property
+  def common_script(self) -> Optional[str]:
+    """Optional script to run once on all workers when the accelerator is created."""
+    return None
+
+  @property
   def setup_script(self) -> Optional[str]:
     """Optional script to run once when the accelerator is created."""
     return None
@@ -163,6 +168,7 @@ class TpuVmTest(TestConfig[Tpu]):
   """
 
   test_name: str
+  common_cmds: Iterable[str]
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
   num_slices: int = attrs.field(default=1, kw_only=True)
@@ -174,6 +180,10 @@ class TpuVmTest(TestConfig[Tpu]):
         if self.num_slices == 1
         else f'{self.test_name}-{self.num_slices}x{self.accelerator.name}'
     )
+
+  @property
+  def common_script(self) -> Optional[str]:
+    return '\n'.join(self.common_cmds)
 
   @property
   def setup_script(self) -> Optional[str]:

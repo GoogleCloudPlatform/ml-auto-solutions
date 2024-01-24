@@ -42,7 +42,7 @@ def get_tf_keras_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = common.set_up_pjrt_nightly() + common.set_up_tensorflow_keras()
+  set_up_cmds = common.install_tf_nightly() + common.set_up_tensorflow_keras()
   keras_test_name = f"tf_keras_api_{test_name}"
   benchmark_id = f"{keras_test_name}-v{tpu_version.value}-{tpu_cores}"
   # Add default_var to pass DAG check
@@ -60,7 +60,9 @@ def get_tf_keras_config(
           f" --tags=-fails {skipped_tag} -i {test_feature}"
       ),
   )
-
+  common_cmds = None
+    if not is_pjrt and is_pod:
+      common_cmds = set_up_se_nightly
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
@@ -71,6 +73,7 @@ def get_tf_keras_config(
           subnetwork=subnetwork,
       ),
       test_name=keras_test_name,
+      common_cmds=common_cmds,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
@@ -108,7 +111,7 @@ def get_tf_resnet_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = common.set_up_pjrt_nightly() + common.set_up_google_tensorflow_models()
+  set_up_cmds = common.install_tf_nightly() + common.set_up_google_tensorflow_models()
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
@@ -146,7 +149,9 @@ def get_tf_resnet_config(
           " --params_override='%s'" % str(params_override)
       ),
   )
-
+  common_cmds = None
+  if not is_pjrt and is_pod:
+    common_cmds = set_up_se_nightly
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
@@ -157,6 +162,7 @@ def get_tf_resnet_config(
           subnetwork=subnetwork,
       ),
       test_name=test_name,
+      common_cmds=common_cmds,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
@@ -277,6 +283,10 @@ def get_tf_dlrm_config(
       ),
   )
 
+  common_cmds = None
+    if not is_pjrt and is_pod:
+      common_cmds = set_up_se_nightly
+
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
@@ -287,6 +297,7 @@ def get_tf_dlrm_config(
           subnetwork=subnetwork,
       ),
       test_name=test_name,
+      common_cmds=common_cmds,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
