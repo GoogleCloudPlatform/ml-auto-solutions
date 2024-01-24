@@ -50,7 +50,7 @@ import json
 import os
 import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
-from xlml.utils import startup_script_util
+from xlml.utils import startup_script
 
 
 class Accelerator(abc.ABC):
@@ -192,7 +192,7 @@ class TpuVmTest(TestConfig[Tpu]):
       return ''
 
     main_command = '\n'.join(self.set_up_cmds + self.run_model_cmds)
-    return startup_script_util.genereate_startup_script(main_command)
+    return startup_script.genereate_startup_script(main_command)
 
 
 @attrs.define

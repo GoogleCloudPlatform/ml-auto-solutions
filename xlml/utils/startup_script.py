@@ -24,14 +24,14 @@ echo $exit_status > /tmp/process_exit_status.txt'
 """
 
 
-def check_if_startup_script_finish() -> str:
+def monitor_startup_script() -> str:
   return """
 # File paths
 pid_file="/tmp/main_process_id.txt"
 status_file="/tmp/process_exit_status.txt"
 log_file="/tmp/logs"
 
-echo "Waiting for the workload to show up in $pid_file"
+echo "LOGGER: Waiting for the workload to show up in $pid_file"
 
 # Wait until the PID file exists
 while [ ! -f "$pid_file" ]; do
@@ -41,17 +41,18 @@ done
 # Extract PID from pid_file
 pid=$(cat "$pid_file")
 
+echo "LOGGER: Streaming worker 0 logs."
 # Tail the log file and terminate when the process with $pid exits
 tail -f --pid=$pid --retry $log_file
 
-echo "Process $pid has finished."
+echo "LOGGER: Process $pid has finished."
 
 # Read and output the exit status
 exit_status=$(cat "$status_file")
 if [ "$exit_status" -eq 0 ]; then
-  echo "The process exited successfully."
+  echo "LOGGER: The process exited successfully."
 else
-  echo "The process failed with exit status $exit_status."
+  echo "LOGGER: The process failed with exit status $exit_status."
   exit 1
 fi
 

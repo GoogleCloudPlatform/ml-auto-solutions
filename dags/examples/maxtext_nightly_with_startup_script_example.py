@@ -41,7 +41,7 @@ with models.DAG(
           is_tpu_reserved=False,
           test_name=default_test_name,
           use_startup_script=True,
-      ).run()
+      ).run_with_startup_script()
   )
 
   maxtext_nightly_8slice_v4_8_startup_script = (
@@ -54,7 +54,7 @@ with models.DAG(
           num_slices=8,
           test_name=default_test_name,
           use_startup_script=True,
-      ).run()
+      ).run_with_startup_script()
   )
 
   # Test dependencie

@@ -22,7 +22,7 @@ import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
-from xlml.utils import gpu, metric, ssh, tpu, xpk, startup_script_util
+from xlml.utils import gpu, metric, ssh, tpu, xpk, startup_script
 
 
 class BaseTask(abc.ABC):
@@ -72,13 +72,32 @@ class TpuQueuedResourceTask(BaseTask):
       provision, queued_resource, ssh_keys = self.provision()
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
+      run_model = self.run_model(queued_resource, ssh_keys)
+      provision >> run_model >> post_process >> clean_up
 
-      # if use_startup_script is False, we need to enable run_model with ssh.
-      if self.task_test_config.use_startup_script is False:
-        run_model = self.run_model(queued_resource, ssh_keys)
-        provision >> run_model >> post_process >> clean_up
-      else:
-        provision >> post_process >> clean_up
+    return group
+
+  def run_with_startup_script(self) -> DAGNode:
+    """Run a test job on GCE with startup script.
+
+    Returns:
+      A task group with the following tasks chained:
+      provision_with_startup_script (create_queued_resource_request + wait_for_ready_queued_resource + check_if_startup_script_end),
+      post_process and clean_up.
+    """
+
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      (
+          provision_with_startup_script,
+          queued_resource,
+          ssh_keys,
+      ) = self.provision_with_startup_script()
+      post_process = self.post_process()
+      clean_up = self.clean_up(queued_resource)
+
+      provision_with_startup_script >> post_process >> clean_up
 
     return group
 
@@ -110,10 +129,40 @@ class TpuQueuedResourceTask(BaseTask):
           self.task_test_config,
       )
 
-      # if use_startup_script is False, we need to enable setup with ssh.
-      if self.task_test_config.use_startup_script is False:
-        setup = self.setup(queued_resource_name, ssh_keys)
-        queued_resource_op >> setup
+      setup = self.setup(queued_resource_name, ssh_keys)
+      queued_resource_op >> setup
+
+    return group, queued_resource_name, ssh_keys
+
+  def provision_with_startup_script(
+      self,
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg]:
+    """Provision a TPU accelerator via a Queued Resource.
+
+    Generates a random TPU name and SSH keys, creates a Queued Resource, and
+    runs the test config's setup script on the TPU when it is ready.
+
+    Returns:
+      A DAG node that will provision a TPU, an XCom value for the qualified
+      queued resource name, and an XCom value for the SSH keys.
+
+    Raises:
+      AirflowTaskTimeout: An error occurs when execution_timeout is breached.
+    """
+    with TaskGroup(group_id="provision_with_startup_script") as group:
+      with TaskGroup(group_id="initialize"):
+        tpu_name = tpu.generate_tpu_name(
+            self.task_test_config.benchmark_id, self.tpu_name_env_var
+        )
+        ssh_keys = ssh.generate_ssh_keys()
+
+      queued_resource_op, queued_resource_name = tpu.create_queued_resource(
+          tpu_name,
+          self.task_gcp_config,
+          ssh_keys,
+          self.tpu_create_timeout,
+          self.task_test_config,
+      )
 
     return group, queued_resource_name, ssh_keys
 

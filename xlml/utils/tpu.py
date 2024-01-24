@@ -31,7 +31,7 @@ import google.api_core.exceptions
 import google.auth
 import google.cloud.tpu_v2alpha1 as tpu_api
 import google.longrunning.operations_pb2 as operations
-from xlml.utils import ssh, startup_script_util
+from xlml.utils import ssh, startup_script
 import paramiko
 from airflow.models import Variable
 from google.protobuf.duration_pb2 import Duration
@@ -153,10 +153,11 @@ def create_queued_resource(
     else:
       raise RuntimeError(f'Bad queued resource state {state.name}')
 
+  @task
   def check_if_startup_script_end(
       queued_resource: airflow.XComArg, ssh_keys: airflow.XComArg
   ):
-    check_script = startup_script_util.check_if_startup_script_finish()
+    check_script = startup_script.monitor_startup_script()
 
     return ssh_tpu.override(
         task_id='check_if_startup_script_end',
