@@ -61,8 +61,8 @@ def get_tf_keras_config(
       ),
   )
   common_cmds = None
-    if not is_pjrt and is_pod:
-      common_cmds = set_up_se_nightly
+  if not is_pjrt and is_pod:
+    common_cmds = set_up_se_nightly
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
@@ -284,8 +284,8 @@ def get_tf_dlrm_config(
   )
 
   common_cmds = None
-    if not is_pjrt and is_pod:
-      common_cmds = set_up_se_nightly
+  if not is_pjrt and is_pod:
+    common_cmds = set_up_se_nightly
 
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
