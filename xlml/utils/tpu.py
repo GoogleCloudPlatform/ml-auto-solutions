@@ -87,9 +87,17 @@ def create_queued_resource(
           node_count=task_test_config.num_slices, node_id_prefix=tpu_name
       )
 
+    startup_script_command = ''
+
+    if task_test_config.use_startup_script:
+      main_command = '\n'.join(
+          task_test_config.set_up_cmds + task_test_config.run_model_cmds
+      )
+      startup_script_command = startup_script.genereate_startup_script(main_command)
+
     metadata = {
         'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
-        'startup-script': f'{task_test_config.startup_script}',
+        'startup-script': startup_script_command,
     }
 
     queued_resource = tpu_api.QueuedResource(
@@ -153,7 +161,6 @@ def create_queued_resource(
     else:
       raise RuntimeError(f'Bad queued resource state {state.name}')
 
-  @task
   def check_if_startup_script_end(
       queued_resource: airflow.XComArg, ssh_keys: airflow.XComArg
   ):

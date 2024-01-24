@@ -15,12 +15,12 @@
 
 def genereate_startup_script(main_command: str) -> str:
   return f"""
-bash -c '{main_command} 2>&1 | tee /tmp/logs &
+bash -c '{main_command}' 2>&1 | tee /tmp/logs &
 pid=$!
 echo $pid > /tmp/main_process_id.txt
 wait $pid
 exit_status=$?
-echo $exit_status > /tmp/process_exit_status.txt'
+echo $exit_status > /tmp/process_exit_status.txt
 """
 
 

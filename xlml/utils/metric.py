@@ -405,7 +405,9 @@ def get_gke_job_status(benchmark_id: str) -> bigquery.JobStatus:
   return bigquery.JobStatus.FAILED
 
 
-def get_gce_job_status(benchmark_id: str) -> bigquery.JobStatus:
+def get_gce_job_status(
+    task_test_config: test_config.TestConfig[test_config.Tpu],
+) -> bigquery.JobStatus:
   """Get job status for the GCE run.
 
   MISSED - if any failure occurs in initialize & create_queued_resource
@@ -416,31 +418,53 @@ def get_gce_job_status(benchmark_id: str) -> bigquery.JobStatus:
   context = get_current_context()
   execution_date = context["dag_run"].logical_date
   current_dag = context["dag"]
+  benchmark_id = task_test_config.benchmark_id
 
-  # check setup status to see if provision step is successful
-  setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
-  setup_ti = TaskInstance(setup_task, execution_date)
-  setup_state = setup_ti.current_state()
-  if setup_state == TaskState.SKIPPED.value:
-    logging.info("The setup state is skipped, and the job status is missed.")
-    return bigquery.JobStatus.MISSED
+  # GCE SSH method
+  if not task_test_config.use_startup_script:
+    # check setup status to see if provision step is successful
+    setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
+    setup_ti = TaskInstance(setup_task, execution_date)
+    setup_state = setup_ti.current_state()
+    if setup_state == TaskState.SKIPPED.value:
+      logging.info("The setup state is skipped, and the job status is missed.")
+      return bigquery.JobStatus.MISSED
 
-  # check setup status to see if setup step is successful
-  if setup_state == TaskState.FAILED.value:
-    logging.info("The setup state is failed, and the job status is failed.")
+    # check setup status to see if setup step is successful
+    if setup_state == TaskState.FAILED.value:
+      logging.info("The setup state is failed, and the job status is failed.")
+      return bigquery.JobStatus.FAILED
+
+    # check run_model status to see if run_model step is successful
+    run_model_task = current_dag.get_task(task_id=f"{benchmark_id}.run_model")
+    run_model_ti = TaskInstance(run_model_task, execution_date)
+    run_model_state = run_model_ti.current_state()
+
+    if run_model_state == TaskState.SUCCESS.value:
+      logging.info("The run_model state is success, and the job status is success.")
+      return bigquery.JobStatus.SUCCESS
+
+    logging.info("The run_model state is failed, and the job status is failed.")
     return bigquery.JobStatus.FAILED
-
-  # check run_model status to see if run_model step is successful
-  run_model_task = current_dag.get_task(task_id=f"{benchmark_id}.run_model")
-  run_model_ti = TaskInstance(run_model_task, execution_date)
-  run_model_state = run_model_ti.current_state()
-
-  if run_model_state == TaskState.SUCCESS.value:
-    logging.info("The run_model state is success, and the job status is success.")
-    return bigquery.JobStatus.SUCCESS
-
-  logging.info("The run_model state is failed, and the job status is failed.")
-  return bigquery.JobStatus.FAILED
+  # GCE startup script method
+  else:
+    # check startup_script status to see if startup_script step is successful
+    startup_script_task = current_dag.get_task(
+        task_id=f"{benchmark_id}.provision_with_startup_script.create_queued_resource.check_if_startup_script_end"
+    )
+    startup_script_ti = TaskInstance(startup_script_task, execution_date)
+    startup_script_state = startup_script_ti.current_state()
+    if startup_script_state == TaskState.SKIPPED.value:
+      logging.info("The startup_script state is skipped, and the job status is missed.")
+      return bigquery.JobStatus.MISSED
+    elif startup_script_state == TaskState.FAILED.value:
+      logging.info("The startup_script state is failed, and the job status is failed.")
+      return bigquery.JobStatus.FAILED
+    else:
+      logging.info(
+          "The startup_script state is success, and the job status is success."
+      )
+      return bigquery.JobStatus.SUCCESS
 
 
 # TODO(ranran): handle Airflow retry to avoid duplicate records in tables
@@ -503,7 +527,7 @@ def process_metrics(
   if hasattr(task_test_config, "cluster_name"):
     test_job_status = get_gke_job_status(task_test_config.benchmark_id)
   else:
-    test_job_status = get_gce_job_status(task_test_config.benchmark_id)
+    test_job_status = get_gce_job_status(task_test_config)
 
   for index in range(len(metadata_history_rows_list)):
     job_history_row = bigquery.JobHistoryRow(
