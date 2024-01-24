@@ -21,6 +21,7 @@ from typing import Optional, Tuple
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
+from airflow.operators.dummy import DummyOperator
 from xlml.apis import gcp_config, metric_config, test_config
 from xlml.utils import gpu, metric, ssh, tpu, xpk, startup_script_util
 
@@ -72,47 +73,11 @@ class TpuQueuedResourceTask(BaseTask):
       provision, queued_resource, ssh_keys = self.provision()
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
+      run_model = self.run_model(queued_resource, ssh_keys)
 
-      if self.task_test_config.startup_script:
-        check_if_startup_script_end = self.check_if_startup_script_end(
-            queued_resource, ssh_keys
-        )
-        provision >> check_if_startup_script_end >> post_process >> clean_up
-      else:
-        run_model = self.run_model(queued_resource, ssh_keys)
-        provision >> run_model >> post_process >> clean_up
+      provision >> run_model >> post_process >> clean_up
 
     return group
-
-  def check_if_startup_script_end(
-      self,
-      queued_resource: airflow.XComArg,
-      ssh_keys: airflow.XComArg,
-  ) -> DAGNode:
-    """Run the TPU test in `task_test_config`.
-
-    Args:
-      queued_resource: XCom value for the queued resource name (string).
-      ssh_keys: And XCom value for the TPU's SSH keys (SshKeys).
-
-    Returns:
-      A DAG node that executes the model test.
-    """
-
-    check_script = startup_script_util.check_if_startup_script_finish()
-
-    return tpu.ssh_tpu.override(
-        task_id="check_if_startup_script_end",
-        execution_timeout=datetime.timedelta(
-            minutes=self.task_test_config.time_out_in_min
-        ),
-        owner=self.task_test_config.task_owner,
-    )(
-        queued_resource,
-        check_script,
-        ssh_keys,
-        False,
-    )
 
   def provision(self) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg]:
     """Provision a TPU accelerator via a Queued Resource.
@@ -136,12 +101,10 @@ class TpuQueuedResourceTask(BaseTask):
 
       queued_resource_op, queued_resource_name = tpu.create_queued_resource(
           tpu_name,
-          self.task_test_config.accelerator,
           self.task_gcp_config,
           ssh_keys,
           self.tpu_create_timeout,
-          self.task_test_config.num_slices,
-          self.task_test_config.startup_script,
+          self.task_test_config,
       )
       if self.task_test_config.use_startup_script == False:
         queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
@@ -169,6 +132,12 @@ class TpuQueuedResourceTask(BaseTask):
     Returns:
       A DAG node that executes the model test.
     """
+
+    # if use_startup_script is true, we can skip run_model with ssh.
+    if self.task_test_config.use_startup_script:
+      # Return a DummyOperator as run_model
+      return DummyOperator(task_id="run_model")
+
     return tpu.ssh_tpu.override(
         task_id="run_model",
         execution_timeout=datetime.timedelta(
