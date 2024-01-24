@@ -21,7 +21,6 @@ from typing import Optional, Tuple
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
-from airflow.operators.dummy import DummyOperator
 from xlml.apis import gcp_config, metric_config, test_config
 from xlml.utils import gpu, metric, ssh, tpu, xpk, startup_script_util
 
@@ -73,9 +72,13 @@ class TpuQueuedResourceTask(BaseTask):
       provision, queued_resource, ssh_keys = self.provision()
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
-      run_model = self.run_model(queued_resource, ssh_keys)
 
-      provision >> run_model >> post_process >> clean_up
+      # if use_startup_script is False, we need to enable run_model with ssh.
+      if self.task_test_config.use_startup_script is False:
+        run_model = self.run_model(queued_resource, ssh_keys)
+        provision >> run_model >> post_process >> clean_up
+      else:
+        provision >> post_process >> clean_up
 
     return group
 
@@ -106,16 +109,31 @@ class TpuQueuedResourceTask(BaseTask):
           self.tpu_create_timeout,
           self.task_test_config,
       )
-      if self.task_test_config.use_startup_script == False:
-        queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
-            queued_resource_name,
-            # TODO(wcromar): remove split
-            self.task_test_config.setup_script,
-            ssh_keys,
-            self.all_workers,
-        )
+
+      # if use_startup_script is False, we need to enable setup with ssh.
+      if self.task_test_config.use_startup_script is False:
+        setup = self.setup(queued_resource_name, ssh_keys)
+        queued_resource_op >> setup
 
     return group, queued_resource_name, ssh_keys
+
+  def setup(self, queued_resource_name, ssh_keys):
+    """Run the TPU setup in `task_test_config`.
+
+    Args:
+      queued_resource: XCom value for the queued resource name (string).
+      ssh_keys: And XCom value for the TPU's SSH keys (SshKeys).
+
+    Returns:
+      A DAG node that executes the setup test.
+    """
+    return tpu.ssh_tpu.override(task_id="setup")(
+        queued_resource_name,
+        # TODO(wcromar): remove split
+        self.task_test_config.setup_script,
+        ssh_keys,
+        self.all_workers,
+    )
 
   def run_model(
       self,
@@ -132,11 +150,6 @@ class TpuQueuedResourceTask(BaseTask):
     Returns:
       A DAG node that executes the model test.
     """
-
-    # if use_startup_script is true, we can skip run_model with ssh.
-    if self.task_test_config.use_startup_script:
-      # Return a DummyOperator as run_model
-      return DummyOperator(task_id="run_model")
 
     return tpu.ssh_tpu.override(
         task_id="run_model",
