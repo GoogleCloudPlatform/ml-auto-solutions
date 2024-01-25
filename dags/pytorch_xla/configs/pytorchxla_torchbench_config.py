@@ -23,10 +23,19 @@ from dags import gcs_bucket, test_owner
 def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
   """Common set up for TorchBench."""
 
-  def model_install_cmds() -> str:
+  def model_install_cmds(output_file=None) -> str:
+    """Installs torchbench models.
+
+    Args:
+      output_file: If not None, model installation message will be piped to a file.
+
+    Returns:
+      Command to install the model.
+    """
+    pipe_file_cmd = f" > {output_file}" if output_file else ""
     if not model_name or model_name.lower() == "all":
-      return "python install.py --continue_on_fail"
-    return f"python install.py models {model_name}"
+      return f"python install.py --continue_on_fail {pipe_file_cmd}"
+    return f"python install.py models {model_name} {pipe_file_cmd}"
 
   return (
       "pip install -U setuptools",
@@ -81,7 +90,7 @@ def get_torchbench_tpu_config(
   run_script_cmds = (
       (
           "export PJRT_DEVICE=TPU && cd ~/xla/benchmarks && python experiment_runner.py"
-          " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar"
+          " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar --strict-compatible"
           f" {run_filter}"
       ),
       "rm -rf ~/xla/benchmarks/output/metric_report.jsonl",
@@ -123,12 +132,19 @@ def get_torchbench_tpu_config(
 def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
   """Common set up for TorchBench."""
 
-  # TODO(piz): There is issue with driver install through fabric.
-  # Currently we use pre-installed driver to avoid driver reinstall.
-  def model_install_cmds() -> str:
+  def model_install_cmds(output_file=None) -> str:
+    """Installs torchbench models.
+
+    Args:
+      output_file: If not None, model installation message will be piped to a file.
+
+    Returns:
+      Command to install the model.
+    """
+    pipe_file_cmd = f" > {output_file}" if output_file else ""
     if not model_name or model_name.lower() == "all":
-      return "python install.py --continue_on_fail"
-    return f"python install.py models {model_name}"
+      return f"python install.py --continue_on_fail {pipe_file_cmd}"
+    return f"python install.py models {model_name} {pipe_file_cmd}"
 
   nvidia_driver_install = (
       "curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py",
@@ -136,7 +152,7 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       # This can be a transient error. We use the following command to fix the issue for now.
       # TODO(piz): remove the following statement for temporary fix once the `apt update/upgrade` is removed or updated.
       "sed -i '/^\s*run(\"apt update\")/,/^\s*return True/ s/^/# /'  install_gpu_driver.py",
-      'sed -i \'s/DRIVER_VERSION = "525.125.06"/DRIVER_VERSION = "535.86.10"/\' your_python_file.py',
+      # 'sed -i \'s/DRIVER_VERSION = "525.125.06"/DRIVER_VERSION = "535.86.10"/\' install_gpu_driver.py',
       "sudo python3 install_gpu_driver.py --force",
       "sudo nvidia-smi",
   )
@@ -152,15 +168,21 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
   docker_cmds = "\n".join(docker_cmds_ls)
 
   return (
+      "sudo apt-get update",
       *nvidia_driver_install,
+      "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common",
+      "distribution=$(. /etc/os-release;echo $ID$VERSION_ID)",
+      "curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -",
+      "curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list",
       "sudo apt-get install -y nvidia-container-toolkit",
+      "sudo systemctl restart docker",
       "sudo nvidia-smi -pm 1",
       (
           "sudo docker pull"
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
       (
-          "sudo docker run --gpus all -it -d --network host --name ml-automation-torchbench"
+          "sudo docker run --shm-size 16g --gpus all -it -d --network host --name ml-automation-torchbench"
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
       f"sudo docker exec -i ml-automation-torchbench /bin/bash -c '{docker_cmds}'",
@@ -198,7 +220,7 @@ def get_torchbench_gpu_config(
       "export PJRT_DEVICE=CUDA",
       f"export GPU_NUM_DEVICES={count}",
       "cd /tmp/xla/benchmarks",
-      f"python experiment_runner.py  --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None {run_filter}",
+      f"python experiment_runner.py  --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None {run_filter} --strict-compatible",
       "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
       "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
   )
