@@ -42,7 +42,9 @@ def get_tf_keras_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = common.set_up_pjrt_nightly() + common.set_up_tensorflow_keras()
+  set_up_cmds = common.install_tf_nightly() + common.set_up_tensorflow_keras()
+  if not is_pjrt and is_pod:
+    set_up_cmds += common.set_up_se_nightly()
   keras_test_name = f"tf_keras_api_{test_name}"
   benchmark_id = f"{keras_test_name}-v{tpu_version.value}-{tpu_cores}"
   # Add default_var to pass DAG check
@@ -108,7 +110,10 @@ def get_tf_resnet_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = common.set_up_pjrt_nightly() + common.set_up_google_tensorflow_models()
+  set_up_cmds = common.install_tf_nightly() + common.set_up_google_tensorflow_models()
+  if not is_pjrt and is_pod:
+    set_up_cmds += common.set_up_se_nightly()
+
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
@@ -194,7 +199,10 @@ def get_tf_dlrm_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = common.set_up_google_tensorflow_models()
+  set_up_cmds = common.install_tf_nightly() + common.set_up_google_tensorflow_models()
+  if not is_pjrt and is_pod:
+    set_up_cmds += common.set_up_se_nightly()
+
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
