@@ -160,14 +160,12 @@ class TpuVmTest(TestConfig[Tpu]):
     set_up_cmds: List of commands to run once when TPU is created.
     run_model_cmds: List of commands to run the model under test.
     num_slices: Number of TPU slices.
-    use_startup_script: If true, use startup script in GCE.
   """
 
   test_name: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
   num_slices: int = attrs.field(default=1, kw_only=True)
-  use_startup_script: bool = attrs.field(default=False, kw_only=True)
 
   @property
   def benchmark_id(self) -> str:
@@ -265,7 +263,6 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
     exports: Extra setup commands to run in same shell as test_command.
     test_command: Command and arguments to execute on the TPU VM.
     num_slices: Number of TPU slices.
-    use_startup_script: If true, use startup script in GCE.
   """
 
   test_name: str
@@ -273,9 +270,6 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   exports: str
   test_command: List[str]
   num_slices: int = 1
-
-  # We need to add `use_startup_script` here since `JSonnetTpuVmTest` and `TpuVmTest` both use `TpuQueuedResourceTask`
-  use_startup_script: bool = attrs.field(default=False, kw_only=True)
 
   @staticmethod
   def _load_compiled_jsonnet(test_name: str) -> Any:

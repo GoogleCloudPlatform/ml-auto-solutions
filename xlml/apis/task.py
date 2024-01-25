@@ -86,6 +86,8 @@ class TpuQueuedResourceTask(BaseTask):
       post_process and clean_up.
     """
 
+    use_startup_script = True
+
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
@@ -93,8 +95,8 @@ class TpuQueuedResourceTask(BaseTask):
           provision_with_startup_script,
           queued_resource,
           ssh_keys,
-      ) = self.provision_with_startup_script()
-      post_process = self.post_process()
+      ) = self.provision_with_startup_script(use_startup_script=use_startup_script)
+      post_process = self.post_process(use_startup_script)
       clean_up = self.clean_up(queued_resource)
 
       provision_with_startup_script >> post_process >> clean_up
@@ -135,7 +137,7 @@ class TpuQueuedResourceTask(BaseTask):
     return group, queued_resource_name, ssh_keys
 
   def provision_with_startup_script(
-      self,
+      self, use_startup_script
   ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg]:
     """Provision a TPU accelerator via a Queued Resource.
 
@@ -162,6 +164,7 @@ class TpuQueuedResourceTask(BaseTask):
           ssh_keys,
           self.tpu_create_timeout,
           self.task_test_config,
+          use_startup_script,
       )
 
     return group, queued_resource_name, ssh_keys
@@ -214,7 +217,7 @@ class TpuQueuedResourceTask(BaseTask):
         self.all_workers,
     )
 
-  def post_process(self) -> DAGNode:
+  def post_process(self, use_startup_script: bool = False) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
@@ -227,6 +230,7 @@ class TpuQueuedResourceTask(BaseTask):
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
+          use_startup_script,
       )
       return group
 

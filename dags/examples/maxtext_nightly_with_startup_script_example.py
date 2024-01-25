@@ -40,7 +40,6 @@ with models.DAG(
           time_out_in_min=60,
           is_tpu_reserved=False,
           test_name=default_test_name,
-          use_startup_script=True,
       ).run_with_startup_script()
   )
 
@@ -53,7 +52,6 @@ with models.DAG(
           is_tpu_reserved=False,
           num_slices=8,
           test_name=default_test_name,
-          use_startup_script=True,
       ).run_with_startup_script()
   )
 

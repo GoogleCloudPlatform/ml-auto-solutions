@@ -36,7 +36,6 @@ def get_maxtext_nightly_config(
     subnetwork: str = "default",
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
-    use_startup_script: bool = False,
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -78,7 +77,6 @@ def get_maxtext_nightly_config(
       time_out_in_min=time_out_in_min,
       task_owner=test_owner.Tony_C,
       num_slices=num_slices,
-      use_startup_script=use_startup_script,
   )
 
   return task.TpuQueuedResourceTask(

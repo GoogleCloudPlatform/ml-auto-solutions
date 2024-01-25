@@ -406,7 +406,7 @@ def get_gke_job_status(benchmark_id: str) -> bigquery.JobStatus:
 
 
 def get_gce_job_status(
-    task_test_config: test_config.TestConfig[test_config.Tpu],
+    task_test_config: test_config.TestConfig[test_config.Tpu], use_startup_script: bool
 ) -> bigquery.JobStatus:
   """Get job status for the GCE run.
 
@@ -421,7 +421,7 @@ def get_gce_job_status(
   benchmark_id = task_test_config.benchmark_id
 
   # GCE SSH method
-  if not task_test_config.use_startup_script:
+  if not use_startup_script:
     # check setup status to see if provision step is successful
     setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
     setup_ti = TaskInstance(setup_task, execution_date)
@@ -474,6 +474,7 @@ def process_metrics(
     task_test_config: test_config.TestConfig[test_config.Tpu],
     task_metric_config: metric_config.MetricConfig,
     task_gcp_config: gcp_config.GCPConfig,
+    use_startup_script: bool = False,
 ) -> None:
   benchmark_id = task_test_config.benchmark_id
   current_time = datetime.datetime.now()
@@ -527,7 +528,7 @@ def process_metrics(
   if hasattr(task_test_config, "cluster_name"):
     test_job_status = get_gke_job_status(task_test_config.benchmark_id)
   else:
-    test_job_status = get_gce_job_status(task_test_config)
+    test_job_status = get_gce_job_status(task_test_config, use_startup_script)
 
   for index in range(len(metadata_history_rows_list)):
     job_history_row = bigquery.JobHistoryRow(

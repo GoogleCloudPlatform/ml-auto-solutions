@@ -54,6 +54,7 @@ def create_queued_resource(
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
     task_test_config: test_config,
+    use_startup_script: bool = False,
 ) -> Tuple[TaskGroup, airflow.XComArg]:
   """Request a QueuedResource and wait until the nodes are created.
 
@@ -89,7 +90,7 @@ def create_queued_resource(
 
     startup_script_command = ''
 
-    if task_test_config.use_startup_script:
+    if use_startup_script:
       main_command = '\n'.join(
           task_test_config.set_up_cmds + task_test_config.run_model_cmds
       )
@@ -180,7 +181,7 @@ def create_queued_resource(
   with TaskGroup(group_id='create_queued_resource') as tg:
     qualified_name = create_queued_resource_request(tpu_name, ssh_keys)
 
-    if task_test_config.use_startup_script:
+    if use_startup_script:
       wait_for_ready_queued_resource(qualified_name) >> check_if_startup_script_end(
           qualified_name, ssh_keys
       )
