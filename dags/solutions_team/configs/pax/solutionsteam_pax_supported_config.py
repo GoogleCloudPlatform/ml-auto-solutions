@@ -77,9 +77,7 @@ def get_runtime_version(pax_version: PaxVersion, tpu_version: TpuVersion) -> str
   elif tpu_version is TpuVersion.V5P:
     return RuntimeVersion.V2_ALPHA_TPUV5.value
   else:
-    if pax_version is PaxVersion.STABLE:
-      return RuntimeVersion.TPU_VM_V4_BASE.value
-    elif pax_version is PaxVersion.NIGHTLY:
+    if pax_version in [PaxVersion.STABLE, PaxVersion.NIGHTLY]:
       return RuntimeVersion.TPU_UBUNTU2204_BASE.value
     else:
       raise RuntimeError(f"Please specify runtime version for: {pax_version.value}.")
