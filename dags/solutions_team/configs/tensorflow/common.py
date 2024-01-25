@@ -53,12 +53,14 @@ FEATURE_TIMEOUT = {
     TRANSFER_LEARNING: 60,
 }
 
+
 def set_up_se_nightly() -> Tuple[str]:
-  """ Adjust grpc_tpu_worker for SE tests """
+  """Adjust grpc_tpu_worker for SE tests"""
   return (
       "sudo sed -i 's/TF_DOCKER_URL=.*/TF_DOCKER_URL=gcr.io\/cloud-tpu-v2-images-dev\/grpc_tpu_worker:nightly\"/' /etc/systemd/system/tpu-runtime.service",
       "sudo systemctl daemon-reload && sudo systemctl restart tpu-runtime",
   )
+
 
 def install_tf_nightly() -> Tuple[str]:
   """Install tf nightly + libtpu."""
@@ -67,6 +69,7 @@ def install_tf_nightly() -> Tuple[str]:
       "sudo gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/tensorflow/tf-nightly/latest/*.whl /tmp/ && pip install /tmp/tf*.whl --force",
       "sudo gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/libtpu/latest/libtpu.so /lib/",
   )
+
 
 def set_up_tensorflow_keras() -> Tuple[str]:
   """Common set up for tensorflow Keras tests."""

@@ -21,7 +21,7 @@ FOLDERS_TO_FORMAT=("dags" "xlml")
 
 for folder in "${FOLDERS_TO_FORMAT[@]}"
 do
-  pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes
+  ~/py39/bin/python3 -m  pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes
 done
 
 echo "Successfully format codes."
