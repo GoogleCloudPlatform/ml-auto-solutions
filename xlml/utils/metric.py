@@ -422,15 +422,23 @@ def get_gce_job_status(
 
   # GCE SSH method
   if not use_startup_script:
-    # check setup status to see if provision step is successful
-    setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
-    setup_ti = TaskInstance(setup_task, execution_date)
-    setup_state = setup_ti.current_state()
-    if setup_state == TaskState.SKIPPED.value:
-      logging.info("The setup state is skipped, and the job status is missed.")
+    # check wait status to see if wait_for_ready_queued_resource step is successful
+    wait_task = current_dag.get_task(
+        task_id=f"{benchmark_id}.provision.create_queued_resource.wait_for_ready_queued_resource"
+    )
+    wait_ti = TaskInstance(wait_task, execution_date)
+    wait_state = wait_ti.current_state()
+
+    if wait_state == TaskState.SKIPPED.value:
+      logging.info(
+          "The wait_for_ready_queued_resource state is skipped, and the job status is missed."
+      )
       return bigquery.JobStatus.MISSED
 
     # check setup status to see if setup step is successful
+    setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
+    setup_ti = TaskInstance(setup_task, execution_date)
+    setup_state = setup_ti.current_state()
     if setup_state == TaskState.FAILED.value:
       logging.info("The setup state is failed, and the job status is failed.")
       return bigquery.JobStatus.FAILED
@@ -448,16 +456,26 @@ def get_gce_job_status(
     return bigquery.JobStatus.FAILED
   # GCE startup script method
   else:
+    # check wait status to see if provision step is successful
+    wait_task = current_dag.get_task(
+        task_id=f"{benchmark_id}.provision_with_startup_script.create_queued_resource.wait_for_ready_queued_resource"
+    )
+    wait_ti = TaskInstance(wait_task, execution_date)
+    wait_state = wait_ti.current_state()
+
+    if wait_state == TaskState.SKIPPED.value:
+      logging.info(
+          "The wait_for_ready_queued_resource state is skipped, and the job status is missed."
+      )
+      return bigquery.JobStatus.MISSED
+
     # check startup_script status to see if startup_script step is successful
     startup_script_task = current_dag.get_task(
         task_id=f"{benchmark_id}.provision_with_startup_script.create_queued_resource.check_if_startup_script_end"
     )
     startup_script_ti = TaskInstance(startup_script_task, execution_date)
     startup_script_state = startup_script_ti.current_state()
-    if startup_script_state == TaskState.SKIPPED.value:
-      logging.info("The startup_script state is skipped, and the job status is missed.")
-      return bigquery.JobStatus.MISSED
-    elif startup_script_state == TaskState.FAILED.value:
+    if startup_script_state == TaskState.FAILED.value:
       logging.info("The startup_script state is failed, and the job status is failed.")
       return bigquery.JobStatus.FAILED
     else:
