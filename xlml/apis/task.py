@@ -70,9 +70,9 @@ class TpuQueuedResourceTask(BaseTask):
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
       provision, queued_resource, ssh_keys = self.provision()
+      run_model = self.run_model(queued_resource, ssh_keys)
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
-      run_model = self.run_model(queued_resource, ssh_keys)
       provision >> run_model >> post_process >> clean_up
 
     return group
@@ -95,7 +95,7 @@ class TpuQueuedResourceTask(BaseTask):
           provision_with_startup_script,
           queued_resource,
           ssh_keys,
-      ) = self.provision_with_startup_script(use_startup_script=use_startup_script)
+      ) = self.provision_with_startup_script()
       post_process = self.post_process(use_startup_script)
       clean_up = self.clean_up(queued_resource)
 
@@ -130,14 +130,18 @@ class TpuQueuedResourceTask(BaseTask):
           self.tpu_create_timeout,
           self.task_test_config,
       )
-
-      setup = self.setup(queued_resource_name, ssh_keys)
-      queued_resource_op >> setup
+      queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
+          queued_resource_name,
+          # TODO(wcromar): remove split
+          self.task_test_config.setup_script,
+          ssh_keys,
+          self.all_workers,
+      )
 
     return group, queued_resource_name, ssh_keys
 
   def provision_with_startup_script(
-      self, use_startup_script
+      self,
   ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg]:
     """Provision a TPU accelerator via a Queued Resource.
 
@@ -164,28 +168,10 @@ class TpuQueuedResourceTask(BaseTask):
           ssh_keys,
           self.tpu_create_timeout,
           self.task_test_config,
-          use_startup_script,
+          use_startup_script=True,
       )
 
     return group, queued_resource_name, ssh_keys
-
-  def setup(self, queued_resource_name, ssh_keys):
-    """Run the TPU setup in `task_test_config`.
-
-    Args:
-      queued_resource: XCom value for the queued resource name (string).
-      ssh_keys: And XCom value for the TPU's SSH keys (SshKeys).
-
-    Returns:
-      A DAG node that executes the setup test.
-    """
-    return tpu.ssh_tpu.override(task_id="setup")(
-        queued_resource_name,
-        # TODO(wcromar): remove split
-        self.task_test_config.setup_script,
-        ssh_keys,
-        self.all_workers,
-    )
 
   def run_model(
       self,

@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import shlex
 
-def genereate_startup_script(main_command: str) -> str:
+
+def generate_startup_script(main_command: str) -> str:
+  escaped_command = shlex.quote(main_command)
   return f"""
-bash -c '{main_command}' 2>&1 | tee /tmp/logs &
+set -o pipefail
+bash -c {escaped_command} 2>&1 | tee /tmp/logs &
 pid=$!
 echo $pid > /tmp/main_process_id.txt
 wait $pid
@@ -47,14 +51,21 @@ tail -f --pid=$pid --retry $log_file
 
 echo "LOGGER: Process $pid has finished."
 
+# Check if status_file contain any number
+if ! grep -q '[0-9]' "$status_file"; then
+  echo "LOGGER: The status file contains no exit status."
+  exit 1
+fi
+
 # Read and output the exit status
 exit_status=$(cat "$status_file")
+
+# Check the exit_status
 if [ "$exit_status" -eq 0 ]; then
   echo "LOGGER: The process exited successfully."
+  exit 0
 else
   echo "LOGGER: The process failed with exit status $exit_status."
   exit 1
 fi
-
-exit 0
 """

@@ -412,7 +412,9 @@ def get_gce_job_status(
 
   MISSED - if any failure occurs in initialize & create_queued_resource
   FAILED - if any failure occurs in setup & run_model (including timeout of
-  run_model)
+  run_model) for SSH method.
+  FAILED - if any failure occurs in check_if_startup_script_end (including timeout of
+  check_if_startup_script_end) for startup script method.
   SUCCESS - end-to-end model tests are successful from provision to run_model
   """
   context = get_current_context()

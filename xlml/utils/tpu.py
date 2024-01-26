@@ -94,7 +94,7 @@ def create_queued_resource(
       main_command = '\n'.join(
           task_test_config.set_up_cmds + task_test_config.run_model_cmds
       )
-      startup_script_command = startup_script.genereate_startup_script(main_command)
+      startup_script_command = startup_script.generate_startup_script(main_command)
 
     metadata = {
         'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
