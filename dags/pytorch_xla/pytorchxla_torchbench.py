@@ -20,8 +20,8 @@ from dags import composer_env
 from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
 import dags.vm_resource as resource
 
-# Schudule the job to run everyday at 1:00AM PST (9:00AM UTC).
-SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
+# Schudule the job to run everyday at 3:00AM PST (11:00AM UTC).
+SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
