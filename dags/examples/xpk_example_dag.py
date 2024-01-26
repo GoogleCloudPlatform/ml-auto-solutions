@@ -18,6 +18,7 @@ import datetime
 from airflow import models
 from dags.vm_resource import TpuVersion, Project, Zone, ClusterName, DockerImage
 from dags.examples.configs import xpk_example_config as config
+from xlml.apis import task
 
 
 # TODO(ranran): add following examples:
@@ -31,6 +32,11 @@ with models.DAG(
     start_date=datetime.datetime(2023, 11, 29),
     catchup=False,
 ) as dag:
+  docker_image_build = task.DockerBuildTask(
+      build_dir="dags/examples/configs/build",
+      image_name=DockerImage.XPK_JAX_TEST.value,
+      custom_build=True,
+  ).run()
   flax_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=8,
@@ -38,7 +44,7 @@ with models.DAG(
       test_name="resnet-single-slice",
       project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       cluster_name=ClusterName.V4_8_CLUSTER.value,
-      docker_image=DockerImage.XPK_JAX_TEST.value,
+      docker_image=docker_image_build.output,
       time_out_in_min=60,
   ).run()
 
@@ -49,7 +55,7 @@ with models.DAG(
       test_name="resnet-multi-slice",
       project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
       cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
-      docker_image=DockerImage.XPK_JAX_TEST.value,
+      docker_image=docker_image_build.output,
       time_out_in_min=60,
       num_slices=4,
   ).run()

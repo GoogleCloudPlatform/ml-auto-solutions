@@ -17,9 +17,12 @@
 import abc
 import dataclasses
 import datetime
+import os
+import time
 from typing import Optional, Tuple
 import airflow
 from airflow.models.taskmixin import DAGNode
+from airflow.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
 from xlml.utils import gpu, metric, ssh, tpu, xpk, startup_script
@@ -36,6 +39,72 @@ class BaseTask(abc.ABC):
       A DAG node that executes this test.
     """
     ...
+
+
+@dataclasses.dataclass
+class DockerBuildTask(BaseTask):
+  """This is a class to set up a Docker build task for XPK workloads.
+
+  XPK runs on Kubernetes, which requires a docker image to execute the workload.
+  To ensure freshness of the images and reduce unnecessary setup on workers, a
+  single BashOperator runs the docker build to prepare the image for execution,
+  then all workers will use the resulting image for their containers.
+
+  The resulting image can be shared across multiple tasks within the DAG, and
+  the unique image name is accessible as the output of the DockerBuildTask.
+
+  Attributes:
+    build_dir: Relative path within the repository to run the build. This path
+        must contain a Dockerfile or cloudbuild.yaml.
+    image_name: The base image name to build. The timestamp of the build will
+        be used to tag the image.
+    custom_build: When set, run the build using cloudbuild.yaml. The
+        ``_IMAGE_NAME`` substitution will be the tagged docker image which will
+        be the output of this AirFlow task. Defaults to False, meaning the build
+        is a direct docker build.
+    task_id: Task ID to use for the operator. Defaults to
+        ``DockerBuildTask.TASK_ID``.
+  """
+
+  build_dir: str
+  image_name: str
+  custom_build: bool = False
+  task_id: Optional[str] = None
+
+  # Path on the Airflow worker which contains the Airflow GCS bucket contents.
+  GCS_PATH = "/home/airflow/gcs/dags"
+  DEFAULT_TASK_ID = "docker_image_build"
+  IMAGE_NAME_SUBSTITUTION = "_IMAGE_NAME"
+  BUILD_SCRIPT = """
+  set -xe
+  cd {build_path}
+  gcloud builds submit --machine-type=e2-highcpu-32 {build_flags} .
+  # The last line of output is pushed to XCom as the task output.
+  echo '{image_tag}'
+  """
+
+  def run(self) -> DAGNode:
+    # The image tag is the current timestamp.
+    image_tag = f"{self.image_name}:{str(int(time.time()))}"
+    build_path = os.path.join(DockerBuildTask.GCS_PATH, self.build_dir)
+
+    if self.custom_build:
+      build_flags = (
+          f"--substitutions {DockerBuildTask.IMAGE_NAME_SUBSTITUTION}={image_tag}"
+      )
+    else:
+      # When not running a custom build command, set `-t` to trigger a docker
+      # build with the specified tag.
+      build_flags = f"-t {image_tag}"
+
+    return BashOperator(
+        task_id=self.task_id or DockerBuildTask.DEFAULT_TASK_ID,
+        bash_command=DockerBuildTask.BUILD_SCRIPT.format(
+            build_path=build_path,
+            build_flags=build_flags,
+            image_tag=image_tag,
+        ),
+    )
 
 
 @dataclasses.dataclass
