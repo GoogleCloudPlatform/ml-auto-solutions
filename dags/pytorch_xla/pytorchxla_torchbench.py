@@ -79,7 +79,7 @@ with models.DAG(
       image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=resource.GpuVersion.V100,
-      count=4,
+      count=1,
       gpu_zone=resource.Zone.US_CENTRAL1_C,
       model_name=model,
       time_out_in_min=1600,
