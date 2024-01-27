@@ -129,7 +129,7 @@ def get_torchbench_tpu_config(
 
 
 # Below is the setup for torchbench GPU run.
-def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
+def set_up_torchbench_gpu(model_name: str, nvidia_driver_version: str) -> Tuple[str]:
   """Common set up for TorchBench."""
 
   def model_install_cmds(output_file=None) -> str:
@@ -146,16 +146,18 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
       return f"python install.py --continue_on_fail {pipe_file_cmd}"
     return f"python install.py models {model_name} {pipe_file_cmd}"
 
-  nvidia_driver_install = (
-      "curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py",
-      # Command `apt update/upgrade` receives 403 bad gateway error when connecting to the google apt repo.
-      # This can be a transient error. We use the following command to fix the issue for now.
-      # TODO(piz): remove the following statement for temporary fix once the `apt update/upgrade` is removed or updated.
-      "sed -i '/^\s*run(\"apt update\")/,/^\s*return True/ s/^/# /'  install_gpu_driver.py",
-      # 'sed -i \'s/DRIVER_VERSION = "525.125.06"/DRIVER_VERSION = "535.86.10"/\' install_gpu_driver.py',
-      "sudo python3 install_gpu_driver.py --force",
-      "sudo nvidia-smi",
-  )
+  def get_nvidia_driver_install_cmd(driver_version: str) -> str:
+    nvidia_driver_install = (
+        "curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py",
+        # Command `apt update/upgrade` receives 403 bad gateway error when connecting to the google apt repo.
+        # This can be a transient error. We use the following command to fix the issue for now.
+        # TODO(piz): remove the following statement for temporary fix once the `apt update/upgrade` is removed or updated.
+        "sed -i '/^\\s*run(\"apt update\")/,/^\\s*return True/ s/^/# /'  install_gpu_driver.py",
+        f"sed -i 's/^\\(DRIVER_VERSION = \\).*/\\1\"{driver_version}\"/' install_gpu_driver.py",
+        "sudo python3 install_gpu_driver.py --force",
+        "sudo nvidia-smi",
+    )
+    return nvidia_driver_install
 
   docker_cmds_ls = (
       "apt-get update && apt-get install -y libgl1",
@@ -169,7 +171,7 @@ def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
 
   return (
       "sudo apt-get update",
-      *nvidia_driver_install,
+      *get_nvidia_driver_install_cmd(nvidia_driver_version),
       "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common",
       "distribution=$(. /etc/os-release;echo $ID$VERSION_ID)",
       "curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -",
@@ -197,6 +199,7 @@ def get_torchbench_gpu_config(
     count: int,
     gpu_zone: resource.Zone,
     time_out_in_min: int,
+    nvidia_driver_version: str = "525.125.06",
     model_name: str = "",
     extraFlags: str = "",
 ) -> task.GpuCreateResourceTask:
@@ -206,7 +209,7 @@ def get_torchbench_gpu_config(
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
-  set_up_cmds = set_up_torchbench_gpu(model_name)
+  set_up_cmds = set_up_torchbench_gpu(model_name, nvidia_driver_version)
   local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
   gcs_location = (
       f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_gpu.jsonl"
