@@ -20,7 +20,7 @@ import enum
 import hashlib
 import os
 import re
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, TypeVar
 import uuid
 from absl import logging
 from airflow.decorators import task
@@ -35,6 +35,9 @@ import jsonlines
 import numpy as np
 import tensorflow as tf
 from tensorflow.core.util import event_pb2
+
+
+T = TypeVar("T")
 
 
 @dataclasses.dataclass
@@ -406,7 +409,7 @@ def get_gke_job_status(benchmark_id: str) -> bigquery.JobStatus:
 
 
 def get_gce_job_status(
-    task_test_config: test_config.TestConfig[test_config.Tpu], use_startup_script: bool
+    task_test_config: test_config.TestConfig[T], use_startup_script: bool
 ) -> bigquery.JobStatus:
   """Get job status for the GCE run.
 
@@ -424,10 +427,16 @@ def get_gce_job_status(
 
   # GCE SSH method
   if not use_startup_script:
-    # check wait status to see if wait_for_ready_queued_resource step is successful
-    wait_task = current_dag.get_task(
-        task_id=f"{benchmark_id}.provision.create_queued_resource.wait_for_ready_queued_resource"
-    )
+    try:
+      # check wait status to see if wait_for_ready_queued_resource step is successful
+      wait_task = current_dag.get_task(
+          task_id=f"{benchmark_id}.provision.create_queued_resource.wait_for_ready_queued_resource"
+      )
+    except:
+      # this is GPU task config
+      wait_task = current_dag.get_task(
+          task_id=f"{benchmark_id}.provision.create_resource"
+      )
     wait_ti = TaskInstance(wait_task, execution_date)
     wait_state = wait_ti.current_state()
 
@@ -491,7 +500,7 @@ def get_gce_job_status(
 @task
 def process_metrics(
     base_id: str,
-    task_test_config: test_config.TestConfig[test_config.Tpu],
+    task_test_config: test_config.TestConfig[T],
     task_metric_config: metric_config.MetricConfig,
     task_gcp_config: gcp_config.GCPConfig,
     use_startup_script: bool = False,
