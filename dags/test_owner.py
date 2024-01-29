@@ -29,6 +29,7 @@ RAN_R = "Ran R."
 # PYTORCH
 PEI_Z = "Pei Z."
 
-# Maxtext
+# MaxText
 TONY_C = "Tony C."
 JON_B = "Jon B."
+RAYMOND_Z = "Raymond Z."

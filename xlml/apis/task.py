@@ -22,7 +22,7 @@ import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
-from xlml.utils import metric, ssh, tpu, xpk
+from xlml.utils import gpu, metric, ssh, tpu, xpk, startup_script
 
 
 class BaseTask(abc.ABC):
@@ -73,8 +73,33 @@ class TpuQueuedResourceTask(BaseTask):
       run_model = self.run_model(queued_resource, ssh_keys)
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
-
       provision >> run_model >> post_process >> clean_up
+
+    return group
+
+  def run_with_startup_script(self) -> DAGNode:
+    """Run a test job on GCE with startup script.
+
+    Returns:
+      A task group with the following tasks chained:
+      provision_with_startup_script (create_queued_resource_request + wait_for_ready_queued_resource + check_if_startup_script_end),
+      post_process and clean_up.
+    """
+
+    use_startup_script = True
+
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      (
+          provision_with_startup_script,
+          queued_resource,
+          ssh_keys,
+      ) = self.provision_with_startup_script()
+      post_process = self.post_process(use_startup_script)
+      clean_up = self.clean_up(queued_resource)
+
+      provision_with_startup_script >> post_process >> clean_up
 
     return group
 
@@ -100,11 +125,10 @@ class TpuQueuedResourceTask(BaseTask):
 
       queued_resource_op, queued_resource_name = tpu.create_queued_resource(
           tpu_name,
-          self.task_test_config.accelerator,
           self.task_gcp_config,
           ssh_keys,
           self.tpu_create_timeout,
-          self.task_test_config.num_slices,
+          self.task_test_config,
       )
       queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
           queued_resource_name,
@@ -112,6 +136,39 @@ class TpuQueuedResourceTask(BaseTask):
           self.task_test_config.setup_script,
           ssh_keys,
           self.all_workers,
+      )
+
+    return group, queued_resource_name, ssh_keys
+
+  def provision_with_startup_script(
+      self,
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg]:
+    """Provision a TPU accelerator via a Queued Resource.
+
+    Generates a random TPU name and SSH keys, creates a Queued Resource, and
+    runs the test config's setup script on the TPU when it is ready.
+
+    Returns:
+      A DAG node that will provision a TPU, an XCom value for the qualified
+      queued resource name, and an XCom value for the SSH keys.
+
+    Raises:
+      AirflowTaskTimeout: An error occurs when execution_timeout is breached.
+    """
+    with TaskGroup(group_id="provision_with_startup_script") as group:
+      with TaskGroup(group_id="initialize"):
+        tpu_name = tpu.generate_tpu_name(
+            self.task_test_config.benchmark_id, self.tpu_name_env_var
+        )
+        ssh_keys = ssh.generate_ssh_keys()
+
+      queued_resource_op, queued_resource_name = tpu.create_queued_resource(
+          tpu_name,
+          self.task_gcp_config,
+          ssh_keys,
+          self.tpu_create_timeout,
+          self.task_test_config,
+          use_startup_script=True,
       )
 
     return group, queued_resource_name, ssh_keys
@@ -131,6 +188,7 @@ class TpuQueuedResourceTask(BaseTask):
     Returns:
       A DAG node that executes the model test.
     """
+
     return tpu.ssh_tpu.override(
         task_id="run_model",
         execution_timeout=datetime.timedelta(
@@ -145,7 +203,7 @@ class TpuQueuedResourceTask(BaseTask):
         self.all_workers,
     )
 
-  def post_process(self) -> DAGNode:
+  def post_process(self, use_startup_script: bool = False) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
@@ -158,8 +216,8 @@ class TpuQueuedResourceTask(BaseTask):
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
+          use_startup_script,
       )
-
       return group
 
   def clean_up(self, queued_resource: airflow.XComArg) -> DAGNode:
@@ -220,7 +278,7 @@ class TpuXpkTask(BaseTask):
           workload_id=workload_id,
           docker_image=self.task_test_config.docker_image,
           accelerator_type=self.task_test_config.accelerator.name,
-          run_cmds=self.task_test_config.run_model_cmds,
+          run_cmds=self.task_test_config.test_script,
           task_owner=self.task_test_config.task_owner,
           startup_timeout=self.task_test_config.startup_time_out_in_sec,
           num_slices=self.task_test_config.num_slices,
@@ -256,15 +314,131 @@ class TpuXpkTask(BaseTask):
 
 
 @dataclasses.dataclass
-class GpuTask(BaseTask):
+class GpuCreateResourceTask(BaseTask):
   """This is a class to set up tasks for GPU.
 
   Attributes:
-    image: the image version that a GPU runs.
     image_project: the project that an image belongs to.
     image_family: the family group that an image belongs to.
   """
 
-  image: str
   image_project: str
   image_family: str
+  task_test_config: test_config.TestConfig[test_config.Gpu]
+  task_gcp_config: gcp_config.GCPConfig
+  task_metric_config: Optional[metric_config.MetricConfig] = None
+
+  def run(self) -> DAGNode:
+    """Run a test job.
+
+    Returns:
+      A task group with the following tasks chained: provision, run_model,
+      post_process, clean_up.
+    """
+    # piz: We skip the queued resource for GPU for now since there is no queued
+    # resource command for GPU.
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      provision, ip_address, instance_name, ssh_keys = self.provision()
+      run_model = self.run_model(ip_address, ssh_keys)
+      post_process = self.post_process()
+      clean_up = self.clean_up(
+          instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone
+      )
+      provision >> run_model >> post_process >> clean_up
+    return group
+
+  def provision(
+      self,
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
+    """Provision a GPU accelerator via a resource creation.
+
+    Generates a random GPU name and SSH keys, creates a VM Resource, and
+    runs the test config's setup script on the GPU when it is ready.
+
+    Returns:
+      A DAG node that will provision a GPU, an XCome value of the ip address
+      for the host, an XCom value for the GPU name, and an XCom value for
+      the SSH keys.
+
+    Raises:
+      AirflowTaskTimeout: An error occurs when execution_timeout is breached.
+    """
+    with TaskGroup(group_id="provision") as group:
+      with TaskGroup(group_id="initialize"):
+        gpu_name = gpu.generate_gpu_name()
+        ssh_keys = ssh.generate_ssh_keys()
+
+      ip_address = gpu.create_resource.override(task_id="create_resource")(
+          gpu_name,
+          self.image_project,
+          self.image_family,
+          self.task_test_config.accelerator,
+          self.task_gcp_config,
+          ssh_keys,
+      )
+
+      gpu.ssh_host.override(task_id="setup")(
+          ip_address,
+          self.task_test_config.setup_script,
+          ssh_keys,
+      )
+    return group, ip_address, gpu_name, ssh_keys
+
+  def run_model(
+      self,
+      resource: airflow.XComArg,
+      ssh_keys: airflow.XComArg,
+  ) -> DAGNode:
+    """Run the GPU test in `task_test_config`.
+
+    Args:
+      gpu_name: XCom value for the GPU name (string).
+      ssh_keys: And XCom value for the GPU's SSH keys (SshKeys).
+
+    Returns:
+      A DAG node that executes the model test.
+    """
+    return gpu.ssh_host.override(
+        task_id="run_model",
+        execution_timeout=datetime.timedelta(
+            minutes=self.task_test_config.time_out_in_min
+        ),
+        owner=self.task_test_config.task_owner,
+    )(
+        resource,
+        self.task_test_config.test_script,
+        ssh_keys,
+    )
+
+  def post_process(self) -> DAGNode:
+    """Process metrics and metadata, and insert them into BigQuery tables.
+
+    Returns:
+      A DAG node that executes the post process.
+    """
+    with TaskGroup(group_id="post_process") as group:
+      process_id = metric.generate_process_id.override(retries=0)()
+      metric.process_metrics.override(retries=0)(
+          process_id,
+          self.task_test_config,
+          self.task_metric_config,
+          self.task_gcp_config,
+      )
+      return group
+
+  def clean_up(self, resource: airflow.XComArg, project_id: str, zone: str) -> DAGNode:
+    """Clean up GPU resources created by `provision`.
+
+    Args:
+      resource: an XCom value for the qualified instance name.
+      project_id: project of the instance.
+      zone: zone of the instance.
+    Returns:
+      A DAG node that deletes the resource and its owned nodes.
+
+    Raises:
+      AirflowTaskTimeout: An error occurs when execution_timeout is breached.
+    """
+    return gpu.delete_resource.override(group_id="clean_up")(resource, project_id, zone)
