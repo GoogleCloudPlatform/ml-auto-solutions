@@ -373,7 +373,7 @@ def ssh_host(ip_address: str, cmds: Iterable[str], ssh_keys: ssh.SshKeys) -> Non
   ssh_group.run(cmds)
 
 
-# TODO(piz): Check why sometime TPU instance doesn't get deleted.
+# TODO(piz): Check why sometime GPU instance doesn't get deleted.
 @task_group
 def delete_resource(instance_name: airflow.XComArg, project_id: str, zone: str):
   @task(trigger_rule="all_done")
