@@ -39,7 +39,7 @@ with models.DAG(
       "llama2": ["test_llama2", "llama_finetuning_test"],
       "mistral": ["test_mistral"],
       "gamma": ["test_gamma"],
-      "gpt3": ["test_gpt3"]
+      "gpt3": ["test_gpt3"],
   }
   test_modes = [SetupMode.STABLE, SetupMode.NIGHTLY]
 
