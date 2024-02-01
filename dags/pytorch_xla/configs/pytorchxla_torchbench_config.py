@@ -56,6 +56,7 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
       "pip install --user psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
       f"cd benchmark && {model_install_cmds()}",
+      "cd; git clone https://github.com/pytorch/pytorch.git",
       "cd; git clone https://github.com/pytorch/xla.git",
   )
 
@@ -90,7 +91,7 @@ def get_torchbench_tpu_config(
   run_script_cmds = (
       (
           "export PJRT_DEVICE=TPU && cd ~/xla/benchmarks && python experiment_runner.py"
-          " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar --strict-compatible"
+          " --suite-name=torchbench --xla=PJRT --accelerator=tpu --progress-bar"
           f" {run_filter}"
       ),
       "rm -rf ~/xla/benchmarks/output/metric_report.jsonl",
@@ -165,6 +166,7 @@ def set_up_torchbench_gpu(model_name: str, nvidia_driver_version: str) -> Tuple[
       "pip install --user --pre torch torchvision torchaudio torchtext -i https://download.pytorch.org/whl/nightly/cu121",
       "cd /tmp/ && git clone https://github.com/pytorch/benchmark.git",
       f" cd benchmark && {model_install_cmds()}",
+      "cd /tmp/ && git clone https://github.com/pytorch/pytorch.git",
       "cd /tmp/ && git clone https://github.com/pytorch/xla.git",
   )
   docker_cmds = "\n".join(docker_cmds_ls)
@@ -223,7 +225,7 @@ def get_torchbench_gpu_config(
       "export PJRT_DEVICE=CUDA",
       f"export GPU_NUM_DEVICES={count}",
       "cd /tmp/xla/benchmarks",
-      f"python experiment_runner.py  --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None {run_filter} --strict-compatible",
+      f"python experiment_runner.py  --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None {run_filter}",
       "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
       "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
   )

@@ -46,6 +46,8 @@ class Zone(enum.Enum):
   US_CENTRAL2_B = "us-central2-b"
   # reserved/on-demand v2-8 in cloud-ml-auto-solutions
   US_CENTRAL1_C = "us-central1-c"
+  # committed resource for A100
+  US_CENTRAL1_F = "us-central1-f"
   # reserved v5e in tpu-prod-env-automated
   US_EAST1_C = "us-east1-c"
   # reserved v3-8 & reserved/on-demand v3-32 in cloud-ml-auto-solutions
