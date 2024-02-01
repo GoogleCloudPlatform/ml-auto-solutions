@@ -20,7 +20,7 @@ import enum
 import hashlib
 import os
 import re
-from typing import Dict, Iterable, List, Optional, TypeVar
+from typing import Dict, Iterable, List, Optional
 import uuid
 from absl import logging
 from airflow.decorators import task
