@@ -30,11 +30,13 @@ def get_maxtext_nightly_config(
     tpu_zone: str,
     time_out_in_min: int,
     test_name: str,
+    test_mode: common.SetupMode,
     project_name: str = PROJECT_NAME,
     runtime_version: str = RUNTIME_IMAGE,
     network: str = "default",
     subnetwork: str = "default",
     is_tpu_reserved: bool = True,
+    automated_test: bool = True,
     num_slices: int = 1,
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
@@ -44,20 +46,28 @@ def get_maxtext_nightly_config(
       dataset_project=project_name,
       composer_project=project_name,
   )
-  current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-  run_name = (
-      f"{num_slices}slice-{tpu_version}_{tpu_cores}-maxtext-nightly-{current_datetime}"
+
+  current_time = datetime.datetime.now()
+  current_date = current_time.strftime("%Y-%m-%d")
+  current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
+
+  trigger = "automated" if automated_test else "manual"
+  base_output_directory = (
+      f"{gcs_bucket.XLML_OUTPUT_DIR}/maxtext/{test_mode.value}/{trigger}/{current_date}"
   )
 
-  set_up_cmds = common.download_maxtext()
+  run_name = f"{num_slices}slice-V{tpu_version.value}_{tpu_cores}-maxtext-{test_mode.value}-{current_datetime}"
+
+  test_platform = common.Platform.GCE
+  set_up_cmds = common.setup_maxtext(test_mode, test_platform)
   run_model_cmds = (
       (
-          "cd /tmp/maxtext && bash setup.sh MODE=nightly;"
+          "cd /tmp/maxtext &&"
           " JAX_PLATFORM_NAME=TPU XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/'"
           f" python3 MaxText/train.py MaxText/configs/base.yml run_name={run_name}"
-          f" base_output_directory={gcs_bucket.XLML_OUTPUT_DIR}/maxtext/nightly"
+          f" base_output_directory={base_output_directory}"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
-          " per_device_batch_size=6 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
+          " per_device_batch_size=12 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
           " steps=50 enable_checkpointing=false enable_profiler=true gcs_metrics=true"
       ),
   )
@@ -75,7 +85,55 @@ def get_maxtext_nightly_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
-      task_owner=test_owner.Tony_C,
+      task_owner=test_owner.TONY_C,
+      num_slices=num_slices,
+  )
+
+  return task.TpuQueuedResourceTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
+
+def get_maxtext_end_to_end_test_config(
+    tpu_version: TpuVersion,
+    tpu_cores: int,
+    tpu_zone: str,
+    time_out_in_min: int,
+    test_name: str,
+    test_script: str,
+    test_mode: common.SetupMode,
+    project_name: str = PROJECT_NAME,
+    runtime_version: str = RUNTIME_IMAGE,
+    network: str = "default",
+    subnetwork: str = "default",
+    is_tpu_reserved: bool = True,
+    num_slices: int = 1,
+) -> task.TpuQueuedResourceTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=project_name,
+      zone=tpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+  )
+
+  test_platform = common.Platform.GCE
+  set_up_cmds = common.setup_maxtext(test_mode, test_platform)
+  run_model_cmds = (f"cd /tmp/maxtext && bash end_to_end/{test_script}.sh",)
+
+  job_test_config = test_config.TpuVmTest(
+      test_config.Tpu(
+          version=tpu_version,
+          cores=tpu_cores,
+          runtime_version=runtime_version,
+          reserved=is_tpu_reserved,
+          network=network,
+          subnetwork=subnetwork,
+      ),
+      test_name=test_name,
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      time_out_in_min=time_out_in_min,
+      task_owner=test_owner.JON_B,
       num_slices=num_slices,
   )
 
