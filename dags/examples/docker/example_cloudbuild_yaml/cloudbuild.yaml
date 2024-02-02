@@ -1,0 +1,8 @@
+# This is a basic cloudbuild.yaml which builds a non-standard Dockerfile path.
+# The `$_IMAGE_NAME` substitution is supplied by the DockerBuildTask, and it
+# must be used as the tag for the resulting image.
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', '$_IMAGE_NAME', '-f', 'xpk.Dockerfile', '.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', '$_IMAGE_NAME']

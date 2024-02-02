@@ -85,7 +85,7 @@ class DockerBuildTask(BaseTask):
 
   def run(self) -> DAGNode:
     # The image tag is the current timestamp.
-    image_tag = f"{self.image_name}:{str(int(time.time()))}"
+    image_tag = f"{self.image_name}:{str(float(time.time()))}"
     build_path = os.path.join(DockerBuildTask.GCS_PATH, self.build_dir)
 
     if self.custom_build:

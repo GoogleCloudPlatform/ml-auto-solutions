@@ -32,10 +32,12 @@ with models.DAG(
     start_date=datetime.datetime(2023, 11, 29),
     catchup=False,
 ) as dag:
+  # DockerBuildTask will run a cloud build in the input directory. Since the
+  # `custom_build` flag is unspecified, cloud build will run a Docker build
+  # using the Dockerfile in that path.
   docker_image_build = task.DockerBuildTask(
-      build_dir="dags/examples/configs/build",
+      build_dir="dags/examples/docker/example_dockerfile",
       image_name=DockerImage.XPK_JAX_TEST.value,
-      custom_build=True,
   ).run()
   flax_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
       tpu_version=TpuVersion.V4,
@@ -48,6 +50,15 @@ with models.DAG(
       time_out_in_min=60,
   ).run()
 
+  # Multiple docker builds can be part of the same DAG by overriding `task_id`.
+  # With `custom_build=True`, the DockerBuildTask will use the cloudbuild.yaml
+  # to build the image.
+  custom_docker_image_build = task.DockerBuildTask(
+      build_dir="dags/examples/docker/example_cloudbuild_yaml",
+      image_name=DockerImage.XPK_JAX_TEST.value,
+      task_id="custom_docker_build",
+      custom_build=True,
+  ).run()
   flax_resnet_tpu_multislice_v4_128 = config.get_flax_resnet_xpk_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=128,
@@ -55,7 +66,7 @@ with models.DAG(
       test_name="resnet-multi-slice",
       project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
       cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
-      docker_image=docker_image_build.output,
+      docker_image=custom_docker_image_build.output,
       time_out_in_min=60,
       num_slices=4,
   ).run()

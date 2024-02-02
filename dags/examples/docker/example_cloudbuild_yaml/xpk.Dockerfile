@@ -1,5 +1,5 @@
 # Dockerfile for xpk examples in xpk_example_dag.py,
-# and is saved at gcr.io/cloud-ml-auto-solutions/xpk_jax_test:latest.
+# and is saved at gcr.io/cloud-ml-auto-solutions/xpk_jax_test.
 FROM python:3.10
 RUN pip install --upgrade pip
 RUN pip install "jax[tpu]" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
