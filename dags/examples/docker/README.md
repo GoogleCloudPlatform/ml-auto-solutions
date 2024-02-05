@@ -5,14 +5,14 @@ builds and custom builds using [DockerBuildTask](/xlml/apis/task.py#L45).
 
 A simple docker build requires only a Dockerfile in the target build path. The
 DockerBuildTask can be used as follows to build a DAG-scoped image from the
-`example_dockerfile` directory:
+`docker_build` directory:
 
 ```python
 from xlml.apis import task
 from dags.vm_resource import DockerImage
 
 docker_image_build = task.DockerBuildTask(
-  build_dir="dags/examples/docker/example_dockerfile",
+  build_dir="dags/examples/docker/docker_build",
   image_name=DockerImage.XPK_JAX_TEST.value,
 ).run()
 
@@ -35,14 +35,14 @@ to build and push the Docker image.
 In the case of a custom build using `cloudbuild.yaml`, the `custom_build`
 parameter must be set to `True` in the `DockerBuildTask`. An example usage of
 `DockerBuildTask` to build the image using the config in
-`example_cloudbuild_yaml` follows:
+`custom_build` follows:
 
 ```python
 from xlml.apis import task
 from dags.vm_resource import DockerImage
 
 docker_image_build = task.DockerBuildTask(
-  build_dir="dags/examples/docker/example_cloudbuild_yaml",
+  build_dir="dags/examples/docker/custom_build",
   image_name=DockerImage.XPK_JAX_TEST.value,
   custom_build=True,
 ).run()

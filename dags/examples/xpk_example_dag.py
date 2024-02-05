@@ -36,7 +36,7 @@ with models.DAG(
   # `custom_build` flag is unspecified, cloud build will run a Docker build
   # using the Dockerfile in that path.
   docker_image_build = task.DockerBuildTask(
-      build_dir="dags/examples/docker/example_dockerfile",
+      build_dir="dags/examples/docker/docker_build",
       image_name=DockerImage.XPK_JAX_TEST.value,
   ).run()
   flax_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
@@ -54,7 +54,7 @@ with models.DAG(
   # With `custom_build=True`, the DockerBuildTask will use the cloudbuild.yaml
   # to build the image.
   custom_docker_image_build = task.DockerBuildTask(
-      build_dir="dags/examples/docker/example_cloudbuild_yaml",
+      build_dir="dags/examples/docker/custom_build",
       image_name=DockerImage.XPK_JAX_TEST.value,
       task_id="custom_docker_build",
       custom_build=True,
