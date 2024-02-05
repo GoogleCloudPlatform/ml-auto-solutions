@@ -88,13 +88,16 @@ def create_queued_resource(
           node_count=task_test_config.num_slices, node_id_prefix=tpu_name
       )
 
-    startup_script_command = ''
+    startup_script_command = startup_script.setup_ops_agent(tpu_name)
 
     if use_startup_script:
       main_command = '\n'.join(
           task_test_config.set_up_cmds + task_test_config.run_model_cmds
       )
-      startup_script_command = startup_script.generate_startup_script(main_command)
+      startup_script_command = startup_script.generate_startup_script(
+          main_command,
+          tpu_name,
+      )
 
     metadata = {
         'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
@@ -139,6 +142,9 @@ def create_queued_resource(
     response = qr_operation.result()
     logging.info('Create QR response: {}'.format(response))
     # TODO(wcromar): do anything about failures
+
+    log_url = f'https://console.cloud.google.com/logs/query;query=resource.type%3D%22gce_instance%22%20AND%0Alog_id%2528%22{tpu_name}%22%2529;?project={gcp.project_name}'
+    logging.info(f'Find your TPU logs at: {log_url}')
 
     return response.name
 
@@ -315,4 +321,8 @@ def ssh_tpu(
           )
       },
   )
-  ssh_group.run(cmds)
+
+  queued_resource_name = qualified_name.split('/')[-1]
+  # write stderr and output into a log file
+  run_cmds = f'set -euxo pipefail; ({cmds}) 2>&1 | tee -a /tmp/{queued_resource_name}'
+  ssh_group.run(run_cmds)

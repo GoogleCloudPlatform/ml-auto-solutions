@@ -22,14 +22,13 @@ local mixins = import 'templates/mixins.libsonnet';
 
     // Never trigger the run (Feb 31st does not exist)
     schedule: '0 0 31 2 *',
-
     setup: |||
       pip install --upgrade pip
-
       %(installLocalJax)s
       %(maybeBuildJaxlib)s
       %(printDiagnostics)s
-
+    ||| % self.scriptConfig,
+    runTest: |||
       num_devices=`python3 -c "import jax; print(jax.device_count())"`
       if [ "$num_devices" = "1" ]; then
         echo "No TPU devices detected"
@@ -37,32 +36,24 @@ local mixins = import 'templates/mixins.libsonnet';
       fi
 
       cd ~
-
       mkdir "/tmp/compilation_cache_integration_test"
-      cat >integration.py <<'END_SCRIPT'
+      python3 <<'EOF'
       import jax
       from jax.experimental.compilation_cache import compilation_cache as cc
       from jax import pmap, lax
       from jax._src.config import config
       import numpy as np
-
       config.update('jax_persistent_cache_min_compile_time_secs', 0)
       cc.initialize_cache("/tmp/compilation_cache_integration_test")
       f = pmap(lambda x: x - lax.psum(x, 'i'), axis_name='i')
       print(f(np.arange(8)))
-      END_SCRIPT
+      EOF
 
-      cat >directory_size.py <<'END_SCRIPT'
+      python3 <<'EOF'
       import os
       num_of_files = sum(1 for f in os.listdir("/tmp/compilation_cache_integration_test"))
       assert num_of_files == 1, f"The number of files in the cache should be 1 but is {num_of_files}"
-      END_SCRIPT
-    ||| % self.scriptConfig,
-    runTest: |||
-      python3 integration.py
-      python3 directory_size.py
-      python3 integration.py
-      python3 directory_size.py
+      EOF
     ||| % self.scriptConfig,
   },
 

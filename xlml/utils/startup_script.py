@@ -15,9 +15,51 @@
 import shlex
 
 
-def generate_startup_script(main_command: str) -> str:
+def setup_ops_agent(queued_resource_name) -> str:
+  config = generate_ops_agent_config(queued_resource_name)
+  return f"""config_file=/etc/google-cloud-ops-agent/config.yaml
+  if [[ ! -f $config_file ]];
+  then
+    curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+    installed=0
+    while [ $installed -eq 0 ]
+    do
+      pid=$(sudo lsof /var/lib/dpkg/lock-frontend | awk "END{{print $2}}")
+      if [[ ! -z $pid ]]
+      then
+        sleep 10
+      else
+        sudo bash add-google-cloud-ops-agent-repo.sh --also-install
+        installed=1
+      fi
+    done
+  fi
+  sudo chmod 777 $config_file
+  sudo echo "{config}" >> $config_file
+  sudo service google-cloud-ops-agent restart
+"""
+
+
+def generate_ops_agent_config(queued_resource_name) -> str:
+  return f"""logging:
+  receivers:
+    {queued_resource_name}:
+      type: files
+      include_paths:
+      - /tmp/{queued_resource_name}
+      record_log_file_path: true
+  service:
+    pipelines:
+      default_pipeline:
+        receivers: [{queued_resource_name}]
+"""
+
+
+def generate_startup_script(main_command: str, queued_resource_name: str) -> str:
   escaped_command = shlex.quote(main_command)
+  setup_ops_agent_cmds = setup_ops_agent(queued_resource_name)
   return f"""
+{setup_ops_agent_cmds}
 set -o pipefail
 bash -c {escaped_command} 2>&1 | tee /tmp/logs &
 pid=$!
