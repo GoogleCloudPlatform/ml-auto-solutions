@@ -147,7 +147,7 @@ def get_tf_resnet_config(
           " PYTHONPATH='.' TF_USE_LEGACY_KERAS=1"
           " python3 official/vision/train.py"
           f" --tpu={tpu_name} --experiment=resnet_imagenet"
-          " --mode=train_and_eval --model_dir=/tmp/output"
+          " --mode=train_and_eval --model_dir=/tmp/"
           " --params_override='%s'" % str(params_override)
       ),
   )
