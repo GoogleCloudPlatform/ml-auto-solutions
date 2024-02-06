@@ -99,6 +99,14 @@ resource "google_project_iam_member" "monitoring_viewer_role" {
   role     = "roles/monitoring.viewer"
 }
 
+resource "google_project_iam_member" "compute_instance_admin_role" {
+  provider = google-beta
+  for_each = local.environment_config_dict
+  project  = var.project_config.project_name
+  member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
+  role     = "roles/compute.instanceAdmin.v1"
+}
+
 resource "google_service_account_iam_member" "custom_service_account" {
   provider           = google-beta
   for_each           = local.environment_config_dict
@@ -113,10 +121,12 @@ resource "google_composer_environment" "example_environment" {
   name     = each.value.environment_name
 
   config {
+    environment_size = "ENVIRONMENT_SIZE_MEDIUM"
     software_config {
       image_version = "composer-2.4.6-airflow-2.6.3"
       airflow_config_overrides = {
         core-allowed_deserialization_classes = ".*"
+        scheduler-min_file_process_interval = "120"
       }
       # Note: keep this in sync with .github/requirements.txt
       pypi_packages = {
@@ -139,7 +149,7 @@ resource "google_composer_environment" "example_environment" {
         cpu        = 2
         memory_gb  = 8
         storage_gb = 10
-        count      = 2
+        count      = 4
       }
       web_server {
         cpu        = 2
@@ -151,7 +161,7 @@ resource "google_composer_environment" "example_environment" {
         memory_gb  = 8
         storage_gb = 10
         min_count  = 1
-        max_count  = 3
+        max_count  = 100
       }
     }
 
