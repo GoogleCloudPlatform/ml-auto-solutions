@@ -33,7 +33,8 @@ with models.DAG(
     start_date=datetime.datetime(2024, 2, 7),
     catchup=False,
 ) as dag:
-  default_test_name = "mxla-collective-nightly"
+  mxla_1mb_test_name = "mxla-collective-nightly-1mb"
+  mxla_256mb_test_name = "mxla-collective-nightly-256mb"
 
   mxla_collective_1mb_nightly_4slice_v4_8 = (
       mxla_collective_config.get_mxla_collective_config(
@@ -44,7 +45,7 @@ with models.DAG(
           time_out_in_min=60,
           is_tpu_reserved=False,
           num_slices=4,
-          test_name=default_test_name,
+          test_name=mxla_1mb_test_name,
       ).run()
   )
 
@@ -57,7 +58,7 @@ with models.DAG(
           time_out_in_min=60,
           is_tpu_reserved=False,
           num_slices=8,
-          test_name=default_test_name,
+          test_name=mxla_1mb_test_name,
       ).run()
   )
 
@@ -70,7 +71,7 @@ with models.DAG(
           time_out_in_min=60,
           is_tpu_reserved=False,
           num_slices=4,
-          test_name=default_test_name,
+          test_name=mxla_256mb_test_name,
       ).run()
   )
 
@@ -83,7 +84,7 @@ with models.DAG(
           time_out_in_min=60,
           is_tpu_reserved=False,
           num_slices=8,
-          test_name=default_test_name,
+          test_name=mxla_256mb_test_name,
       ).run()
   )
   # Test dependencie
