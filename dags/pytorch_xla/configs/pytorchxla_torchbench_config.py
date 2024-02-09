@@ -46,7 +46,7 @@ def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
       "sudo apt-get install libgl1 -y",
       "pip install --user numpy pandas",
       (
-          "pip install --user --pre torch torchvision torchaudio torchtext -i"
+          "pip install --user --pre torch torchvision torchaudio -i"
           " https://download.pytorch.org/whl/nightly/cpu"
       ),
       (
