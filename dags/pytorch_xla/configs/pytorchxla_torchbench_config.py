@@ -163,7 +163,7 @@ def set_up_torchbench_gpu(model_name: str, nvidia_driver_version: str) -> Tuple[
   docker_cmds_ls = (
       "apt-get update && apt-get install -y libgl1",
       "pip3 install --user numpy pandas",
-      "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121"
+      "pip3 install --user --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121",
       "cd /tmp/ && git clone https://github.com/pytorch/benchmark.git",
       f" cd benchmark && {model_install_cmds()}",
       "cd /tmp/ && git clone https://github.com/pytorch/pytorch.git",
