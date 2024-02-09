@@ -17,7 +17,15 @@
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, gcs_bucket
 from dags.multipod.configs import common
-from dags.vm_resource import TpuVersion, Project, RuntimeVersion
+from dags.vm_resource import (
+    TpuVersion, 
+    Project, 
+    RuntimeVersion, 
+    MachineVersion, 
+    ImageProject, 
+    ImageFamily, 
+    GpuVersion
+)
 import datetime
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
@@ -141,3 +149,50 @@ def get_maxtext_end_to_end_test_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
+
+
+def get_maxtext_end_to_end_gpu_test_config(
+    machine_type: MachineVersion,
+    image_project: ImageProject,
+    image_family: ImageFamily,
+    accelerator_type: GpuVersion,
+    gpu_cores: int,
+    gpu_zone: str,
+    time_out_in_min: int,
+    test_name: str,
+    test_script: str,
+    test_mode: common.SetupMode,
+    project_name: str = PROJECT_NAME,
+    runtime_version: str = RUNTIME_IMAGE,
+) -> task.GpuCreateResourceTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=project_name,
+      zone=gpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+  )
+
+  test_platform = common.Platform.GCE
+  set_up_cmds = common.setup_maxtext(test_mode, test_platform)
+  run_model_cmds = (f"cd /tmp/maxtext && bash end_to_end/{test_script}.sh",)
+
+  job_test_config = test_config.GpuVmTest(
+      test_config.Gpu(
+          machine_type=machine_type.value,
+          image_family=image_family.value,
+          count=gpu_cores,
+          accelerator_type=accelerator_type.value,
+          runtime_version=runtime_version,
+      ),
+      test_name=test_name,
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      time_out_in_min=time_out_in_min,
+      task_owner=test_owner.Nina_C,
+  )
+
+  return task.GpuCreateResourceTask(
+      image_project.value,
+      image_family.value,
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  ) 
