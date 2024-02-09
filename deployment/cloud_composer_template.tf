@@ -99,6 +99,14 @@ resource "google_project_iam_member" "monitoring_viewer_role" {
   role     = "roles/monitoring.viewer"
 }
 
+resource "google_project_iam_member" "compute_instance_admin_role" {
+  provider = google-beta
+  for_each = local.environment_config_dict
+  project  = var.project_config.project_name
+  member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
+  role     = "roles/compute.instanceAdmin.v1"
+}
+
 resource "google_service_account_iam_member" "custom_service_account" {
   provider           = google-beta
   for_each           = local.environment_config_dict
@@ -138,10 +146,10 @@ resource "google_composer_environment" "example_environment" {
 
     workloads_config {
       scheduler {
-        cpu        = 2
-        memory_gb  = 8
+        cpu        = 4
+        memory_gb  = 13
         storage_gb = 10
-        count      = 4
+        count      = 2
       }
       web_server {
         cpu        = 2
@@ -149,8 +157,8 @@ resource "google_composer_environment" "example_environment" {
         storage_gb = 10
       }
       worker {
-        cpu        = 2
-        memory_gb  = 8
+        cpu        = 8
+        memory_gb  = 13
         storage_gb = 10
         min_count  = 1
         max_count  = 100
