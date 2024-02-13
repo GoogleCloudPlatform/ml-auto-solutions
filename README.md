@@ -20,16 +20,6 @@ Thank you for your interest in contributing to this project!
 
 Please review the [contribution guidelines](docs/contributing.md), and note that all contributions must adhere to the [code of conduct](docs/code-of-conduct.md).
 
-### Testing changes locally
-
-To run a standalone Airflow server locally without uploading your changes, run the following from your copy of this repository:
-
-```
-AIRFLOW_HOME=$PWD PYTHONPATH=. airflow standalone
-```
-
-This functionality is extremely experimental, and not all DAGs are expected to work with a local standalone server. Only the Airflow server runs locally. Tests will still run in the project defined in each DAG, so use this option with caution.
-
 ## License
 
 [Apache License 2.0](LICENSE)
