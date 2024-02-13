@@ -57,8 +57,8 @@ with models.DAG(
             test_mode=mode,
         ).run()
         maxtext_gce_config.get_maxtext_end_to_end_gpu_test_config(
-            machine_type=MachineVersion.A3_HIGHGPU_8G,,
-            image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,,
+            machine_type=MachineVersion.A3_HIGHGPU_8G,
+            image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
             image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
             accelerator_type=GpuVersion.H100,
             gpu_cores=8,

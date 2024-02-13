@@ -18,13 +18,13 @@ from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, gcs_bucket
 from dags.multipod.configs import common
 from dags.vm_resource import (
-    TpuVersion, 
-    Project, 
-    RuntimeVersion, 
-    MachineVersion, 
-    ImageProject, 
-    ImageFamily, 
-    GpuVersion
+    TpuVersion,
+    Project,
+    RuntimeVersion,
+    MachineVersion,
+    ImageProject,
+    ImageFamily,
+    GpuVersion,
 )
 import datetime
 
@@ -195,4 +195,4 @@ def get_maxtext_end_to_end_gpu_test_config(
       image_family.value,
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
-  ) 
+  )
