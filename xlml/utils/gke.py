@@ -2,18 +2,20 @@ import base64
 import concurrent.futures
 import logging
 import tempfile
+from typing import Dict, TypeAlias
 
 from airflow.decorators import task
 import google.auth
 import google.auth.transport.requests
 from google.cloud import container_v1
 import kubernetes
-import yaml
+
+from xlml.apis import gcp_config
 
 
-def get_authenticated_client(project_id: str, region: str, cluster_name: str) -> kubernetes.client.ApiClient:
+def get_authenticated_client(gcp: gcp_config.GCPConfig, cluster_name: str) -> kubernetes.client.ApiClient:
   container_client = container_v1.ClusterManagerClient()
-  cluster_path = f"projects/{project_id}/locations/{region}/clusters/{cluster_name}"
+  cluster_path = f"projects/{gcp.project_name}/locations/{gcp.zone}/clusters/{cluster_name}"
   response = container_client.get_cluster(name=cluster_path)
   creds, _ = google.auth.default()
   auth_req = google.auth.transport.requests.Request()
@@ -28,11 +30,11 @@ def get_authenticated_client(project_id: str, region: str, cluster_name: str) ->
 
   return  kubernetes.client.ApiClient(configuration)
 
-@task
-def deploy_job(job_yaml: str):
-  client = get_authenticated_client('cloud-ml-auto-solutions', 'us-central1', 'wcromar-test-cluster')
 
-  body = yaml.safe_load(job_yaml)
+@task
+def deploy_job(body: Dict[str, object], gcp: gcp_config.GCPConfig):
+  client = get_authenticated_client(gcp, 'wcromar-test-cluster')
+
   jobs_client = kubernetes.client.BatchV1Api(client)
   resp = jobs_client.create_namespaced_job(namespace='default', body=body)
 
@@ -85,6 +87,6 @@ def deploy_job(job_yaml: str):
     for f in concurrent.futures.as_completed(futures):
       exit_code = f.result()
       if exit_code:
-        print('bad', exit_code)
+        raise RuntimeError(f'Non-zero exit code: {exit_code}')
 
 

@@ -250,9 +250,21 @@ class TpuGkeTest(TestConfig[Tpu]):
     return ';'.join(('set -xue', *self.run_model_cmds))
 
 
+def _load_compiled_jsonnet(test_name: str) -> Any:
+  # TODO(wcromar): Parse GPU tests too
+  config_dir = os.environ.get(
+      'XLMLTEST_CONFIGS', '/home/airflow/gcs/dags/dags/jsonnet'
+  )
+  test_path = os.path.join(config_dir, test_name)
+  with open(test_path, 'r') as f:
+    test = json.load(f)
+
+  return test
+
+
 @attrs.define
 class JSonnetTpuVmTest(TestConfig[Tpu]):
-  """Convert legacy JSonnet test configs into a Task.
+  """Convert legacy JSonnet test configs into a TestConfig.
 
   Do not construct directly. Instead, use the `from_*` factory functions which
   parse pre-compiled JSonnet test configs.
@@ -271,17 +283,6 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   test_command: List[str]
   num_slices: int = 1
 
-  @staticmethod
-  def _load_compiled_jsonnet(test_name: str) -> Any:
-    # TODO(wcromar): Parse GPU tests too
-    config_dir = os.environ.get(
-        'XLMLTEST_CONFIGS', '/home/airflow/gcs/dags/dags/jsonnet'
-    )
-    test_path = os.path.join(config_dir, test_name)
-    with open(test_path, 'r') as f:
-      test = json.load(f)
-
-    return test
 
   @staticmethod
   def _from_json_helper(
@@ -309,7 +310,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   @staticmethod
   def from_jax(test_name: str, reserved_tpu: bool = True):
     """Parses a compiled legacy JSonnet config test from `tests/jax`."""
-    test = JSonnetTpuVmTest._load_compiled_jsonnet(test_name)
+    test = _load_compiled_jsonnet(test_name)
     return JSonnetTpuVmTest._from_json_helper(
         test,
         # TODO(wcromar): make this less hacky
@@ -322,7 +323,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   @staticmethod
   def from_pytorch(test_name: str, reserved_tpu: bool = True):
     """Parses a compiled legacy JSonnet test config from `tests/pytorch`."""
-    test = JSonnetTpuVmTest._load_compiled_jsonnet(test_name)
+    test = _load_compiled_jsonnet(test_name)
     return JSonnetTpuVmTest._from_json_helper(
         test,
         setup=test['tpuSettings']['tpuVmPytorchSetup']
@@ -349,3 +350,57 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         self.exports,
         ' '.join(shlex.quote(s) for s in self.test_command),
     ])
+
+
+@attrs.define
+class JSonnetGpuTest(TestConfig[Gpu]):
+  """Convert legacy JSonnet test configs into a TestConfig.
+
+  Do not construct directly. Instead, use the `from_*` factory functions which
+  parse pre-compiled JSonnet test configs.
+
+  Attributes:
+    test_name: Unique name of this test/model.
+    setup: Multi-line script that configures the TPU instance.
+    exports: Extra setup commands to run in same shell as test_command.
+    test_command: Command and arguments to execute on the TPU VM.
+    num_slices: Number of TPU slices.
+  """
+
+  test_name: str
+  entrypoint_script: List[str]
+  test_command: List[str]
+  docker_image: str
+  num_hosts: int = 1
+
+  @staticmethod
+  def from_pytorch(test_name: str):
+    """Parses a compiled legacy JSonnet test config from `tests/pytorch`."""
+    test = _load_compiled_jsonnet(test_name)
+
+    return JSonnetGpuTest(
+      test_name=test_name,
+      docker_image=f'{test["image"]}:{test["imageTag"]}',
+      accelerator=Gpu(
+        machine_type='n/a',
+        image_family='n/a',
+        runtime_version='n/a',
+        count=test['accelerator']['count'],
+        accelerator_type=test['accelerator']['accelerator_type'],
+      ),
+      entrypoint_script=test['entrypoint'],
+      test_command=test['command'],
+      num_hosts=test['accelerator']['num_hosts'],
+    )
+
+  @property
+  def benchmark_id(self) -> str:
+    return self.test_name
+
+  @property
+  def setup_script(self) -> str:
+    return shlex.join(self.entrypoint_script)
+
+  @property
+  def test_script(self) -> str:
+    return shlex.join(self.test_command)

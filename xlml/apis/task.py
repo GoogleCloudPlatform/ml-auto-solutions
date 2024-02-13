@@ -17,12 +17,13 @@
 import abc
 import dataclasses
 import datetime
-from typing import Optional, Tuple
+import shlex
+from typing import Any, Dict, Optional, Tuple
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, startup_script
+from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke, startup_script
 
 
 class BaseTask(abc.ABC):
@@ -503,3 +504,157 @@ class GpuCreateResourceTask(BaseTask):
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
     return gpu.delete_resource.override(group_id="clean_up")(resource, project_id, zone)
+
+
+@dataclasses.dataclass
+class GpuGkeTask(BaseTask):
+  """This is a class to set up tasks for GPU.
+
+  Attributes:
+    image_project: the project that an image belongs to.
+    image_family: the family group that an image belongs to.
+  """
+  task_test_config: test_config.JSonnetGpuTest
+  task_gcp_config: gcp_config.GCPConfig
+  # task_metric_config: Optional[metric_config.MetricConfig] = None
+
+  def run(self) -> DAGNode:
+    """Run a test job.
+
+    Returns:
+      A task group with the following tasks chained: provision, run_model,
+      post_process, clean_up.
+    """
+    # piz: We skip the queued resource for GPU for now since there is no queued
+    # resource command for GPU.
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      self.run_job()
+
+    return group
+
+  def _get_job_manifest(self):
+    return {
+      "apiVersion": "batch/v1",
+      "kind": "Job",
+      "metadata": {
+        "generateName": f"{self.task_test_config.benchmark_id}-",
+        "labels": {
+          "accelerator": self.task_test_config.accelerator.name,
+          "benchmarkId": self.task_test_config.benchmark_id,
+        }
+      },
+      "spec": {
+        # "activeDeadlineSeconds": 10800,
+        "backoffLimit": 0,
+        "completionMode": "Indexed",
+        "completions": self.task_test_config.num_hosts,
+        "parallelism": self.task_test_config.num_hosts,
+        "template": {
+          "metadata": {
+            "labels": {
+              "headless-svc": "true"
+            },
+          },
+          "spec": {
+            "subdomain": "headless-svc",
+            "nodeSelector": {
+              "cloud.google.com/gke-accelerator": self.task_test_config.accelerator.accelerator_type,
+            },
+            "restartPolicy": "Never",
+            # TODO: repo source code should be in test image
+            # "initContainers": [
+            #   {
+            #     "name": "clone",
+            #     "image": "alpine",
+            #     "command": [
+            #       "sh",
+            #       "-c",
+            #       "cd /src\nwget https://github.com/pytorch/xla/archive/refs/heads/master.tar.gz -O - | tar xzf -\n"
+            #     ],
+            #     "volumeMounts": [
+            #       {
+            #         "mountPath": "/src",
+            #         "name": "dshm",
+            #         "readOnly": False
+            #       }
+            #     ]
+            #   }
+            # ],
+            "containers": [
+              {
+                "name": "main",
+                "image": self.task_test_config.docker_image,
+                "imagePullPolicy": "Always",
+                "command": shlex.split(self.task_test_config.setup_script),
+                "args": shlex.split(self.task_test_config.test_script),
+                "resources": {
+                  "limits": {
+                    "nvidia.com/gpu": self.task_test_config.accelerator.count,
+                  }
+                },
+                "env": [
+                  {
+                    "name": "POD_NAME",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.name"
+                      }
+                    }
+                  },
+                  {
+                    "name": "POD_NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JOB_NAME",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.labels['job-name']"
+                      }
+                    }
+                  },
+                ],
+                "volumeMounts": [
+                  {
+                    "mountPath": "/dev/shm",
+                    "name": "dshm",
+                    "readOnly": False
+                  },
+                #   {
+                #     "mountPath": "/src",
+                #     "name": "dshm",
+                #     "readOnly": False
+                #   }
+                ],
+              },
+            ],
+            "volumes": [
+              {
+                "emptyDir": {
+                  "medium": "Memory"
+                },
+                "name": "dshm"
+              },
+            #   {
+            #     "emptyDir": {
+            #       "medium": "Memory"
+            #     },
+            #     "name": "src"
+            #   }
+            ]
+          }
+        },
+      },
+    }
+
+
+  def run_job(self) -> DAGNode:
+    job_body = self._get_job_manifest()
+    return gke.deploy_job(job_body, self.task_gcp_config)
+
