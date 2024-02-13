@@ -32,5 +32,4 @@ PEI_Z = "Pei Z."
 # MaxText
 TONY_C = "Tony C."
 JON_B = "Jon B."
-RAYMOND_Z = "Raymond Z."
-Nina_C = "Nina C."
+RAYMOND_Z = "Raymond Z.""

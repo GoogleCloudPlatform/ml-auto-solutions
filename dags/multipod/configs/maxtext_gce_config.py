@@ -187,7 +187,7 @@ def get_maxtext_end_to_end_gpu_test_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
-      task_owner=test_owner.Nina_C,
+      task_owner=test_owner.Jon_B,
   )
 
   return task.GpuCreateResourceTask(
