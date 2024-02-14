@@ -34,10 +34,10 @@ with models.DAG(
     catchup=True,
 ) as dag:
   default_test_name = "maxtext-nightly"
-  default_project_name = Project.TPU_PROD_ENV_AUTOMATED
+  default_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
   defualt_network = V5_NETWORKS
   default_subnetwork = V5P_SUBNETWORKS
-  default_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5
+  default_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5.value
 
   test_mode = SetupMode.NIGHTLY
   # Maxtext
@@ -55,10 +55,55 @@ with models.DAG(
       subnetwork=default_subnetwork,
   ).run()
 
+  maxtext_nightly_2slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
+      tpu_version=TpuVersion.V5P,
+      tpu_cores=8,
+      num_slices=2,
+      tpu_zone=Zone.US_EAST5_A.value,
+      runtime_version=default_runtime_version,
+      project_name=default_project_name,
+      time_out_in_min=60,
+      is_tpu_reserved=True,
+      test_name=default_test_name,
+      test_mode=test_mode,
+      network=defualt_network,
+      subnetwork=default_subnetwork,
+  ).run()
+
+  maxtext_nightly_4slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
+      tpu_version=TpuVersion.V5P,
+      tpu_cores=8,
+      num_slices=4,
+      tpu_zone=Zone.US_EAST5_A.value,
+      runtime_version=default_runtime_version,
+      project_name=default_project_name,
+      time_out_in_min=60,
+      is_tpu_reserved=True,
+      test_name=default_test_name,
+      test_mode=test_mode,
+      network=defualt_network,
+      subnetwork=default_subnetwork,
+  ).run()
+
+  maxtext_nightly_8slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
+      tpu_version=TpuVersion.V5P,
+      tpu_cores=8,
+      num_slices=8,
+      tpu_zone=Zone.US_EAST5_A.value,
+      runtime_version=default_runtime_version,
+      project_name=default_project_name,
+      time_out_in_min=60,
+      is_tpu_reserved=True,
+      test_name=default_test_name,
+      test_mode=test_mode,
+      network=defualt_network,
+      subnetwork=default_subnetwork,
+  ).run()
+
   # Test dependencie
   (
       maxtext_nightly_1slice_v5p_8
-      # >> maxtext_nightly_2slice_v5p_8
-      # >> maxtext_nightly_4slice_v5p_8
-      # >> maxtext_nightly_8slice_v5p_8
+      >> maxtext_nightly_2slice_v5p_8
+      >> maxtext_nightly_4slice_v5p_8
+      >> maxtext_nightly_8slice_v5p_8
   )
