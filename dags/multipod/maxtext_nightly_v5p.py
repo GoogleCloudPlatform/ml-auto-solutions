@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import TpuVersion, Zone
+from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5P_SUBNETWORKS, RuntimeVersion
 from dags.multipod.configs import maxtext_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
 
@@ -34,8 +34,10 @@ with models.DAG(
     catchup=True,
 ) as dag:
   default_test_name = "maxtext-nightly"
-  defualt_network = "mas-test"
-  default_subnetwork = "mas-test"
+  default_project_name = Project.TPU_PROD_ENV_AUTOMATED
+  defualt_network = V5_NETWORKS
+  default_subnetwork = V5P_SUBNETWORKS
+  default_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5
 
   test_mode = SetupMode.NIGHTLY
   # Maxtext
@@ -43,47 +45,10 @@ with models.DAG(
       tpu_version=TpuVersion.V5P,
       tpu_cores=8,
       tpu_zone=Zone.US_EAST5_A.value,
+      runtime_version=default_runtime_version,
+      project_name=default_project_name,
       time_out_in_min=60,
       is_tpu_reserved=True,
-      test_name=default_test_name,
-      test_mode=test_mode,
-      network=defualt_network,
-      subnetwork=default_subnetwork,
-  ).run()
-
-  maxtext_nightly_2slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
-      tpu_zone=Zone.US_EAST5_A.value,
-      time_out_in_min=60,
-      is_tpu_reserved=True,
-      num_slices=2,
-      test_name=default_test_name,
-      test_mode=test_mode,
-      network=defualt_network,
-      subnetwork=default_subnetwork,
-  ).run()
-
-  maxtext_nightly_4slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
-      tpu_zone=Zone.US_EAST5_A.value,
-      time_out_in_min=60,
-      is_tpu_reserved=True,
-      num_slices=4,
-      test_name=default_test_name,
-      test_mode=test_mode,
-      network=defualt_network,
-      subnetwork=default_subnetwork,
-  ).run()
-
-  maxtext_nightly_8slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
-      tpu_zone=Zone.US_EAST5_A.value,
-      time_out_in_min=60,
-      is_tpu_reserved=True,
-      num_slices=8,
       test_name=default_test_name,
       test_mode=test_mode,
       network=defualt_network,
