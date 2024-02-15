@@ -88,6 +88,16 @@ class Tpu(Accelerator):
     """Name of this TPU type in the Cloud TPU API (e.g. 'v4-8')."""
     return f'v{self.version.value}-{self.cores}'
 
+  @property
+  def num_chips(self):
+    """Number of physical TPU chips"""
+    return (
+        self.cores
+        if self.version.value
+        and (self.version.value[-1] == 'e' or 'litepod' in self.version.value)
+        else self.cores / 2
+    )
+
 
 @attrs.define
 class Gpu(Accelerator):

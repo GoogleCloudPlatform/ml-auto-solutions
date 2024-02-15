@@ -23,6 +23,7 @@ from typing import Iterable, List, Optional
 class DatasetOption(enum.Enum):
   BENCHMARK_DATASET = "benchmark_dataset"
   XLML_DATASET = "xlml_dataset"
+  MLPERF_DATASET = "mlperf_dataset"
 
 
 class FormatType(enum.Enum):
