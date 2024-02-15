@@ -42,11 +42,12 @@ with models.DAG(
       "gpt3": ["test_gpt3"],
   }
   test_modes = [SetupMode.STABLE, SetupMode.NIGHTLY]
-
+  maxtext_end2end_tpu = [DummyOperator(task_id="maxtext_end2end_tpu")]
+  maxtext_end2end_gpu = [DummyOperator(task_id="maxtext_end2end_gpu")]
   for model in test_models.keys():
     for mode in test_modes:
       for test_script in test_models[model]:
-        maxtext_gce_config.get_maxtext_end_to_end_test_config(
+        test = maxtext_gce_config.get_maxtext_end_to_end_test_config(
             tpu_version=TpuVersion.V4,
             tpu_cores=8,
             tpu_zone=Zone.US_CENTRAL2_B.value,
@@ -56,7 +57,10 @@ with models.DAG(
             test_script=test_script,
             test_mode=mode,
         ).run()
-        maxtext_gce_config.get_maxtext_end_to_end_gpu_test_config(
+        maxtext_end2end_tpu[-1] >> test
+        maxtext_end2end_tpu.append(test)
+
+        test = maxtext_gce_config.get_maxtext_end_to_end_gpu_test_config(
             machine_type=MachineVersion.A3_HIGHGPU_8G,
             image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
             image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
@@ -68,3 +72,5 @@ with models.DAG(
             test_script=test_script,
             test_mode=mode,
         ).run()
+        maxtext_end2end_gpu[-1] >> test
+        maxtext_end2end_gpu.append(test)
