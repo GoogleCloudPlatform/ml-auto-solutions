@@ -530,7 +530,8 @@ class GpuGkeTask(BaseTask):
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
-      self.run_job()
+      job_body = self._get_job_manifest()
+      gke.run_job(job_body, self.task_gcp_config)
 
     return group
 
@@ -563,25 +564,6 @@ class GpuGkeTask(BaseTask):
               "cloud.google.com/gke-accelerator": self.task_test_config.accelerator.accelerator_type,
             },
             "restartPolicy": "Never",
-            # TODO: repo source code should be in test image
-            # "initContainers": [
-            #   {
-            #     "name": "clone",
-            #     "image": "alpine",
-            #     "command": [
-            #       "sh",
-            #       "-c",
-            #       "cd /src\nwget https://github.com/pytorch/xla/archive/refs/heads/master.tar.gz -O - | tar xzf -\n"
-            #     ],
-            #     "volumeMounts": [
-            #       {
-            #         "mountPath": "/src",
-            #         "name": "dshm",
-            #         "readOnly": False
-            #       }
-            #     ]
-            #   }
-            # ],
             "containers": [
               {
                 "name": "main",
@@ -626,11 +608,6 @@ class GpuGkeTask(BaseTask):
                     "name": "dshm",
                     "readOnly": False
                   },
-                #   {
-                #     "mountPath": "/src",
-                #     "name": "dshm",
-                #     "readOnly": False
-                #   }
                 ],
               },
             ],
@@ -641,20 +618,8 @@ class GpuGkeTask(BaseTask):
                 },
                 "name": "dshm"
               },
-            #   {
-            #     "emptyDir": {
-            #       "medium": "Memory"
-            #     },
-            #     "name": "src"
-            #   }
             ]
           }
         },
       },
     }
-
-
-  def run_job(self) -> DAGNode:
-    job_body = self._get_job_manifest()
-    return gke.deploy_job(job_body, self.task_gcp_config)
-

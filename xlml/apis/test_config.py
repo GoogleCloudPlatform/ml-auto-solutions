@@ -397,6 +397,8 @@ class JSonnetGpuTest(TestConfig[Gpu]):
   def benchmark_id(self) -> str:
     return self.test_name
 
+  # HACK: setup script is used as the entrypoint in the test. Make sure it
+  # invokes the content of `test_script` at the end (e.g. "${@:0}").
   @property
   def setup_script(self) -> str:
     return shlex.join(self.entrypoint_script)

@@ -2,9 +2,9 @@ import base64
 import concurrent.futures
 import logging
 import tempfile
-from typing import Dict, TypeAlias
+from typing import Any, Dict, Optional
 
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 import google.auth
 import google.auth.transport.requests
 from google.cloud import container_v1
@@ -31,62 +31,87 @@ def get_authenticated_client(gcp: gcp_config.GCPConfig, cluster_name: str) -> ku
   return  kubernetes.client.ApiClient(configuration)
 
 
-@task
-def deploy_job(body: Dict[str, object], gcp: gcp_config.GCPConfig):
-  client = get_authenticated_client(gcp, 'wcromar-test-cluster')
+@task_group
+def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig):
+  """Run a batch job directly on a GKE cluster"""
 
-  jobs_client = kubernetes.client.BatchV1Api(client)
-  resp = jobs_client.create_namespaced_job(namespace='default', body=body)
+  @task
+  def deploy_job():
+    client = get_authenticated_client(gcp, 'wcromar-test-cluster')
 
-  print(resp)
-  print(type(resp))
+    jobs_client = kubernetes.client.BatchV1Api(client)
+    resp = jobs_client.create_namespaced_job(namespace='default', body=body)
 
-  core_v1 = kubernetes.client.CoreV1Api(client)
+    print(type(resp))
+    print(resp)
 
-  pod_label_selector = "controller-uid=" + resp.metadata.uid
-  pods = core_v1.list_namespaced_pod(namespace='default', label_selector=pod_label_selector)
-  print(pods)
+    return resp.metadata.name
 
+  @task.sensor(poke_interval=60, timeout=3600, mode='reschedule')
+  def stream_logs(name: str):
+    client = get_authenticated_client(gcp, 'wcromar-test-cluster')
 
-  def _watch_pod(name, namespace):
-    logs_watcher = kubernetes.watch.Watch()
+    batch_v1 = kubernetes.client.BatchV1Api(client)
+    job = batch_v1.read_namespaced_job(namespace="default", name=name)
 
-    while True:
-      logging.info('Waiting for pod %s to start...', name)
+    # TODO: Handle other conditions (e.g. unschedulablility)
+    logging.info(f'Job status: {job.status}')
+    if job.status.failed:
+      raise RuntimeError(f'Job has {job.status.failed} failed pods.')
+
+    core_v1 = kubernetes.client.CoreV1Api(client)
+    pod_label_selector = f'batch.kubernetes.io/job-name={name}'
+    pods = core_v1.list_namespaced_pod(namespace='default', label_selector=pod_label_selector)
+
+    if len(pods.items) != body['spec']['parallelism']:
+      logging.info('Waiting for all pods to be created...')
+      return False
+
+    def _watch_pod(name, namespace) -> Optional[int]:
+      logs_watcher = kubernetes.watch.Watch()
+
+      logging.info(f'Waiting for pod {name} to start...')
       pod_watcher = kubernetes.watch.Watch()
       for event in pod_watcher.stream(core_v1.list_namespaced_pod, namespace,
                                       field_selector=f'metadata.name={name}'):
         status = event['object'].status
-        logging.info('Pod %s status: %s', event['object'].metadata.name, status.phase)
+        logging.info(f'Pod {event["object"].metadata.name} status: {status.phase}')
         if status.phase != 'Pending':
           break
 
-      if status.container_statuses:
-        container_status = status.container_statuses[0]
-        if status.container_statuses[0].state.terminated:
+      logging.info(f'Streaming pod logs for {name}...')
+      for line in logs_watcher.stream(core_v1.read_namespaced_pod_log,
+                                      name, namespace, _request_timeout=3600):
+        logging.info(f'{name}] {line}')
+
+      logging.warning(f'Lost logs stream for {name}.')
+
+      pod = core_v1.read_namespaced_pod(namespace="default", name=name)
+      if pod.status.container_statuses:
+        container_status = pod.status.container_statuses[0]
+        if pod.status.container_statuses[0].state.terminated:
           exit_code = container_status.state.terminated.exit_code
           if exit_code:
-            logging.error('Pod %s had non-zero exit code %d', name, exit_code)
+            logging.error(f'Pod {name} had non-zero exit code {exit_code}')
 
           return exit_code
 
-      logging.info('Streaming pod logs for %s...', name)
-      for line in logs_watcher.stream(core_v1.read_namespaced_pod_log,
-                                      name, namespace, _request_timeout=3600):
-        logging.info('%s] %s', name, line)
+      logging.warning(f'Unknown status for pod {name}')
+      return None
 
-      logging.warning('Lost logs stream for %s.', name)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+      futures = []
+      for pod in pods.items:
+        f = executor.submit(_watch_pod, pod.metadata.name, pod.metadata.namespace)
+        futures.append(f)
 
-  with concurrent.futures.ThreadPoolExecutor() as executor:
-    futures = []
-    for pod in pods.items:
-      f = executor.submit(_watch_pod, pod.metadata.name, pod.metadata.namespace)
-      futures.append(f)
+      # Wait for pods to complete, and exit with the first non-zero exit code.
+      for f in concurrent.futures.as_completed(futures):
+        exit_code = f.result()
+        if exit_code:
+          return RuntimeError('Non-zero exit code')
 
-    # Wait for pods to complete, and exit with the first non-zero exit code.
-    for f in concurrent.futures.as_completed(futures):
-      exit_code = f.result()
-      if exit_code:
-        raise RuntimeError(f'Non-zero exit code: {exit_code}')
+    return True
 
-
+  name = deploy_job()
+  stream_logs(name)
