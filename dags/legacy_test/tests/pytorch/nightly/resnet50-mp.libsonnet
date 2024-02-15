@@ -149,6 +149,7 @@ local tpus = import 'templates/tpus.libsonnet';
     command+: [
       '--pjrt_distributed',
       '--nometrics_debug',
+      '--num_epochs=2',
     ],
     flags+: {
       modelDir: null,
