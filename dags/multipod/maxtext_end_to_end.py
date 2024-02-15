@@ -47,7 +47,7 @@ with models.DAG(
   for model in test_models.keys():
     for mode in test_modes:
       for test_script in test_models[model]:
-        test = maxtext_gce_config.get_maxtext_end_to_end_test_config(
+        test_tpu = maxtext_gce_config.get_maxtext_end_to_end_test_config(
             tpu_version=TpuVersion.V4,
             tpu_cores=8,
             tpu_zone=Zone.US_CENTRAL2_B.value,
@@ -57,10 +57,10 @@ with models.DAG(
             test_script=test_script,
             test_mode=mode,
         ).run()
-        maxtext_end2end_tpu[-1] >> test
-        maxtext_end2end_tpu.append(test)
+        maxtext_end2end_tpu[-1] >> test_tpu
+        maxtext_end2end_tpu.append(test_tpu)
 
-        test = maxtext_gce_config.get_maxtext_end_to_end_gpu_test_config(
+        test_gpu = maxtext_gce_config.get_maxtext_end_to_end_gpu_test_config(
             machine_type=MachineVersion.A3_HIGHGPU_8G,
             image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
             image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
@@ -72,5 +72,5 @@ with models.DAG(
             test_script=test_script,
             test_mode=mode,
         ).run()
-        maxtext_end2end_gpu[-1] >> test
-        maxtext_end2end_gpu.append(test)
+        maxtext_end2end_gpu[-1] >> test_gpu
+        maxtext_end2end_gpu.append(test_gpu)
