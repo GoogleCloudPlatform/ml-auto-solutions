@@ -49,7 +49,7 @@ All submissions, including submissions by project members, require review. We
 use [GitHub pull requests](https://docs.github.com/articles/about-pull-requests)
 for this purpose.
 
-### Testing changes locally
+### Testing Changes Locally
 
 To run a standalone Airflow server locally without uploading your changes, run the following from your copy of this repository:
 
