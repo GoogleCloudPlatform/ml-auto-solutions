@@ -556,6 +556,7 @@ class GpuGkeTask(BaseTask):
         "parallelism": self.task_test_config.num_hosts,
         "template": {
           "metadata": {
+            # Matches `headless-svc` in GKE cluster. See deployments directory.
             "labels": {
               "headless-svc": "true"
             },
