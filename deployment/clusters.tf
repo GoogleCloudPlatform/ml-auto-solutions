@@ -90,9 +90,6 @@ resource "kubernetes_service" "example" {
     selector = {
       headless-svc = "true"
     }
-    cluster_ip = null
-    port {
-      port = 12355
-    }
+    cluster_ip = "None"
   }
 }
