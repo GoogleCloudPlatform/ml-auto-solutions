@@ -49,7 +49,7 @@ def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str):
 
   @task.sensor(poke_interval=60, timeout=3600, mode='reschedule')
   def stream_logs(name: str):
-    client = get_authenticated_client(gcp, 'wcromar-test-cluster')
+    client = get_authenticated_client(gcp, cluster_name)
 
     batch_v1 = kubernetes.client.BatchV1Api(client)
     job = batch_v1.read_namespaced_job(namespace="default", name=name)

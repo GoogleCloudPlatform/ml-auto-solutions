@@ -20,4 +20,4 @@ with models.DAG(
     catchup=False,
     start_date=datetime.datetime(2023, 7, 12),
 ):
-    resnet_v100_2x2 = task.GpuGkeTask(test_config.JSonnetGpuTest.from_pytorch('pt-nightly-resnet50-mp-fake-v100-x2x2'), US_CENTRAL1, 'wcromar-test-cluster').run()
+    resnet_v100_2x2 = task.GpuGkeTask(test_config.JSonnetGpuTest.from_pytorch('pt-nightly-resnet50-mp-fake-v100-x2x2'), US_CENTRAL1, 'gpu-uc1').run()
