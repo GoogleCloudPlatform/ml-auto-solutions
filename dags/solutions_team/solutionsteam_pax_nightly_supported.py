@@ -40,7 +40,7 @@ with models.DAG(
       tpu_version=TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
-      time_out_in_min=180,
+      time_out_in_min=600,
       log_dir=f"{log_dir_prefix}/c4spmd1b_pretraining/v4-8",
       pax_version=pax_config.PaxVersion.NIGHTLY,
       exp_path=c4spmd1b_pretraining_exp_path,
