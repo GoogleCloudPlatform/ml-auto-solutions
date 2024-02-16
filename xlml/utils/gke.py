@@ -18,9 +18,7 @@ def get_authenticated_client(
     project_name: str, region: str, cluster_name: str
 ) -> kubernetes.client.ApiClient:
   container_client = container_v1.ClusterManagerClient()
-  cluster_path = (
-      f'projects/{project_name}/locations/{region}/clusters/{cluster_name}'
-  )
+  cluster_path = f'projects/{project_name}/locations/{region}/clusters/{cluster_name}'
   response = container_client.get_cluster(name=cluster_path)
   creds, _ = google.auth.default()
   auth_req = google.auth.transport.requests.Request()
@@ -86,7 +84,9 @@ def run_job(
       logging.info(f'Waiting for pod {name} to start...')
       pod_watcher = kubernetes.watch.Watch()
       for event in pod_watcher.stream(
-          core_api.list_namespaced_pod, namespace, field_selector=f'metadata.name={name}'
+          core_api.list_namespaced_pod,
+          namespace,
+          field_selector=f'metadata.name={name}',
       ):
         status = event['object'].status
         logging.info(f'Pod {event["object"].metadata.name} status: {status.phase}')
