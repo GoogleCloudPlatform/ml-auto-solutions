@@ -14,26 +14,35 @@ import kubernetes
 from xlml.apis import gcp_config
 
 
-def get_authenticated_client(gcp: gcp_config.GCPConfig, cluster_name: str) -> kubernetes.client.ApiClient:
+def get_authenticated_client(
+    gcp: gcp_config.GCPConfig, cluster_name: str
+) -> kubernetes.client.ApiClient:
   container_client = container_v1.ClusterManagerClient()
-  cluster_path = f"projects/{gcp.project_name}/locations/{gcp.zone}/clusters/{cluster_name}"
+  cluster_path = (
+      f'projects/{gcp.project_name}/locations/{gcp.zone}/clusters/{cluster_name}'
+  )
   response = container_client.get_cluster(name=cluster_path)
   creds, _ = google.auth.default()
   auth_req = google.auth.transport.requests.Request()
   creds.refresh(auth_req)
   configuration = kubernetes.client.Configuration()
-  configuration.host = f"https://{response.endpoint}"
+  configuration.host = f'https://{response.endpoint}'
   with tempfile.NamedTemporaryFile(delete=False) as ca_cert:
     ca_cert.write(base64.b64decode(response.master_auth.cluster_ca_certificate))
   configuration.ssl_ca_cert = ca_cert.name
-  configuration.api_key_prefix["authorization"] = "Bearer"
-  configuration.api_key["authorization"] = creds.token
+  configuration.api_key_prefix['authorization'] = 'Bearer'
+  configuration.api_key['authorization'] = creds.token
 
-  return  kubernetes.client.ApiClient(configuration)
+  return kubernetes.client.ApiClient(configuration)
 
 
 @task_group
-def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str, job_create_timeout: datetime.timedelta):
+def run_job(
+    body: Dict[str, Any],
+    gcp: gcp_config.GCPConfig,
+    cluster_name: str,
+    job_create_timeout: datetime.timedelta,
+):
   """Run a batch job directly on a GKE cluster"""
 
   @task
@@ -47,12 +56,14 @@ def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str, 
 
     return resp.metadata.name
 
-  @task.sensor(poke_interval=60, timeout=job_create_timeout.total_seconds(), mode='reschedule')
+  @task.sensor(
+      poke_interval=60, timeout=job_create_timeout.total_seconds(), mode='reschedule'
+  )
   def stream_logs(name: str):
     client = get_authenticated_client(gcp, cluster_name)
 
     batch_v1 = kubernetes.client.BatchV1Api(client)
-    job = batch_v1.read_namespaced_job(namespace="default", name=name)
+    job = batch_v1.read_namespaced_job(namespace='default', name=name)
 
     # TODO: Handle other conditions (e.g. unschedulablility)
     logging.info(f'Job status: {job.status}')
@@ -61,7 +72,9 @@ def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str, 
 
     core_v1 = kubernetes.client.CoreV1Api(client)
     pod_label_selector = f'batch.kubernetes.io/job-name={name}'
-    pods = core_v1.list_namespaced_pod(namespace='default', label_selector=pod_label_selector)
+    pods = core_v1.list_namespaced_pod(
+        namespace='default', label_selector=pod_label_selector
+    )
 
     if len(pods.items) != body['spec']['parallelism']:
       logging.info('Waiting for all pods to be created...')
@@ -72,21 +85,23 @@ def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str, 
 
       logging.info(f'Waiting for pod {name} to start...')
       pod_watcher = kubernetes.watch.Watch()
-      for event in pod_watcher.stream(core_v1.list_namespaced_pod, namespace,
-                                      field_selector=f'metadata.name={name}'):
+      for event in pod_watcher.stream(
+          core_v1.list_namespaced_pod, namespace, field_selector=f'metadata.name={name}'
+      ):
         status = event['object'].status
         logging.info(f'Pod {event["object"].metadata.name} status: {status.phase}')
         if status.phase != 'Pending':
           break
 
       logging.info(f'Streaming pod logs for {name}...')
-      for line in logs_watcher.stream(core_v1.read_namespaced_pod_log,
-                                      name, namespace, _request_timeout=3600):
+      for line in logs_watcher.stream(
+          core_v1.read_namespaced_pod_log, name, namespace, _request_timeout=3600
+      ):
         logging.info(f'{name}] {line}')
 
       logging.warning(f'Lost logs stream for {name}.')
 
-      pod = core_v1.read_namespaced_pod(namespace="default", name=name)
+      pod = core_v1.read_namespaced_pod(namespace='default', name=name)
       if pod.status.container_statuses:
         container_status = pod.status.container_statuses[0]
         if pod.status.container_statuses[0].state.terminated:

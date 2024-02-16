@@ -252,9 +252,7 @@ class TpuGkeTest(TestConfig[Tpu]):
 
 def _load_compiled_jsonnet(test_name: str) -> Any:
   # TODO(wcromar): Parse GPU tests too
-  config_dir = os.environ.get(
-      'XLMLTEST_CONFIGS', '/home/airflow/gcs/dags/dags/jsonnet'
-  )
+  config_dir = os.environ.get('XLMLTEST_CONFIGS', '/home/airflow/gcs/dags/dags/jsonnet')
   test_path = os.path.join(config_dir, test_name)
   with open(test_path, 'r') as f:
     test = json.load(f)
@@ -282,7 +280,6 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   exports: str
   test_command: List[str]
   num_slices: int = 1
-
 
   @staticmethod
   def _from_json_helper(
@@ -345,11 +342,13 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   # TODO(wcromar): replace configmaps
   @property
   def test_script(self) -> str:
-    return '\n'.join([
-        'set -xue',
-        self.exports,
-        ' '.join(shlex.quote(s) for s in self.test_command),
-    ])
+    return '\n'.join(
+        [
+            'set -xue',
+            self.exports,
+            ' '.join(shlex.quote(s) for s in self.test_command),
+        ]
+    )
 
 
 @attrs.define
@@ -379,18 +378,18 @@ class JSonnetGpuTest(TestConfig[Gpu]):
     test = _load_compiled_jsonnet(test_name)
 
     return JSonnetGpuTest(
-      test_name=test_name,
-      docker_image=f'{test["image"]}:{test["imageTag"]}',
-      accelerator=Gpu(
-        machine_type='n/a',
-        image_family='n/a',
-        runtime_version='n/a',
-        count=test['accelerator']['count'],
-        accelerator_type=test['accelerator']['accelerator_type'],
-      ),
-      entrypoint_script=test['entrypoint'],
-      test_command=test['command'],
-      num_hosts=test['accelerator']['num_hosts'],
+        test_name=test_name,
+        docker_image=f'{test["image"]}:{test["imageTag"]}',
+        accelerator=Gpu(
+            machine_type='n/a',
+            image_family='n/a',
+            runtime_version='n/a',
+            count=test['accelerator']['count'],
+            accelerator_type=test['accelerator']['accelerator_type'],
+        ),
+        entrypoint_script=test['entrypoint'],
+        test_command=test['command'],
+        num_hosts=test['accelerator']['num_hosts'],
     )
 
   @property

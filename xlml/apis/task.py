@@ -514,6 +514,7 @@ class GpuGkeTask(BaseTask):
     image_project: the project that an image belongs to.
     image_family: the family group that an image belongs to.
   """
+
   task_test_config: test_config.JSonnetGpuTest
   task_gcp_config: gcp_config.GCPConfig
   cluster_name: str
@@ -534,96 +535,87 @@ class GpuGkeTask(BaseTask):
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
       job_body = self._get_job_manifest()
-      gke.run_job(job_body, self.task_gcp_config, self.cluster_name, self.job_create_timeout)
+      gke.run_job(
+          job_body, self.task_gcp_config, self.cluster_name, self.job_create_timeout
+      )
 
     return group
 
   def _get_job_manifest(self):
     return {
-      "apiVersion": "batch/v1",
-      "kind": "Job",
-      "metadata": {
-        "generateName": f"{self.task_test_config.benchmark_id}-",
-        "labels": {
-          "accelerator": self.task_test_config.accelerator.name,
-          "benchmarkId": self.task_test_config.benchmark_id,
-        }
-      },
-      "spec": {
-        # "activeDeadlineSeconds": 10800,
-        "backoffLimit": 0,
-        "completionMode": "Indexed",
-        "completions": self.task_test_config.num_hosts,
-        "parallelism": self.task_test_config.num_hosts,
-        "template": {
-          "metadata": {
-            # Matches `headless-svc` in GKE cluster. See deployments directory.
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {
+            "generateName": f"{self.task_test_config.benchmark_id}-",
             "labels": {
-              "headless-svc": "true"
+                "accelerator": self.task_test_config.accelerator.name,
+                "benchmarkId": self.task_test_config.benchmark_id,
             },
-          },
-          "spec": {
-            "subdomain": "headless-svc",
-            "nodeSelector": {
-              "cloud.google.com/gke-accelerator": self.task_test_config.accelerator.accelerator_type,
-            },
-            "restartPolicy": "Never",
-            "containers": [
-              {
-                "name": "main",
-                "image": self.task_test_config.docker_image,
-                "imagePullPolicy": "Always",
-                "command": shlex.split(self.task_test_config.setup_script),
-                "args": shlex.split(self.task_test_config.test_script),
-                "resources": {
-                  "limits": {
-                    "nvidia.com/gpu": self.task_test_config.accelerator.count,
-                  }
-                },
-                "env": [
-                  {
-                    "name": "POD_NAME",
-                    "valueFrom": {
-                      "fieldRef": {
-                        "fieldPath": "metadata.name"
-                      }
-                    }
-                  },
-                  {
-                    "name": "POD_NAMESPACE",
-                    "valueFrom": {
-                      "fieldRef": {
-                        "fieldPath": "metadata.namespace"
-                      }
-                    }
-                  },
-                  {
-                    "name": "JOB_NAME",
-                    "valueFrom": {
-                      "fieldRef": {
-                        "fieldPath": "metadata.labels['job-name']"
-                      }
-                    }
-                  },
-                ],
-                "volumeMounts": [
-                  {
-                    "mountPath": "/dev/shm",
-                    "name": "dshm",
-                    "readOnly": False
-                  },
-                ],
-              },
-            ],
-            "volumes": [
-              {
-                "emptyDir": {
-                  "medium": "Memory"
-                },
-                "name": "dshm"
-              },
-            ]
-          }
         },
-      },
+        "spec": {
+            # "activeDeadlineSeconds": 10800,
+            "backoffLimit": 0,
+            "completionMode": "Indexed",
+            "completions": self.task_test_config.num_hosts,
+            "parallelism": self.task_test_config.num_hosts,
+            "template": {
+                "metadata": {
+                    # Matches `headless-svc` in GKE cluster. See deployments directory.
+                    "labels": {"headless-svc": "true"},
+                },
+                "spec": {
+                    "subdomain": "headless-svc",
+                    "nodeSelector": {
+                        "cloud.google.com/gke-accelerator": self.task_test_config.accelerator.accelerator_type,
+                    },
+                    "restartPolicy": "Never",
+                    "containers": [
+                        {
+                            "name": "main",
+                            "image": self.task_test_config.docker_image,
+                            "imagePullPolicy": "Always",
+                            "command": shlex.split(self.task_test_config.setup_script),
+                            "args": shlex.split(self.task_test_config.test_script),
+                            "resources": {
+                                "limits": {
+                                    "nvidia.com/gpu": self.task_test_config.accelerator.count,
+                                }
+                            },
+                            "env": [
+                                {
+                                    "name": "POD_NAME",
+                                    "valueFrom": {
+                                        "fieldRef": {"fieldPath": "metadata.name"}
+                                    },
+                                },
+                                {
+                                    "name": "POD_NAMESPACE",
+                                    "valueFrom": {
+                                        "fieldRef": {"fieldPath": "metadata.namespace"}
+                                    },
+                                },
+                                {
+                                    "name": "JOB_NAME",
+                                    "valueFrom": {
+                                        "fieldRef": {
+                                            "fieldPath": "metadata.labels['job-name']"
+                                        }
+                                    },
+                                },
+                            ],
+                            "volumeMounts": [
+                                {
+                                    "mountPath": "/dev/shm",
+                                    "name": "dshm",
+                                    "readOnly": False,
+                                },
+                            ],
+                        },
+                    ],
+                    "volumes": [
+                        {"emptyDir": {"medium": "Memory"}, "name": "dshm"},
+                    ],
+                },
+            },
+        },
     }
