@@ -62,17 +62,17 @@ def run_job(
   def stream_logs(name: str):
     client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
 
-    batch_v1 = kubernetes.client.BatchV1Api(client)
-    job = batch_v1.read_namespaced_job(namespace='default', name=name)
+    batch_api = kubernetes.client.BatchV1Api(client)
+    job = batch_api.read_namespaced_job(namespace='default', name=name)
 
     # TODO: Handle other conditions (e.g. unschedulablility)
     logging.info(f'Job status: {job.status}')
     if job.status.failed:
       raise RuntimeError(f'Job has {job.status.failed} failed pods.')
 
-    core_v1 = kubernetes.client.CoreV1Api(client)
+    core_api = kubernetes.client.CoreV1Api(client)
     pod_label_selector = f'batch.kubernetes.io/job-name={name}'
-    pods = core_v1.list_namespaced_pod(
+    pods = core_api.list_namespaced_pod(
         namespace='default', label_selector=pod_label_selector
     )
 
@@ -86,7 +86,7 @@ def run_job(
       logging.info(f'Waiting for pod {name} to start...')
       pod_watcher = kubernetes.watch.Watch()
       for event in pod_watcher.stream(
-          core_v1.list_namespaced_pod, namespace, field_selector=f'metadata.name={name}'
+          core_api.list_namespaced_pod, namespace, field_selector=f'metadata.name={name}'
       ):
         status = event['object'].status
         logging.info(f'Pod {event["object"].metadata.name} status: {status.phase}')
@@ -95,13 +95,13 @@ def run_job(
 
       logging.info(f'Streaming pod logs for {name}...')
       for line in logs_watcher.stream(
-          core_v1.read_namespaced_pod_log, name, namespace, _request_timeout=3600
+          core_api.read_namespaced_pod_log, name, namespace, _request_timeout=3600
       ):
         logging.info(f'{name}] {line}')
 
       logging.warning(f'Lost logs stream for {name}.')
 
-      pod = core_v1.read_namespaced_pod(namespace='default', name=name)
+      pod = core_api.read_namespaced_pod(namespace='default', name=name)
       if pod.status.container_statuses:
         container_status = pod.status.container_statuses[0]
         if pod.status.container_statuses[0].state.terminated:
