@@ -15,11 +15,11 @@ from xlml.apis import gcp_config
 
 
 def get_authenticated_client(
-    gcp: gcp_config.GCPConfig, cluster_name: str
+    project_name: str, region: str, cluster_name: str
 ) -> kubernetes.client.ApiClient:
   container_client = container_v1.ClusterManagerClient()
   cluster_path = (
-      f'projects/{gcp.project_name}/locations/{gcp.zone}/clusters/{cluster_name}'
+      f'projects/{project_name}/locations/{region}/clusters/{cluster_name}'
   )
   response = container_client.get_cluster(name=cluster_path)
   creds, _ = google.auth.default()
@@ -47,7 +47,7 @@ def run_job(
 
   @task
   def deploy_job():
-    client = get_authenticated_client(gcp, cluster_name)
+    client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
 
     jobs_client = kubernetes.client.BatchV1Api(client)
     resp = jobs_client.create_namespaced_job(namespace='default', body=body)
@@ -60,7 +60,7 @@ def run_job(
       poke_interval=60, timeout=job_create_timeout.total_seconds(), mode='reschedule'
   )
   def stream_logs(name: str):
-    client = get_authenticated_client(gcp, cluster_name)
+    client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
 
     batch_v1 = kubernetes.client.BatchV1Api(client)
     job = batch_v1.read_namespaced_job(namespace='default', name=name)
