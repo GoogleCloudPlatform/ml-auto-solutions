@@ -69,3 +69,30 @@ resource "google_container_node_pool" "nvidia-v100x2" {
     }
   }
 }
+
+data "google_client_config" "provider" {}
+
+provider "kubernetes" {
+  host  = "https://${google_container_cluster.gpu-uc1.endpoint}"
+  token = data.google_client_config.provider.access_token
+  cluster_ca_certificate = base64decode(
+    google_container_cluster.gpu-uc1.master_auth[0].cluster_ca_certificate,
+  )
+}
+
+// Headless service required for service discovery within a Job.
+// Pods will be addressable as `hostname.headless-svc`
+resource "kubernetes_service" "example" {
+  metadata {
+    name = "headless-svc"
+  }
+  spec {
+    selector = {
+      headless-svc = "true"
+    }
+    cluster_ip = null
+    port {
+      port = 12355
+    }
+  }
+}
