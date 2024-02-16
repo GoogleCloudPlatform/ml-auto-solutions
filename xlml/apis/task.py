@@ -516,6 +516,8 @@ class GpuGkeTask(BaseTask):
   """
   task_test_config: test_config.JSonnetGpuTest
   task_gcp_config: gcp_config.GCPConfig
+  cluster_name: str
+  # TODO: metrics
   # task_metric_config: Optional[metric_config.MetricConfig] = None
 
   def run(self) -> DAGNode:
@@ -531,7 +533,7 @@ class GpuGkeTask(BaseTask):
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
       job_body = self._get_job_manifest()
-      gke.run_job(job_body, self.task_gcp_config)
+      gke.run_job(job_body, self.task_gcp_config, self.cluster_name)
 
     return group
 

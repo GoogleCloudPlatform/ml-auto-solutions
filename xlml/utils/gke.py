@@ -32,12 +32,12 @@ def get_authenticated_client(gcp: gcp_config.GCPConfig, cluster_name: str) -> ku
 
 
 @task_group
-def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig):
+def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str):
   """Run a batch job directly on a GKE cluster"""
 
   @task
   def deploy_job():
-    client = get_authenticated_client(gcp, 'wcromar-test-cluster')
+    client = get_authenticated_client(gcp, cluster_name)
 
     jobs_client = kubernetes.client.BatchV1Api(client)
     resp = jobs_client.create_namespaced_job(namespace='default', body=body)
