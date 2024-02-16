@@ -1,5 +1,6 @@
 import base64
 import concurrent.futures
+import datetime
 import logging
 import tempfile
 from typing import Any, Dict, Optional
@@ -32,7 +33,7 @@ def get_authenticated_client(gcp: gcp_config.GCPConfig, cluster_name: str) -> ku
 
 
 @task_group
-def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str):
+def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str, job_create_timeout: datetime.timedelta):
   """Run a batch job directly on a GKE cluster"""
 
   @task
@@ -42,12 +43,11 @@ def run_job(body: Dict[str, Any], gcp: gcp_config.GCPConfig, cluster_name: str):
     jobs_client = kubernetes.client.BatchV1Api(client)
     resp = jobs_client.create_namespaced_job(namespace='default', body=body)
 
-    print(type(resp))
-    print(resp)
+    logging.info(f'response: {resp}')
 
     return resp.metadata.name
 
-  @task.sensor(poke_interval=60, timeout=3600, mode='reschedule')
+  @task.sensor(poke_interval=60, timeout=job_create_timeout.total_seconds(), mode='reschedule')
   def stream_logs(name: str):
     client = get_authenticated_client(gcp, cluster_name)
 

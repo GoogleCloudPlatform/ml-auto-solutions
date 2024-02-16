@@ -371,7 +371,6 @@ class JSonnetGpuTest(TestConfig[Gpu]):
   entrypoint_script: List[str]
   test_command: List[str]
   docker_image: str
-  startup_time_out_in_sec: int = attrs.field(default=300, kw_only=True)
   num_hosts: int = 1
 
   @staticmethod
