@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for pytorchxla_torchbench DAG."""
 
+from absl import logging
 import datetime
 from typing import Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
@@ -82,7 +83,8 @@ def get_torchbench_tpu_config(
 
   set_up_cmds = set_up_torchbench_tpu(model_name)
   local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{tpu_version}/{int(datetime.datetime.now().timestamp())}/metric_report_tpu.jsonl"
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{tpu_version}/metric_report_tpu.jsonl"
+
   if not model_name or model_name.lower() == "all":
     run_filter = " "
   else:
@@ -118,7 +120,8 @@ def get_torchbench_tpu_config(
   job_metric_config = metric_config.MetricConfig(
       json_lines=metric_config.JSONLinesConfig(
           file_location=gcs_location,
-      )
+      ),
+      clean_up_gcs=True
   )
 
   return task.TpuQueuedResourceTask(
@@ -219,7 +222,7 @@ def get_torchbench_gpu_config(
 
   set_up_cmds = set_up_torchbench_gpu(model_name, nvidia_driver_version)
   local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{accelerator_type}/{int(datetime.datetime.now().timestamp())}/metric_report_gpu.jsonl"
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{accelerator_type}/metric_report_gpu.jsonl"
 
   if not model_name or model_name.lower() == "all":
     run_filter = " "
@@ -265,7 +268,8 @@ def get_torchbench_gpu_config(
   job_metric_config = metric_config.MetricConfig(
       json_lines=metric_config.JSONLinesConfig(
           file_location=gcs_location,
-      )
+      ),
+      clean_up_gcs=True
   )
 
   return task.GpuCreateResourceTask(
