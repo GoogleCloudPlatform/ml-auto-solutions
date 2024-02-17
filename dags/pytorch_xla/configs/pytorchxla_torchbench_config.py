@@ -121,7 +121,7 @@ def get_torchbench_tpu_config(
       json_lines=metric_config.JSONLinesConfig(
           file_location=gcs_location,
       ),
-      clean_up_gcs=True
+      clean_up_gcs=True,
   )
 
   return task.TpuQueuedResourceTask(
@@ -269,7 +269,7 @@ def get_torchbench_gpu_config(
       json_lines=metric_config.JSONLinesConfig(
           file_location=gcs_location,
       ),
-      clean_up_gcs=True
+      clean_up_gcs=True,
   )
 
   return task.GpuCreateResourceTask(

@@ -170,7 +170,7 @@ def delete_object_from_gcs(source_location: str) -> None:
 
   Args:
     source_location: The full path of a file in GCS.
-  """ 
+  """
 
   storage_client = storage.Client()
   bucket_name = source_location.split("/")[2]
@@ -179,7 +179,7 @@ def delete_object_from_gcs(source_location: str) -> None:
   bucket = storage_client.bucket(bucket_name)
   blob = bucket.blob(object_name)
   blob.delete(source_location)
-  logging.info(f"Deleted bucket file: {source_location}") 
+  logging.info(f"Deleted bucket file: {source_location}")
 
 
 def process_json_lines(
