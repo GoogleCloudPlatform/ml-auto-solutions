@@ -14,7 +14,6 @@
 
 """Utilities to construct configs for pytorchxla_torchbench DAG."""
 
-from absl import logging
 import datetime
 from typing import Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
