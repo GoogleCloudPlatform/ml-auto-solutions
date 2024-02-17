@@ -178,7 +178,7 @@ def delete_object_from_gcs(source_location: str) -> None:
 
   bucket = storage_client.bucket(bucket_name)
   blob = bucket.blob(object_name)
-  blob.delete(source_location)
+  blob.delete()
   logging.info(f"Deleted bucket file: {source_location}")
 
 
