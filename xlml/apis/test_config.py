@@ -127,7 +127,7 @@ class TestConfig(abc.ABC, Generic[A]):
   """
 
   accelerator: A
-  # TODO(wcromar): make this a datetime
+  # TODO(wcromar): make this a timedelta
   time_out_in_min: Optional[int] = attrs.field(default=None, kw_only=True)
   task_owner: str = attrs.field(default='unowned', kw_only=True)
 
