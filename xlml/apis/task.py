@@ -508,11 +508,13 @@ class GpuCreateResourceTask(BaseTask):
 
 @dataclasses.dataclass
 class GpuGkeTask(BaseTask):
-  """This is a class to set up tasks for GPU.
+  """This is a class to set up tasks for GPU on a GKE cluster.
 
   Attributes:
     image_project: the project that an image belongs to.
     image_family: the family group that an image belongs to.
+    cluster_name: Name of the GCP cluster.
+    job_create_timeout: Amount of time to wait for all pods to become active.
   """
 
   task_test_config: test_config.JSonnetGpuTest
@@ -526,8 +528,7 @@ class GpuGkeTask(BaseTask):
     """Run a test job.
 
     Returns:
-      A task group with the following tasks chained: provision, run_model,
-      post_process, clean_up.
+      A task group that runs the given test config on a GKE cluster.
     """
     # piz: We skip the queued resource for GPU for now since there is no queued
     # resource command for GPU.

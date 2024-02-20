@@ -41,7 +41,14 @@ def run_job(
     cluster_name: str,
     job_create_timeout: datetime.timedelta,
 ):
-  """Run a batch job directly on a GKE cluster"""
+  """Run a batch job directly on a GKE cluster.
+
+  Args:
+    body: Dict that defines a Kubernetes `Job`.
+    gcp: GCP config with the project name and zone of the GKE cluster.
+    cluster_name: Name of the GCP cluster.
+    job_create_timeout: Amount of time to wait for all pods to become active.
+  """
 
   @task
   def deploy_job():

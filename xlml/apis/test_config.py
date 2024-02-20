@@ -358,15 +358,16 @@ class JSonnetGpuTest(TestConfig[Gpu]):
 
   Attributes:
     test_name: Unique name of this test/model.
-    setup: Multi-line script that configures the TPU instance.
-    exports: Extra setup commands to run in same shell as test_command.
     test_command: Command and arguments to execute on the TPU VM.
-    num_slices: Number of TPU slices.
+    entrypoint: Multi-line script that configures the GPU instance and invokes
+      `test_command`.
+    docker_image: Image for main test container.
+    num_hosts: Number of GPU hosts.
   """
 
   test_name: str
-  entrypoint_script: List[str]
   test_command: List[str]
+  entrypoint_script: List[str]
   docker_image: str
   num_hosts: int = 1
 
