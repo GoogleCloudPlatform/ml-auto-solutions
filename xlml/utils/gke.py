@@ -131,7 +131,7 @@ def run_job(
       for f in concurrent.futures.as_completed(futures):
         exit_code = f.result()
         if exit_code:
-          return RuntimeError('Non-zero exit code')
+          raise RuntimeError('Non-zero exit code')
 
     return True
 
