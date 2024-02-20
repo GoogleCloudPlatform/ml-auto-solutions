@@ -552,7 +552,9 @@ class GpuGkeTask(BaseTask):
             },
         },
         "spec": {
-            "activeDeadlineSeconds": datetime.timedelta(minutes=self.task_test_config.time_out_in_min or 60).total_seconds(),
+            "activeDeadlineSeconds": datetime.timedelta(
+                minutes=self.task_test_config.time_out_in_min or 60
+            ).total_seconds(),
             "backoffLimit": 0,
             "completionMode": "Indexed",
             "completions": self.task_test_config.num_hosts,
