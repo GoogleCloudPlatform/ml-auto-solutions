@@ -127,6 +127,7 @@ class TestConfig(abc.ABC, Generic[A]):
   """
 
   accelerator: A
+  # TODO(wcromar): make this a datetime
   time_out_in_min: Optional[int] = attrs.field(default=None, kw_only=True)
   task_owner: str = attrs.field(default='unowned', kw_only=True)
 
@@ -389,6 +390,8 @@ class JSonnetGpuTest(TestConfig[Gpu]):
         entrypoint_script=test['entrypoint'],
         test_command=test['command'],
         num_hosts=test['accelerator']['num_hosts'],
+        # `timeout` is in seconds
+        time_out_in_min=test['timeout'] // 60,
     )
 
   @property
