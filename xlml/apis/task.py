@@ -530,8 +530,6 @@ class GpuGkeTask(BaseTask):
     Returns:
       A task group that runs the given test config on a GKE cluster.
     """
-    # piz: We skip the queued resource for GPU for now since there is no queued
-    # resource command for GPU.
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:

@@ -70,7 +70,7 @@ def run_job(
     batch_api = kubernetes.client.BatchV1Api(client)
     job = batch_api.read_namespaced_job(namespace='default', name=name)
 
-    # TODO: Handle other conditions (e.g. unschedulablility)
+    # TODO(wcromar): Handle other conditions (e.g. unschedulablility)
     logging.info(f'Job status: {job.status}')
     if job.status.failed:
       raise RuntimeError(f'Job has {job.status.failed} failed pods.')
