@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for pytorchxla_torchbench DAG."""
 
+import datetime
 from typing import Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
 import dags.vm_resource as resource
@@ -81,9 +82,7 @@ def get_torchbench_tpu_config(
 
   set_up_cmds = set_up_torchbench_tpu(model_name)
   local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = (
-      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_tpu.jsonl"
-  )
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{tpu_version}/{int(datetime.datetime.now().timestamp())}/metric_report_tpu.jsonl"
   if not model_name or model_name.lower() == "all":
     run_filter = " "
   else:
@@ -162,7 +161,15 @@ def set_up_torchbench_gpu(model_name: str, nvidia_driver_version: str) -> Tuple[
 
   docker_cmds_ls = (
       "apt-get update && apt-get install -y libgl1",
+      "apt install -y liblapack-dev libopenblas-dev",
+      # Below are the required dependencies for building detectron2_* models.
+      "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/libcusparse-dev-12-1_12.1.0.106-1_amd64.deb",
+      "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/libcusolver-dev-12-1_11.4.5.107-1_amd64.deb",
+      "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/libcublas-dev-12-1_12.1.3.1-1_amd64.deb",
+      "dpkg -i libcusparse* libcusolver* libcublas*",
+      # Below are the dependencies for benchmark data processing:
       "pip3 install --user numpy pandas",
+      # torch related dependencies
       "pip3 install --user --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121",
       "cd /tmp/ && git clone https://github.com/pytorch/benchmark.git",
       f" cd benchmark && {model_install_cmds()}",
@@ -172,13 +179,14 @@ def set_up_torchbench_gpu(model_name: str, nvidia_driver_version: str) -> Tuple[
   docker_cmds = "\n".join(docker_cmds_ls)
 
   return (
-      "sudo apt-get update",
       *get_nvidia_driver_install_cmd(nvidia_driver_version),
       "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common",
       "distribution=$(. /etc/os-release;echo $ID$VERSION_ID)",
       "curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -",
       "curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list",
       "sudo apt-get install -y nvidia-container-toolkit",
+      # Stabilize clock freqs
+      "sudo nvidia-smi --lock-gpu-clocks=1200,1200",
       "sudo systemctl restart docker",
       "sudo nvidia-smi -pm 1",
       (
@@ -213,9 +221,7 @@ def get_torchbench_gpu_config(
 
   set_up_cmds = set_up_torchbench_gpu(model_name, nvidia_driver_version)
   local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = (
-      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_gpu.jsonl"
-  )
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{accelerator_type}/{int(datetime.datetime.now().timestamp())}/metric_report_gpu.jsonl"
 
   if not model_name or model_name.lower() == "all":
     run_filter = " "

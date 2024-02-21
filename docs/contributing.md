@@ -33,11 +33,11 @@ We use the code formatter [Pyink](https://github.com/google/pyink), which is a f
 
 *For Googlers:*
 
-Run `sudo apt install pipx; pipx install pyink` on your Cloudtop to install Pyink. 
+Run `sudo apt install pipx; pipx install pyink==23.10.0` on your Cloudtop to install Pyink.
 
 *For external contributors:*
 
-Run `pip install pyink` on your machine to install Pyink.
+Run `pip install pyink==23.10.0` on your machine to install Pyink.
 
 #### Step 2: Format codes.
 
@@ -48,3 +48,14 @@ Run `bash scripts/format-codes.sh` to format your codes.
 All submissions, including submissions by project members, require review. We
 use [GitHub pull requests](https://docs.github.com/articles/about-pull-requests)
 for this purpose.
+
+### Testing Changes Locally
+
+To run a standalone Airflow server locally without uploading your changes, run the following from your copy of this repository:
+
+```
+gcloud auth login --update-adc
+AIRFLOW_HOME=$PWD PYTHONPATH=. airflow standalone
+```
+
+This functionality is extremely experimental, and not all DAGs are expected to work with a local standalone server. Only the Airflow server runs locally. Tests will still run in the project defined in each DAG, so use this option with caution.
