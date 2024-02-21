@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for pytorchxla_torchbench DAG."""
 
+import datetime
 from typing import Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
 import dags.vm_resource as resource
@@ -23,32 +24,41 @@ from dags import gcs_bucket, test_owner
 def set_up_torchbench_tpu(model_name: str = "") -> Tuple[str]:
   """Common set up for TorchBench."""
 
-  def model_install_cmds() -> str:
+  def model_install_cmds(output_file=None) -> str:
+    """Installs torchbench models.
+
+    Args:
+      output_file: If not None, model installation message will be piped to a file.
+
+    Returns:
+      Command to install the model.
+    """
+    pipe_file_cmd = f" > {output_file}" if output_file else ""
     if not model_name or model_name.lower() == "all":
-      return "python install.py --continue_on_fail"
-    return f"python install.py models {model_name}"
+      return f"python install.py --continue_on_fail {pipe_file_cmd}"
+    return f"python install.py models {model_name} {pipe_file_cmd}"
 
   return (
-      "pip install -U setuptools",
+      "pip3 install -U setuptools",
       "sudo systemctl stop unattended-upgrades",
       "sudo apt-get -y update",
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",
       "sudo apt-get install libgl1 -y",
-      "pip install --user numpy pandas",
+      "pip3 install --user numpy pandas",
       (
-          "pip install --user --pre torchvision torchaudio torchtext -i"
+          "pip3 install --user --pre torch torchvision torchaudio --index-url"
           " https://download.pytorch.org/whl/nightly/cpu"
       ),
       (
-          "pip install --user 'torch_xla[tpuvm] @"
+          "pip3 install --user 'torch_xla[tpuvm] @"
           " https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl'"
       ),
-      "pip install --user psutil",
+      "pip3 install --user psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
       f"cd benchmark && {model_install_cmds()}",
+      "cd; git clone https://github.com/pytorch/pytorch.git",
       "cd; git clone https://github.com/pytorch/xla.git",
-      "cd xla; git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77",
   )
 
 
@@ -72,9 +82,7 @@ def get_torchbench_tpu_config(
 
   set_up_cmds = set_up_torchbench_tpu(model_name)
   local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = (
-      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_tpu.jsonl"
-  )
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{tpu_version}/{int(datetime.datetime.now().timestamp())}/metric_report_tpu.jsonl"
   if not model_name or model_name.lower() == "all":
     run_filter = " "
   else:
@@ -121,47 +129,72 @@ def get_torchbench_tpu_config(
 
 
 # Below is the setup for torchbench GPU run.
-def set_up_torchbench_gpu(model_name: str = "") -> Tuple[str]:
+def set_up_torchbench_gpu(model_name: str, nvidia_driver_version: str) -> Tuple[str]:
   """Common set up for TorchBench."""
 
-  # TODO(piz): There is issue with driver install through fabric.
-  # Currently we use pre-installed driver to avoid driver reinstall.
-  def model_install_cmds() -> str:
-    if not model_name or model_name.lower() == "all":
-      return "python install.py --continue_on_fail"
-    return f"python install.py models {model_name}"
+  def model_install_cmds(output_file=None) -> str:
+    """Installs torchbench models.
 
-  nvidia_driver_install = (
-      "curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py",
-      # Command `apt update/upgrade` receives 403 bad gateway error when connecting to the google apt repo.
-      # This can be a transient error. We use the following command to fix the issue for now.
-      # TODO(piz): remove the following statement for temporary fix once the `apt update/upgrade` is removed or updated.
-      "sed -i '/^\s*run(\"apt update\")/,/^\s*return True/ s/^/# /'  install_gpu_driver.py",
-      "sudo python3 install_gpu_driver.py --force",
-      "sudo nvidia-smi",
-  )
+    Args:
+      output_file: If not None, model installation message will be piped to a file.
+
+    Returns:
+      Command to install the model.
+    """
+    pipe_file_cmd = f" > {output_file}" if output_file else ""
+    if not model_name or model_name.lower() == "all":
+      return f"python install.py --continue_on_fail {pipe_file_cmd}"
+    return f"python install.py models {model_name} {pipe_file_cmd}"
+
+  def get_nvidia_driver_install_cmd(driver_version: str) -> str:
+    nvidia_driver_install = (
+        "curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py",
+        # Command `apt update/upgrade` receives 403 bad gateway error when connecting to the google apt repo.
+        # This can be a transient error. We use the following command to fix the issue for now.
+        # TODO(piz): remove the following statement for temporary fix once the `apt update/upgrade` is removed or updated.
+        "sed -i '/^\\s*run(\"apt update\")/,/^\\s*return True/ s/^/# /'  install_gpu_driver.py",
+        f"sed -i 's/^\\(DRIVER_VERSION = \\).*/\\1\"{driver_version}\"/' install_gpu_driver.py",
+        "sudo python3 install_gpu_driver.py --force",
+        "sudo nvidia-smi",
+    )
+    return nvidia_driver_install
 
   docker_cmds_ls = (
       "apt-get update && apt-get install -y libgl1",
-      "pip install --user numpy pandas",
-      "pip install --user --pre torchvision torchaudio -i https://download.pytorch.org/whl/nightly/cu121",
+      "apt install -y liblapack-dev libopenblas-dev",
+      # Below are the required dependencies for building detectron2_* models.
+      "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/libcusparse-dev-12-1_12.1.0.106-1_amd64.deb",
+      "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/libcusolver-dev-12-1_11.4.5.107-1_amd64.deb",
+      "wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/libcublas-dev-12-1_12.1.3.1-1_amd64.deb",
+      "dpkg -i libcusparse* libcusolver* libcublas*",
+      # Below are the dependencies for benchmark data processing:
+      "pip3 install --user numpy pandas",
+      # torch related dependencies
+      "pip3 install --user --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121",
       "cd /tmp/ && git clone https://github.com/pytorch/benchmark.git",
       f" cd benchmark && {model_install_cmds()}",
+      "cd /tmp/ && git clone https://github.com/pytorch/pytorch.git",
       "cd /tmp/ && git clone https://github.com/pytorch/xla.git",
-      "cd /tmp/xla; git reset --hard 0857f2a088e9d91be89cf24f33c6564b2e19bc77",
   )
   docker_cmds = "\n".join(docker_cmds_ls)
 
   return (
-      *nvidia_driver_install,
+      *get_nvidia_driver_install_cmd(nvidia_driver_version),
+      "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common",
+      "distribution=$(. /etc/os-release;echo $ID$VERSION_ID)",
+      "curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -",
+      "curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list",
       "sudo apt-get install -y nvidia-container-toolkit",
+      # Stabilize clock freqs
+      "sudo nvidia-smi --lock-gpu-clocks=1200,1200",
+      "sudo systemctl restart docker",
       "sudo nvidia-smi -pm 1",
       (
           "sudo docker pull"
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
       (
-          "sudo docker run --gpus all -it -d --network host --name ml-automation-torchbench"
+          "sudo docker run --shm-size 16g --gpus all -it -d --network host --name ml-automation-torchbench"
           " us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
       ),
       f"sudo docker exec -i ml-automation-torchbench /bin/bash -c '{docker_cmds}'",
@@ -176,6 +209,7 @@ def get_torchbench_gpu_config(
     count: int,
     gpu_zone: resource.Zone,
     time_out_in_min: int,
+    nvidia_driver_version: str = "525.125.06",
     model_name: str = "",
     extraFlags: str = "",
 ) -> task.GpuCreateResourceTask:
@@ -185,11 +219,9 @@ def get_torchbench_gpu_config(
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
-  set_up_cmds = set_up_torchbench_gpu(model_name)
+  set_up_cmds = set_up_torchbench_gpu(model_name, nvidia_driver_version)
   local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = (
-      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_gpu.jsonl"
-  )
+  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{accelerator_type}/{int(datetime.datetime.now().timestamp())}/metric_report_gpu.jsonl"
 
   if not model_name or model_name.lower() == "all":
     run_filter = " "

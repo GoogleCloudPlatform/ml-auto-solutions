@@ -23,7 +23,9 @@ import re
 from typing import Dict, Iterable, List, Optional
 import uuid
 from absl import logging
+import airflow
 from airflow.decorators import task
+from airflow.exceptions import AirflowFailException
 from airflow.models import TaskInstance
 from airflow.operators.python import get_current_context
 from xlml.apis import gcp_config, test_config
@@ -35,6 +37,7 @@ import jsonlines
 import numpy as np
 import tensorflow as tf
 from tensorflow.core.util import event_pb2
+from urllib.parse import urlparse
 
 
 @dataclasses.dataclass
@@ -109,6 +112,11 @@ def read_from_tb(
         metrics[value.tag].append(TensorBoardScalar(float(t), event.step))
       elif value_type == "text":
         metadata[value.tag] = bytes(value.tensor.string_val[0]).decode("utf-8")
+      elif value.HasField("simple_value"):
+        # simple_value indicates the value is a float:
+        # https://github.com/tensorflow/tensorflow/blob/4dacf3f/tensorflow/core/framework/summary.proto#L122
+        scalar = TensorBoardScalar(value.simple_value, event.step)
+        metrics.setdefault(value.tag, []).append(scalar)
       else:
         logging.info(f"Discarding data point {value.tag} with type {value_type}.")
 
@@ -220,7 +228,15 @@ def process_tensorboard_summary(
     a list of MetadataHistoryRow ofr a test run in a test job.
   """
   uuid = generate_row_uuid(base_id, 0)
-  file_location = summary_config.file_location
+
+  if isinstance(summary_config.file_location, airflow.XComArg):
+    file_location = summary_config.file_location.resolve(get_current_context())
+  else:
+    file_location = summary_config.file_location
+
+  if summary_config.use_regex_file_location:
+    file_location = get_gcs_file_location_with_regex(file_location)
+
   aggregation_strategy = summary_config.aggregation_strategy
   include_tag_patterns = summary_config.include_tag_patterns
   exclude_tag_patterns = summary_config.exclude_tag_patterns
@@ -249,6 +265,35 @@ def process_tensorboard_summary(
     )
 
   return [metric_history_rows], [metadata_history_rows]
+
+
+def get_gcs_file_location_with_regex(file_location: str) -> str:
+  """
+  Get a file from GCS given a regex in the form of `gs://<your_bucket>/<your_file_path_regex>`.
+  Does not support bucket name or path regex. Only supports file name regex.
+
+  Args:
+    file_location: File location regex in the form of `gs://<your_bucket>/<path>/<your_file_name_regex>`.
+
+  Returns:
+    The file location of the first file that fits the given regex.
+  """
+  storage_client = storage.Client()
+
+  url = urlparse(file_location)
+  bucket_name = url.netloc
+  file_path = url.path.strip("/")
+  file_path_regex = re.compile(file_path)
+  prefix = "/".join(file_path.split("/")[:-1])
+
+  all_blobs_names = [
+      b.name for b in storage_client.list_blobs(bucket_name, prefix=prefix)
+  ]
+
+  try:
+    return f"gs://{bucket_name}/{next(filter(file_path_regex.match, all_blobs_names))}"
+  except StopIteration:
+    raise AirflowFailException(f"No objects matched supplied regex: {file_location}")
 
 
 # TODO(qinwen): implement profile metrics & upload to Vertex AI TensorBoard
@@ -332,6 +377,59 @@ def add_airflow_metadata(
   return metadata
 
 
+def add_test_config_metadata(
+    base_id: str,
+    task_test_config: test_config.TestConfig[test_config.Accelerator],
+    task_gcp_config: gcp_config.GCPConfig,
+    task_metric_config: metric_config.MetricConfig,
+    metadata: List[List[bigquery.MetricHistoryRow]],
+) -> List[List[bigquery.MetricHistoryRow]]:
+  for index in range(len(metadata)):
+    uuid = generate_row_uuid(base_id, index)
+    test_config_meta = []
+
+    test_config_meta.append(
+        bigquery.MetadataHistoryRow(
+            job_uuid=uuid,
+            metadata_key="accelerator",
+            metadata_value=task_test_config.accelerator.name,
+        )
+    )
+    test_config_meta.append(
+        bigquery.MetadataHistoryRow(
+            job_uuid=uuid,
+            metadata_key="project",
+            metadata_value=task_gcp_config.project_name,
+        )
+    )
+    if hasattr(task_test_config, "num_slices"):
+      test_config_meta.append(
+          bigquery.MetadataHistoryRow(
+              job_uuid=uuid,
+              metadata_key="num_slices",
+              metadata_value=task_test_config.num_slices,
+          )
+      )
+      test_config_meta.append(
+          bigquery.MetadataHistoryRow(
+              job_uuid=uuid,
+              metadata_key="multislice_topology",
+              metadata_value=f"{task_test_config.num_slices}x{task_test_config.accelerator.name}",
+          )
+      )
+    if task_metric_config is not None and task_metric_config.tensorboard_summary:
+      test_config_meta.append(
+          bigquery.MetadataHistoryRow(
+              job_uuid=uuid,
+              metadata_key="metric_aggregation_strategy",
+              metadata_value=task_metric_config.tensorboard_summary.aggregation_strategy.name,
+          )
+      )
+    metadata[index].extend(test_config_meta)
+
+  return metadata
+
+
 def generate_row_uuid(base_id: str, index: int) -> str:
   """Generate uuid for entry.
 
@@ -355,24 +453,19 @@ def generate_process_id() -> str:
   return str(uuid.uuid4())
 
 
-def is_valid_entry() -> bool:
-  """Define if entries are valid to insert into the table.
+def update_dataset_name_if_needed(
+    prod_dataset_name: metric_config.DatasetOption,
+) -> str:
+  """Update the dataset name based on stage (if needed).
 
-  Only scheduled runs from the prod composer environment are allowed.
+  All data from prod env will be sent to benchmark_dataset or xlml_dataset;
+  the rest will be sent to dev_benchmark_dataset or dev_xlml_dataset.
   """
-  # if it's a non-prod run, no entries are inserted
+
   if not composer_env.is_prod_env():
-    logging.info("This is a non-prod run, and no entries are inserted into tables.")
-    return False
-
-  # if it's a manual run, no entries are inserted
-  context = get_current_context()
-  run_id = context["run_id"]
-  if run_id.startswith("manual"):
-    logging.info("This is a manual run, and no entries are inserted into tables.")
-    return False
-
-  return True
+    logging.info("This is a non-prod run, and send all data to dev dataset.")
+    return f"dev_{prod_dataset_name.value}"
+  return prod_dataset_name.value
 
 
 def get_gke_job_status(benchmark_id: str) -> bigquery.JobStatus:
@@ -405,51 +498,106 @@ def get_gke_job_status(benchmark_id: str) -> bigquery.JobStatus:
   return bigquery.JobStatus.FAILED
 
 
-def get_gce_job_status(benchmark_id: str) -> bigquery.JobStatus:
+def get_gce_job_status(
+    task_test_config: test_config.TestConfig[test_config.Accelerator],
+    use_startup_script: bool,
+) -> bigquery.JobStatus:
   """Get job status for the GCE run.
 
   MISSED - if any failure occurs in initialize & create_queued_resource
   FAILED - if any failure occurs in setup & run_model (including timeout of
-  run_model)
+  run_model) for SSH method.
+  FAILED - if any failure occurs in check_if_startup_script_end (including timeout of
+  check_if_startup_script_end) for startup script method.
   SUCCESS - end-to-end model tests are successful from provision to run_model
   """
   context = get_current_context()
   execution_date = context["dag_run"].logical_date
   current_dag = context["dag"]
+  benchmark_id = task_test_config.benchmark_id
 
-  # check setup status to see if provision step is successful
-  setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
-  setup_ti = TaskInstance(setup_task, execution_date)
-  setup_state = setup_ti.current_state()
-  if setup_state == TaskState.SKIPPED.value:
-    logging.info("The setup state is skipped, and the job status is missed.")
-    return bigquery.JobStatus.MISSED
+  # GCE SSH method
+  if not use_startup_script:
+    if isinstance(task_test_config.accelerator, test_config.Tpu):
+      # check wait status to see if wait_for_ready_queued_resource step is successful
+      wait_task = current_dag.get_task(
+          task_id=f"{benchmark_id}.provision.create_queued_resource.wait_for_ready_queued_resource"
+      )
+    elif isinstance(task_test_config.accelerator, test_config.Gpu):
+      wait_task = current_dag.get_task(
+          task_id=f"{benchmark_id}.provision.create_resource"
+      )
+    else:
+      raise NotImplementedError(
+          f"Unable to get task for {type(task_test_config.accelerator)}."
+      )
+    wait_ti = TaskInstance(wait_task, execution_date)
+    wait_state = wait_ti.current_state()
 
-  # check setup status to see if setup step is successful
-  if setup_state == TaskState.FAILED.value:
-    logging.info("The setup state is failed, and the job status is failed.")
+    if wait_state == TaskState.SKIPPED.value:
+      logging.info(
+          "The wait_for_ready_queued_resource state is skipped, and the job status is missed."
+      )
+      return bigquery.JobStatus.MISSED
+
+    # check setup status to see if setup step is successful
+    setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
+    setup_ti = TaskInstance(setup_task, execution_date)
+    setup_state = setup_ti.current_state()
+    if setup_state == TaskState.FAILED.value:
+      logging.info("The setup state is failed, and the job status is failed.")
+      return bigquery.JobStatus.FAILED
+
+    # check run_model status to see if run_model step is successful
+    run_model_task = current_dag.get_task(task_id=f"{benchmark_id}.run_model")
+    run_model_ti = TaskInstance(run_model_task, execution_date)
+    run_model_state = run_model_ti.current_state()
+
+    if run_model_state == TaskState.SUCCESS.value:
+      logging.info("The run_model state is success, and the job status is success.")
+      return bigquery.JobStatus.SUCCESS
+
+    logging.info("The run_model state is failed, and the job status is failed.")
     return bigquery.JobStatus.FAILED
+  # GCE startup script method
+  else:
+    # check wait status to see if provision step is successful
+    wait_task = current_dag.get_task(
+        task_id=f"{benchmark_id}.provision_with_startup_script.create_queued_resource.wait_for_ready_queued_resource"
+    )
+    wait_ti = TaskInstance(wait_task, execution_date)
+    wait_state = wait_ti.current_state()
 
-  # check run_model status to see if run_model step is successful
-  run_model_task = current_dag.get_task(task_id=f"{benchmark_id}.run_model")
-  run_model_ti = TaskInstance(run_model_task, execution_date)
-  run_model_state = run_model_ti.current_state()
+    if wait_state == TaskState.SKIPPED.value:
+      logging.info(
+          "The wait_for_ready_queued_resource state is skipped, and the job status is missed."
+      )
+      return bigquery.JobStatus.MISSED
 
-  if run_model_state == TaskState.SUCCESS.value:
-    logging.info("The run_model state is success, and the job status is success.")
-    return bigquery.JobStatus.SUCCESS
-
-  logging.info("The run_model state is failed, and the job status is failed.")
-  return bigquery.JobStatus.FAILED
+    # check startup_script status to see if startup_script step is successful
+    startup_script_task = current_dag.get_task(
+        task_id=f"{benchmark_id}.provision_with_startup_script.create_queued_resource.check_if_startup_script_end"
+    )
+    startup_script_ti = TaskInstance(startup_script_task, execution_date)
+    startup_script_state = startup_script_ti.current_state()
+    if startup_script_state == TaskState.FAILED.value:
+      logging.info("The startup_script state is failed, and the job status is failed.")
+      return bigquery.JobStatus.FAILED
+    else:
+      logging.info(
+          "The startup_script state is success, and the job status is success."
+      )
+      return bigquery.JobStatus.SUCCESS
 
 
 # TODO(ranran): handle Airflow retry to avoid duplicate records in tables
 @task
 def process_metrics(
     base_id: str,
-    task_test_config: test_config.TestConfig[test_config.Tpu],
+    task_test_config: test_config.TestConfig[test_config.Accelerator],
     task_metric_config: metric_config.MetricConfig,
     task_gcp_config: gcp_config.GCPConfig,
+    use_startup_script: bool = False,
 ) -> None:
   benchmark_id = task_test_config.benchmark_id
   current_time = datetime.datetime.now()
@@ -483,6 +631,14 @@ def process_metrics(
       base_id, task_gcp_config.composer_project, metadata_history_rows_list
   )
 
+  metadata_history_rows_list = add_test_config_metadata(
+      base_id,
+      task_test_config,
+      task_gcp_config,
+      task_metric_config,
+      metadata_history_rows_list,
+  )
+
   # append profile metrics to metric_history_rows_list if any
   if has_profile:
     if len(metric_history_rows_list) != len(profile_history_rows_list):
@@ -496,14 +652,16 @@ def process_metrics(
         metric_history_rows_list[index].extend(profile_history_rows_list[index])
 
   test_run_rows = []
+
+  dataset_name = update_dataset_name_if_needed(task_gcp_config.dataset_name)
   bigquery_metric = bigquery.BigQueryMetricClient(
-      task_gcp_config.dataset_project, task_gcp_config.dataset_name.value
+      task_gcp_config.dataset_project, dataset_name
   )
 
   if hasattr(task_test_config, "cluster_name"):
     test_job_status = get_gke_job_status(task_test_config.benchmark_id)
   else:
-    test_job_status = get_gce_job_status(task_test_config.benchmark_id)
+    test_job_status = get_gce_job_status(task_test_config, use_startup_script)
 
   for index in range(len(metadata_history_rows_list)):
     job_history_row = bigquery.JobHistoryRow(
@@ -521,6 +679,4 @@ def process_metrics(
     test_run_rows.append(test_run_row)
 
   print("Test run rows:", test_run_rows)
-
-  if is_valid_entry():
-    bigquery_metric.insert(test_run_rows)
+  bigquery_metric.insert(test_run_rows)
