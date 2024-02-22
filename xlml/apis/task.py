@@ -450,7 +450,7 @@ class GpuCreateResourceTask(BaseTask):
 
   def provision(
       self,
-  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg, airflow.XComArt]:
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
     """Provision a GPU accelerator via a resource creation.
 
     Generates a random GPU name and SSH keys, creates a VM Resource, and
