@@ -18,7 +18,7 @@ import datetime
 import io
 import itertools
 import os
-from typing import Iterable, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 import uuid
 
 from absl import logging
@@ -292,7 +292,7 @@ def ssh_tpu(
     cmds: Iterable[str],
     ssh_keys: ssh.SshKeys,
     all_workers: bool,
-    env: dict[str, str] = None,
+    env: Dict[str, str] = None,
 ) -> None:
   """SSH TPU and run commands in multi process.
 

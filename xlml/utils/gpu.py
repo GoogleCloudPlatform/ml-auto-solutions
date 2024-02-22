@@ -26,7 +26,7 @@ from google.cloud import compute_v1
 import io
 import paramiko
 import re
-from typing import Iterable, Any
+from typing import Any, Dict, Iterable
 import uuid
 from xlml.apis import gcp_config, test_config
 from xlml.utils import ssh
@@ -268,7 +268,7 @@ def wait_for_extended_operation(
   return result
 
 
-def create_metadata(key_val: dict[str, str]) -> compute_v1.Metadata:
+def create_metadata(key_val: Dict[str, str]) -> compute_v1.Metadata:
   metadata = compute_v1.Metadata()
   metadata.items = [{"key": key, "value": val} for key, val in key_val.items()]
   return metadata
