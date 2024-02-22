@@ -74,7 +74,9 @@ with models.DAG(
   ).run()
 
   resnet_v100_2x2_spmd = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch("pt-nightly-resnet50-spmd-batch-fake-v100-x2x2"),
+      test_config.JSonnetGpuTest.from_pytorch(
+          "pt-nightly-resnet50-spmd-batch-fake-v100-x2x2"
+      ),
       US_CENTRAL1,
       "gpu-uc1",
   ).run()
@@ -82,13 +84,17 @@ with models.DAG(
   resnet_v100_2x2 >> resnet_v100_2x2_spmd
 
   resnet_v100_2x1_plugin = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch("pt-nightly-resnet50-mp-plugin-fake-v100-x2x1"),
+      test_config.JSonnetGpuTest.from_pytorch(
+          "pt-nightly-resnet50-mp-plugin-fake-v100-x2x1"
+      ),
       US_CENTRAL1,
       "gpu-uc1",
   ).run()
 
   resnet_v100_2x2_plugin = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch("pt-nightly-resnet50-mp-plugin-fake-v100-x2x2"),
+      test_config.JSonnetGpuTest.from_pytorch(
+          "pt-nightly-resnet50-mp-plugin-fake-v100-x2x2"
+      ),
       US_CENTRAL1,
       "gpu-uc1",
   ).run()
