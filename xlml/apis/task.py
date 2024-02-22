@@ -77,7 +77,7 @@ class TpuQueuedResourceTask(BaseTask):
 
     return group
 
-  def run_with_gcs_name_generatioin(self) -> DAGNode:
+  def run_with_gcs_name_generation(self) -> DAGNode:
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
