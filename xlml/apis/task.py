@@ -86,7 +86,7 @@ class TpuQueuedResourceTask(BaseTask):
       )
       provision, queued_resource, ssh_keys = self.provision()
       run_model = self.run_model(
-          queued_resource, ssh_keys, {"gcs_location": gcs_location}
+          queued_resource, ssh_keys, {"OUTPUT_DIR": gcs_location}
       )
       post_process = self.post_process(file_location=gcs_location)
       clean_up = self.clean_up(queued_resource)
@@ -441,7 +441,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_test_config.benchmark_id
       )
       provision, ip_address, instance_name, ssh_keys = self.provision()
-      run_model = self.run_model(ip_address, ssh_keys, {"gcs_location": gcs_location})
+      run_model = self.run_model(ip_address, ssh_keys, {"OUTPUT_DIR": gcs_location})
       post_process = self.post_process(gcs_location)
       clean_up = self.clean_up(
           instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone

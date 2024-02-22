@@ -98,7 +98,7 @@ def get_torchbench_tpu_config(
       ),
       "rm -rf ~/xla/benchmarks/output/metric_report.jsonl",
       "python ~/xla/benchmarks/result_analyzer.py --output-format=jsonl",
-      f"gsutil cp {local_output_location} $gcs_location",
+      f"gsutil cp {local_output_location} $OUTPUT_DIR",
   )
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
@@ -251,7 +251,7 @@ def get_torchbench_gpu_config(
           "sudo docker cp $(sudo docker ps | awk 'NR==2 { print $1 }')"
           f":{local_output_location} ./"
       ),
-      f"gsutil cp metric_report.jsonl $gcs_location",
+      f"gsutil cp metric_report.jsonl $OUTPUT_DIR",
   )
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"

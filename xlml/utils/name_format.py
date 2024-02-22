@@ -19,7 +19,7 @@ from dags import gcs_bucket
 
 
 @task
-def generate_run_name(benchmark_id) -> str:
+def generate_run_name(benchmark_id: str) -> str:
   """Generates a unique run name by appending the current datetime to benchmark_id.
 
   Args:
@@ -43,7 +43,7 @@ def generate_tb_file_location(run_name: str, base_output_directory: str) -> str:
 
 
 @task
-def generate_gcs_file_location(benchmark_id) -> str:
+def generate_gcs_file_location(benchmark_id: str) -> str:
   """Generates result file location in GCS.
 
   Args:
