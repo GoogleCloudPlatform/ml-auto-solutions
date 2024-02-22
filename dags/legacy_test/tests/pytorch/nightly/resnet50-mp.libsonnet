@@ -225,7 +225,7 @@ local tpus = import 'templates/tpus.libsonnet';
     resnet50 + fake_data + v100x2 + timeouts.Hours(3) + plugin,
     resnet50 + fake_data + v100x2x2 + timeouts.Hours(3) + plugin,
     resnet50 + fake_data + v100x2x2 + timeouts.Hours(3),
-    resnet50 + fake_data + v100x2x2 + timeouts.Hours(3) + spmd(['batch'], 32),
+    resnet50 + fake_data + v100x2x2 + timeouts.Hours(4) + spmd(['batch'], 32),
     // PJRT
     resnet50 + fake_data + v2_8 + timeouts.Hours(3) + pjrt,
     resnet50 + fake_data + v3_8 + timeouts.Hours(2) + pjrt,
