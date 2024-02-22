@@ -350,13 +350,19 @@ def create_resource(
 
 
 @task
-def ssh_host(ip_address: str, cmds: Iterable[str], ssh_keys: ssh.SshKeys) -> None:
+def ssh_host(
+    ip_address: str,
+    cmds: Iterable[str],
+    ssh_keys: ssh.SshKeys,
+    env: dict[str, str] = None,
+) -> None:
   """SSH GPU and run commands in multi process.
 
   Args:
    ip_address: The ip address of the vm resource.
    cmds: The commands to run on a GPU.
    ssh_keys: The SSH key pair to use for authentication.
+   env: environment variables to be pass to the ssh runner session using dict.
   """
   pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
   logging.info(f"Connecting to IP addresses {ip_address}")
@@ -370,7 +376,7 @@ def ssh_host(ip_address: str, cmds: Iterable[str], ssh_keys: ssh.SshKeys) -> Non
           )
       },
   )
-  ssh_group.run(cmds)
+  ssh_group.run(cmds, env=env)
 
 
 # TODO(piz): Check why sometime GPU instance doesn't get deleted.

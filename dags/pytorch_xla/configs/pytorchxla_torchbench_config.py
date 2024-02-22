@@ -82,7 +82,10 @@ def get_torchbench_tpu_config(
 
   set_up_cmds = set_up_torchbench_tpu(model_name)
   local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{tpu_version}/{int(datetime.datetime.now().timestamp())}/metric_report_tpu.jsonl"
+  # The gcs location can be overwrite if we use run_with_gcs_name_generatioin().
+  gcs_location = (
+      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_tpu.jsonl"
+  )
   if not model_name or model_name.lower() == "all":
     run_filter = " "
   else:
@@ -95,7 +98,7 @@ def get_torchbench_tpu_config(
       ),
       "rm -rf ~/xla/benchmarks/output/metric_report.jsonl",
       "python ~/xla/benchmarks/result_analyzer.py --output-format=jsonl",
-      f"gsutil cp {local_output_location} {gcs_location}",
+      f"gsutil cp {local_output_location} ${{gcs_location}}",
   )
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
@@ -221,7 +224,10 @@ def get_torchbench_gpu_config(
 
   set_up_cmds = set_up_torchbench_gpu(model_name, nvidia_driver_version)
   local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
-  gcs_location = f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/{accelerator_type}/{int(datetime.datetime.now().timestamp())}/metric_report_gpu.jsonl"
+  # The gcs location can be overwrite if we use run_with_gcs_name_generatioin().
+  gcs_location = (
+      f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/torchbench_config/metric_report_gpu.jsonl"
+  )
 
   if not model_name or model_name.lower() == "all":
     run_filter = " "
@@ -245,7 +251,7 @@ def get_torchbench_gpu_config(
           "sudo docker cp $(sudo docker ps | awk 'NR==2 { print $1 }')"
           f":{local_output_location} ./"
       ),
-      f"gsutil cp metric_report.jsonl {gcs_location}",
+      f"gsutil cp metric_report.jsonl ${{gcs_location}}",
   )
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"

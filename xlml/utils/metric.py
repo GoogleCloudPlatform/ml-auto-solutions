@@ -598,6 +598,7 @@ def process_metrics(
     task_metric_config: metric_config.MetricConfig,
     task_gcp_config: gcp_config.GCPConfig,
     use_startup_script: bool = False,
+    file_location: str = None,
 ) -> None:
   benchmark_id = task_test_config.benchmark_id
   current_time = datetime.datetime.now()
@@ -607,7 +608,12 @@ def process_metrics(
   profile_history_rows_list = []
 
   # process metrics, metadata, and profile
-  if task_metric_config is not None:
+  if file_location is not None:
+    if task_metric_config.json_lines:
+      metric_history_rows_list, metadata_history_rows_list = process_json_lines(
+          base_id, file_location
+      )
+  elif task_metric_config is not None:
     if task_metric_config.json_lines:
       metric_history_rows_list, metadata_history_rows_list = process_json_lines(
           base_id, task_metric_config.json_lines.file_location

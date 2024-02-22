@@ -22,7 +22,7 @@ import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, startup_script
+from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk
 
 
 class BaseTask(abc.ABC):
@@ -74,6 +74,24 @@ class TpuQueuedResourceTask(BaseTask):
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
       provision >> run_model >> post_process >> clean_up
+
+    return group
+
+  def run_with_gcs_name_generatioin(self) -> DAGNode:
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      gcs_location = name_format.generate_gcs_file_location(
+          self.task_test_config.benchmark_id
+      )
+      provision, queued_resource, ssh_keys = self.provision()
+      run_model = self.run_model(
+          queued_resource, ssh_keys, {"gcs_location": gcs_location}
+      )
+      post_process = self.post_process()
+      clean_up = self.clean_up(queued_resource)
+
+      gcs_location >> provision >> run_model >> post_process >> clean_up
 
     return group
 
@@ -211,6 +229,7 @@ class TpuQueuedResourceTask(BaseTask):
       # TODO(wcromar): Is there a way to annotate the type of the XCom arg?
       queued_resource: airflow.XComArg,
       ssh_keys: airflow.XComArg,
+      env: airflow.XComArg = None,
   ) -> DAGNode:
     """Run the TPU test in `task_test_config`.
 
@@ -234,6 +253,7 @@ class TpuQueuedResourceTask(BaseTask):
         self.task_test_config.test_script,
         ssh_keys,
         self.all_workers,
+        env,
     )
 
   def post_process(self, use_startup_script: bool = False) -> DAGNode:
@@ -410,6 +430,24 @@ class GpuCreateResourceTask(BaseTask):
       provision >> run_model >> post_process >> clean_up
     return group
 
+  def run_with_gcs_name_generatioin(self) -> DAGNode:
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      gcs_location = name_format.generate_gcs_file_location(
+          self.task_test_config.benchmark_id
+      )
+      provision, ip_address, instance_name, ssh_keys = self.provision()
+      run_model = self.run_model(ip_address, ssh_keys, {"gcs_location": gcs_location})
+      post_process = self.post_process(gcs_location)
+      clean_up = self.clean_up(
+          instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone
+      )
+
+      gcs_location >> provision >> run_model >> post_process >> clean_up
+
+    return group
+
   def provision(
       self,
   ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
@@ -451,6 +489,7 @@ class GpuCreateResourceTask(BaseTask):
       self,
       resource: airflow.XComArg,
       ssh_keys: airflow.XComArg,
+      env: airflow.XComArg,
   ) -> DAGNode:
     """Run the GPU test in `task_test_config`.
 
@@ -471,9 +510,10 @@ class GpuCreateResourceTask(BaseTask):
         resource,
         self.task_test_config.test_script,
         ssh_keys,
+        env,
     )
 
-  def post_process(self) -> DAGNode:
+  def post_process(self, result_file_location: airflow.XComArg = None) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
@@ -486,6 +526,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
+          file_location=result_file_location,
       )
       return group
 
