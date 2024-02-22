@@ -506,6 +506,7 @@ class GpuCreateResourceTask(BaseTask):
     return gpu.delete_resource.override(group_id="clean_up")(resource, project_id, zone)
 
 
+# TODO(ranran): This class is big. Let's move it to a new file.
 @dataclasses.dataclass
 class GpuGkeTask(BaseTask):
   """This is a class to set up tasks for GPU on a GKE cluster.
