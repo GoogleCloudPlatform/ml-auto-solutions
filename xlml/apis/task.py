@@ -257,7 +257,7 @@ class TpuQueuedResourceTask(BaseTask):
     )
 
   def post_process(
-      self, use_startup_script: bool = False, file_location: str = None
+      self, use_startup_script: bool = False, file_location: Optional[str] = None
   ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
@@ -516,7 +516,7 @@ class GpuCreateResourceTask(BaseTask):
         env,
     )
 
-  def post_process(self, result_file_location: airflow.XComArg = None) -> DAGNode:
+  def post_process(self, result_file_location: Optional[airflow.XComArg] = None) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:

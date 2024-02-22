@@ -600,7 +600,7 @@ def process_metrics(
     task_metric_config: metric_config.MetricConfig,
     task_gcp_config: gcp_config.GCPConfig,
     use_startup_script: bool = False,
-    file_location: str = None,
+    file_location: Optional[str] = None,
 ) -> None:
   benchmark_id = task_test_config.benchmark_id
   current_time = datetime.datetime.now()

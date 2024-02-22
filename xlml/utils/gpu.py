@@ -354,7 +354,7 @@ def ssh_host(
     ip_address: str,
     cmds: Iterable[str],
     ssh_keys: ssh.SshKeys,
-    env: dict[str, str] = None,
+    env: Dict[str, str] = None,
 ) -> None:
   """SSH GPU and run commands in multi process.
 
