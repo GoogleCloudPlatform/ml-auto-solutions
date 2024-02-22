@@ -535,7 +535,7 @@ class GpuGkeTask(BaseTask):
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
       job_body = self._get_job_manifest()
-      gke.run_job(
+      gke.run_job.override(group_id="run_model")(
           job_body, self.task_gcp_config, self.cluster_name, self.job_create_timeout
       )
 
