@@ -88,7 +88,7 @@ class TpuQueuedResourceTask(BaseTask):
       run_model = self.run_model(
           queued_resource, ssh_keys, {"gcs_location": gcs_location}
       )
-      post_process = self.post_process()
+      post_process = self.post_process(gcs_location)
       clean_up = self.clean_up(queued_resource)
 
       gcs_location >> provision >> run_model >> post_process >> clean_up
@@ -430,7 +430,7 @@ class GpuCreateResourceTask(BaseTask):
       provision >> run_model >> post_process >> clean_up
     return group
 
-  def run_with_gcs_name_generatioin(self) -> DAGNode:
+  def run_with_gcs_name_generation(self) -> DAGNode:
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:

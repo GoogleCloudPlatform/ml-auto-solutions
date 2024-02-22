@@ -162,7 +162,9 @@ def download_object_from_gcs(source_location: str, destination_location: str) ->
   bucket = storage_client.bucket(bucket_name)
   blob = bucket.blob(object_name)
   blob.download_to_filename(destination_location)
-  logging.info(f"Download JSON Lines file to: {destination_location}")
+  logging.info(
+      f"Download JSON Lines file from {source_location} to {destination_location}"
+  )
 
 
 def process_json_lines(
