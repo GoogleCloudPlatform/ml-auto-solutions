@@ -89,7 +89,7 @@ class TpuQueuedResourceTask(BaseTask):
       post_process = self.post_process(file_location=gcs_location)
       clean_up = self.clean_up(queued_resource)
 
-      gcs_location >> provision >> run_model >> post_process >> clean_up
+      provision >> run_model >> post_process >> clean_up
 
     return group
 
@@ -182,7 +182,7 @@ class TpuQueuedResourceTask(BaseTask):
           self.tpu_create_timeout,
           self.task_test_config,
       )
-      queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
+      output_location >> queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
           queued_resource_name,
           # TODO(wcromar): remove split
           self.task_test_config.setup_script,
@@ -444,7 +444,7 @@ class GpuCreateResourceTask(BaseTask):
           instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone
       )
 
-      gcs_location >> provision >> run_model >> post_process >> clean_up
+      provision >> run_model >> post_process >> clean_up
 
     return group
 
@@ -482,11 +482,13 @@ class GpuCreateResourceTask(BaseTask):
           ssh_keys,
       )
 
-      gpu.ssh_host.override(task_id="setup")(
+      create_resource = gpu.ssh_host.override(task_id="setup")(
           ip_address,
           self.task_test_config.setup_script,
           ssh_keys,
       )
+
+      output_location >> ip_address >> create_resource
     return group, ip_address, gpu_name, ssh_keys, output_location
 
   def run_model(
