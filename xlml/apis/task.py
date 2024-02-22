@@ -88,7 +88,7 @@ class TpuQueuedResourceTask(BaseTask):
       run_model = self.run_model(
           queued_resource, ssh_keys, {"gcs_location": gcs_location}
       )
-      post_process = self.post_process(gcs_location)
+      post_process = self.post_process(file_location=gcs_location)
       clean_up = self.clean_up(queued_resource)
 
       gcs_location >> provision >> run_model >> post_process >> clean_up
@@ -256,7 +256,9 @@ class TpuQueuedResourceTask(BaseTask):
         env,
     )
 
-  def post_process(self, use_startup_script: bool = False) -> DAGNode:
+  def post_process(
+      self, use_startup_script: bool = False, file_location: str = None
+  ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
@@ -270,6 +272,7 @@ class TpuQueuedResourceTask(BaseTask):
           self.task_metric_config,
           self.task_gcp_config,
           use_startup_script,
+          file_location,
       )
       return group
 
@@ -376,7 +379,7 @@ class TpuXpkTask(BaseTask):
       workload_id >> run_workload >> wait_for_workload_completion
       return group
 
-  def post_process(self) -> DAGNode:
+  def post_process(self, file_location: str = None) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
@@ -389,6 +392,7 @@ class TpuXpkTask(BaseTask):
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
+          file_location=file_location,
       )
 
       return group
