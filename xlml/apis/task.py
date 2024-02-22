@@ -521,7 +521,7 @@ class GpuGkeTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   cluster_name: str
   job_create_timeout: datetime.timedelta = datetime.timedelta(minutes=10)
-  # TODO: metrics
+  # TODO(wcromar): job history metrics
   # task_metric_config: Optional[metric_config.MetricConfig] = None
 
   def run(self) -> DAGNode:
