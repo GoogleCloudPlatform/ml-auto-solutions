@@ -69,26 +69,13 @@ class TpuQueuedResourceTask(BaseTask):
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
-      provision, queued_resource, ssh_keys, _ = self.provision()
-      run_model = self.run_model(queued_resource, ssh_keys)
+      provision, queued_resource, ssh_keys, gcs_location = self.provision()
+      # If you already specify `task_metric_config.json_lines` value in the test config script,
+      # then `gcs_location` will take no effect. 
+      env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT}": gcs_location}
+      run_model = self.run_model(queued_resource, ssh_keys, env_variable)
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
-      provision >> run_model >> post_process >> clean_up
-
-    return group
-
-  def run_with_gcs_name_generation(self) -> DAGNode:
-    with TaskGroup(
-        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
-    ) as group:
-      
-      provision, queued_resource, ssh_keys, gcs_location = self.provision()
-      run_model = self.run_model(
-          queued_resource, ssh_keys, {"OUTPUT_DIR": gcs_location}
-      )
-      post_process = self.post_process(file_location=gcs_location)
-      clean_up = self.clean_up(queued_resource)
-
       provision >> run_model >> post_process >> clean_up
 
     return group
@@ -171,10 +158,10 @@ class TpuQueuedResourceTask(BaseTask):
             self.task_test_config.benchmark_id, self.tpu_name_env_var
         )
         ssh_keys = ssh.generate_ssh_keys()
-      
-      output_location = name_format.generate_gcs_file_location(
+        output_location = name_format.generate_gcs_file_location(
           self.task_test_config.benchmark_id
-      )
+        )
+      
       queued_resource_op, queued_resource_name = tpu.create_queued_resource(
           tpu_name,
           self.task_gcp_config,
@@ -182,7 +169,7 @@ class TpuQueuedResourceTask(BaseTask):
           self.tpu_create_timeout,
           self.task_test_config,
       )
-      output_location >> queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
+      queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
           queued_resource_name,
           # TODO(wcromar): remove split
           self.task_test_config.setup_script,
@@ -424,28 +411,16 @@ class GpuCreateResourceTask(BaseTask):
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
-      provision, ip_address, instance_name, ssh_keys, _ = self.provision()
-      run_model = self.run_model(ip_address, ssh_keys)
-      post_process = self.post_process()
-      clean_up = self.clean_up(
-          instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone
-      )
-      provision >> run_model >> post_process >> clean_up
-    return group
-
-  def run_with_gcs_name_generation(self) -> DAGNode:
-    with TaskGroup(
-        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
-    ) as group:
       provision, ip_address, instance_name, ssh_keys, gcs_location = self.provision()
-      run_model = self.run_model(ip_address, ssh_keys, {"OUTPUT_DIR": gcs_location})
+      # If you already specify `task_metric_config.json_lines` value in the test config script,
+      # then `gcs_location` will take no effect. 
+      env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT}": gcs_location}
+      run_model = self.run_model(ip_address, ssh_keys, env_variable)
       post_process = self.post_process(gcs_location)
       clean_up = self.clean_up(
           instance_name, self.task_gcp_config.project_name, self.task_gcp_config.zone
       )
-
       provision >> run_model >> post_process >> clean_up
-
     return group
 
   def provision(
@@ -468,10 +443,9 @@ class GpuCreateResourceTask(BaseTask):
       with TaskGroup(group_id="initialize"):
         gpu_name = gpu.generate_gpu_name()
         ssh_keys = ssh.generate_ssh_keys()
-
-      output_location = name_format.generate_gcs_file_location(
-          self.task_test_config.benchmark_id
-      )
+        gcs_location = name_format.generate_gcs_file_location(
+            self.task_test_config.benchmark_id
+        )
 
       ip_address = gpu.create_resource.override(task_id="create_resource")(
           gpu_name,
@@ -488,8 +462,8 @@ class GpuCreateResourceTask(BaseTask):
           ssh_keys,
       )
 
-      output_location >> ip_address >> create_resource
-    return group, ip_address, gpu_name, ssh_keys, output_location
+      ip_address >> create_resource
+    return group, ip_address, gpu_name, ssh_keys, gcs_location
 
   def run_model(
       self,

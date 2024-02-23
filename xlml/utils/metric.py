@@ -610,29 +610,27 @@ def process_metrics(
   profile_history_rows_list = []
 
   # process metrics, metadata, and profile
-  if file_location is not None:
-    if task_metric_config.json_lines:
-      metric_history_rows_list, metadata_history_rows_list = process_json_lines(
-          base_id, file_location
+  if task_metric_config.json_lines:
+    metric_history_rows_list, metadata_history_rows_list = process_json_lines(
+        base_id, task_metric_config.json_lines.file_location
+    )
+  elif  file_location:
+    metric_history_rows_list, metadata_history_rows_list = process_json_lines(
+        base_id, file_location
+    ) 
+  if task_metric_config.tensorboard_summary:
+    (
+        metric_history_rows_list,
+        metadata_history_rows_list,
+    ) = process_tensorboard_summary(base_id, task_metric_config.tensorboard_summary)
+  if task_metric_config.profile:
+    has_profile = True
+    num_profiles = len(task_metric_config.profile.file_locations)
+    for index in range(num_profiles):
+      profile_history_rows = process_profile(
+          base_id, task_metric_config.profile.file_locations[index]
       )
-  elif task_metric_config is not None:
-    if task_metric_config.json_lines:
-      metric_history_rows_list, metadata_history_rows_list = process_json_lines(
-          base_id, task_metric_config.json_lines.file_location
-      )
-    if task_metric_config.tensorboard_summary:
-      (
-          metric_history_rows_list,
-          metadata_history_rows_list,
-      ) = process_tensorboard_summary(base_id, task_metric_config.tensorboard_summary)
-    if task_metric_config.profile:
-      has_profile = True
-      num_profiles = len(task_metric_config.profile.file_locations)
-      for index in range(num_profiles):
-        profile_history_rows = process_profile(
-            base_id, task_metric_config.profile.file_locations[index]
-        )
-        profile_history_rows_list.append(profile_history_rows)
+      profile_history_rows_list.append(profile_history_rows)
 
   # add default airflow metadata
   metadata_history_rows_list = add_airflow_metadata(

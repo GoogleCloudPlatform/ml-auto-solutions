@@ -37,6 +37,10 @@ class AggregationStrategy(enum.Enum):
   MEDIAN = enum.auto()
 
 
+class MetricPath(enum.Enum):
+  GCS_OUTPUT = "GCS_OUTPUT"
+
+
 @dataclasses.dataclass
 class JSONLinesConfig:
   """This is a class to set up JSON Lines config.
