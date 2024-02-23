@@ -17,12 +17,13 @@
 import abc
 import dataclasses
 import datetime
-from typing import Optional, Tuple
+import shlex
+from typing import Any, Dict, Optional, Tuple
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk
+from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
 
 
 class BaseTask(abc.ABC):
@@ -71,7 +72,7 @@ class TpuQueuedResourceTask(BaseTask):
     ) as group:
       provision, queued_resource, ssh_keys, gcs_location = self.provision()
       # If you already specify `task_metric_config.json_lines` value in the test config script,
-      # then `gcs_location` will take no effect. 
+      # then `gcs_location` will take no effect.
       env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT}": gcs_location}
       run_model = self.run_model(queued_resource, ssh_keys, env_variable)
       post_process = self.post_process()
@@ -139,7 +140,9 @@ class TpuQueuedResourceTask(BaseTask):
 
     return group
 
-  def provision(self) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
+  def provision(
+      self,
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
     """Provision a TPU accelerator via a Queued Resource.
 
     Generates a random TPU name and SSH keys, creates a Queued Resource, and
@@ -159,9 +162,9 @@ class TpuQueuedResourceTask(BaseTask):
         )
         ssh_keys = ssh.generate_ssh_keys()
         output_location = name_format.generate_gcs_file_location(
-          self.task_test_config.benchmark_id
+            self.task_test_config.benchmark_id
         )
-      
+
       queued_resource_op, queued_resource_name = tpu.create_queued_resource(
           tpu_name,
           self.task_gcp_config,
@@ -413,7 +416,7 @@ class GpuCreateResourceTask(BaseTask):
     ) as group:
       provision, ip_address, instance_name, ssh_keys, gcs_location = self.provision()
       # If you already specify `task_metric_config.json_lines` value in the test config script,
-      # then `gcs_location` will take no effect. 
+      # then `gcs_location` will take no effect.
       env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT}": gcs_location}
       run_model = self.run_model(ip_address, ssh_keys, env_variable)
       post_process = self.post_process(gcs_location)
@@ -425,7 +428,9 @@ class GpuCreateResourceTask(BaseTask):
 
   def provision(
       self,
-  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
+  ) -> Tuple[
+      DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg, airflow.XComArg
+  ]:
     """Provision a GPU accelerator via a resource creation.
 
     Generates a random GPU name and SSH keys, creates a VM Resource, and
@@ -493,7 +498,9 @@ class GpuCreateResourceTask(BaseTask):
         env,
     )
 
-  def post_process(self, result_file_location: Optional[airflow.XComArg] = None) -> DAGNode:
+  def post_process(
+      self, result_file_location: Optional[airflow.XComArg] = None
+  ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
@@ -524,3 +531,122 @@ class GpuCreateResourceTask(BaseTask):
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
     return gpu.delete_resource.override(group_id="clean_up")(resource, project_id, zone)
+
+
+# TODO(ranran): This class is big. Let's move it to a new file.
+@dataclasses.dataclass
+class GpuGkeTask(BaseTask):
+  """This is a class to set up tasks for GPU on a GKE cluster.
+
+  Attributes:
+    image_project: the project that an image belongs to.
+    image_family: the family group that an image belongs to.
+    cluster_name: Name of the GCP cluster.
+    job_create_timeout: Amount of time to wait for all pods to become active.
+  """
+
+  task_test_config: test_config.JSonnetGpuTest
+  task_gcp_config: gcp_config.GCPConfig
+  cluster_name: str
+  job_create_timeout: datetime.timedelta = datetime.timedelta(minutes=10)
+  # TODO(wcromar): job history metrics
+  # task_metric_config: Optional[metric_config.MetricConfig] = None
+
+  def run(self) -> DAGNode:
+    """Run a test job.
+
+    Returns:
+      A task group that runs the given test config on a GKE cluster.
+    """
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      job_body = self._get_job_manifest()
+      gke.run_job.override(group_id="run_model")(
+          job_body, self.task_gcp_config, self.cluster_name, self.job_create_timeout
+      )
+
+    return group
+
+  def _get_job_manifest(self):
+    return {
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {
+            "generateName": f"{self.task_test_config.benchmark_id}-",
+            "labels": {
+                "accelerator": self.task_test_config.accelerator.name,
+                "benchmarkId": self.task_test_config.benchmark_id,
+            },
+        },
+        "spec": {
+            "activeDeadlineSeconds": int(
+                datetime.timedelta(
+                    minutes=self.task_test_config.time_out_in_min or 60
+                ).total_seconds()
+            ),
+            "backoffLimit": 0,
+            "completionMode": "Indexed",
+            "completions": self.task_test_config.num_hosts,
+            "parallelism": self.task_test_config.num_hosts,
+            "template": {
+                "metadata": {
+                    # Matches `headless-svc` in GKE cluster. See deployments directory.
+                    "labels": {"headless-svc": "true"},
+                },
+                "spec": {
+                    "subdomain": "headless-svc",
+                    "nodeSelector": {
+                        "cloud.google.com/gke-accelerator": self.task_test_config.accelerator.accelerator_type,
+                    },
+                    "restartPolicy": "Never",
+                    "containers": [
+                        {
+                            "name": "main",
+                            "image": self.task_test_config.docker_image,
+                            "imagePullPolicy": "Always",
+                            "command": shlex.split(self.task_test_config.setup_script),
+                            "args": shlex.split(self.task_test_config.test_script),
+                            "resources": {
+                                "limits": {
+                                    "nvidia.com/gpu": self.task_test_config.accelerator.count,
+                                }
+                            },
+                            "env": [
+                                {
+                                    "name": "POD_NAME",
+                                    "valueFrom": {
+                                        "fieldRef": {"fieldPath": "metadata.name"}
+                                    },
+                                },
+                                {
+                                    "name": "POD_NAMESPACE",
+                                    "valueFrom": {
+                                        "fieldRef": {"fieldPath": "metadata.namespace"}
+                                    },
+                                },
+                                {
+                                    "name": "JOB_NAME",
+                                    "valueFrom": {
+                                        "fieldRef": {
+                                            "fieldPath": "metadata.labels['job-name']"
+                                        }
+                                    },
+                                },
+                            ],
+                            "volumeMounts": [
+                                {
+                                    "mountPath": "/dev/shm",
+                                    "name": "dshm",
+                                    "readOnly": False,
+                                },
+                            ],
+                        },
+                    ],
+                    "volumes": [
+                        {"emptyDir": {"medium": "Memory"}, "name": "dshm"},
+                    ],
+                },
+            },
+        },
+    }

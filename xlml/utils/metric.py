@@ -614,10 +614,10 @@ def process_metrics(
     metric_history_rows_list, metadata_history_rows_list = process_json_lines(
         base_id, task_metric_config.json_lines.file_location
     )
-  elif  file_location:
+  elif file_location:
     metric_history_rows_list, metadata_history_rows_list = process_json_lines(
         base_id, file_location
-    ) 
+    )
   if task_metric_config.tensorboard_summary:
     (
         metric_history_rows_list,
