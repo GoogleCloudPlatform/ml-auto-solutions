@@ -24,7 +24,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'pytorch-nightly',
     },
-    imageTag: 'nightly_3.7',
+    imageTag: 'nightly_3.8',
   },
   PyTorchTest:: common.PyTorchTest + Nightly {
     local config = self,
@@ -120,7 +120,43 @@ local volumes = import 'templates/volumes.libsonnet';
   },
   GpuMixin:: {
     local config = self,
-    imageTag+: '_cuda_11.8',
+    imageTag+: '_cuda_12.1',
+
+    # TODO(wcromar): Merge TPU VM setup script with GPU entrypoint
+    tpuSettings+: {
+      tpuVmExports+: |||
+        export PJRT_DEVICE=CUDA
+      |||,
+    },
+
+    entrypoint: [
+      'bash',
+      '-cxue',
+      |||
+        export PATH=/usr/local/nvidia/bin${PATH:+:${PATH}}
+        export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
+        nvidia-smi
+        pip3 uninstall -y torch torchvision
+        pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu
+
+        mkdir pytorch
+        wget https://github.com/pytorch/xla/archive/refs/heads/master.tar.gz -O - | tar xzf -
+        mv xla-master pytorch/xla
+
+        %s
+
+        # Run whatever is in `command` here
+        "${@:0}"
+      ||| % config.tpuSettings.tpuVmExports,
+    ],
+    command: [
+      'torchrun',
+      '--nnodes=%d' % config.accelerator.num_hosts,
+      '--node_rank=$(JOB_COMPLETION_INDEX)',
+      '--nproc_per_node=%d' % config.accelerator.processes,
+      '--rdzv_endpoint=$(JOB_NAME)-0.headless-svc:12355',
+    ] + super.command[1:],
 
     podTemplate+:: {
       spec+: {
