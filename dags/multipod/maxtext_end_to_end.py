@@ -18,9 +18,10 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import TpuVersion, Zone
+from dags.vm_resource import TpuVersion, Zone, MachineVersion, ImageProject, ImageFamily, GpuVersion
 from dags.multipod.configs import maxtext_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
+from airflow.operators.dummy import DummyOperator
 
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -42,11 +43,12 @@ with models.DAG(
       "gpt3": ["test_gpt3"],
   }
   test_modes = [SetupMode.STABLE, SetupMode.NIGHTLY]
-
+  maxtext_end2end_tpu = [DummyOperator(task_id="maxtext_end2end_tpu")]
+  maxtext_end2end_gpu = [DummyOperator(task_id="maxtext_end2end_gpu")]
   for model in test_models.keys():
     for mode in test_modes:
       for test_script in test_models[model]:
-        maxtext_gce_config.get_maxtext_end_to_end_test_config(
+        test_tpu = maxtext_gce_config.get_maxtext_end_to_end_test_config(
             tpu_version=TpuVersion.V4,
             tpu_cores=8,
             tpu_zone=Zone.US_CENTRAL2_B.value,
@@ -56,3 +58,20 @@ with models.DAG(
             test_script=test_script,
             test_mode=mode,
         ).run()
+        maxtext_end2end_tpu[-1] >> test_tpu
+        maxtext_end2end_tpu.append(test_tpu)
+
+        test_gpu = maxtext_gce_config.get_maxtext_end_to_end_gpu_test_config(
+            machine_type=MachineVersion.A3_HIGHGPU_8G,
+            image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+            image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
+            accelerator_type=GpuVersion.H100,
+            gpu_cores=8,
+            gpu_zone=Zone.US_CENTRAL1_A.value,
+            time_out_in_min=60,
+            test_name=f"{test_name_prefix}-{mode.value}-{test_script}",
+            test_script=test_script,
+            test_mode=mode,
+        ).run()
+        maxtext_end2end_gpu[-1] >> test_gpu
+        maxtext_end2end_gpu.append(test_gpu)
