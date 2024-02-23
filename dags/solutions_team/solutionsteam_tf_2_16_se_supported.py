@@ -27,7 +27,7 @@ from airflow.operators.dummy import DummyOperator
 SCHEDULED_TIME = "0 20 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
-    dag_id="tf_se_nightly_supported",
+    dag_id="tf_2_16_se_nightly_supported",
     schedule=SCHEDULED_TIME,
     tags=["solutions_team", "tf", "se", "2.16", "supported", "xlml"],
     start_date=datetime.datetime(2024, 1, 4),

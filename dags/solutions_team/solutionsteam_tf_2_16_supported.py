@@ -28,7 +28,7 @@ SCHEDULED_TIME = "0 18 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="tf_nightly_supported",
+    dag_id="tf_2_16_nightly_supported",
     schedule=SCHEDULED_TIME,
     tags=["solutions_team", "tf", "2.16", "supported", "xlml"],
     start_date=datetime.datetime(2023, 8, 16),
