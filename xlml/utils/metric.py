@@ -597,7 +597,7 @@ def get_gce_job_status(
 def process_metrics(
     base_id: str,
     task_test_config: test_config.TestConfig[test_config.Accelerator],
-    task_metric_config: metric_config.MetricConfig,
+    task_metric_config: Optional[metric_config.MetricConfig],
     task_gcp_config: gcp_config.GCPConfig,
     use_startup_script: bool = False,
     file_location: Optional[str] = None,
@@ -610,27 +610,28 @@ def process_metrics(
   profile_history_rows_list = []
 
   # process metrics, metadata, and profile
-  if task_metric_config.json_lines:
-    metric_history_rows_list, metadata_history_rows_list = process_json_lines(
-        base_id, task_metric_config.json_lines.file_location
-    )
-  elif file_location:
-    metric_history_rows_list, metadata_history_rows_list = process_json_lines(
-        base_id, file_location
-    )
-  if task_metric_config.tensorboard_summary:
-    (
-        metric_history_rows_list,
-        metadata_history_rows_list,
-    ) = process_tensorboard_summary(base_id, task_metric_config.tensorboard_summary)
-  if task_metric_config.profile:
-    has_profile = True
-    num_profiles = len(task_metric_config.profile.file_locations)
-    for index in range(num_profiles):
-      profile_history_rows = process_profile(
-          base_id, task_metric_config.profile.file_locations[index]
+  if task_metric_config:
+    if task_metric_config.json_lines:
+      metric_history_rows_list, metadata_history_rows_list = process_json_lines(
+          base_id, task_metric_config.json_lines.file_location
       )
-      profile_history_rows_list.append(profile_history_rows)
+    elif task_metric_config.use_runtime_generated_filename:
+      metric_history_rows_list, metadata_history_rows_list = process_json_lines(
+          base_id, file_location
+      )
+    if task_metric_config.tensorboard_summary:
+      (
+          metric_history_rows_list,
+          metadata_history_rows_list,
+      ) = process_tensorboard_summary(base_id, task_metric_config.tensorboard_summary)
+    if task_metric_config.profile:
+      has_profile = True
+      num_profiles = len(task_metric_config.profile.file_locations)
+      for index in range(num_profiles):
+        profile_history_rows = process_profile(
+            base_id, task_metric_config.profile.file_locations[index]
+        )
+        profile_history_rows_list.append(profile_history_rows)
 
   # add default airflow metadata
   metadata_history_rows_list = add_airflow_metadata(

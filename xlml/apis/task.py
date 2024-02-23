@@ -55,8 +55,8 @@ class TpuQueuedResourceTask(BaseTask):
   # TODO(wcromar): make these attributes less verbose
   task_test_config: test_config.TestConfig[test_config.Tpu]
   task_gcp_config: gcp_config.GCPConfig
-  tpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   task_metric_config: Optional[metric_config.MetricConfig] = None
+  tpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   tpu_name_env_var: bool = False
   all_workers: bool = True
 
@@ -73,9 +73,15 @@ class TpuQueuedResourceTask(BaseTask):
       provision, queued_resource, ssh_keys, gcs_location = self.provision()
       # If you already specify `task_metric_config.json_lines` value in the test config script,
       # then `gcs_location` will take no effect.
-      env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT}": gcs_location}
+      if (
+          self.task_metric_config
+          and self.task_metric_config.use_runtime_generated_filename
+      ):
+        env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT.value}": gcs_location}
+      else:
+        env_variable = None
       run_model = self.run_model(queued_resource, ssh_keys, env_variable)
-      post_process = self.post_process()
+      post_process = self.post_process(file_location=gcs_location)
       clean_up = self.clean_up(queued_resource)
       provision >> run_model >> post_process >> clean_up
 
@@ -105,7 +111,7 @@ class TpuQueuedResourceTask(BaseTask):
       # Update tensorboard file location
       self.task_metric_config.tensorboard_summary.file_location = tb_file_location
 
-      provision, queued_resource, ssh_keys, _ = self.provision()
+      provision, queued_resource, ssh_keys, gcs_location = self.provision()
       run_model = self.run_model(queued_resource, ssh_keys)
       post_process = self.post_process()
       clean_up = self.clean_up(queued_resource)
@@ -133,7 +139,7 @@ class TpuQueuedResourceTask(BaseTask):
           queued_resource,
           ssh_keys,
       ) = self.provision_with_startup_script()
-      post_process = self.post_process(use_startup_script)
+      post_process = self.post_process(use_startup_script=use_startup_script)
       clean_up = self.clean_up(queued_resource)
 
       provision_with_startup_script >> post_process >> clean_up
@@ -219,7 +225,7 @@ class TpuQueuedResourceTask(BaseTask):
       # TODO(wcromar): Is there a way to annotate the type of the XCom arg?
       queued_resource: airflow.XComArg,
       ssh_keys: airflow.XComArg,
-      env: airflow.XComArg = None,
+      env: Optional[airflow.XComArg] = None,
   ) -> DAGNode:
     """Run the TPU test in `task_test_config`.
 
@@ -417,7 +423,13 @@ class GpuCreateResourceTask(BaseTask):
       provision, ip_address, instance_name, ssh_keys, gcs_location = self.provision()
       # If you already specify `task_metric_config.json_lines` value in the test config script,
       # then `gcs_location` will take no effect.
-      env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT}": gcs_location}
+      if (
+          self.task_metric_config
+          and self.task_metric_config.use_runtime_generated_filename
+      ):
+        env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT.value}": gcs_location}
+      else:
+        env_variable = None
       run_model = self.run_model(ip_address, ssh_keys, env_variable)
       post_process = self.post_process(gcs_location)
       clean_up = self.clean_up(
@@ -474,7 +486,7 @@ class GpuCreateResourceTask(BaseTask):
       self,
       resource: airflow.XComArg,
       ssh_keys: airflow.XComArg,
-      env: airflow.XComArg,
+      env: Optional[airflow.XComArg] = None,
   ) -> DAGNode:
     """Run the GPU test in `task_test_config`.
 
