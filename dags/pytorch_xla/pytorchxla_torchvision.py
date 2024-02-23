@@ -78,9 +78,7 @@ with models.DAG(
       US_EAST1_C,
   ).run()
 
-  mnist_v2_8 >> resnet_v2_8
-  mnist_v2_8 >> resnet_v4_8
-  mnist_v2_8 >> resnet_v5lp_4
+  mnist_v2_8 >> (resnet_v2_8, resnet_v4_8, resnet_v5lp_4)
 
   resnet_v100_2x2 = task.GpuGkeTask(
       test_config.JSonnetGpuTest.from_pytorch("pt-nightly-resnet50-mp-fake-v100-x2x2"),
