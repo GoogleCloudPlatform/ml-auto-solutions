@@ -319,8 +319,12 @@ def ssh_tpu(
   else:
     endpoints = [nodes[0].network_endpoints[0]]
 
-  # ip_addresses = [endpoint.ip_address for endpoint in endpoints]
-  ip_addresses = [endpoint.access_config.external_ip for endpoint in endpoints]
+  use_external_ips = os.getenv('XLMLTEST_SSH_EXTERNAL_IPS', '0') == '1'
+  if use_external_ips:
+    ip_addresses = [endpoint.access_config.external_ip for endpoint in endpoints]
+  else:
+    ip_addresses = [endpoint.ip_address for endpoint in endpoints]
+
   logging.info(f'Connecting to IP addresses of workers: {ip_addresses}')
 
   pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
@@ -333,7 +337,7 @@ def ssh_tpu(
           # See https://stackoverflow.com/a/59453832
           'banner_timeout': 200,
       },
-      gateway='corp-ssh-helper %h %p',
+      gateway='corp-ssh-helper %h %p' if use_external_ips else None,
   )
 
   context = get_current_context()

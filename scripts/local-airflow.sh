@@ -7,6 +7,7 @@ set -xue
 # TODO(wcromar): enable editable installs of `xlml` instead
 export PYTHONPATH=$PWD
 export XLMLTEST_CONFIGS=$PWD/dags/jsonnet
+export XLMLTEST_SSH_EXTERNAL_IPS=1
 
 export AIRFLOW_HOME=$(mktemp -d)
 
