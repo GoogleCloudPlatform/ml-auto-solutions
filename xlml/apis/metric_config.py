@@ -37,7 +37,7 @@ class AggregationStrategy(enum.Enum):
   MEDIAN = enum.auto()
 
 
-class MetricPath(enum.Enum):
+class SshEnvVars(enum.Enum):
   GCS_OUTPUT = "GCS_OUTPUT"
 
 

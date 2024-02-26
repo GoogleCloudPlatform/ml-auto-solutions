@@ -77,7 +77,7 @@ class TpuQueuedResourceTask(BaseTask):
           self.task_metric_config
           and self.task_metric_config.use_runtime_generated_filename
       ):
-        env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT.value}": gcs_location}
+        env_variable = {f"{metric_config.SshEnvVars.GCS_OUTPUT.value}": gcs_location}
       else:
         env_variable = None
       run_model = self.run_model(queued_resource, ssh_keys, env_variable)
@@ -427,7 +427,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_metric_config
           and self.task_metric_config.use_runtime_generated_filename
       ):
-        env_variable = {f"{metric_config.MetricPath.GCS_OUTPUT.value}": gcs_location}
+        env_variable = {f"{metric_config.SshEnvVars.GCS_OUTPUT.value}": gcs_location}
       else:
         env_variable = None
       run_model = self.run_model(ip_address, ssh_keys, env_variable)
