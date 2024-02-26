@@ -464,7 +464,7 @@ class GpuCreateResourceTask(BaseTask):
             self.task_test_config.benchmark_id
         )
 
-      ip_address = gpu.create_resource.override(task_id="create_resource")(
+      create_resource_op, ip_address = gpu.create_resource(
           gpu_name,
           self.image_project,
           self.image_family,
@@ -473,7 +473,7 @@ class GpuCreateResourceTask(BaseTask):
           ssh_keys,
       )
 
-      create_resource = gpu.ssh_host.override(task_id="setup")(
+      create_resource_op >> gpu.ssh_host.override(task_id="setup")(
           ip_address,
           self.task_test_config.setup_script,
           ssh_keys,
