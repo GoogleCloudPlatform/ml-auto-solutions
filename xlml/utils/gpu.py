@@ -103,6 +103,7 @@ def generate_gpu_name() -> str:
   return f"gpu-{str(uuid.uuid4())}"
 
 
+@task_group
 def create_resource(
     gpu_name: airflow.XComArg,
     image_project: str,
@@ -110,7 +111,7 @@ def create_resource(
     accelerator: test_config.Gpu,
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
-) -> Tuple[TaskGroup, airflow.XComArg]:
+) -> airflow.XComArg:
   """Request a resource and wait until the nodes are created.
 
   Args:
@@ -262,7 +263,7 @@ def create_resource(
       return True
 
   @task
-  def get_ip_address(instance: str):
+  def get_ip_address(instance: str) -> airflow.XComArg:
     # It takes time to be able to use the ssh with the ip address even though the creation
     # request is complete. We intentionally sleep for 60s to wait for the ip address to be
     # accessible.
@@ -273,17 +274,15 @@ def create_resource(
       logging.warning(f"GPU instance {gpu_name} has more than one network interface.")
     return instance.network_interfaces[0].network_i_p
 
-  with TaskGroup(group_id="create_resource") as tg:
-    operation = create_resource_request(
-        instance_name=gpu_name,
-        accelerator=accelerator,
-        ssh_keys=ssh_keys,
-        instance_termination_action="STOP",
-    )
-    ip_address = get_ip_address(gpu_name)
-    wait_for_resource_creation(operation) >> ip_address
-
-  return tg, ip_address
+  operation = create_resource_request(
+      instance_name=gpu_name,
+      accelerator=accelerator,
+      ssh_keys=ssh_keys,
+      instance_termination_action="STOP",
+  )
+  ip_address = get_ip_address(gpu_name)
+  wait_for_resource_creation(operation) >> ip_address
+  return ip_address
 
 
 @task
