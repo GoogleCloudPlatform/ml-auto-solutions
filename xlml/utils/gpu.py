@@ -22,7 +22,6 @@ import airflow
 from airflow.decorators import task, task_group
 from airflow.utils.task_group import TaskGroup
 import fabric
-from google.api_core.extended_operation import ExtendedOperation
 from google.cloud import compute_v1
 import io
 import paramiko
