@@ -36,13 +36,13 @@ with models.DAG(
     start_date=datetime.datetime(2024, 2, 5),
     catchup=False,
     params={
-        'commit_sha': 'my-commit-sha',
+        "commit_sha": "my-commit-sha",
     },
 ) as dag:
 
-    t1 = BashOperator(
-        task_id="print_env",
-        bash_command="echo {{params.commit_sha}}",
-    )
+  t1 = BashOperator(
+    task_id="print_env",
+    bash_command="echo {{params.commit_sha}}",
+  )
 
-    simple = get_simple_config().run()
+  simple = get_simple_config().run()
