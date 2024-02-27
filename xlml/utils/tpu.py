@@ -337,6 +337,7 @@ def ssh_tpu(
           # See https://stackoverflow.com/a/59453832
           'banner_timeout': 200,
       },
+      # Proxy required on Cloudtops to connect to external IPs
       gateway='corp-ssh-helper %h %p' if use_external_ips else None,
   )
 
