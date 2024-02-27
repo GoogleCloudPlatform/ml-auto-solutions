@@ -20,7 +20,7 @@ from __future__ import annotations
 from absl import logging
 import airflow
 from airflow.decorators import task, task_group
-from airflow.utils.task_group import TaskGroup
+import datetime
 import fabric
 from google.cloud import compute_v1
 import io
@@ -110,6 +110,7 @@ def create_resource(
     accelerator: test_config.Gpu,
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
+    timeout: datetime.timedelta,
 ) -> airflow.XComArg:
   """Request a resource and wait until the nodes are created.
 
@@ -119,7 +120,8 @@ def create_resource(
     image_family: family of the image.
     accelerator: Description of GPU to create.
     gcp: GCP project/zone configuration.
-    ssh_keys: XCom value for SSH keys to communicate with these GPUs.
+    ssh_kpeys: XCom value for SSH keys to communicate with these GPUs.
+    timeout: Amount of time to wait for GPUs to be created.
 
   Returns:
     The ip address of the GPU VM.
@@ -159,7 +161,6 @@ def create_resource(
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
     disks = [disk_from_image(disk_type, 100, True, image.self_link)]
     metadata = create_metadata({
-        # "install-nvidia-driver": "True",
         "install-nvidia-driver": "False",
         "proxy-mode": "project_editors",
         "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
@@ -172,7 +173,6 @@ def create_resource(
         )
     ]
     service_account = compute_v1.ServiceAccount(
-        # email = "cloud-auto-ml-solutions@google.com",
         scopes=["https://www.googleapis.com/auth/cloud-platform"]
     )
 
@@ -235,7 +235,7 @@ def create_resource(
     operation = instance_client.insert(request=request)
     return operation.name
 
-  @task.sensor(poke_interval=60, timeout=1800, mode="reschedule")
+  @task.sensor(poke_interval=60, timeout=timeout.total_seconds(), mode="reschedule")
   def wait_for_resource_creation(operation_name: airflow.XComArg):
     # Retrives the delete opeartion to check the status.
     client = compute_v1.ZoneOperationsClient()
@@ -255,7 +255,7 @@ def create_resource(
             f"Error during resource creation: [Code: {operation.http_error_status_code}]: {operation.http_error_message}",
         )
         raise operation.exception() or RuntimeError(operation.http_error_message)
-      if operation.warnings:
+      elif operation.warnings:
         logging.warning(f"Warnings during resource creation:\n")
         for warning in operation.warnings:
           logging.warning(f" - {warning.code}: {warning.message}")
@@ -351,7 +351,7 @@ def delete_resource(instance_name: airflow.XComArg, project_id: str, zone: str):
         )
         logging.error(f"Operation ID: {operation.name}")
         raise operation.exception() or RuntimeError(operation.http_error_message)
-      if operation.warnings:
+      elif operation.warnings:
         logging.warning(f"Warnings during resource deletion:\n")
         for warning in operation.warnings:
           logging.warning(f" - {warning.code}: {warning.message}")

@@ -400,6 +400,11 @@ class GpuCreateResourceTask(BaseTask):
   Attributes:
     image_project: the project that an image belongs to.
     image_family: the family group that an image belongs to.
+    task_test_config: task configutation.
+    task_gcp_config: gcp related config (e.g., zone, project) for the task.
+    task_metric_config: metric configuration (e.g., result gcs path).
+    gpu_create_timeout: timeout when waiting for the GPU vm creation.
+
   """
 
   image_project: str
@@ -407,6 +412,7 @@ class GpuCreateResourceTask(BaseTask):
   task_test_config: test_config.TestConfig[test_config.Gpu]
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
+  gpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
 
   def run(self) -> DAGNode:
     """Run a test job.
@@ -471,6 +477,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_test_config.accelerator,
           self.task_gcp_config,
           ssh_keys,
+          timeout=self.gpu_create_timeout,
       )
 
       ip_address >> gpu.ssh_host.override(task_id="setup")(
