@@ -41,8 +41,8 @@ with models.DAG(
 ) as dag:
 
   t1 = BashOperator(
-    task_id="print_env",
-    bash_command="echo {{params.commit_sha}}",
+      task_id="print_env",
+      bash_command="echo {{params.commit_sha}}",
   )
 
   simple = get_simple_config().run()

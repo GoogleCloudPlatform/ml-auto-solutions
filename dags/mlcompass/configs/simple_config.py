@@ -19,36 +19,35 @@ from dags import test_owner
 from dags.vm_resource import TpuVersion, Zone, Project, RuntimeVersion
 
 def get_simple_config() -> task.TpuQueuedResourceTask:
-
   set_up_cmds = (
-    "set +x",
-    "echo {{params.commit_sha}}",
-    "pip install -U pip", 
-    "pip install jax[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
+      "set +x",
+      "echo {{params.commit_sha}}",
+      "pip install -U pip", 
+      "pip install jax[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
   )
 
   run_model_cmds = (
-    "set +x",
-    "echo {{params.commit_sha}}",
-    "ls -ltrh /dev/accel*",
-    "python3 -c 'import jax; print(jax.device_count()); print(jax.numpy.add(1,1))'",
+      "set +x",
+      "echo {{params.commit_sha}}",
+      "ls -ltrh /dev/accel*",
+      "python3 -c 'import jax; print(jax.device_count()); print(jax.numpy.add(1,1))'",
   )
 
   job_test_config = test_config.TpuVmTest(
-    test_config.Tpu(
-        version=TpuVersion.V4,
-        cores=8,
-        runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
-        reserved=False,
-        network='default',
-        subnetwork='default',
-    ),
-    test_name='simple-jax-code',
-    set_up_cmds=set_up_cmds,
-    run_model_cmds=run_model_cmds,
-    time_out_in_min=60,
-    task_owner=test_owner.ORTI_B,
-    num_slices=1,
+      test_config.Tpu(
+          version=TpuVersion.V4,
+          cores=8,
+          runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+          reserved=False,
+          network='default',
+          subnetwork='default',
+      ),
+      test_name='simple-jax-code',
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      time_out_in_min=60,
+      task_owner=test_owner.ORTI_B,
+      num_slices=1,
   )
 
   project_name = Project.CLOUD_ML_AUTO_SOLUTIONS.value
