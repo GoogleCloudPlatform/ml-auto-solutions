@@ -16,7 +16,7 @@ import datetime
 from airflow import models
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import composer_env
-from dags.vm_resource import Project, Zone
+from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS
 
 
 # Run once a day at 2 pm UTC (6 am PST)
@@ -39,6 +39,12 @@ US_CENTRAL1 = gcp_config.GCPConfig(
     dataset_name=...,
 )
 
+US_EAST1_C = gcp_config.GCPConfig(
+    project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
+    zone=Zone.US_EAST1_C.value,
+    dataset_name=metric_config.DatasetOption.XLML_DATASET,
+)
+
 
 with models.DAG(
     dag_id="pytorchxla-torchvision",
@@ -57,15 +63,45 @@ with models.DAG(
       ),
       US_CENTRAL1_C,
   ).run()
-  resnet_v4_8 = task.TpuQueuedResourceTask(
+  resnet_v3_8_tests = [
+      task.TpuQueuedResourceTask(
+          test_config.JSonnetTpuVmTest.from_pytorch(test),
+          US_CENTRAL1_C,
+      ).run()
+      for test in (
+          "pt-nightly-resnet50-pjrt-fake-v3-8-1vm",
+          "pt-nightly-resnet50-pjrt-ddp-fake-v3-8-1vm",
+      )
+  ]
+  resnet_v4_8_tests = [
+      task.TpuQueuedResourceTask(
+          test_config.JSonnetTpuVmTest.from_pytorch(test),
+          US_CENTRAL2_B,
+      ).run()
+      for test in (
+          "pt-nightly-resnet50-pjrt-fake-v4-8-1vm",
+          "pt-nightly-resnet50-pjrt-ddp-fake-v4-8-1vm",
+          "pt-nightly-resnet50-spmd-batch-func-v4-8-1vm",
+          "pt-nightly-resnet50-spmd-spatial-func-v4-8-1vm",
+      )
+  ]
+  resnet_v4_32 = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-nightly-resnet50-pjrt-fake-v4-8-1vm"
+          "pt-nightly-resnet50-pjrt-fake-v4-32-1vm"
       ),
       US_CENTRAL2_B,
   ).run()
+  resnet_v5lp_4 = task.TpuQueuedResourceTask(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-nightly-resnet50-pjrt-fake-v5litepod-4-1vm",
+          network=V5_NETWORKS,
+          subnetwork=V5E_SUBNETWORKS,
+      ),
+      US_EAST1_C,
+  ).run()
 
-  mnist_v2_8 >> resnet_v2_8
-  mnist_v2_8 >> resnet_v4_8
+  mnist_v2_8 >> (resnet_v2_8, *resnet_v4_8_tests, resnet_v4_32, resnet_v5lp_4)
+  resnet_v2_8 >> resnet_v3_8_tests
 
   resnet_v100_2x2 = task.GpuGkeTask(
       test_config.JSonnetGpuTest.from_pytorch("pt-nightly-resnet50-mp-fake-v100-x2x2"),
