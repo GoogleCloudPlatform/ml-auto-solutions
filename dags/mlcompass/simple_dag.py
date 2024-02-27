@@ -39,7 +39,6 @@ with models.DAG(
         "commit_sha": "my-commit-sha",
     },
 ) as dag:
-
   t1 = BashOperator(
       task_id="print_env",
       bash_command="echo {{params.commit_sha}}",

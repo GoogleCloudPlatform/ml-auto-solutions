@@ -18,11 +18,12 @@ from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner
 from dags.vm_resource import TpuVersion, Zone, Project, RuntimeVersion
 
+
 def get_simple_config() -> task.TpuQueuedResourceTask:
   set_up_cmds = (
       "set +x",
       "echo {{params.commit_sha}}",
-      "pip install -U pip", 
+      "pip install -U pip",
       "pip install jax[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
   )
 
