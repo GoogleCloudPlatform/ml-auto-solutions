@@ -19,6 +19,7 @@ from dags import test_owner, gcs_bucket
 from dags.multipod.configs import common
 from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 import datetime
+from typing import Iterable
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
@@ -132,6 +133,55 @@ def get_maxtext_end_to_end_test_config(
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
       task_owner=test_owner.JON_B,
+      num_slices=num_slices,
+  )
+
+  return task.TpuQueuedResourceTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
+
+def get_maxtext_configs_aot_config(
+    tpu_version: TpuVersion,
+    tpu_cores: int,
+    tpu_zone: str,
+    time_out_in_min: int,
+    test_name: str,
+    run_model_cmds: Iterable[str],
+    test_mode: common.SetupMode,
+    project_name: str = PROJECT_NAME,
+    runtime_version: str = RUNTIME_IMAGE,
+    network: str = "default",
+    subnetwork: str = "default",
+    is_tpu_reserved: bool = True,
+    num_slices: int = 1,
+) -> task.TpuQueuedResourceTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=project_name,
+      zone=tpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+      dataset_project=project_name,
+      composer_project=project_name,
+  )
+
+  test_platform = common.Platform.GCE
+  set_up_cmds = common.setup_maxtext(test_mode, test_platform)
+
+  job_test_config = test_config.TpuVmTest(
+      test_config.Tpu(
+          version=tpu_version,
+          cores=tpu_cores,
+          runtime_version=runtime_version,
+          reserved=is_tpu_reserved,
+          network=network,
+          subnetwork=subnetwork,
+      ),
+      test_name=test_name,
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      time_out_in_min=time_out_in_min,
+      task_owner=test_owner.RAYMOND_Z,
       num_slices=num_slices,
   )
 
