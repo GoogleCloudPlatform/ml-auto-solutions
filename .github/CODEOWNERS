@@ -3,6 +3,7 @@
 * @RissyRan @will-cromar
 
 dags/solutions_team/configs/flax @sshahrokhi
+dags/legacy_test/tests/pytorch @sshahrokhi
 
 dags/solutions_team/configs/pax @gkroiz
 
