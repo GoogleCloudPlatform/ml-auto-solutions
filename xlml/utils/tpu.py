@@ -18,7 +18,7 @@ import datetime
 import io
 import itertools
 import os
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple, Union
 import uuid
 
 from absl import logging
@@ -38,6 +38,9 @@ from airflow.models import Variable
 from google.protobuf.duration_pb2 import Duration
 
 
+TTL = 'ttl'
+
+
 @task
 def generate_tpu_name(
     base_tpu_name: str,
@@ -54,7 +57,7 @@ def create_queued_resource(
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
-    task_test_config: test_config,
+    task_test_config: Union[test_config.TpuVmTest, test_config.JSonnetTpuVmTest],
     use_startup_script: bool = False,
 ) -> Tuple[TaskGroup, airflow.XComArg]:
   """Request a QueuedResource and wait until the nodes are created.
@@ -65,7 +68,8 @@ def create_queued_resource(
     gcp: GCP project/zone configuration.
     ssh_keys: XCom value for SSH keys to communicate with these TPUs.
     timeout: Amount of time to wait for TPUs to be created.
-    num_slices: Number of TPU slices.
+    task_test_config: Test config of the task.
+    use_startup_script: Indicator to use startup script.
 
   Returns:
     A TaskGroup for the entire create operation and an XCom value for the
@@ -102,6 +106,15 @@ def create_queued_resource(
         'startup-script': startup_script_command,
     }
 
+    create_tpu_timeout_in_sec = int(timeout.total_seconds())
+    run_model_timeout = int(task_test_config.time_out_in_min)
+    run_model_timeout_in_sec = run_model_timeout * 60 if run_model_timeout else 0
+    # Time to live (ttl) is tpu provision timout + tpu run model timeout + 1 hour buffer time (provision, post_process, etc)
+    ttl = create_tpu_timeout_in_sec + run_model_timeout_in_sec + 3600
+    labels = {
+        TTL: str(ttl),
+    }
+
     queued_resource = tpu_api.QueuedResource(
         # TODO(ranran): enable configuration via `AcceleratorConfig`
         tpu=tpu_api.QueuedResource.Tpu(
@@ -120,6 +133,7 @@ def create_queued_resource(
                             enable_external_ips=True,
                         ),
                         metadata=metadata,
+                        labels=labels,
                     ),
                 )
             ],
@@ -275,10 +289,10 @@ def delete_queued_resource(qualified_name: airflow.XComArg):
 
 def kill_process_by_pid() -> str:
   return f"""accelerator_type=\${{1}}
-  if [[ \${{accelerator_type}} =~ ^v5.* ]] 
+  if [[ \${{accelerator_type}} =~ ^v5.* ]]
   then
     device_name=vfio/*
-  else 
+  else
     device_name=accel*
   fi
   echo \\"Terminating all processes utilizing the TPU (if any).\\"
@@ -316,11 +330,16 @@ def ssh_tpu(
 
   if all_workers:
     endpoints = itertools.chain.from_iterable(node.network_endpoints for node in nodes)
-    ip_addresses = [endpoint.ip_address for endpoint in endpoints]
-    logging.info(f'Connecting to IP addresses of all workers: {ip_addresses}')
   else:
-    ip_addresses = [nodes[0].network_endpoints[0].ip_address]
-    logging.info(f'Connecting to IP addresses of worker 0: {ip_addresses}')
+    endpoints = [nodes[0].network_endpoints[0]]
+
+  use_external_ips = os.getenv('XLMLTEST_SSH_EXTERNAL_IPS', '0') == '1'
+  if use_external_ips:
+    ip_addresses = [endpoint.access_config.external_ip for endpoint in endpoints]
+  else:
+    ip_addresses = [endpoint.ip_address for endpoint in endpoints]
+
+  logging.info(f'Connecting to IP addresses of workers: {ip_addresses}')
 
   pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
   ssh_group = fabric.ThreadingGroup(
@@ -328,8 +347,12 @@ def ssh_tpu(
       connect_kwargs={
           'auth_strategy': paramiko.auth_strategy.InMemoryPrivateKey(
               'ml-auto-solutions', pkey
-          )
+          ),
+          # See https://stackoverflow.com/a/59453832
+          'banner_timeout': 200,
       },
+      # Proxy required on Cloudtops to connect to external IPs
+      gateway='corp-ssh-helper %h %p' if use_external_ips else None,
   )
 
   context = get_current_context()
@@ -374,3 +397,39 @@ def clean_up_idle_queued_resources(project_name: str, zones: Iterable[str]) -> N
       ):
         logging.info(f'Deleting {qr.name} in {state.name} status.')
         client.delete_queued_resource(name=qr.name)
+
+
+@task
+def clean_up_idle_nodes(project_name: str, zones: Iterable[str]) -> None:
+  """Clean up TPU nodes that are expired.
+
+  Args:
+   project_name: The project of resources.
+   zones: Available zones to clean up for the project.
+  """
+  creds, _ = google.auth.default()
+  client = tpu_api.TpuClient(credentials=creds)
+
+  logging.info(f'Cleaning up nodes in project {project_name}.')
+  for zone in zones:
+    logging.info(f'Checking in zone {zone.value}.')
+    parent = f'projects/{project_name}/locations/{zone.value}'
+    request = tpu_api.types.ListNodesRequest(parent=parent)
+    responses = client.list_nodes(request)
+
+    for node in responses:
+      ttl = int(node.labels[TTL]) if TTL in node.labels else None
+      if ttl:
+        create_time = node.create_time
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        logging.info(
+            f'create_time is {create_time}, and current_time is {current_time}'
+        )
+        active_time = current_time - create_time
+        delta = active_time.seconds - ttl
+        if delta > 0:
+          datetime_delta = str(datetime.timedelta(seconds=delta))
+          logging.info(
+              f'Deleting node {node.name} due to exceeding its time to live (TTL) by {datetime_delta}.'
+          )
+          client.delete_node(name=node.name)
