@@ -7,7 +7,7 @@ import datetime
 
 from airflow import models
 from dags import composer_env
-from dags.multipod.configs import maxtext_gke_config, common
+from dags.multipod.configs import common
 from dags.multipod.configs.common import SetupMode, Platform
 
 # bf16 and int8 convergence tests, each take ~5 hours to complete on a v4-128
