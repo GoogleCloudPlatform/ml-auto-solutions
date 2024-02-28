@@ -40,7 +40,7 @@ with models.DAG(
     base_convergence_command = f"bash end_to_end/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path} LOSS_THRESHOLD={loss_threshold}"
     convergence_tests = {
         "maxtext-convergence-bf16" : ((base_convergence_command),),
-        "maxtext-convergence-int8" : ((f"export M_QUANTIZATION=int8; {base_convergence_command}"))
+        "maxtext-convergence-int8" : ((f"export M_QUANTIZATION=int8; {base_convergence_command}"),)
     }
 
     for test_name, run_command in convergence_tests.items():
