@@ -37,6 +37,8 @@ with models.DAG(
     # setup_command = common.setup_maxtext(SetupMode.STABLE, Platform.GKE)
     run_command = ((f"export M_QUANTIZATION=int8; bash end_to_end/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path}"),)
 
+    run_command = ((f"python3 MaxText/train.py MaxText/configs/base.yml base_output_directory=gs://maxtext-experiments-multipod dataset_path=gs://max-datasets-rogue steps=5 enable_checkpointing=False"),)
+
     job_gcp_config = gcp_config.GCPConfig(
         project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
         zone=Zone.US_CENTRAL2_B.value,
