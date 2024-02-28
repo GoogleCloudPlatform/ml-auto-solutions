@@ -43,7 +43,7 @@ with models.DAG(
         "maxtext-convergence-int8" : ((f"export M_QUANTIZATION=int8; {base_convergence_command}"))
     }
 
-    for test_name, run_command in convergence_tests.items:
+    for test_name, run_command in convergence_tests.items():
         job_test_config = test_config.TpuGkeTest(
             test_config.Tpu(
                 version=TpuVersion.V4,
