@@ -33,7 +33,7 @@ with models.DAG(
     job_gcp_config = gcp_config.GCPConfig(
         project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
         zone=Zone.US_CENTRAL2_B.value,
-        dataset_name=dataset_path,
+        dataset_name=metric_config.DatasetOption.XLML_DATASET
     )
 
     base_convergence_command = f"bash end_to_end/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path}"
