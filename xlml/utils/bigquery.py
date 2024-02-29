@@ -29,6 +29,7 @@ from google.cloud import bigquery
 BENCHMARK_BQ_JOB_TABLE_NAME = "job_history"
 BENCHMARK_BQ_METRIC_TABLE_NAME = "metric_history"
 BENCHMARK_BQ_METADATA_TABLE_NAME = "metadata_history"
+BENCHMARK_BQ_RUN_TABLE_NAME = "run_history"
 
 
 @dataclasses.dataclass
@@ -55,10 +56,35 @@ class MetadataHistoryRow:
 
 
 @dataclasses.dataclass
+class RunHistoryRow:
+  uuid: str
+  description: str
+  platform: str
+  date: datetime.datetime
+  base_cl: str
+  precision: str
+  model: str
+  multislice_topology: str
+  num_params: int
+  global_batch_size: int
+  per_device_batch_size: float
+  num_chips: int
+  step_time: float
+  throughput: float
+  per_device_tflops_per_sec: float
+  ici_mesh_shape: str
+  dcn_mesh_shape: str
+  xprof: str
+  mfu: float
+  xla_flags: str
+
+
+@dataclasses.dataclass
 class TestRun:
   job_history: JobHistoryRow
   metric_history: Iterable[MetricHistoryRow]
   metadata_history: Iterable[MetadataHistoryRow]
+  run_history: RunHistoryRow = None
 
 
 class JobStatus(enum.Enum):
@@ -105,6 +131,10 @@ class BigQueryMetricClient:
   def metadata_history_table_id(self):
     return ".".join((self.project, self.database, BENCHMARK_BQ_METADATA_TABLE_NAME))
 
+  @property
+  def run_history_table_id(self):
+    return ".".join((self.project, self.database, BENCHMARK_BQ_RUN_TABLE_NAME))
+
   def is_valid_metric(self, value: float):
     """Check if float metric is valid for BigQuery table."""
     invalid_values = [math.inf, -math.inf, math.nan]
@@ -119,6 +149,11 @@ class BigQueryMetricClient:
     for run in test_runs:
       # job hisotry rows
       job_history_rows = [dataclasses.astuple(run.job_history)]
+
+      # run history rows
+      run_history_rows = (
+          [dataclasses.astuple(run.run_history)] if run.run_history else None
+      )
 
       # metric hisotry rows
       metric_history_rows = []
@@ -137,6 +172,7 @@ class BigQueryMetricClient:
           (self.job_history_table_id, job_history_rows),
           (self.metric_history_table_id, metric_history_rows),
           (self.metadata_history_table_id, metadata_history_rows),
+          (self.run_history_table_id, run_history_rows),
       ]:
         if not rows:
           continue

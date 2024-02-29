@@ -20,7 +20,7 @@ import enum
 import hashlib
 import os
 import re
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Any
 import uuid
 from absl import logging
 import airflow
@@ -216,9 +216,8 @@ def process_json_lines(
 
 
 def process_tensorboard_summary(
-    base_id: str,
     summary_config: metric_config.SummaryConfig,
-) -> (List[List[bigquery.MetricHistoryRow]], List[List[bigquery.MetadataHistoryRow]],):
+) -> (Dict[str, Any], Dict[str, Any],):
   """Process metrics and dimensions from TensorBoard file.
 
   Args:
@@ -226,10 +225,9 @@ def process_tensorboard_summary(
     summary_config: The configs for TensorBoard summary.
 
   Returns:
-    A list of MetricHistoryRow for a test run, and
-    a list of MetadataHistoryRow ofr a test run in a test job.
+    A Dict of aggregated metrics and a Dict of metadata parsed
+    from the given Tensorboard file.
   """
-  uuid = generate_row_uuid(base_id, 0)
 
   if isinstance(summary_config.file_location, airflow.XComArg):
     file_location = summary_config.file_location.resolve(get_current_context())
@@ -251,6 +249,26 @@ def process_tensorboard_summary(
     aggregated_metrics[key] = aggregate_metrics(value, aggregation_strategy)
   print("aggregated_metrics", aggregated_metrics)
 
+  return aggregated_metrics, metadata
+
+
+def get_metric_history_and_metadata_history_rows(
+    base_id: str,
+    aggregated_metrics: Dict[str, Any],
+    metadata: Dict[str, Any],
+) -> (List[List[bigquery.MetricHistoryRow]], List[List[bigquery.MetadataHistoryRow]],):
+  """Create metric_history and metadata_history rows to insert into BigQuery
+
+  Args:
+    base_id: The unique ID for this test job.
+    aggregated_metrics: Dict of aggregated metrics
+    metadata: Dict of metadata
+
+  Returns:
+    A list of MetricHistoryRow for a test run, and
+    a list of MetadataHistoryRow ofr a test run in a test job.
+  """
+  uuid = generate_row_uuid(base_id, 0)
   metric_history_rows = []
   metadata_history_rows = []
 
@@ -267,6 +285,73 @@ def process_tensorboard_summary(
     )
 
   return [metric_history_rows], [metadata_history_rows]
+
+
+def get_run_history_rows(
+    base_id: str,
+    aggregated_metrics: Dict[str, Any],
+    metadata: Dict[str, Any],
+    task_test_config: test_config.TestConfig[test_config.Tpu],
+) -> List[List[bigquery.RunHistoryRow]]:
+  """Create run_history rows to insert into BigQuery
+
+  Args:
+    base_id: The unique ID for this test job.
+    aggregated_metrics: Dict of aggregated metrics
+    metadata: Dict of metadata
+    task_test_config: Test config
+
+  Returns:
+    A list of RunHistoryRow for a test run in a test job.
+  """
+  uuid = generate_row_uuid(base_id, 0)
+  dcn_data_parallelism = metadata["dcn_data_parallelism/text_summary"]
+  dcn_fsdp_parallelism = metadata["dcn_fsdp_parallelism/text_summary"]
+  dcn_sequence_parallelism = metadata["dcn_sequence_parallelism/text_summary"]
+  dcn_tensor_parallelism = metadata["dcn_tensor_parallelism/text_summary"]
+  dcn_autoregressive_parallelism = metadata[
+      "dcn_autoregressive_parallelism/text_summary"
+  ]
+  ici_data_parallelism = metadata["ici_data_parallelism/text_summary"]
+  ici_fsdp_parallelism = metadata["ici_fsdp_parallelism/text_summary"]
+  ici_sequence_parallelism = metadata["ici_sequence_parallelism/text_summary"]
+  ici_tensor_parallelism = metadata["ici_tensor_parallelism/text_summary"]
+  ici_autoregressive_parallelism = metadata[
+      "ici_autoregressive_parallelism/text_summary"
+  ]
+  throughput = (
+      int(metadata["global_batch_size_to_train_on/text_summary"])
+      * int(metadata["max_target_length/text_summary"])
+  ) / aggregated_metrics["perf/step_time_seconds"]
+  precision = (
+      "bfloat16"
+      if not metadata["quantization/text_summary"]
+      else metadata["quantization/text_summary"]
+  )
+
+  run_history_row = bigquery.RunHistoryRow(
+      uuid=uuid,
+      description=task_test_config.test_name,
+      platform="Cloud",
+      date=datetime.datetime.now(),
+      base_cl="",
+      precision=precision,
+      model=metadata["model_name/text_summary"],
+      multislice_topology=f"{task_test_config.num_slices}x{task_test_config.accelerator.name}",
+      num_params=metadata["num_model_parameters/text_summary"],
+      global_batch_size=metadata["global_batch_size_to_train_on/text_summary"],
+      per_device_batch_size=metadata["per_device_batch_size/text_summary"],
+      num_chips=task_test_config.num_slices * task_test_config.accelerator.num_chips,
+      step_time=aggregated_metrics["perf/step_time_seconds"],
+      throughput=throughput,
+      per_device_tflops_per_sec=aggregated_metrics["perf/per_device_tflops_per_sec"],
+      ici_mesh_shape=f"[{ici_data_parallelism}, {ici_fsdp_parallelism}, {ici_sequence_parallelism}, {ici_tensor_parallelism}, {ici_autoregressive_parallelism}]",
+      dcn_mesh_shape=f"[{dcn_data_parallelism}, {dcn_fsdp_parallelism}, {dcn_sequence_parallelism}, {dcn_tensor_parallelism}, {dcn_autoregressive_parallelism}]",
+      xprof="",
+      mfu=0.0,
+      xla_flags=metadata["libtpu_init_args/text_summary"],
+  )
+  return [run_history_row]
 
 
 def get_gcs_file_location_with_regex(file_location: str) -> str:
@@ -608,6 +693,7 @@ def process_metrics(
   metric_history_rows_list = [[]]
   metadata_history_rows_list = [[]]
   profile_history_rows_list = []
+  run_history_rows_list = []
 
   # process metrics, metadata, and profile
   if task_metric_config:
@@ -620,10 +706,19 @@ def process_metrics(
           base_id, file_location
       )
     if task_metric_config.tensorboard_summary:
+      (aggregated_metrics, metadata) = process_tensorboard_summary(
+          task_metric_config.tensorboard_summary
+      )
+      if task_gcp_config.dataset_name == metric_config.DatasetOption.MLPERF_DATASET:
+        run_history_rows_list = get_run_history_rows(
+            base_id, aggregated_metrics, metadata, task_test_config
+        )
       (
           metric_history_rows_list,
           metadata_history_rows_list,
-      ) = process_tensorboard_summary(base_id, task_metric_config.tensorboard_summary)
+      ) = get_metric_history_and_metadata_history_rows(
+          base_id, aggregated_metrics, metadata
+      )
     if task_metric_config.profile:
       has_profile = True
       num_profiles = len(task_metric_config.profile.file_locations)
@@ -678,10 +773,14 @@ def process_metrics(
         job_name=benchmark_id,
         job_status=test_job_status.value,
     )
+    run_history_row = (
+        run_history_rows_list[index] if index < len(run_history_rows_list) else None
+    )
     test_run_row = bigquery.TestRun(
         job_history_row,
         metric_history_rows_list[index],
         metadata_history_rows_list[index],
+        run_history_row,
     )
     test_run_rows.append(test_run_row)
 

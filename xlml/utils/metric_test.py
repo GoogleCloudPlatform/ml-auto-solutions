@@ -82,6 +82,21 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
     for index in range(len(expected_metadata)):
       self.assertListEqual(actual_metadata[index], expected_metadata[index])
 
+  def assert_aggregated_metrics_and_metadata_equal(
+      self,
+      actual_aggregated_metrics,
+      expected_aggregated_metrics,
+      actual_metadata,
+      expected_metadata,
+  ):
+    for key, val in expected_aggregated_metrics.items():
+      self.assertAlmostEqual(val, actual_aggregated_metrics[key])
+    self.assertEqual(len(expected_aggregated_metrics), len(actual_aggregated_metrics))
+
+    for key, val in expected_metadata.items():
+      self.assertEqual(val, actual_metadata[key])
+    self.assertEqual(len(expected_metadata), len(actual_metadata))
+
   @parameterized.named_parameters(
       ("default", "train_accuracy", None, None, True),
       ("inclusive_pattern", "train_accuracy", ["eval*"], None, False),
@@ -209,18 +224,52 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
         include_tag_patterns=None,
         exclude_tag_patterns=None,
     )
-    actual_metrics, actual_metadata = metric.process_tensorboard_summary(
-        base_id, summary_config
+    actual_aggregated_metrics, actual_metadata = metric.process_tensorboard_summary(
+        summary_config
+    )
+    expected_aggregated_metrics = {
+        "loss": 0.123,
+        "accuracy": 0.987,
+    }
+    expected_metadata = {
+        "key1": "value1",
+        "key2": "value2",
+        "key3": "value3",
+    }
+    self.assert_aggregated_metrics_and_metadata_equal(
+        actual_aggregated_metrics,
+        expected_aggregated_metrics,
+        actual_metadata,
+        expected_metadata,
     )
 
+  def test_get_metric_history_and_metadata_history_rows(self):
+    base_id = "test"
     uuid = hashlib.sha256(str(base_id + "0").encode("utf-8")).hexdigest()
+    test_aggregated_metrics = {
+        "loss": 0.123,
+        "accuracy": 0.987,
+    }
+    test_metadata = {
+        "key1": "value1",
+        "key2": "value2",
+        "key3": "value3",
+    }
+    (
+        actual_metric_history_rows,
+        actual_metadata_history_rows,
+    ) = metric.get_metric_history_and_metadata_history_rows(
+        base_id,
+        test_aggregated_metrics,
+        test_metadata,
+    )
     loss_metric = bigquery.MetricHistoryRow(
         job_uuid=uuid, metric_key="loss", metric_value=0.123
     )
     accuracy_metric = bigquery.MetricHistoryRow(
         job_uuid=uuid, metric_key="accuracy", metric_value=0.987
     )
-    expected_metrics = [[loss_metric, accuracy_metric]]
+    expected_metric_history_rows = [[loss_metric, accuracy_metric]]
     dimension_1 = bigquery.MetadataHistoryRow(
         job_uuid=uuid, metadata_key="key1", metadata_value="value1"
     )
@@ -230,9 +279,12 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
     dimension_3 = bigquery.MetadataHistoryRow(
         job_uuid=uuid, metadata_key="key3", metadata_value="value3"
     )
-    expected_metadata = [[dimension_1, dimension_2, dimension_3]]
+    expected_metadata_history_rows = [[dimension_1, dimension_2, dimension_3]]
     self.assert_metric_and_dimension_equal(
-        actual_metrics, expected_metrics, actual_metadata, expected_metadata
+        actual_metric_history_rows,
+        expected_metric_history_rows,
+        actual_metadata_history_rows,
+        expected_metadata_history_rows,
     )
 
   @parameterized.named_parameters(
