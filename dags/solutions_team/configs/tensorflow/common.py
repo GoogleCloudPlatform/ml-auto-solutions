@@ -114,6 +114,7 @@ def set_up_google_tensorflow_models() -> Tuple[str]:
       "pip install -r /usr/share/tpu/models/official/requirements.txt",
       "pip install tensorflow-recommenders --no-deps",
       CMD_INSTALL_KERAS_NIGHTLY,
+
   )
 
 
