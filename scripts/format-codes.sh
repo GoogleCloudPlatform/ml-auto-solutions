@@ -24,4 +24,10 @@ do
   pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes
 done
 
-echo "Successfully format codes."
+echo "Successfully formatted Python."
+
+shopt -s globstar
+
+jsonnetfmt -i -- dags/legacy_test/**/*.*sonnet
+
+echo "Successfully formatted JSonnet."
