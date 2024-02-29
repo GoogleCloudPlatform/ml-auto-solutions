@@ -55,7 +55,9 @@ FEATURE_TIMEOUT = {
 
 
 CMD_PRINT_TF_VERSION = "python3 -c \"import tensorflow; print('Running using TensorFlow Version: ' + tensorflow.__version__)\""
-CMD_INSTALL_KERAS_NIGHTLY = "pip install --upgrade --no-deps --force-reinstall tf-keras-nightly"
+CMD_INSTALL_KERAS_NIGHTLY = (
+    "pip install --upgrade --no-deps --force-reinstall tf-keras-nightly"
+)
 
 
 def set_up_se_nightly() -> Tuple[str]:
