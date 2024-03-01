@@ -1,0 +1,30 @@
+steps:
+- name: alpine/git
+  id: init-submodules
+  entrypoint: git
+  args:
+  - submodule
+  - update
+  - --init
+  - --recursive
+- name: golang:alpine
+  id: download-jsonnet
+  entrypoint: 'go'
+  args:
+  - install
+  - github.com/google/go-jsonnet/cmd/jsonnet@latest
+- name: golang:alpine
+  id: build-templates
+  entrypoint: sh
+  args:
+  - scripts/gen-configs.sh
+- name: google/cloud-sdk:slim
+  args:
+  - upload-tests.sh
+  - gs://us-central1-ranran-test-a2f2100c-bucket/dags
+  entrypoint: bash
+options:
+  machineType: E2_HIGHCPU_32
+  volumes:
+  - name: go-modules
+    path: /go
