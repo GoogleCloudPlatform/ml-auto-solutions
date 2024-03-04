@@ -610,31 +610,32 @@ def process_metrics(
   profile_history_rows_list = []
 
   # process metrics, metadata, and profile
+  # TODO(ran/piz): remove absolute_path based on use_runtime_generated_gcs_folder once all
+  # dag configs are switched to using relative gcs path.
   if task_metric_config:
     if task_metric_config.json_lines.file_location:
-      if task_metric_config.use_runtime_generated_gcs_folder:
-        metric_history_rows_list, metadata_history_rows_list = process_json_lines(
-            base_id,
-            os.path.join(folder_location, task_metric_config.json_lines.file_location),
-        )
-      else:
-        metric_history_rows_list, metadata_history_rows_list = process_json_lines(
-            base_id, task_metric_config.json_lines.file_location
-        )
+      absolute_path = (
+          os.path.join(folder_location, task_metric_config.json_lines.file_location)
+          if task_metric_config.use_runtime_generated_gcs_folder
+          else task_metric_config.json_lines.file_location
+      )
+      metric_history_rows_list, metadata_history_rows_list = process_json_lines(
+          base_id, absolute_path
+      )
     if task_metric_config.tensorboard_summary:
-      if task_metric_config.use_runtime_generated_gcs_folder:
-        (
-            metric_history_rows_list,
-            metadata_history_rows_list,
-        ) = process_tensorboard_summary(
-            base_id,
-            os.path.join(folder_location, task_metric_config.tensorboard_summary),
-        )
-      else:
-        (
-            metric_history_rows_list,
-            metadata_history_rows_list,
-        ) = process_tensorboard_summary(base_id, task_metric_config.tensorboard_summary)
+      absolute_path = (
+          os.path.join(folder_location, task_metric_config.tensorboard_summary)
+          if task_metric_config.use_runtime_generated_gcs_folder
+          else task_metric_config.tensorboard_summary
+      )
+      (
+          metric_history_rows_list,
+          metadata_history_rows_list,
+      ) = process_tensorboard_summary(
+          base_id,
+          absolute_path,
+      )
+
     if task_metric_config.profile:
       has_profile = True
       num_profiles = len(task_metric_config.profile.file_locations)
