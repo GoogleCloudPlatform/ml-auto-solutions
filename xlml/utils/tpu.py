@@ -242,7 +242,9 @@ def delete_queued_resource(qualified_name: airflow.XComArg):
     try:
       qr = client.get_queued_resource(name=qualified_name)
     except google.api_core.exceptions.NotFound:
-      logging.info(f'{qualified_name} was unexpectedly deleted')
+      logging.info(
+          f'{qualified_name} was removed by cleanup DAG or deleted unexpectedly'
+      )
       return True
 
     # Queued Resources can only be deleted once they are SUSPENDED, even if all
