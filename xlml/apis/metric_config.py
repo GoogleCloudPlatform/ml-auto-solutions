@@ -101,4 +101,4 @@ class MetricConfig:
   json_lines: Optional[JSONLinesConfig] = None
   tensorboard_summary: Optional[SummaryConfig] = None
   profile: Optional[ProfileConfig] = None
-  use_runtime_generated_filename: bool = False
+  use_runtime_generated_gcs_folder: bool = False

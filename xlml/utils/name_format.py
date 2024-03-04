@@ -56,4 +56,4 @@ def generate_gcs_file_location(benchmark_id: str) -> str:
     gsc file name with location
   """
   current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-  return f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/{benchmark_id}-{current_datetime}/metric_report.jsonl"
+  return f"{gcs_bucket.BENCHMARK_OUTPUT_DIR}/{benchmark_id}-{current_datetime}/"

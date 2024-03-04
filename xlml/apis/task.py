@@ -75,7 +75,7 @@ class TpuQueuedResourceTask(BaseTask):
       # then `gcs_location` will take no effect.
       if (
           self.task_metric_config
-          and self.task_metric_config.use_runtime_generated_filename
+          and self.task_metric_config.use_runtime_generated_gcs_folder
       ):
         env_variable = {f"{metric_config.SshEnvVars.GCS_OUTPUT.value}": gcs_location}
       else:
@@ -431,7 +431,7 @@ class GpuCreateResourceTask(BaseTask):
       # then `gcs_location` will take no effect.
       if (
           self.task_metric_config
-          and self.task_metric_config.use_runtime_generated_filename
+          and self.task_metric_config.use_runtime_generated_gcs_folder
       ):
         env_variable = {f"{metric_config.SshEnvVars.GCS_OUTPUT.value}": gcs_location}
       else:
