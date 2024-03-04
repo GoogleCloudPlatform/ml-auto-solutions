@@ -46,7 +46,7 @@ def generate_tb_file_location(run_name: str, base_output_directory: str) -> str:
 
 
 @task
-def generate_gcs_file_location(benchmark_id: str) -> str:
+def generate_gcs_folder_location(benchmark_id: str) -> str:
   """Generates result file location in GCS.
 
   Args:

@@ -81,7 +81,7 @@ class TpuQueuedResourceTask(BaseTask):
       else:
         env_variable = None
       run_model = self.run_model(queued_resource, ssh_keys, env_variable)
-      post_process = self.post_process(file_location=gcs_location)
+      post_process = self.post_process(folder_location=gcs_location)
       clean_up = self.clean_up(queued_resource)
       provision >> run_model >> post_process >> clean_up
 
@@ -167,7 +167,7 @@ class TpuQueuedResourceTask(BaseTask):
             self.task_test_config.benchmark_id, self.tpu_name_env_var
         )
         ssh_keys = ssh.generate_ssh_keys()
-        output_location = name_format.generate_gcs_file_location(
+        output_location = name_format.generate_gcs_folder_location(
             self.task_test_config.benchmark_id
         )
 
@@ -253,7 +253,7 @@ class TpuQueuedResourceTask(BaseTask):
     )
 
   def post_process(
-      self, use_startup_script: bool = False, file_location: Optional[str] = None
+      self, use_startup_script: bool = False, result_location: Optional[str] = None
   ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
@@ -268,7 +268,7 @@ class TpuQueuedResourceTask(BaseTask):
           self.task_metric_config,
           self.task_gcp_config,
           use_startup_script=use_startup_script,
-          file_location=file_location,
+          folder_location=result_location,
       )
       return group
 
@@ -466,7 +466,7 @@ class GpuCreateResourceTask(BaseTask):
       with TaskGroup(group_id="initialize"):
         gpu_name = gpu.generate_gpu_name()
         ssh_keys = ssh.generate_ssh_keys()
-        gcs_location = name_format.generate_gcs_file_location(
+        gcs_location = name_format.generate_gcs_folder_location(
             self.task_test_config.benchmark_id
         )
 
@@ -517,7 +517,7 @@ class GpuCreateResourceTask(BaseTask):
     )
 
   def post_process(
-      self, result_file_location: Optional[airflow.XComArg] = None
+      self, result_location: Optional[airflow.XComArg] = None
   ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
@@ -531,7 +531,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
-          file_location=result_file_location,
+          folder_location=result_location,
       )
       return group
 
