@@ -116,7 +116,7 @@ def get_torchbench_tpu_config(
   )
 
   job_metric_config = metric_config.MetricConfig(
-      json_lines=metric_config.JSONLinesConfig("metric_report.jsonl"),
+      json_lines=metric_config.JSONLinesConfig("benchmark/metric_report.jsonl"),
       use_runtime_generated_gcs_folder=True,
   )
 
@@ -263,7 +263,7 @@ def get_torchbench_gpu_config(
   )
 
   job_metric_config = metric_config.MetricConfig(
-      json_lines=metric_config.JSONLinesConfig("metric_report.jsonl"),
+      json_lines=metric_config.JSONLinesConfig("benchmark/metric_report.jsonl"),
       use_runtime_generated_gcs_folder=True,
   )
 
