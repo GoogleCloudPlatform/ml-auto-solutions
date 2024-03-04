@@ -21,5 +21,6 @@ TFDS_DATA_DIR = "gs://ml-auto-solutions/data/tfds-data"
 PAX_DIR = "gs://cloud-tpu-checkpoints/pax"
 
 # GCS bucket for output
-BENCHMARK_OUTPUT_DIR = "gs://ml-auto-solutions/output/benchmark"
-XLML_OUTPUT_DIR = "gs://ml-auto-solutions/output/xlml"
+OUTPUT_DIR = "gs://ml-auto-solutions/output"
+BENCHMARK_OUTPUT_DIR = f"{OUTPUT_DIR}/benchmark"
+XLML_OUTPUT_DIR = f"{OUTPUT_DIR}/xlml"
