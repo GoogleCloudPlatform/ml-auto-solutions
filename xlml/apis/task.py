@@ -71,8 +71,8 @@ class TpuQueuedResourceTask(BaseTask):
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
       provision, queued_resource, ssh_keys, gcs_location = self.provision()
-      # If you already specify `task_metric_config.json_lines` value in the test config script,
-      # then `gcs_location` will take no effect.
+      # If you didn't set `MetricConfig.use_runtime_generated_gcs_folder` value in the
+      # test config script then `gcs_location` will take no effect.
       if (
           self.task_metric_config
           and self.task_metric_config.use_runtime_generated_gcs_folder
@@ -81,7 +81,7 @@ class TpuQueuedResourceTask(BaseTask):
       else:
         env_variable = None
       run_model = self.run_model(queued_resource, ssh_keys, env_variable)
-      post_process = self.post_process(folder_location=gcs_location)
+      post_process = self.post_process(result_location=gcs_location)
       clean_up = self.clean_up(queued_resource)
       provision >> run_model >> post_process >> clean_up
 
@@ -516,9 +516,7 @@ class GpuCreateResourceTask(BaseTask):
         env,
     )
 
-  def post_process(
-      self, result_location: Optional[airflow.XComArg] = None
-  ) -> DAGNode:
+  def post_process(self, result_location: Optional[airflow.XComArg] = None) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
