@@ -613,7 +613,7 @@ def process_metrics(
   # TODO(ran/piz): remove absolute_path based on use_runtime_generated_gcs_folder once all
   # dag configs are switched to using relative gcs path.
   if task_metric_config:
-    if task_metric_config.json_lines.file_location:
+    if task_metric_config.json_lines:
       absolute_path = (
           os.path.join(folder_location, task_metric_config.json_lines.file_location)
           if task_metric_config.use_runtime_generated_gcs_folder
