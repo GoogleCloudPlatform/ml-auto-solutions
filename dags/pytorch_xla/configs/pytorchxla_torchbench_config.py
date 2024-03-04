@@ -115,7 +115,9 @@ def get_torchbench_tpu_config(
       task_owner=test_owner.PEI_Z,
   )
 
-  job_metric_config = metric_config.MetricConfig(use_runtime_generated_filename=True)
+  job_metric_config = metric_config.MetricConfig(
+      use_runtime_generated_filename=True
+  )
 
   return task.TpuQueuedResourceTask(
       task_test_config=job_test_config,
@@ -125,7 +127,9 @@ def get_torchbench_tpu_config(
 
 
 # Below is the setup for torchbench GPU run.
-def set_up_torchbench_gpu(model_name: str, nvidia_driver_version: str) -> Tuple[str]:
+def set_up_torchbench_gpu(
+    model_name: str, nvidia_driver_version: str
+) -> Tuple[str]:
   """Common set up for TorchBench."""
 
   def model_install_cmds(output_file=None) -> str:
@@ -259,7 +263,9 @@ def get_torchbench_gpu_config(
       task_owner=test_owner.PEI_Z,
   )
 
-  job_metric_config = metric_config.MetricConfig(use_runtime_generated_filename=True)
+  job_metric_config = metric_config.MetricConfig(
+      use_runtime_generated_filename=True
+  )
 
   return task.GpuCreateResourceTask(
       image_project.value,
