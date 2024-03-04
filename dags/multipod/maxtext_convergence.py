@@ -42,8 +42,8 @@ with models.DAG(
   )
   dataset_path = gcs_bucket.MAXTEXT_DIR
 
-  steps = 10# Half Chinchilla
-  loss_threshold = 20.7 # 2.7
+  steps = 10200 # Half Chinchilla
+  loss_threshold = 2.7
   
   base_convergence_command = f"bash end_to_end/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path} LOSS_THRESHOLD={loss_threshold} STEPS={steps}"
   convergence_tests = {
