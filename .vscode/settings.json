@@ -1,0 +1,19 @@
+{
+  // Formatting
+  "editor.tabSize": 2,
+  "editor.detectIndentation" : false,
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python",
+  },
+  "python.formatting.blackPath": "pyink",
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": [
+    "--pyink-indentation=2",
+    "--pyink-use-majority-quotes"
+  ],
+
+  // Linting
+  "python.linting.pylintEnabled": true
+}
