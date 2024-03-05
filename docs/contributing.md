@@ -27,7 +27,7 @@ Guidelines](https://opensource.google/conduct/).
 
 ## Setting up development environment with VSCode
 
-Most of the team uses Visual Studio Code with the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) for development. We recommend you install the [workspace recommended extensions](https://code.visualstudio.com/docs/editor/extension-marketplace#_workspace-recommended-extensions) with the `Extensions: Show Recommended Extensions` command. Repository defaults for linting for formatting are in `.vscode/settings.json`.
+Most of the team uses Visual Studio Code with the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) for development. We recommend you install the [workspace recommended extensions](https://code.visualstudio.com/docs/editor/extension-marketplace#_workspace-recommended-extensions) with the `Extensions: Show Recommended Extensions` command. Repository defaults for linting and formatting are in `.vscode/settings.json`.
 
 To create a local virtual environment for development, use the [`Python: Create Environment`](https://code.visualstudio.com/docs/python/environments#_using-the-create-environment-command). Remember to select both `dev-requirements.txt` and `requirements.txt` when prompted to install dependencies. Alternatively, you can run `venv` from the command line and install the requirements yourself with `pip install -r`.
 
