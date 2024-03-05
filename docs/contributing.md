@@ -25,9 +25,9 @@ Guidelines](https://opensource.google/conduct/).
 
 ## Contribution process
 
-## Setting up development environment
+## Setting up development environment with VSCode
 
-Most of the team uses Visual Studio Code with the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) for development. We recommend you install the [workspace recommended extensions](https://code.visualstudio.com/docs/editor/extension-marketplace#_workspace-recommended-extensions) in `.vscode/extensions.json`. Repository defaults for linting for formatting are in `.vscode/settings.json`.
+Most of the team uses Visual Studio Code with the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) for development. We recommend you install the [workspace recommended extensions](https://code.visualstudio.com/docs/editor/extension-marketplace#_workspace-recommended-extensions) with the `Extensions: Show Recommended Extensions` command. Repository defaults for linting for formatting are in `.vscode/settings.json`.
 
 To create a local virtual environment for development, use the [`Python: Create Environment`](https://code.visualstudio.com/docs/python/environments#_using-the-create-environment-command). Remember to select both `dev-requirements.txt` and `requirements.txt` when prompted to install dependencies. Alternatively, you can run `venv` from the command line and install the requirements yourself with `pip install -r`.
 
@@ -36,6 +36,7 @@ Once you've set up your virtual environment, ensure you are using the correct in
 ### Code Style
 
 We use the code linter [Pylint](https://github.com/pylint-dev/pylint) and formatter [Pyink](https://github.com/google/pyink).
+
 * Pylint, a widely-used static code analyzer, works well with Google's internal code standards.
 * Pyink is a fork of the [Black](https://github.com/psf/black) formatter with a few different behaviors tailored towards Google internal repository.
 
