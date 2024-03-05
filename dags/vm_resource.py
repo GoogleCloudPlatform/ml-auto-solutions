@@ -101,6 +101,7 @@ class ClusterName(enum.Enum):
   V4_128_MULTISLICE_CLUSTER = "v4-bodaborg"
   V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
   V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
+  A3_CLUSTER = "pb-maxtext-multinode-tcpx-large"
 
 
 class DockerImage(enum.Enum):

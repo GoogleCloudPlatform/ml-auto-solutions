@@ -63,7 +63,6 @@ with models.DAG(
 
         test_gpu = maxtext_gce_config.get_maxtext_end_to_end_gpu_test_config(
             machine_type=MachineVersion.A3_HIGHGPU_8G,
-            image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
             image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
             accelerator_type=GpuVersion.H100,
             gpu_cores=8,
@@ -72,6 +71,9 @@ with models.DAG(
             test_name=f"{test_name_prefix}-{mode.value}-{test_script}",
             test_script=test_script,
             test_mode=mode,
+            cluster_name=ClusterName.A3_CLUSTER.value,
+            docker_image=DockerImage.XPK_MAXTEXT_TEST.value,
         ).run()
+
         maxtext_end2end_gpu[-1] >> test_gpu
         maxtext_end2end_gpu.append(test_gpu)

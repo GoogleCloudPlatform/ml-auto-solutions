@@ -151,7 +151,6 @@ def get_maxtext_end_to_end_test_config(
 
 def get_maxtext_end_to_end_gpu_test_config(
     machine_type: MachineVersion,
-    image_project: ImageProject,
     image_family: ImageFamily,
     accelerator_type: GpuVersion,
     gpu_cores: int,
@@ -160,6 +159,8 @@ def get_maxtext_end_to_end_gpu_test_config(
     test_name: str,
     test_script: str,
     test_mode: common.SetupMode,
+    cluster_name: str,
+    docker_image: str,
     project_name: str = PROJECT_NAME,
     runtime_version: str = RUNTIME_IMAGE,
 ) -> task.GpuCreateResourceTask:
@@ -173,7 +174,7 @@ def get_maxtext_end_to_end_gpu_test_config(
   set_up_cmds = common.setup_maxtext(test_mode, test_platform)
   run_model_cmds = (f"cd /tmp/maxtext && bash end_to_end/{test_script}.sh",)
 
-  job_test_config = test_config.GpuVmTest(
+  job_test_config = test_config.GpuGkeTest(
       test_config.Gpu(
           machine_type=machine_type.value,
           image_family=image_family.value,
@@ -186,11 +187,11 @@ def get_maxtext_end_to_end_gpu_test_config(
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
       task_owner=test_owner.JON_B,
+      cluster_name=cluster_name,
+      docker_image=docker_image,
   )
 
-  return task.GpuCreateResourceTask(
-      image_project.value,
-      image_family.value,
+  return task.GpuXpkTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
