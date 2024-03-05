@@ -116,7 +116,8 @@ def get_torchbench_tpu_config(
   )
 
   job_metric_config = metric_config.MetricConfig(
-      use_runtime_generated_filename=True
+      json_lines=metric_config.JSONLinesConfig("metric_report.jsonl"),
+      use_runtime_generated_gcs_folder=True,
   )
 
   return task.TpuQueuedResourceTask(
@@ -264,7 +265,8 @@ def get_torchbench_gpu_config(
   )
 
   job_metric_config = metric_config.MetricConfig(
-      use_runtime_generated_filename=True
+      json_lines=metric_config.JSONLinesConfig("metric_report.jsonl"),
+      use_runtime_generated_gcs_folder=True,
   )
 
   return task.GpuCreateResourceTask(
