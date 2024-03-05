@@ -1,4 +1,7 @@
 {
+  // General
+  "python.terminal.activateEnvironment": true,
+
   // Formatting
   "editor.tabSize": 2,
   "editor.detectIndentation" : false,
