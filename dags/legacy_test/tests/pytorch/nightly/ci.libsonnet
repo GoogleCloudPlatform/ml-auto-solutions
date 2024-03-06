@@ -15,7 +15,7 @@ local tpus = import 'templates/tpus.libsonnet';
         cd pytorch/xla
 
         test/tpu/run_tests.sh
-      |||
+      |||,
     ],
   },
   local pjrt = self.pjrt,
