@@ -13,7 +13,7 @@
 // limitations under the License.
 
 local accelerate = import 'accelerate-smoke.libsonnet';
-local fairseqTransformer = import 'fs-transformer.libsonnet';
+local ci = import "ci.libsonnet";
 local huggingfaceDiffusers = import 'hf-diffusers.libsonnet';
 local hfBert = import 'hf-bert.libsonnet';
 local huggingfaceGlue = import 'hf-glue.libsonnet';
@@ -26,6 +26,7 @@ local stableDif = import 'sd-model.libsonnet';
 // Add new models here
 std.flattenArrays([
   accelerate.configs,
+  ci.configs,
   hfBert.configs,
   huggingfaceDiffusers.configs,
   huggingfaceGlue.configs,
