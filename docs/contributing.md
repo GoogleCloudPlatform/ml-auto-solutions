@@ -33,6 +33,8 @@ To create a local virtual environment for development, use the [`Python: Create 
 
 Once you've set up your virtual environment, ensure you are using the correct intepreter from your local `.venv` directory from the [`Python: Select Interpreter`](https://code.visualstudio.com/docs/python/environments#_select-and-activate-an-environment) command.
 
+When we update the development requirements (especially Airflow itself), you may want to just delete your `.venv` directory and run through these instructions again.
+
 ### Code Style
 
 We use the code linter [Pylint](https://github.com/pylint-dev/pylint) and formatter [Pyink](https://github.com/google/pyink).
@@ -50,13 +52,15 @@ for this purpose.
 
 ### Testing Changes Locally
 
-To run a dag file in a temporary local environment, use the `local-airflow.sh`:
+To run a dag file in a temporary local environment, use `local-airflow.sh`. The script will symlink just the DAG provided to speed up parsing times.
 
 ```
 gcloud auth login --update-adc
 scripts/local-airflow.sh path/to/dag_file.py
 ```
 
-The script will symlink just the DAG provided to speed up parsing times.
+Comment out any test cases in the DAG that you do not want to run, or create a temporary DAG file to avoid running all tests.
+
+Airflow will print a link to a local instance as well as a temporary admin password. From the UI, find your dag and run it manually.
 
 This functionality is extremely experimental, and not all DAGs are expected to work with a local standalone server. Only the Airflow server runs locally. Tests will still run in the project defined in each DAG, so use this option with caution.
