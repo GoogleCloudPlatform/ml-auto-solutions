@@ -44,13 +44,17 @@ We use the code linter [Pylint](https://github.com/pylint-dev/pylint) and format
 
 You can format an [individual Python file through VSCode](https://code.visualstudio.com/docs/python/formatting#_format-your-code). To run formatting and linting for the whole repository, run `bash scripts/code-style.sh`. You will need to see `Successfully clean up all codes` in the output to avoid check failures in your PR.
 
-### Code Reviews
+### JSonnet (optional)
+
+JSonnet is only required for local testing for some tests, primarily PyTorch/XLA's. Install the latest version of [`go-jsonnet`](https://github.com/google/go-jsonnet) to be able to generate test configs locally.
+
+## Code Reviews
 
 All submissions, including submissions by project members, require review. We
 use [GitHub pull requests](https://docs.github.com/articles/about-pull-requests)
 for this purpose.
 
-### Testing Changes Locally
+## Testing Changes Locally
 
 To run a dag file in a temporary local environment, use `local-airflow.sh`. The script will symlink just the DAG provided to speed up parsing times.
 
@@ -60,6 +64,12 @@ scripts/local-airflow.sh path/to/dag_file.py
 ```
 
 Comment out any test cases in the DAG that you do not want to run, or create a temporary DAG file to avoid running all tests.
+
+If you're running a JSonnet-based test, run this each time any time the test changes:
+
+```
+scripts/gen-configs.sh
+```
 
 Airflow will print a link to a local instance as well as a temporary admin password. From the UI, find your dag and run it manually.
 
