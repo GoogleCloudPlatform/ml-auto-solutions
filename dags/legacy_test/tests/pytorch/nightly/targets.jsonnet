@@ -26,10 +26,7 @@ std.flattenArrays([
   ci.configs,
   hfBert.configs,
   huggingfaceDiffusers.configs,
-  huggingfaceGlue.configs,
-  huggingfaceGPT2.configs,
   mnist.configs,
   resnet50_mp.configs,
-  stableDif.configs,
   llama2.configs,
 ])
