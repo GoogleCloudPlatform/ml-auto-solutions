@@ -58,6 +58,15 @@ for this purpose.
 
 To run a dag file in a temporary local environment, use `local-airflow.sh`. The script will symlink just the DAG provided to speed up parsing times.
 
+This requires Airflow to be installed locally. Ensure you have the appropriate Airflow version installed as defined in [cloud_composer_template.tf](/deployment/cloud_composer_template.tf#L126). For version 2.6.3:
+
+```
+VERSION=2.6.3
+pip install apache-airflow==$VERSION --constraint 'https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION}/constraints-3.10.txt'
+```
+
+To run the local environment, use the following commands:
+
 ```
 gcloud auth login --update-adc
 scripts/local-airflow.sh path/to/dag_file.py
