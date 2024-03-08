@@ -40,8 +40,6 @@ def _run_workload(
     docker_image: str,
     accelerator_type: str,
     run_cmds: str,
-    task_owner: str,
-    startup_timeout: int,
     num_slices: int = 1,
 ):
   """Run workload through xpk tool."""
