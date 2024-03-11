@@ -374,7 +374,7 @@ class TpuXpkTask(BaseTask):
     """
     with TaskGroup(group_id="run_model") as group:
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
-      run_workload = xpk.run_workload(
+      run_workload = xpk.run_workload.override(owner=self.task_test_config.task_owner)(
           task_id="run_workload",
           cluster_project=self.task_gcp_config.project_name,
           zone=self.task_gcp_config.zone,
