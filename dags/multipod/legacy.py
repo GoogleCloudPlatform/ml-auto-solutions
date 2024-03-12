@@ -39,10 +39,6 @@ for test_mode in [SetupMode.NIGHTLY, SetupMode.STABLE]:
         if test_mode == SetupMode.NIGHTLY
         else DockerImage.MAXTEXT_JAX_STABLE
     )
-    current_time = datetime.datetime.now()
-    current_date = current_time.strftime("%Y-%m-%d")
-    base_output_directory = f"{gcs_bucket.XLML_OUTPUT_DIR}/legacy_unit_test/{test_mode.value}/{current_date}"
-
     # Tests that require scripts from the `jax/unit_tests` folder should follow
     # this pattern.
     # TODO(jonbolin): Example for legacy unit test migration - evaluate whether
