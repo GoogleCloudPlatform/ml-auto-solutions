@@ -143,6 +143,7 @@ local volumes = import 'templates/volumes.libsonnet';
         mkdir pytorch
         cd pytorch
         git clone --depth=1 https://github.com/pytorch/xla.git
+        cd -
 
         %s
 
