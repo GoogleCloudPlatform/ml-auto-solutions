@@ -20,7 +20,8 @@ from airflow import models
 from dags import composer_env
 from dags.vm_resource import TpuVersion, Zone
 from dags.multipod.configs import maxtext_gce_config
-from dags.multipod.configs.common import SetupMode, Platform
+from dags.multipod.configs.common import SetupMode
+from dags.vm_resource import TpuVersion, Project, Zone, ClusterName, DockerImage
 
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -56,3 +57,25 @@ with models.DAG(
             test_script=test_script,
             test_mode=mode,
         ).run()
+
+  xpk_test_models = {
+      "mixtral": "test_mixtral",
+  }
+  xpk_test_modes = {
+      SetupMode.STABLE: DockerImage.XPK_MAXTEXT_END_TO_END_STABLE,
+      SetupMode.NIGHTLY: DockerImage.XPK_MAXTEXT_END_TO_END_NIGHTLY,
+  }
+
+  for model in xpk_test_models.keys():
+    for mode, image in xpk_test_modes.items():
+      maxtext_gce_config.get_maxtext_end_to_end_xpk_test_config(
+          tpu_version=TpuVersion.V4,
+          tpu_cores=128,
+          tpu_zone=Zone.US_CENTRAL2_B.value,
+          time_out_in_min=60,
+          test_name=f"{test_name_prefix}-{mode.value}-{model}",
+          test_script=xpk_test_models[model],
+          project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
+          cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+          docker_image=image,
+      ).run()

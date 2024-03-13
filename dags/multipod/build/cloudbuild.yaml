@@ -1,0 +1,11 @@
+# Cloud build file for maxtext_end_to_end.py,
+# Run `gcloud builds submit . --config cloudbuild.yaml ` to build and push a stable mode image
+# Run `gcloud builds submit . --config cloudbuild.yaml --substitutions _MODE=nightly` to build and push a nightly mode image
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/cloud-ml-auto-solutions/${_DOCKERFILE_NAME}:${_MODE}', '-f', '${_DOCKERFILE_NAME}.Dockerfile', '--build-arg=ENV=${_MODE}', '.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/cloud-ml-auto-solutions/${_DOCKERFILE_NAME}:${_MODE}']
+substitutions:
+  _DOCKERFILE_NAME: maxtext_end_to_end
+  _MODE: stable
