@@ -204,8 +204,12 @@ def get_tf_dlrm_config(
   set_up_cmds = (
       common.install_tf_nightly() + common.set_up_google_tensorflow_models()
   )
+  tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
   if not is_pjrt and is_pod:
     set_up_cmds += common.set_up_se_nightly()
+  if tpu_version == TpuVersion.V5P:
+    tpu_name = "`source /usr/share/tpu/four_tasks_per_host.sh && get_tpu_name`"
+    set_up_cmds += common.set_up_dlrm_v5p()
 
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
@@ -277,12 +281,16 @@ def get_tf_dlrm_config(
   benchmark_id = f"{test_name}-v{tpu_version.value}-{tpu_cores}"
   # Add default_var to pass DAG check
   # TODO(ranran): replace Variable.get() to XCOM when it applies
-  tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
   env_variable = export_env_variable(is_pod, is_pjrt)
   run_model_cmds = (
       "sudo chmod -R 777 /tmp/",
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
+          " source /usr/share/tpu/four_tasks_per_host.sh &&"
+          " setup_four_tasks_per_host &&",
+          " export `get_tpu_name` &&",
+          " export TF_XLA_FLAGS='--tf_mlir_enable_mlir_bridge=true "
+          "--tf_xla_sparse_core_disable_table_stacking=true --tf_mlir_enable_convert_control_to_data_outputs_pass=true --tf_mlir_enable_merge_control_flow_pass=true' &&"
           " TF_USE_LEGACY_KERAS=1 PYTHONPATH='.' python3 official/recommendation/ranking/train.py"
           f" --tpu={tpu_name} --model_dir=/tmp/output {extraFlags}"
           " --params_override='%s'" % str(params_override)

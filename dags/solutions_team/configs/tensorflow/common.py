@@ -126,3 +126,11 @@ def set_up_google_tensorflow_2_16_models() -> Tuple[str]:
       "pip install tensorflow-recommenders --no-deps",
       "pip install --upgrade --force-reinstall tf-keras==2.16.0rc0",
   )
+
+def set_up_dlrm_v5p() -> Tuple[str]:
+  """Setup DLRM on v5p TPUs"""
+  return (
+      "source /usr/share/tpu/four_tasks_per_host.sh",
+      "setup_four_tasks_per_host",
+  )
+
