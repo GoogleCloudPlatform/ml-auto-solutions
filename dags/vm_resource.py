@@ -30,7 +30,7 @@ class Project(enum.Enum):
   CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
   TPU_PROD_ENV_MULTIPOD = "tpu-prod-env-multipod"
   TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
-  TPU_PROD_ENV_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
+  CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
 
 
 class ImageProject(enum.Enum):

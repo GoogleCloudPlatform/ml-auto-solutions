@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-A DAG to run AOT compilation tests for MaxText model configs.
+A DAG to run MXLA MaxText tests.
 """
 import datetime
 from airflow import models
@@ -87,7 +87,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.TPU_PROD_ENV_MULTIPOD_DEV.value,
+      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   maxtext_nightly_2slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
@@ -100,7 +100,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.TPU_PROD_ENV_MULTIPOD_DEV.value,
+      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   maxtext_nightly_4slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
@@ -113,7 +113,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.TPU_PROD_ENV_MULTIPOD_DEV.value,
+      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   maxtext_nightly_8slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
@@ -126,7 +126,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.TPU_PROD_ENV_MULTIPOD_DEV.value,
+      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   (
