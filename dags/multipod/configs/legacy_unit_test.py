@@ -48,7 +48,6 @@ def get_legacy_unit_test_config(
   )
 
   run_model_cmds = (
-      'set -xue',
       f'git clone https://github.com/GoogleCloudPlatform/ml-auto-solutions',
       'cd ml-auto-solutions/dags/multipod/legacy_tests',
       'export TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 JAX_USE_PJRT_C_API_ON_TPU=1 TF_CPP_MIN_LOG_LEVEL=0',
