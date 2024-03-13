@@ -27,10 +27,11 @@ from xlml.utils import gke
 def generate_workload_id(benchmark_id: str) -> str:
   """Generate a valid workload ID."""
   import re
+
   short_id = str(uuid.uuid4())[:8]
   # Remove all non-alphanumeric characters, and truncate to ensure the result
   # is less than 40 characters.
-  short_benchmark = re.sub(r'[^a-zA-Z0-9-]+', '', benchmark_id)[:32]
+  short_benchmark = re.sub(r"[^a-zA-Z0-9-]+", "", benchmark_id)[:32]
   return f"{short_benchmark}{short_id}"
 
 
