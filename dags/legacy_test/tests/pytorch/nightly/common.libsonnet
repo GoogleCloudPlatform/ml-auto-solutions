@@ -140,8 +140,8 @@ local volumes = import 'templates/volumes.libsonnet';
         pip3 uninstall -y torch torchvision
         pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu
 
-        mkdir pytorch
-        git clone --depth=1 https://github.com/pytorch/xla.git pytorch
+        mkdir -p pytorch/xla
+        git clone --depth=1 https://github.com/pytorch/xla.git pytorch/xla
 
         %s
 
