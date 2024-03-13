@@ -24,7 +24,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'pytorch-2.3',
     },
-    imageTag: 'r2.3.0-rc1_3.10',
+    imageTag: 'r2.3.0-rc2_3.10',
   },
   PyTorchTest:: common.PyTorchTest + r2_3 {
     local config = self,
@@ -97,9 +97,9 @@ local volumes = import 'templates/volumes.libsonnet';
         # for huggingface tests
         sudo apt install -y libsndfile-dev
         pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/test/cpu
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc1-cp310-cp310-linux_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc2-cp310-cp310-linux_x86_64.whl
         pip install \
-          'torch_xla[tpuvm] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc1-cp310-cp310-linux_x86_64.whl'
+          'torch_xla[tpuvm] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc2-cp310-cp310-linux_x86_64.whl'
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
         cd pytorch
