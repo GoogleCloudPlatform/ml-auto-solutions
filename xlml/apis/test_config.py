@@ -263,7 +263,6 @@ def _load_compiled_jsonnet(test_name: str) -> Any:
   return test
 
 
-
 @attrs.define
 class GpuGkeTest(TestConfig[Gpu]):
   """Test config that runs on a single Cloud GPU instance in GKE cluster.
@@ -297,7 +296,6 @@ class GpuGkeTest(TestConfig[Gpu]):
   @property
   def test_script(self) -> str:
     return ';'.join(self.run_model_cmds)
-
 
 
 @attrs.define
@@ -403,11 +401,13 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   # TODO(wcromar): replace configmaps
   @property
   def test_script(self) -> str:
-    return '\n'.join([
-        'set -xue',
-        self.exports,
-        ' '.join(shlex.quote(s) for s in self.test_command),
-    ])
+    return '\n'.join(
+        [
+            'set -xue',
+            self.exports,
+            ' '.join(shlex.quote(s) for s in self.test_command),
+        ]
+    )
 
 
 @attrs.define

@@ -128,6 +128,7 @@ class ClusterName(enum.Enum):
 
   A3_CLUSTER = "maxtext-a3-20nodes"
 
+
 class DockerImage(enum.Enum):
   """Common docker images."""
 

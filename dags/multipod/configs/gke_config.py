@@ -21,6 +21,7 @@ from dags.multipod.configs import common
 from typing import Iterable
 import datetime
 
+
 def get_gke_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
@@ -177,4 +178,3 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
-

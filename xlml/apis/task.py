@@ -454,7 +454,9 @@ class GpuXpkTask(BaseTask):
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
-      run_name = name_format.generate_run_name(self.task_test_config.benchmark_id)
+      run_name = name_format.generate_run_name(
+          self.task_test_config.benchmark_id
+      )
       tb_file_location = name_format.generate_tb_file_location(
           run_name, self.task_metric_config.tensorboard_summary.file_location
       )
@@ -466,7 +468,9 @@ class GpuXpkTask(BaseTask):
       self.task_test_config.run_model_cmds = new_run_model_cmds
 
       # Update tensorboard file location
-      self.task_metric_config.tensorboard_summary.file_location = tb_file_location
+      self.task_metric_config.tensorboard_summary.file_location = (
+          tb_file_location
+      )
 
       run_name >> tb_file_location >> self.run_model() >> self.post_process()
 
