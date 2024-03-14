@@ -23,36 +23,36 @@ from dags.multipod.configs.common import SetupMode, Platform
 
 # Run once a day at 9 am UTC (1 am PST)
 SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
+DOCKER_IMAGE = {
+    SetupMode.STABLE: DockerImage.MAXTEXT_JAX_STABLE,
+    SetupMode.NIGHTLY: DockerImage.MAXTEXT_JAX_NIGHTLY,
+}
 
 
-for test_mode in [SetupMode.NIGHTLY, SetupMode.STABLE]:
-  with models.DAG(
-      dag_id=f"multipod_legacy_xlml_{test_mode.value}",
-      schedule=SCHEDULED_TIME,
-      tags=["multipod_team", "xlml", "legacy", test_mode.value],
-      start_date=datetime.datetime(2024, 1, 10),
-      catchup=False,
-      concurrency=2,
-  ) as dag:
-    docker_image = (
-        DockerImage.MAXTEXT_JAX_NIGHTLY
-        if test_mode == SetupMode.NIGHTLY
-        else DockerImage.MAXTEXT_JAX_STABLE
-    )
+with models.DAG(
+    dag_id=f"multipod_legacy_xlml",
+    schedule=SCHEDULED_TIME,
+    tags=["multipod_team", "xlml", "legacy", "stable", "nightly"],
+    start_date=datetime.datetime(2024, 1, 10),
+    catchup=False,
+    concurrency=2,
+) as dag:
+  for test_mode in [SetupMode.STABLE, SetupMode.NIGHTLY]:
     # Tests that require scripts from the `jax/unit_tests` folder should follow
     # this pattern.
     # TODO(jonbolin): Example for legacy unit test migration - evaluate whether
     # to remove gpt1-like tests once test migration is complete.
     for n_slice in [1, 2]:
       legacy_unit_test.get_legacy_unit_test_config(
+          script_to_copy="gpt1-like.py",
           test_cmd=("python3 gpt1-like.py",),
           tpu_version=TpuVersion.V4,
           tpu_cores=16,
           tpu_zone=Zone.US_CENTRAL2_B.value,
           time_out_in_min=60,
-          test_name=f"gpt1-like",
+          test_name=f"gpt1-like-{test_mode.value}",
           test_mode=test_mode,
-          docker_image=docker_image.value,
+          docker_image=DOCKER_IMAGE[test_mode].value,
           test_owner=test_owner.JON_B,
           num_slices=n_slice,
           cluster_name=ClusterName.V4_16_MULTISLICE_CLUSTER.value,
@@ -64,10 +64,10 @@ for test_mode in [SetupMode.NIGHTLY, SetupMode.STABLE]:
         tpu_cores=8,
         tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
-        test_name="maxtext-decode",
+        test_name=f"maxtext-decode-{test_mode.value}",
         run_model_cmds=(
-            "bash end_to_end/test_decode.sh 10 gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-decode-v4-8-1slice-stable",
+            f"bash end_to_end/test_decode.sh 10 gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-decode-v4-8-1slice-{test_mode.value}",
         ),
-        docker_image=docker_image.value,
+        docker_image=DOCKER_IMAGE[test_mode].value,
         test_owner=test_owner.JON_B,
     ).run()

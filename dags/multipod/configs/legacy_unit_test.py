@@ -17,6 +17,7 @@
 import datetime
 import os
 from xlml.apis import gcp_config, metric_config, task, test_config
+from base64 import b64encode
 from collections.abc import Iterable
 from dags import test_owner
 from dags.multipod.configs import common
@@ -24,7 +25,8 @@ from dags.vm_resource import TpuVersion, Project, RuntimeVersion, ClusterName
 
 
 def get_legacy_unit_test_config(
-    test_cmd: Iterable[str],
+    script_to_copy: str,
+    test_cmd: Iterable,
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
@@ -39,7 +41,8 @@ def get_legacy_unit_test_config(
 ) -> task.TpuXpkTask:
   """
   Run a legacy unit test script.
-  test_cmd will be executed within the `dags/multipod/legacy_tests` directory.
+  `script_to_copy` will be copied into the workload container, and `test_cmd`
+  will run in the same directory.
   """
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -47,9 +50,15 @@ def get_legacy_unit_test_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
+  unit_test_folder = os.environ.get(
+      'XLMLTEST_MULTIPOD_LEGACY_TEST_DIR',
+      '/home/airflow/gcs/dags/dags/multipod/legacy_tests',
+  )
+  with open(os.path.join(unit_test_folder, script_to_copy), 'rb') as f:
+    encoded_script = b64encode(f.read()).decode()
+
   run_model_cmds = (
-      f'git clone https://github.com/GoogleCloudPlatform/ml-auto-solutions',
-      'cd ml-auto-solutions/dags/multipod/legacy_tests',
+      f'echo {encoded_script} | base64 -d > {script_to_copy}',
       'export TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 JAX_USE_PJRT_C_API_ON_TPU=1 TF_CPP_MIN_LOG_LEVEL=0',
       *test_cmd,
   )
