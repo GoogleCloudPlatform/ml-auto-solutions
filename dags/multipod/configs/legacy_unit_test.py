@@ -40,8 +40,9 @@ def get_legacy_unit_test_config(
 ) -> task.TpuXpkTask:
   """
   Run a legacy unit test script.
-  `script_to_copy` will be copied into the workload container, and `test_cmd`
-  will run in the same directory.
+  `script_to_copy` is a script in the `dags/multipod/legacy_tests` folder to be
+  copied into the workload container, and `test_cmd` will run with the script
+  in the working directory.
   """
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
