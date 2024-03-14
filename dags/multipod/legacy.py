@@ -51,7 +51,6 @@ with models.DAG(
           tpu_zone=Zone.US_CENTRAL2_B.value,
           time_out_in_min=60,
           test_name=f"gpt1-like-{test_mode.value}",
-          test_mode=test_mode,
           docker_image=DOCKER_IMAGE[test_mode].value,
           test_owner=test_owner.JON_B,
           num_slices=n_slice,

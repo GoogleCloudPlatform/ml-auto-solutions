@@ -32,7 +32,6 @@ def get_legacy_unit_test_config(
     tpu_zone: str,
     time_out_in_min: int,
     test_name: str,
-    test_mode: common.SetupMode,
     test_owner: str,
     docker_image: str,
     num_slices: int = 1,
