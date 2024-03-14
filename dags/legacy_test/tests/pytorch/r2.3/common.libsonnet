@@ -20,9 +20,9 @@ local volumes = import 'templates/volumes.libsonnet';
 
 {
   local r2_3 = {
-    frameworkPrefix: 'pt-2.3',
+    frameworkPrefix: 'pt-2_3',
     tpuSettings+: {
-      softwareVersion: 'pytorch-2.3',
+      softwareVersion: 'tpu-ubuntu2204-base',
     },
     imageTag: 'r2.3.0-rc2_3.10',
   },
