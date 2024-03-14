@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -97,8 +97,8 @@ local volumes = import 'templates/volumes.libsonnet';
         # for huggingface tests
         sudo apt install -y libsndfile-dev
         # Install torchvision by pinned commit in PyTorch 2.3 release branch.
-        pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@2c127da8b5e2e8f44b50994c6cb931bcca267cfe
         pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch-2.3.0rc2-cp310-cp310-linux_x86_64.whl
+        pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@2c127da8b5e2e8f44b50994c6cb931bcca267cfe"
         pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc2-cp310-cp310-linux_x86_64.whl
         pip install \
           'torch_xla[tpuvm] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc2-cp310-cp310-linux_x86_64.whl'
