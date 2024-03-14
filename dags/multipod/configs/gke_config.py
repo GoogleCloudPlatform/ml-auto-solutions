@@ -169,7 +169,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
-      owner=test_owner,
+      task_owner=test_owner,
       cluster_name=cluster_name,
       docker_image=docker_image,
   )

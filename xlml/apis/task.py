@@ -484,7 +484,9 @@ class GpuXpkTask(BaseTask):
     """
     with TaskGroup(group_id="run_model") as group:
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
-      run_workload = xpk.run_workload(
+      run_workload = xpk.run_workload.override(
+          owner=self.task_test_config.task_owner
+      )(
           task_id="run_workload",
           cluster_project=self.task_gcp_config.project_name,
           zone=self.task_gcp_config.zone,
@@ -494,8 +496,6 @@ class GpuXpkTask(BaseTask):
           docker_image=self.task_test_config.docker_image,
           accelerator_type=self.task_test_config.accelerator.name,
           run_cmds=self.task_test_config.test_script,
-          task_owner=self.task_test_config.task_owner,
-          startup_timeout=self.task_test_config.startup_time_out_in_sec,
           num_slices=self.task_test_config.num_slices,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
