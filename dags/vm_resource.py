@@ -93,7 +93,7 @@ class GpuVersion(enum.Enum):
 
   L4 = "nvidia-l4"
   A100 = "nvidia-tesla-a100"
-  H100 = "nvidia-h100-80gb"
+  H100 = "h100-80gb-8"
   V100 = "nvidia-tesla-v100"
 
 
@@ -126,7 +126,7 @@ class ClusterName(enum.Enum):
   V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
   V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
 
-  A3_CLUSTER = "maxtext-a3-20nodes"
+  A3_CLUSTER = "maxtext-a3-20n"
 
 
 class DockerImage(enum.Enum):
