@@ -31,6 +31,7 @@ class Project(enum.Enum):
   TPU_PROD_ENV_MULTIPOD = "tpu-prod-env-multipod"
   TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
+  GPU_PROD_ENV_MULTIPOD = "supercomputer-testing"
 
 
 class ImageProject(enum.Enum):
@@ -62,6 +63,8 @@ class Zone(enum.Enum):
   US_EAST1_C = "us-east1-c"
   # reserved v3-8 & reserved/on-demand v3-32 in cloud-ml-auto-solutions
   US_EAST1_D = "us-east1-d"
+  # reserved/on-demand 20 a3 nodes in supercomputer-testing
+  US_EAST4_B = "us-east4-b"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
 
@@ -125,6 +128,7 @@ class ClusterName(enum.Enum):
   V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
   V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
 
+  A3_CLUSTER = "maxtext-a3-20nodes"
 
 class DockerImage(enum.Enum):
   """Common docker images."""
@@ -133,3 +137,5 @@ class DockerImage(enum.Enum):
   XPK_MAXTEXT_TEST = "gcr.io/tpu-prod-env-multipod/xpk_maxtext_test:latest"
   MAXTEXT_JAX_STABLE = f"gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:{datetime.datetime.today().strftime('%Y-%m-%d')}"
   MAXTEXT_JAX_NIGHTLY = f"gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  MAXTEXT_GPU_JAX_STABLE = f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable:{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  MAXTEXT_GPU_JAX_NIGHTLY = f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_nightly:{datetime.datetime.today().strftime('%Y-%m-%d')}"

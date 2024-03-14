@@ -16,10 +16,10 @@
 
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Project, ClusterName
+from dags.vm_resource import TpuVersion, Project, ClusterName, MachineVersion, ImageProject, ImageFamily, GpuVersion, RuntimeVersion
+from dags.multipod.configs import common
 from typing import Iterable
 import datetime
-
 
 def get_gke_config(
     tpu_version: TpuVersion,
@@ -128,3 +128,53 @@ def get_gke_maxtext_nightly_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
+
+
+def get_maxtext_end_to_end_gpu_gke_test_config(
+    machine_type: MachineVersion,
+    image_family: ImageFamily,
+    accelerator_type: GpuVersion,
+    gpu_cores: int,
+    gpu_zone: str,
+    time_out_in_min: int,
+    test_name: str,
+    test_script: str,
+    test_mode: common.SetupMode,
+    cluster_name: str,
+    test_owner: str,
+    docker_image: str,
+    project_name: str = Project.GPU_PROD_ENV_MULTIPOD.value,
+    runtime_version: str = RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+) -> task.GpuCreateResourceTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=project_name,
+      zone=gpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+  )
+
+  test_platform = common.Platform.GCE
+  set_up_cmds = common.setup_maxtext(test_mode, test_platform)
+  run_model_cmds = (f"cd /tmp/maxtext && bash end_to_end/{test_script}.sh",)
+
+  job_test_config = test_config.GpuGkeTest(
+      test_config.Gpu(
+          machine_type=machine_type.value,
+          image_family=image_family.value,
+          count=gpu_cores,
+          accelerator_type=accelerator_type.value,
+          runtime_version=runtime_version,
+      ),
+      test_name=test_name,
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      time_out_in_min=time_out_in_min,
+      task_owner=test_owner,
+      cluster_name=cluster_name,
+      docker_image=docker_image,
+  )
+
+  return task.GpuXpkTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
