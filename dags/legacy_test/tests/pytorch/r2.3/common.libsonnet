@@ -96,7 +96,9 @@ local volumes = import 'templates/volumes.libsonnet';
         sudo apt install -y libopenblas-base
         # for huggingface tests
         sudo apt install -y libsndfile-dev
-        pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/test/cpu
+        # Install torchvision by pinned commit in PyTorch 2.3 release branch.
+        pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@2c127da8b5e2e8f44b50994c6cb931bcca267cfe
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch-2.3.0rc2-cp310-cp310-linux_x86_64.whl
         pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc2-cp310-cp310-linux_x86_64.whl
         pip install \
           'torch_xla[tpuvm] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.3.0rc2-cp310-cp310-linux_x86_64.whl'
@@ -141,9 +143,8 @@ local volumes = import 'templates/volumes.libsonnet';
         pip3 uninstall -y torch torchvision
         pip3 install torch==2.3.0 torchvision --index-url https://download.pytorch.org/whl/test/cpu
 
-        mkdir pytorch
-        wget https://github.com/pytorch/xla/archive/refs/heads/master.tar.gz -O - | tar xzf -
-        mv xla-master pytorch/xla
+        mkdir -p pytorch/xla
+        git clone --depth=1 https://github.com/pytorch/xla.git pytorch/xla
 
         %s
 
