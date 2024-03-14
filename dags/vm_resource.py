@@ -55,7 +55,7 @@ class Zone(enum.Enum):
   US_CENTRAL1_B = "us-central1-b"
   # reserved v4-8 & v4-32 in cloud-ml-auto-solutions
   US_CENTRAL2_B = "us-central2-b"
-  # reserved/on-demand v2-8 in cloud-ml-auto-solutions
+  # reserved/on-demand v2-8 in cloud-ml-auto-solutions & reserved h100 in supercomputer-testing
   US_CENTRAL1_C = "us-central1-c"
   # committed resource for A100
   US_CENTRAL1_F = "us-central1-f"
@@ -63,8 +63,6 @@ class Zone(enum.Enum):
   US_EAST1_C = "us-east1-c"
   # reserved v3-8 & reserved/on-demand v3-32 in cloud-ml-auto-solutions
   US_EAST1_D = "us-east1-d"
-  # reserved/on-demand 20 a3 nodes in supercomputer-testing
-  US_EAST4_B = "us-east4-b"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
 
@@ -137,5 +135,5 @@ class DockerImage(enum.Enum):
   XPK_MAXTEXT_TEST = "gcr.io/tpu-prod-env-multipod/xpk_maxtext_test:latest"
   MAXTEXT_JAX_STABLE = f"gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:{datetime.datetime.today().strftime('%Y-%m-%d')}"
   MAXTEXT_JAX_NIGHTLY = f"gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  MAXTEXT_GPU_JAX_STABLE = f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable:{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  MAXTEXT_GPU_JAX_NIGHTLY = f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_nightly:{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  MAXTEXT_GPU_JAX_STABLE = f"gcr.io/supercomputer-testing/maxtext_gpu_jax_stable:{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  MAXTEXT_GPU_JAX_NIGHTLY = f"gcr.io/supercomputer-testing/maxtext_gpu_jax_nightly:{datetime.datetime.today().strftime('%Y-%m-%d')}"
