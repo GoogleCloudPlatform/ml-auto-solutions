@@ -401,13 +401,11 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   # TODO(wcromar): replace configmaps
   @property
   def test_script(self) -> str:
-    return '\n'.join(
-        [
-            'set -xue',
-            self.exports,
-            ' '.join(shlex.quote(s) for s in self.test_command),
-        ]
-    )
+    return '\n'.join([
+        'set -xue',
+        self.exports,
+        ' '.join(shlex.quote(s) for s in self.test_command),
+    ])
 
 
 @attrs.define

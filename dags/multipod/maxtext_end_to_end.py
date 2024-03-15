@@ -82,7 +82,7 @@ with models.DAG(
           time_out_in_min=300,
           test_name=f"{test_name_prefix}-stable-{test_script}",
           test_script=test_script,
-          test_mode=SetupMode.STABLE ,
+          test_mode=SetupMode.STABLE,
           cluster_name=ClusterName.A3_CLUSTER.value,
           docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
           test_owner=test_owner.NINA_C,
