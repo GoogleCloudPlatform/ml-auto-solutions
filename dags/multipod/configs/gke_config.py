@@ -114,6 +114,7 @@ def get_gke_maxtext_nightly_config(
 
   run_model_cmds = (
       (
+          "bash preflight.sh PLATFORM=GKE; "
           "JAX_PLATFORM_NAME=TPU XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/'"
           " ENABLE_PJRT_COMPATIBILITY=true"
           f" python3 MaxText/train.py MaxText/configs/base.yml run_name={run_name}"
