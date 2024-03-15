@@ -54,7 +54,6 @@ def _run_workload(
       "set -xue",
       "git clone https://github.com/google/xpk.git /tmp/xpk",
       "cd /tmp/xpk",
-      "git checkout cda06bc280033f834e917cd1c5dcb1c8c95266ef",
       "gcloud components install kubectl",
       f"gcloud config set project {cluster_project}",
       f"gcloud config set compute/zone {zone}",
