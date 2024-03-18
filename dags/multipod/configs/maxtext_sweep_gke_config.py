@@ -37,7 +37,7 @@ def get_maxtext_sweep_gke_config(
     base_set_up_cmds: Iterable[str] = None,
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.BENCHMARK_DATASET,
     metric_aggregation_strategy: metric_config.AggregationStrategy = metric_config.AggregationStrategy.MEDIAN,
-) -> List[task.TpuXpkTask]:
+) -> List[task.XpkTask]:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -54,7 +54,7 @@ def get_maxtext_sweep_gke_config(
   for param, values in sweep_params.items():
     sweep_params_list.append([(param, val) for val in values])
 
-  # Generate all combinations of sweep param configurations and create a TpuXpkTask for each one
+  # Generate all combinations of sweep param configurations and create a XpkTask for each one
   xpk_task_list = []
   for idx, config in enumerate(itertools.product(*sweep_params_list)):
     config_dict = {key: value for (key, value) in config}
@@ -93,7 +93,7 @@ def get_maxtext_sweep_gke_config(
         ),
     )
 
-    xpk_task = task.TpuXpkTask(
+    xpk_task = task.XpkTask(
         task_test_config=job_test_config,
         task_gcp_config=job_gcp_config,
         task_metric_config=job_metric_config,

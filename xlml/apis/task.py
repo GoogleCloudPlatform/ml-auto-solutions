@@ -308,16 +308,16 @@ class TpuQueuedResourceTask(BaseTask):
 
 
 @dataclasses.dataclass
-class TpuXpkTask(BaseTask):
-  """This is a class to set up tasks for TPU provisioned by XPK tool.
+class XpkTask(BaseTask):
+  """This is a class to set up tasks for TPU/GPU provisioned by XPK tool.
 
   Attributes:
-    task_test_config: Test configs to run on this TPU.
-    task_gcp_config: Runtime TPU creation parameters.
+    task_test_config: Test configs to run on this TPU/GPU.
+    task_gcp_config: Runtime TPU/GPU creation parameters.
     task_metric_config: Metric configs to process metrics.
   """
 
-  task_test_config: test_config.TestConfig[test_config.Tpu]
+  task_test_config: test_config.TestConfig[None]
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
 
@@ -367,117 +367,7 @@ class TpuXpkTask(BaseTask):
     return group
 
   def run_model(self) -> DAGNode:
-    """Run the TPU test in `task_test_config` using xpk.
-
-    Returns:
-      A DAG node that executes the model test.
-    """
-    with TaskGroup(group_id="run_model") as group:
-      workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
-      run_workload = xpk.run_workload.override(
-          owner=self.task_test_config.task_owner
-      )(
-          task_id="run_workload",
-          cluster_project=self.task_gcp_config.project_name,
-          zone=self.task_gcp_config.zone,
-          cluster_name=self.task_test_config.cluster_name,
-          benchmark_id=self.task_test_config.benchmark_id,
-          workload_id=workload_id,
-          docker_image=self.task_test_config.docker_image,
-          accelerator_type=self.task_test_config.accelerator.name,
-          run_cmds=self.task_test_config.test_script,
-          num_slices=self.task_test_config.num_slices,
-      )
-      wait_for_workload_completion = xpk.wait_for_workload_completion.override(
-          timeout=self.task_test_config.time_out_in_min * 60,
-      )(
-          workload_id=workload_id,
-          project_id=self.task_gcp_config.project_name,
-          region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_test_config.cluster_name,
-      )
-
-      workload_id >> run_workload >> wait_for_workload_completion
-      return group
-
-  def post_process(self) -> DAGNode:
-    """Process metrics and metadata, and insert them into BigQuery tables.
-
-    Returns:
-      A DAG node that executes the post process.
-    """
-    with TaskGroup(group_id="post_process") as group:
-      process_id = metric.generate_process_id.override(retries=0)()
-      metric.process_metrics.override(retries=0)(
-          process_id,
-          self.task_test_config,
-          self.task_metric_config,
-          self.task_gcp_config,
-      )
-
-      return group
-
-
-@dataclasses.dataclass
-class GpuXpkTask(BaseTask):
-  """This is a class to set up tasks for GPU provisioned by XPK tool.
-
-  Attributes:
-    task_test_config: Test configs to run on this GPU.
-    task_gcp_config: Runtime GPU creation parameters.
-    task_metric_config: Metric configs to process metrics.
-  """
-
-  task_test_config: test_config.TestConfig[test_config.Gpu]
-  task_gcp_config: gcp_config.GCPConfig
-  task_metric_config: Optional[metric_config.MetricConfig] = None
-
-  def run(self) -> DAGNode:
-    """Run a test job within a docker image.
-
-    Returns:
-      A task group with the following tasks chained: run_model and
-      post_process.
-    """
-    with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
-      self.run_model() >> self.post_process()
-
-    return group
-
-  def run_with_run_name_generation(self) -> DAGNode:
-    """Generate a unique run name and tensorboard file location, then run a test job within a docker image.
-
-    Returns:
-      A task group with the following tasks chained: generate_run_name, generate_tb_file_location, run provision, run_model,
-      post_process.
-    """
-    with TaskGroup(
-        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
-    ) as group:
-      run_name = name_format.generate_run_name(
-          self.task_test_config.benchmark_id
-      )
-      tb_file_location = name_format.generate_tb_file_location(
-          run_name, self.task_metric_config.tensorboard_summary.file_location
-      )
-
-      # Set run_name in run_model_cmds
-      new_run_model_cmds = [f"export M_RUN_NAME={run_name}"]
-      for cmd in self.task_test_config.run_model_cmds:
-        new_run_model_cmds.append(cmd)
-      self.task_test_config.run_model_cmds = new_run_model_cmds
-
-      # Update tensorboard file location
-      self.task_metric_config.tensorboard_summary.file_location = (
-          tb_file_location
-      )
-
-      run_name >> tb_file_location >> self.run_model() >> self.post_process()
-
-    return group
-
-  def run_model(self) -> DAGNode:
-    """Run the GPU test in `task_test_config` using xpk.
+    """Run the TPU/GPU test in `task_test_config` using xpk.
 
     Returns:
       A DAG node that executes the model test.

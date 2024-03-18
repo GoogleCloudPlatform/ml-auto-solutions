@@ -37,7 +37,7 @@ def get_gke_config(
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-) -> task.TpuXpkTask:
+) -> task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -61,7 +61,7 @@ def get_gke_config(
       docker_image=docker_image,
   )
 
-  return task.TpuXpkTask(
+  return task.XpkTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -81,7 +81,7 @@ def get_gke_maxtext_nightly_config(
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-) -> task.TpuXpkTask:
+) -> task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -125,7 +125,7 @@ def get_gke_maxtext_nightly_config(
       docker_image=docker_image,
   )
 
-  return task.TpuXpkTask(
+  return task.XpkTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -140,11 +140,10 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     time_out_in_min: int,
     test_name: str,
     test_script: str,
-    test_mode: common.SetupMode,
     cluster_name: str,
     test_owner: str,
     docker_image: str,
-    project_name: str = Project.GPU_PROD_ENV_MULTIPOD.value,
+    project_name: str = Project.SUPERCOMPUTER_TESTING.value,
     runtime_version: str = RuntimeVersion.TPU_UBUNTU2204_BASE.value,
 ) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
@@ -152,9 +151,6 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       zone=gpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
-
-  test_platform = common.Platform.GCE
-  set_up_cmds = common.setup_maxtext(test_mode, test_platform)
   run_model_cmds = (f"cd /tmp/maxtext && bash end_to_end/{test_script}.sh",)
 
   job_test_config = test_config.GpuGkeTest(
@@ -166,7 +162,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
           runtime_version=runtime_version,
       ),
       test_name=test_name,
-      set_up_cmds=set_up_cmds,
+      set_up_cmds=None,
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
       task_owner=test_owner,

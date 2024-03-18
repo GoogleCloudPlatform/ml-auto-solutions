@@ -43,8 +43,7 @@ with models.DAG(
       "gpt3": ["test_gpt3"],
   }
 
-  maxtext_end2end_tpu = [DummyOperator(task_id="maxtext_end2end_tpu")]
-  maxtext_end2end_gpu = [DummyOperator(task_id="maxtext_end2end_gpu")]
+
 
   for model in test_models.keys():
     for test_script in test_models[model]:
@@ -68,15 +67,10 @@ with models.DAG(
           docker_image=DockerImage.MAXTEXT_JAX_NIGHTLY.value,
           test_owner=test_owner.JON_B,
       ).run()
-      maxtext_end2end_tpu[-1] >> stable_tpu
-      maxtext_end2end_tpu.append(stable_tpu)
-      maxtext_end2end_tpu[-1] >> nightly_tpu
-      maxtext_end2end_tpu.append(nightly_tpu)
-
       stable_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
           machine_type=MachineVersion.A3_HIGHGPU_8G,
           image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-          accelerator_type=GpuVersion.H100,
+          accelerator_type=GpuVersion.XPK_H100,
           gpu_cores=8,
           gpu_zone=Zone.US_CENTRAL1_C.value,
           time_out_in_min=300,
@@ -90,7 +84,7 @@ with models.DAG(
       nightly_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
           machine_type=MachineVersion.A3_HIGHGPU_8G,
           image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-          accelerator_type=GpuVersion.H100,
+          accelerator_type=GpuVersion.XPK_H100,
           gpu_cores=8,
           gpu_zone=Zone.US_CENTRAL1_C.value,
           time_out_in_min=300,
@@ -101,7 +95,5 @@ with models.DAG(
           docker_image=DockerImage.MAXTEXT_GPU_JAX_NIGHTLY.value,
           test_owner=test_owner.NINA_C,
       ).run()
-      maxtext_end2end_gpu[-1] >> stable_gpu
-      maxtext_end2end_gpu.append(stable_gpu)
-      maxtext_end2end_gpu[-1] >> nightly_gpu
-      maxtext_end2end_gpu.append(nightly_gpu)
+      stable_tpu >> nightly_tpu >> stable_gpu >> nightly_gpu
+
