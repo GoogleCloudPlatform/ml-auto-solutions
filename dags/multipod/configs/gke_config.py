@@ -170,7 +170,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       docker_image=docker_image,
   )
 
-  return task.GpuXpkTask(
+  return task.XpkTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

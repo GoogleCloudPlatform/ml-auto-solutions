@@ -18,7 +18,7 @@
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, DockerImage, MachineVersion, ImageProject, ImageFamily, GpuVersion, ClusterName
+from dags.vm_resource import TpuVersion, Zone, DockerImage, MachineVersion, ImageFamily, GpuVersion, ClusterName
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode, Platform
 from airflow.operators.dummy import DummyOperator
@@ -42,8 +42,6 @@ with models.DAG(
       "gemma": ["test_gemma"],
       "gpt3": ["test_gpt3"],
   }
-
-
 
   for model in test_models.keys():
     for test_script in test_models[model]:
@@ -76,7 +74,6 @@ with models.DAG(
           time_out_in_min=300,
           test_name=f"{test_name_prefix}-stable-{test_script}",
           test_script=test_script,
-          test_mode=SetupMode.STABLE,
           cluster_name=ClusterName.A3_CLUSTER.value,
           docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
           test_owner=test_owner.NINA_C,
@@ -90,7 +87,6 @@ with models.DAG(
           time_out_in_min=300,
           test_name=f"{test_name_prefix}-nightly-{test_script}",
           test_script=test_script,
-          test_mode=SetupMode.NIGHTLY,
           cluster_name=ClusterName.A3_CLUSTER.value,
           docker_image=DockerImage.MAXTEXT_GPU_JAX_NIGHTLY.value,
           test_owner=test_owner.NINA_C,
