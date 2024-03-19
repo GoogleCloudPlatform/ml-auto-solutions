@@ -34,6 +34,7 @@ TONY_C = "Tony C."
 JON_B = "Jon B."
 RAYMOND_Z = "Raymond Z."
 MATT_D = "Matt D."
+PRIYANKA_G = "Priyanka G."
 
 # MLCompass
 ORTI_B = "Orti B."
