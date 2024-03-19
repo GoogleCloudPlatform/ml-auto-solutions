@@ -103,16 +103,16 @@ def set_up_torchbench_tpu(
       "sudo apt-get install libgl1 -y",
       "pip3 install --user numpy pandas",
       (
-          f"pip3 install --user --pre {version_mapping.TORCH} {version_mapping.TORCHVISION} {version_mapping.TORCHAUDIO} --index-url {version_mapping.TORCH_INDEX_CPU_URL}"
+          f"pip3 install --user --pre {version_mapping.TORCH.value} {version_mapping.TORCHVISION.value} {version_mapping.TORCHAUDIO.value} --index-url {version_mapping.TORCH_INDEX_CPU_URL.value}"
       ),
       (
-          f"pip3 install --user 'torch_xla[tpuvm] @{version_mapping.TORCH_XLA_TPU_WHEEL}'"
+          f"pip3 install --user 'torch_xla[tpuvm] @{version_mapping.TORCH_XLA_TPU_WHEEL.value}'"
       ),
       "pip3 install --user psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
       f"cd benchmark && {model_install_cmds()}",
-      f"cd; git clone {version_mapping.TORCH_REPO_BRANCH} https://github.com/pytorch/pytorch.git",
-      f"cd; git clone {version_mapping.TORCH_XLA_REPO_BRANCH} https://github.com/pytorch/xla.git",
+      f"cd; git clone {version_mapping.TORCH_REPO_BRANCH.value} https://github.com/pytorch/pytorch.git",
+      f"cd; git clone {version_mapping.TORCH_XLA_REPO_BRANCH.value} https://github.com/pytorch/xla.git",
   )
 
 
@@ -237,11 +237,11 @@ def set_up_torchbench_gpu(
       # Below are the dependencies for benchmark data processing:
       "pip3 install --user numpy pandas",
       # torch related dependencies
-      f"pip3 install --user --pre {version_mapping.TORCH} {version_mapping.TORCHVISION} {version_mapping.TORCHAUDIO} --index-url {version_mapping.TORCH_INDEX_CUDA_URL}",
+      f"pip3 install --user --pre {version_mapping.TORCH.value} {version_mapping.TORCHVISION.value} {version_mapping.TORCHAUDIO.value} --index-url {version_mapping.TORCH_INDEX_CUDA_URL.value}",
       f"cd /tmp/ && git clone https://github.com/pytorch/benchmark.git",
       f" cd benchmark && {model_install_cmds()}",
-      f"cd /tmp/ && git clone {version_mapping.TORCH_REPO_BRANCH} https://github.com/pytorch/pytorch.git",
-      f"cd /tmp/ && git clone {version_mapping.TORCH_XLA_REPO_BRANCH} https://github.com/pytorch/xla.git",
+      f"cd /tmp/ && git clone {version_mapping.TORCH_REPO_BRANCH.value} https://github.com/pytorch/pytorch.git",
+      f"cd /tmp/ && git clone {version_mapping.TORCH_XLA_REPO_BRANCH.value} https://github.com/pytorch/xla.git",
   )
   docker_cmds = "\n".join(docker_cmds_ls)
 
@@ -256,10 +256,10 @@ def set_up_torchbench_gpu(
       "sudo nvidia-smi --lock-gpu-clocks=1200,1200",
       "sudo systemctl restart docker",
       "sudo nvidia-smi -pm 1",
-      f"sudo docker pull {version_mapping.TORCH_XLA_GPU_DOCKER}",
+      f"sudo docker pull {version_mapping.TORCH_XLA_GPU_DOCKER.value}",
       (
           "sudo docker run --shm-size 16g --gpus all -it -d --network host --name ml-automation-torchbench"
-          f" {version_mapping.TORCH_XLA_GPU_DOCKER}"
+          f" {version_mapping.TORCH_XLA_GPU_DOCKER.value}"
       ),
       f"sudo docker exec -i ml-automation-torchbench /bin/bash -c '{docker_cmds}'",
   )
