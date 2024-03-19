@@ -320,6 +320,9 @@ class XpkTask(BaseTask):
   task_test_config: Union[test_config.TpuGkeTest, test_config.GpuXpkTest]
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
+  workload_provision_timeout: datetime.timedelta = datetime.timedelta(
+      minutes=60
+  )
 
   def run(self) -> DAGNode:
     """Run a test job within a docker image.
@@ -388,6 +391,22 @@ class XpkTask(BaseTask):
           run_cmds=self.task_test_config.test_script,
           num_slices=self.task_test_config.num_slices,
       )
+      monitor_workload = self.monitor_workload(workload_id)
+
+      workload_id >> run_workload >> monitor_workload
+      return group
+
+  def monitor_workload(self, workload_id: str) -> DAGNode:
+    """Watch for the workload to provision and execute."""
+    with TaskGroup(group_id="monitor_workload") as group:
+      wait_for_workload_start = xpk.wait_for_workload_start.override(
+          timeout=self.workload_provision_timeout.total_seconds()
+      )(
+          workload_id=workload_id,
+          project_id=self.task_gcp_config.project_name,
+          region=self.task_gcp_config.zone[:-2],
+          cluster_name=self.task_test_config.cluster_name,
+      )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=self.task_test_config.time_out_in_min * 60,
       )(
@@ -396,8 +415,7 @@ class XpkTask(BaseTask):
           region=self.task_gcp_config.zone[:-2],
           cluster_name=self.task_test_config.cluster_name,
       )
-
-      workload_id >> run_workload >> wait_for_workload_completion
+      wait_for_workload_start >> wait_for_workload_completion
       return group
 
   def post_process(self) -> DAGNode:
