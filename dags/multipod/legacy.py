@@ -28,6 +28,7 @@ DOCKER_IMAGE = {
     SetupMode.NIGHTLY: DockerImage.MAXTEXT_JAX_NIGHTLY,
 }
 
+# TFLOPS threshold values by configuration
 tflop_thresholds = {
   'v4-8': {
     '1': 130,
@@ -86,6 +87,7 @@ with models.DAG(
         test_owner=test_owner.JON_B,
     ).run()
 
+    # v4-8 1 slice TFLOPS test
     gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=8,
@@ -99,6 +101,7 @@ with models.DAG(
         test_owner=test_owner.PRIYANKA_G,
     ).run()
 
+    # v4-16 1 and 2 slice TFLOPS test
     for n_slice in [1, 2]:
       gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
@@ -115,6 +118,7 @@ with models.DAG(
         test_owner=test_owner.PRIYANKA_G,
       ).run()
 
+  # v4-8 2 slices checkpoint resharding test
   gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=8,
