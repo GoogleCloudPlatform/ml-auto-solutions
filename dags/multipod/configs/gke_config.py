@@ -16,7 +16,12 @@
 
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Project, ClusterName, MachineVersion, ImageProject, ImageFamily, GpuVersion, RuntimeVersion
+from dags.vm_resource import (
+    TpuVersion,
+    Project,
+    ClusterName,
+    GpuVersion,
+)
 from dags.multipod.configs import common
 from typing import Iterable
 import datetime
@@ -132,10 +137,7 @@ def get_gke_maxtext_nightly_config(
 
 
 def get_maxtext_end_to_end_gpu_gke_test_config(
-    machine_type: MachineVersion,
-    image_family: ImageFamily,
     accelerator_type: GpuVersion,
-    gpu_cores: int,
     gpu_zone: str,
     time_out_in_min: int,
     test_name: str,
@@ -144,7 +146,6 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     test_owner: str,
     docker_image: str,
     project_name: str = Project.SUPERCOMPUTER_TESTING.value,
-    runtime_version: str = RuntimeVersion.TPU_UBUNTU2204_BASE.value,
 ) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -155,11 +156,11 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
 
   job_test_config = test_config.GpuGkeTest(
       test_config.Gpu(
-          machine_type=machine_type.value,
-          image_family=image_family.value,
-          count=gpu_cores,
+          machine_type=None,
+          image_family=None,
+          count=None,
           accelerator_type=accelerator_type.value,
-          runtime_version=runtime_version,
+          runtime_version=None,
       ),
       test_name=test_name,
       set_up_cmds=None,
