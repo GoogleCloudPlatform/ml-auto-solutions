@@ -35,7 +35,7 @@ class VERSION_MAPPING:
     TORCH = "torch"
     TORCHVISION = "torchvision"
     TORCHAUDIO = "torchaudio"
-    #TODO(@piz): update to xla:nightly_3.10_cuda_12.1 once available
+    # TODO(@piz): update to xla:nightly_3.10_cuda_12.1 once available
     TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
     TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/nightly/cpu"
     TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/nightly/cu121"
