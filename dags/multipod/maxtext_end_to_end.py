@@ -18,10 +18,8 @@
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, DockerImage, MachineVersion, ImageFamily, GpuVersion, ClusterName
+from dags.vm_resource import TpuVersion, Zone, DockerImage, GpuVersion, ClusterName
 from dags.multipod.configs import gke_config
-from dags.multipod.configs.common import SetupMode, Platform
-from airflow.operators.dummy import DummyOperator
 
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -66,10 +64,7 @@ with models.DAG(
           test_owner=test_owner.JON_B,
       ).run()
       stable_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-          # machine_type=MachineVersion.A3_HIGHGPU_8G,
-          # image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
           accelerator_type=GpuVersion.XPK_H100,
-          # gpu_cores=8,
           gpu_zone=Zone.US_CENTRAL1_C.value,
           time_out_in_min=300,
           test_name=f"{test_name_prefix}-stable-{test_script}",
@@ -79,10 +74,7 @@ with models.DAG(
           test_owner=test_owner.NINA_C,
       ).run()
       nightly_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-          # machine_type=MachineVersion.A3_HIGHGPU_8G,
-          # image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
           accelerator_type=GpuVersion.XPK_H100,
-          # gpu_cores=8,
           gpu_zone=Zone.US_CENTRAL1_C.value,
           time_out_in_min=300,
           test_name=f"{test_name_prefix}-nightly-{test_script}",
