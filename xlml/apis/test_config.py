@@ -105,7 +105,7 @@ class Gpu(Accelerator):
   image_family: str
   count: int
   accelerator_type: str
-  runtime_version: str
+  runtime_version: Optional[str] = None
 
   @property
   def name(self):
