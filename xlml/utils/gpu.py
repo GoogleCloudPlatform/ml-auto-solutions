@@ -20,6 +20,10 @@ from __future__ import annotations
 from absl import logging
 import airflow
 from airflow.decorators import task, task_group
+from airflow.models import TaskInstance
+from airflow.models.taskinstance import clear_task_instances
+from airflow.utils.db import provide_session
+from airflow.operators.python import get_current_context
 import datetime
 import fabric
 from google.cloud import compute_v1
@@ -109,12 +113,30 @@ def generate_gpu_name() -> str:
   return f"gpu-{str(uuid.uuid4())}"
 
 
+@task(provide_context=True)
+def select_zone(gcp: gcp_config.GCPConfig) -> airflow.XComArg:
+  context = get_current_context()
+  try_count = context["task_instance"].try_number - 1
+  if try_count >= len(gcp.zone):
+    raise ValueError(
+        "Unable to continue resource provision on a different zone."
+    )
+  # try_number starts from 1. So we minus 1 here for 0 index.
+  zone = gcp.zone[try_count]
+  logging.info(
+      f"create resource request trial number {try_count} using zone {zone}"
+  )
+  return zone
+
+
 @task_group
 def create_resource(
     gpu_name: airflow.XComArg,
+    zone: airflow.XComArg,
     image_project: str,
     image_family: str,
     accelerator: test_config.Gpu,
+    benchmark_id: str,
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
@@ -134,11 +156,11 @@ def create_resource(
     The ip address of the GPU VM.
   """
   project_id = gcp.project_name
-  zone = gcp.zone
 
-  @task
+  @task(retries=1)
   def create_resource_request(
       instance_name: str,
+      zone: str,
       accelerator: test_config.Gpu,
       ssh_keys: ssh.SshKeys,
       instance_termination_action: str,
@@ -165,9 +187,10 @@ def create_resource(
     Returns:
         Ip address of the instance object created.
     """
+
     machine_type = accelerator.machine_type
     image = get_image_from_family(project=image_project, family=image_family)
-    disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
+    disk_type = f"zones/{zone}/diskTypes/pd-ssd"
     disks = [disk_from_image(disk_type, 100, True, image.self_link)]
     metadata = create_metadata({
         "install-nvidia-driver": "False",
@@ -179,7 +202,7 @@ def create_resource(
         compute_v1.AcceleratorConfig(
             accelerator_count=accelerator.count,
             accelerator_type=(
-                f"projects/{gcp.project_name}/zones/{gcp.zone}/"
+                f"projects/{gcp.project_name}/zones/{zone}/"
                 f"acceleratorTypes/{accelerator.accelerator_type}"
             ),
         )
@@ -250,9 +273,12 @@ def create_resource(
     return operation.name
 
   @task.sensor(
-      poke_interval=60, timeout=timeout.total_seconds(), mode="reschedule"
+      poke_interval=60,
+      timeout=min(60 * 4, timeout.total_seconds()),
+      mode="reschedule",
   )
-  def wait_for_resource_creation(operation_name: airflow.XComArg):
+  def wait_for_resource_creation(operation_name: str, zone: str):
+    logging.info(f"Creating the {operation_name} operation_name in {zone}...2")
     # Retrives the delete opeartion to check the status.
     client = compute_v1.ZoneOperationsClient()
     request = compute_v1.GetZoneOperationRequest(
@@ -285,8 +311,71 @@ def create_resource(
           logging.warning(f" - {warning.code}: {warning.message}")
       return True
 
+  @provide_session
+  def retry_all_upstream_tasks(context, session=None):
+    """Retries all upsteam tasks of current task.
+
+    The function searchs for all the upstream tasks and clear those
+    task instances.
+
+    Args:
+      context: Airflow context that provides task info.
+      session: Ariflow session info for clearing tasks.
+    """
+    current_task = context["task"]
+    visited = set()
+    queue = [current_task]
+    # Graph search for all upstream tasks.
+    while queue:
+      this_task = queue.pop()
+      upstream_task_ids = list(this_task.upstream_task_ids)
+      for upstream_task_id in upstream_task_ids:
+        if upstream_task_id not in visited:
+          visited.add(upstream_task_id)
+          upstream_task = [
+              t for t in context["dag"].tasks if t.task_id == upstream_task_id
+          ][0]
+          queue.append(upstream_task)
+    logging.info(f"Find {len(visited)} upstream task to retry.")
+    task_ids_to_retry = list(visited)
+    all_task_ids_to_instances = {
+        t_ins.task_id: t_ins
+        for t_ins in context["dag_run"].get_task_instances()
+    }
+    task_instances_to_retry = [
+        all_task_ids_to_instances[tid] for tid in task_ids_to_retry[::-1]
+    ]
+    clear_task_instances(
+        tis=task_instances_to_retry, session=session, dag=context["dag"]
+    )
+
+  @task(
+      task_id="region_fallback_judge",
+      trigger_rule="all_done",
+      on_retry_callback=[retry_all_upstream_tasks],
+      retries=len(gcp.zone) - 1,
+  )
+  def provision_region_fallback_judge():
+    """Clear preceding tasks when current region don't provide
+    resource.
+
+    Raises:
+      ValueError for the zone if the resource creation failed.
+    """
+    context = get_current_context()
+    execution_date = context["dag_run"].logical_date
+    current_dag = context["dag"]
+    setup_task = current_dag.get_task(
+        task_id=f"{benchmark_id}.provision.create_resource.wait_for_resource_creation"
+    )
+
+    setup_ti = TaskInstance(setup_task, execution_date)
+    setup_state = setup_ti.current_state()
+    if setup_state != "success":
+      raise ValueError("Resource not available at the current selected region.")
+
   @task
-  def get_ip_address(instance: str) -> airflow.XComArg:
+  def get_ip_address(instance: str, zone: str) -> airflow.XComArg:
     # It takes time to be able to use the ssh with the ip address
     # even though the creation request is complete. We intentionally
     # sleep for 60s to wait for the ip address to be accessible.
@@ -303,12 +392,17 @@ def create_resource(
 
   operation = create_resource_request(
       instance_name=gpu_name,
+      zone=zone,
       accelerator=accelerator,
       ssh_keys=ssh_keys,
       instance_termination_action="STOP",
   )
-  ip_address = get_ip_address(gpu_name)
-  wait_for_resource_creation(operation) >> ip_address
+  ip_address = get_ip_address(gpu_name, zone)
+  (
+      wait_for_resource_creation(operation, zone)
+      >> provision_region_fallback_judge()
+      >> ip_address
+  )
   return ip_address
 
 
@@ -343,7 +437,9 @@ def ssh_host(
 
 
 @task_group
-def delete_resource(instance_name: airflow.XComArg, project_id: str, zone: str):
+def delete_resource(
+    instance_name: airflow.XComArg, project_id: str, zone: airflow.XComArg
+):
   @task(trigger_rule="all_done")
   def delete_resource_request(
       instance_name: str, project_id: str, zone: str

@@ -17,6 +17,7 @@
 import dataclasses
 from xlml.apis import metric_config
 from dags.vm_resource import Project
+from typing import List, Union
 
 
 @dataclasses.dataclass
@@ -32,7 +33,7 @@ class GCPConfig:
   """
 
   project_name: str
-  zone: str
+  zone: Union[str, List[str]]
   dataset_name: metric_config.DatasetOption
   dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value
   composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value

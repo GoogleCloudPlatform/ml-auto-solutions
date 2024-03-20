@@ -454,6 +454,7 @@ class GpuCreateResourceTask(BaseTask):
       (
           provision,
           ip_address,
+          zone,
           instance_name,
           ssh_keys,
           gcs_location,
@@ -474,7 +475,7 @@ class GpuCreateResourceTask(BaseTask):
       clean_up = self.clean_up(
           instance_name,
           self.task_gcp_config.project_name,
-          self.task_gcp_config.zone,
+          zone,
       )
       provision >> run_model >> post_process >> clean_up
     return group
@@ -487,6 +488,7 @@ class GpuCreateResourceTask(BaseTask):
       airflow.XComArg,
       airflow.XComArg,
       airflow.XComArg,
+      airflow.XComArg,
   ]:
     """Provision a GPU accelerator via a resource creation.
 
@@ -495,9 +497,9 @@ class GpuCreateResourceTask(BaseTask):
 
     Returns:
       A DAG node that will provision a GPU, an XCome value of the ip address
-      for the host, an XCom value for the GPU name, and an XCom value for
-      the SSH keys.
-
+      for the host, an XCom value for the ip address, an XCom value for the
+      GPU zone, an XCom value for the GPU name, an XCom value for the SSH keys
+      and an XCom value for tge gcs folder location for the result storage.
     Raises:
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
@@ -509,11 +511,14 @@ class GpuCreateResourceTask(BaseTask):
             self.task_test_config.benchmark_id
         )
 
+      zone = gpu.select_zone(self.task_gcp_config)
       ip_address = gpu.create_resource(
           gpu_name,
+          zone,
           self.image_project,
           self.image_family,
           self.task_test_config.accelerator,
+          self.task_test_config.benchmark_id,
           self.task_gcp_config,
           ssh_keys,
           timeout=self.gpu_create_timeout,
@@ -525,7 +530,7 @@ class GpuCreateResourceTask(BaseTask):
           ssh_keys,
       )
 
-    return group, ip_address, gpu_name, ssh_keys, gcs_location
+    return group, ip_address, zone, gpu_name, ssh_keys, gcs_location
 
   def run_model(
       self,
@@ -575,7 +580,7 @@ class GpuCreateResourceTask(BaseTask):
       return group
 
   def clean_up(
-      self, resource: airflow.XComArg, project_id: str, zone: str
+      self, resource: airflow.XComArg, project_id: str, zone: airflow.XComArg
   ) -> DAGNode:
     """Clean up GPU resources created by `provision`.
 
