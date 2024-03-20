@@ -87,7 +87,6 @@ with models.DAG(
         test_owner=test_owner.JON_B,
     ).run()
 
-    # v4-8 1 slice TFLOPS test
     gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=8,
@@ -95,13 +94,12 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"maxtext-perf-v4-8-1-slices-{test_mode.value}",
         run_model_cmds=(
-            f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-8']} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
+            f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-8'][1]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
         ),
         docker_image=DOCKER_IMAGE[test_mode].value,
         test_owner=test_owner.PRIYANKA_G,
     ).run()
 
-    # v4-16 1 and 2 slice TFLOPS test
     for n_slice in [1, 2]:
       gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
@@ -118,7 +116,6 @@ with models.DAG(
         test_owner=test_owner.PRIYANKA_G,
       ).run()
 
-  # v4-8 2 slices checkpoint resharding test
   gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=8,
