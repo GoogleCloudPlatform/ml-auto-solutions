@@ -41,28 +41,28 @@ with models.DAG(
   ]
 
   profiling_cmds = (
-    "export RUN_NAME='profiling_tests_$(date +%Y-%m-%d-%H-%M-%S)'",
-    "python3 MaxText/train.py MaxText/configs/base.yml"
-    f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
-    f" dataset_path={dataset_path} enable_profiler=true steps=20",
-    f"gsutil cp -R {base_output_directory}/$RUN_NAME/tensorboard .",
-    "pip3 uninstall -y tbp-nightly",
-    "pip3 uninstall -y tensorboard_plugin_profile",
-    "pip3 install tensorboard_plugin_profile",
-    "python3 MaxText/tests/profiler_test.py",
-    "pip3 uninstall -y tensorboard_plugin_profile",
-    "pip3 install tbp-nightly",
-    "python3 MaxText/tests/profiler_test.py"
+      "export RUN_NAME='profiling_tests_$(date +%Y-%m-%d-%H-%M-%S)'",
+      "python3 MaxText/train.py MaxText/configs/base.yml"
+      f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
+      f" dataset_path={dataset_path} enable_profiler=true steps=20",
+      f"gsutil cp -R {base_output_directory}/$RUN_NAME/tensorboard .",
+      "pip3 uninstall -y tbp-nightly",
+      "pip3 uninstall -y tensorboard_plugin_profile",
+      "pip3 install tensorboard_plugin_profile",
+      "python3 MaxText/tests/profiler_test.py",
+      "pip3 uninstall -y tensorboard_plugin_profile",
+      "pip3 install tbp-nightly",
+      "python3 MaxText/tests/profiler_test.py"
   )
 
   for mode, image in docker_images:
     maxtext_v4_configs_test = gke_config.get_gke_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
-      time_out_in_min=60,
-      test_name=f"maxtext-profiling-{mode.value}",
-      run_model_cmds=profiling_cmds,
-      docker_image=image.value,
-      test_owner=test_owner.SURBHI_J,
+        tpu_version=TpuVersion.V4,
+        tpu_cores=8,
+        tpu_zone=Zone.US_CENTRAL2_B.value,
+        time_out_in_min=60,
+        test_name=f"maxtext-profiling-{mode.value}",
+        run_model_cmds=profiling_cmds,
+        docker_image=image.value,
+        test_owner=test_owner.SURBHI_J,
     ).run()
