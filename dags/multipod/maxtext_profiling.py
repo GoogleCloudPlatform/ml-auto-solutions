@@ -52,7 +52,7 @@ with models.DAG(
       "python3 MaxText/tests/profiler_test.py",
       "pip3 uninstall -y tensorboard_plugin_profile",
       "pip3 install tbp-nightly",
-      "python3 MaxText/tests/profiler_test.py"
+      "python3 MaxText/tests/profiler_test.py",
   )
 
   for mode, image in docker_images:
