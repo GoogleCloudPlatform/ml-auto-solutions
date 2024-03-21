@@ -61,7 +61,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-      test_name=f"maxtext-profiling-v4-{mode.value}",
+      test_name=f"maxtext-profiling-{mode.value}",
       run_model_cmds=profiling_cmds,
       docker_image=image.value,
       test_owner=test_owner.SURBHI_J,
