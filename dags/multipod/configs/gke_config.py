@@ -155,6 +155,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     cluster_name: str,
     test_owner: str,
     docker_image: str,
+    num_slices: int = 1,
     project_name: str = Project.SUPERCOMPUTER_TESTING.value,
 ) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
@@ -179,6 +180,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       task_owner=test_owner,
       cluster_name=cluster_name,
       docker_image=docker_image,
+      num_slices=num_slices,
   )
 
   return task.XpkTask(
