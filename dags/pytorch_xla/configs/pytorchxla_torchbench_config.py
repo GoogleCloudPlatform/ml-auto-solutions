@@ -272,17 +272,14 @@ def get_torchbench_gpu_config(
     image_family: resource.ImageFamily,
     accelerator_type: resource.GpuVersion,
     count: int,
-    gpu_zone: Union[resource.Zone, List[resource.Zone]],
+    gpu_zone: List[resource.Zone],
     time_out_in_min: int,
     nvidia_driver_version: str = "525.125.06",
     test_version: VERSION = VERSION.NIGHTLY,
     model_name: str = "",
     extraFlags: str = "",
 ) -> task.GpuCreateResourceTask:
-  if isinstance(gpu_zone, list):
-    zone = [zone.value for zone in gpu_zone]
-  else:
-    zone = [gpu_zone.value]
+  zone = [zone.value for zone in gpu_zone]
   job_gcp_config = gcp_config.GCPConfig(
       project_name=resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       zone=zone,

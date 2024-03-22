@@ -350,12 +350,12 @@ def create_resource(
     )
 
   @task(
-      task_id="region_fallback_judge",
+      task_id="region_capacity_judge",
       trigger_rule="all_done",
       on_retry_callback=[retry_all_upstream_tasks],
       retries=len(gcp.zone) - 1,
   )
-  def provision_region_fallback_judge():
+  def provision_region_capacity_judge():
     """Clear preceding tasks when current region don't provide
     resource.
 
@@ -400,7 +400,7 @@ def create_resource(
   ip_address = get_ip_address(gpu_name, zone)
   (
       wait_for_resource_creation(operation, zone)
-      >> provision_region_fallback_judge()
+      >> provision_region_capacity_judge()
       >> ip_address
   )
   return ip_address

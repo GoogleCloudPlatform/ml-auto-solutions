@@ -33,7 +33,7 @@ class GCPConfig:
   """
 
   project_name: str
-  zone: Union[str, List[str]]
+  zone: List[str]
   dataset_name: metric_config.DatasetOption
   dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value
   composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value
