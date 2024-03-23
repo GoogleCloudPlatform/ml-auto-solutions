@@ -317,7 +317,7 @@ class XpkTask(BaseTask):
     task_metric_config: Metric configs to process metrics.
   """
 
-  task_test_config: test_config.TestConfig[None]
+  task_test_config: test_config.Accelerator
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
 

@@ -50,7 +50,7 @@ with models.DAG(
           time_out_in_min=60,
           test_name=f"{test_name_prefix}-stable-{test_script}",
           run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
-          docker_image=DockerImage.MAXTEXT_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
           test_owner=test_owner.JON_B,
       ).run()
       nightly_tpu = gke_config.get_gke_config(
@@ -60,7 +60,7 @@ with models.DAG(
           time_out_in_min=60,
           test_name=f"{test_name_prefix}-nightly-{test_script}",
           run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
-          docker_image=DockerImage.MAXTEXT_JAX_NIGHTLY.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
           test_owner=test_owner.JON_B,
       ).run()
       stable_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
