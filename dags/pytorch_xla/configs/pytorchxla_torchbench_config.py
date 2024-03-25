@@ -15,7 +15,7 @@
 """Utilities to construct configs for pytorchxla_torchbench DAG."""
 
 import enum
-from typing import List, Tuple, Union
+from typing import List, Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
 import dags.vm_resource as resource
 from dags import gcs_bucket, test_owner
