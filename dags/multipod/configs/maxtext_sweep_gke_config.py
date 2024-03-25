@@ -34,12 +34,11 @@ def get_maxtext_sweep_gke_config(
     docker_image: str,
     base_output_directory: str,
     base_run_model_cmds: Iterable[str],
-    base_set_up_cmds: Iterable[str] = None,
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.BENCHMARK_DATASET,
     metric_aggregation_strategy: metric_config.AggregationStrategy = metric_config.AggregationStrategy.MEDIAN,
     dataset_project: str = None,
     composer_project: str = None,
-) -> List[task.TpuXpkTask]:
+) -> List[task.XpkTask]:
   if not dataset_project:
     dataset_project = project_name
   if not composer_project:
@@ -61,7 +60,7 @@ def get_maxtext_sweep_gke_config(
   for param, values in sweep_params.items():
     sweep_params_list.append([(param, val) for val in values])
 
-  # Generate all combinations of sweep param configurations and create a TpuXpkTask for each one
+  # Generate all combinations of sweep param configurations and create a XpkTask for each one
   xpk_task_list = []
   for idx, config in enumerate(itertools.product(*sweep_params_list)):
     config_dict = {key: value for (key, value) in config}
@@ -83,7 +82,7 @@ def get_maxtext_sweep_gke_config(
             cores=tpu_cores,
         ),
         test_name=f"{run_name_prefix}-{idx}",
-        set_up_cmds=base_set_up_cmds,
+        set_up_cmds=None,
         run_model_cmds=run_model_cmds,
         time_out_in_min=time_out_in_min,
         task_owner=test_owner,
@@ -100,7 +99,7 @@ def get_maxtext_sweep_gke_config(
         ),
     )
 
-    xpk_task = task.TpuXpkTask(
+    xpk_task = task.XpkTask(
         task_test_config=job_test_config,
         task_gcp_config=job_gcp_config,
         task_metric_config=job_metric_config,
