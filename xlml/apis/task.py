@@ -580,7 +580,10 @@ class GpuCreateResourceTask(BaseTask):
       return group
 
   def clean_up(
-      self, resource: airflow.XComArg, project_id: str, zone: airflow.XComArg
+      self,
+      resource: airflow.XComArg,
+      zone: airflow.XComArg,
+      project_id: str,
   ) -> DAGNode:
     """Clean up GPU resources created by `provision`.
 

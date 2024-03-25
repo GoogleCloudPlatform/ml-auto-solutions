@@ -438,7 +438,7 @@ def ssh_host(
 
 @task_group
 def delete_resource(
-    instance_name: airflow.XComArg, project_id: str, zone: airflow.XComArg
+    instance_name: airflow.XComArg, zone: airflow.XComArg, project_id: str
 ):
   @task(trigger_rule="all_done")
   def delete_resource_request(
@@ -455,7 +455,9 @@ def delete_resource(
     return operation.name
 
   @task.sensor(poke_interval=60, timeout=1800, mode="reschedule")
-  def wait_for_resource_deletion(operation_name: airflow.XComArg):
+  def wait_for_resource_deletion(
+      operation_name: airflow.XComArg, zone: airflow.XComArg
+  ):
     # Retrives the delete opeartion to check the status.
     client = compute_v1.ZoneOperationsClient()
     request = compute_v1.GetZoneOperationRequest(
@@ -490,4 +492,4 @@ def delete_resource(
       return True
 
   op = delete_resource_request(instance_name, project_id, zone)
-  wait_for_resource_deletion(op)
+  wait_for_resource_deletion(op, zone)
