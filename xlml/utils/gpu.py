@@ -353,7 +353,7 @@ def create_resource(
       task_id="region_capacity_judge",
       trigger_rule="all_done",
       on_retry_callback=[retry_all_upstream_tasks],
-      retries=len(gcp.zone) - 1,
+      retries=len(gcp.zone),
   )
   def provision_region_capacity_judge():
     """Clear preceding tasks when current region don't provide
