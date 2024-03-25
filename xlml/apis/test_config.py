@@ -264,7 +264,7 @@ def _load_compiled_jsonnet(test_name: str) -> Any:
 
 
 @attrs.define
-class GpuGkeTest(TestConfig[Gpu]):
+class GpuXpkTest(TestConfig[Gpu]):
   """Test config that runs on a single Cloud GPU instance in GKE cluster.
 
   Attributes:

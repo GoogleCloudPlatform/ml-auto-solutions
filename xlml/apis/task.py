@@ -18,7 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
@@ -317,7 +317,7 @@ class XpkTask(BaseTask):
     task_metric_config: Metric configs to process metrics.
   """
 
-  task_test_config: test_config.Accelerator
+  task_test_config: Union[test_config.TpuGkeTest, test_config.GpuXpkTest]
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
 

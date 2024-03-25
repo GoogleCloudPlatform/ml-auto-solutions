@@ -165,7 +165,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
   )
   run_model_cmds = (f"cd /tmp/maxtext && bash end_to_end/{test_script}.sh",)
 
-  job_test_config = test_config.GpuGkeTest(
+  job_test_config = test_config.GpuXpkTest(
       test_config.Gpu(
           machine_type=None,
           image_family=None,
