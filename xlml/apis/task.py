@@ -377,7 +377,10 @@ class XpkTask(BaseTask):
     """
     with TaskGroup(group_id="run_model") as group:
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
-      launch_workload = self.launch_workload(workload_id)
+      gcs_path = name_format.generate_gcs_folder_location(
+          self.task_test_config.benchmark_id
+      )
+      launch_workload = self.launch_workload(workload_id, gcs_path)
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=self.task_test_config.time_out_in_min * 60,
       )(
@@ -387,10 +390,10 @@ class XpkTask(BaseTask):
           cluster_name=self.task_test_config.cluster_name,
       )
 
-      workload_id >> launch_workload >> wait_for_workload_completion
+      (workload_id, gcs_path) >> launch_workload >> wait_for_workload_completion
       return group
 
-  def launch_workload(self, workload_id: str) -> DAGNode:
+  def launch_workload(self, workload_id: str, gcs_path: str) -> DAGNode:
     """Create the workload and wait for it to provision."""
     with TaskGroup(group_id="launch_workload") as group:
       run_workload = xpk.run_workload.override(
@@ -402,6 +405,7 @@ class XpkTask(BaseTask):
           cluster_name=self.task_test_config.cluster_name,
           benchmark_id=self.task_test_config.benchmark_id,
           workload_id=workload_id,
+          gcs_path=gcs_path,
           docker_image=self.task_test_config.docker_image,
           accelerator_type=self.task_test_config.accelerator.name,
           run_cmds=self.task_test_config.test_script,

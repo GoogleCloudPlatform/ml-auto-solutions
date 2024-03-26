@@ -48,6 +48,7 @@ def run_workload(
     cluster_name: str,
     benchmark_id: str,
     workload_id: str,
+    gcs_path: str,
     docker_image: str,
     accelerator_type: str,
     run_cmds: str,
@@ -55,6 +56,9 @@ def run_workload(
 ):
   """Run workload through xpk tool."""
   from subprocess import run, STDOUT, PIPE
+  from xlml.apis import metric_config
+
+  run_cmds = f"export {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}; {run_cmds}"
 
   cmds = (
       "set -xu",
