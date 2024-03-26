@@ -23,7 +23,7 @@ jobs:
       with:
         # Note: this should match Cloud Composer
         # https://cloud.google.com/composer/docs/concepts/versioning/composer-versions
-        python-version: '3.11'
+        python-version: '3.8'
 
     - name: Install Python dependencies
       run: pip install -r .github/requirements.txt

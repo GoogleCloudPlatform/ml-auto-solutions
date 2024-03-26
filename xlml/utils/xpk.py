@@ -57,15 +57,20 @@ def run_workload(
   from subprocess import run, STDOUT, PIPE
 
   cmds = (
-      "set -xue",
-      "export KUBECONFIG=$(mktemp -d)/xpk.conf",
+      "set -xu",
+      "TMPDIR=$(mktemp -d)",
+      "export KUBECONFIG=${TMPDIR}/xpk.conf",
+      "git clone https://github.com/google/xpk ${TMPDIR}/xpk",
       (
-          "xpk workload create"
+          "python ${TMPDIR}/xpk/xpk.py workload create"
           f" --cluster={cluster_name} --workload={workload_id}"
           f" --command='{run_cmds}' --device-type={accelerator_type}"
           f" --num-slices={num_slices} --docker-image={docker_image}"
           f" --project={cluster_project} --zone={zone}"
       ),
+      "rc=$?",
+      "rm -rf $TMPDIR",
+      "exit $rc",
   )
 
   res = run(["bash", "-c", ";".join(cmds)], stderr=STDOUT, stdout=PIPE)
