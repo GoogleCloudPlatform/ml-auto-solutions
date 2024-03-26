@@ -37,7 +37,7 @@ with models.DAG(
   current_time = datetime.datetime.now()
   current_date = current_time.strftime("%Y-%m-%d")
   base_output_directory = (
-      f"{gcs_bucket.XLML_OUTPUT_DIR}/maxtext/stable/automated/{current_date}"
+      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext/stable/automated/{current_date}"
   )
   dataset_path = gcs_bucket.MAXTEXT_DIR
 
@@ -61,7 +61,7 @@ with models.DAG(
         time_out_in_min=300,
         test_name=test_name,
         run_model_cmds=run_command,
-        docker_image=DockerImage.MAXTEXT_JAX_STABLE.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
         test_owner=test_owner.MATT_D,
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
