@@ -58,6 +58,7 @@ with models.DAG(
     # this pattern.
     # TODO(jonbolin): Example for legacy unit test migration - evaluate whether
     # to remove gpt1-like tests once test migration is complete.
+
     for n_slice in [1, 2]:
       legacy_unit_test.get_legacy_unit_test_config(
           script_to_copy="gpt1-like.py",
@@ -95,7 +96,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"maxtext-perf-v4-8-1-slices-{test_mode.value}",
         run_model_cmds=(
-            f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-8'][1]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
+            f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-8']['1']} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
         ),
         docker_image=DOCKER_IMAGE[test_mode].value,
         test_owner=test_owner.PRIYANKA_G,
@@ -111,7 +112,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"maxtext-perf-v4-16-{n_slice}-slices-{test_mode.value}",
         run_model_cmds=(
-            f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-16'][n_slice]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-16-{n_slice}slice-{test_mode.value}",
+            f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-16'][str(n_slice)]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-16-{n_slice}slice-{test_mode.value}",
         ),
         cluster_name=ClusterName.V4_16_MULTISLICE_CLUSTER.value,
         docker_image=DOCKER_IMAGE[test_mode].value,
