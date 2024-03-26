@@ -10,3 +10,4 @@ tensorflow-cpu
 apache-airflow-providers-cncf-kubernetes
 apache-airflow-providers-docker
 kubernetes
+xpk
