@@ -37,7 +37,8 @@ def generate_workload_id(benchmark_id: str) -> str:
   return f"{short_benchmark}{short_id}"
 
 
-def _run_workload(
+@task
+def run_workload(
     task_id: str,
     cluster_project: str,
     zone: str,
@@ -50,43 +51,23 @@ def _run_workload(
     num_slices: int = 1,
 ):
   """Run workload through xpk tool."""
-  import subprocess
+  from subprocess import run, STDOUT, PIPE
 
   cmds = (
       "set -xue",
-      "git clone https://github.com/google/xpk.git /tmp/xpk",
-      "cd /tmp/xpk",
-      "gcloud components install kubectl",
-      f"gcloud config set project {cluster_project}",
-      f"gcloud config set compute/zone {zone}",
+      "echo hello",
       (
-          "python3 xpk.py workload create"
+          "xpk workload create"
           f" --cluster={cluster_name} --workload={workload_id}"
           f" --command='{run_cmds}' --device-type={accelerator_type}"
           f" --num-slices={num_slices} --docker-image={docker_image}"
+          f" --project={cluster_project} --zone={zone}"
       ),
   )
 
-  subprocess.run(["bash", "-c", ";".join(cmds)], check=True)
-
-
-# To support local execution using `scripts/local-airflow.sh`, run using
-# task.docker in local environments. Otherwise, task.kubernetes should be used.
-if "XLMLTEST_LOCAL_AIRFLOW" in os.environ:
-  run_workload = task.docker(
-      _run_workload, image="google/cloud-sdk:alpine", auto_remove="force"
-  )
-else:
-  run_workload = task.kubernetes(
-      _run_workload,
-      namespace="composer-user-workloads",
-      image="google/cloud-sdk:alpine",
-      config_file="/home/airflow/composer_kube_config",
-      kubernetes_conn_id="kubernetes_default",
-      container_resources=k8s_models.V1ResourceRequirements(
-          limits={"ephemeral-storage": "10G"},
-      ),
-  )
+  res = run(["bash", "-c", ";".join(cmds)], stderr=STDOUT, stdout=PIPE)
+  print(res.stdout.decode())
+  assert res.returncode == 0, f'XPK had non-zero return code: {res.returncode}'
 
 
 def _get_core_api_client(
