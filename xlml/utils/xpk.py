@@ -25,6 +25,9 @@ from kubernetes.client import models as k8s_models
 from xlml.utils import gke
 
 
+WORKLOAD_URL_FORMAT = "https://console.cloud.google.com/kubernetes/service/{region}/{cluster}/default/{workload_id}/details?project={project}"
+
+
 @task
 def generate_workload_id(benchmark_id: str) -> str:
   """Generate a valid workload ID."""
@@ -55,7 +58,7 @@ def run_workload(
 
   cmds = (
       "set -xue",
-      "echo hello",
+      "export KUBECONFIG=$(mktemp -d)/xpk.conf",
       (
           "xpk workload create"
           f" --cluster={cluster_name} --workload={workload_id}"
@@ -67,7 +70,7 @@ def run_workload(
 
   res = run(["bash", "-c", ";".join(cmds)], stderr=STDOUT, stdout=PIPE)
   print(res.stdout.decode())
-  assert res.returncode == 0, f'XPK had non-zero return code: {res.returncode}'
+  assert res.returncode == 0, f"XPK had non-zero return code: {res.returncode}"
 
 
 def _get_core_api_client(
@@ -137,6 +140,13 @@ def wait_for_workload_completion(
     logging.info(f"Logs for pod {pod.metadata.name}:")
     for line in logs.split("\n"):
       logging.info(line)
+    url = WORKLOAD_URL_FORMAT.format(
+        region=region,
+        cluster=cluster_name,
+        workload_id=workload_id,
+        project=project_id,
+    )
+    logging.info(f"Link to workload: {url}")
 
   logging.info("All pod(s) phase are succeeded.")
   return True
