@@ -36,8 +36,8 @@ with models.DAG(
   base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_checkpointing"
   dataset_path = gcs_bucket.MAXTEXT_DIR
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_JAX_STABLE),
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_JAX_NIGHTLY),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
   test_configs = {
       # accelerator: list of slices to test
