@@ -14,14 +14,17 @@
 
 """Utilities to run workloads with xpk (https://github.com/google/xpk)."""
 
-import uuid
 import os
+import tempfile
+import uuid
 from absl import logging
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
+from airflow.hooks.subprocess import SubprocessHook
 from datetime import timedelta
 from kubernetes import client as k8s_client
 from kubernetes.client import models as k8s_models
+from xlml.apis import metric_config
 from xlml.utils import gke
 
 
@@ -55,31 +58,29 @@ def run_workload(
     num_slices: int = 1,
 ):
   """Run workload through xpk tool."""
-  from subprocess import run, STDOUT, PIPE
-  from xlml.apis import metric_config
 
   run_cmds = f"export {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}; {run_cmds}"
 
-  cmds = (
-      "set -xu",
-      "TMPDIR=$(mktemp -d)",
-      "export KUBECONFIG=${TMPDIR}/xpk.conf",
-      "git clone https://github.com/google/xpk ${TMPDIR}/xpk",
-      (
-          "python ${TMPDIR}/xpk/xpk.py workload create"
-          f" --cluster={cluster_name} --workload={workload_id}"
-          f" --command='{run_cmds}' --device-type={accelerator_type}"
-          f" --num-slices={num_slices} --docker-image={docker_image}"
-          f" --project={cluster_project} --zone={zone}"
-      ),
-      "rc=$?",
-      "rm -rf $TMPDIR",
-      "exit $rc",
-  )
-
-  res = run(["bash", "-c", ";".join(cmds)], stderr=STDOUT, stdout=PIPE)
-  print(res.stdout.decode())
-  assert res.returncode == 0, f"XPK had non-zero return code: {res.returncode}"
+  with tempfile.TemporaryDirectory() as tmpdir:
+    cmds = (
+        "set -xue",
+        f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+        (
+            f"python {tmpdir}/xpk/xpk.py workload create"
+            f" --cluster={cluster_name} --workload={workload_id}"
+            f" --command='{run_cmds}' --device-type={accelerator_type}"
+            f" --num-slices={num_slices} --docker-image={docker_image}"
+            f" --project={cluster_project} --zone={zone}"
+        ),
+    )
+    hook = SubprocessHook()
+    result = hook.run_command(
+        ["bash", "-c", ";".join(cmds)],
+        env={**os.environ, "KUBECONFIG": os.path.join(tmpdir, "xpk.conf")},
+    )
+    assert (
+        result.exit_code == 0
+    ), f"XPK command failed with code {result.exit_code}"
 
 
 def _get_core_api_client(
