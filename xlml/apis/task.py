@@ -321,7 +321,9 @@ class XpkTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
 
-  def run(self) -> DAGNode:
+  def run(
+      self, shared_gcs_location: Optional[airflow.XComArg] = None
+  ) -> DAGNode:
     """Run a test job within a docker image.
 
     Returns:
@@ -329,7 +331,7 @@ class XpkTask(BaseTask):
       post_process.
     """
     with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
-      self.run_model() >> self.post_process()
+      self.run_model(shared_gcs_location) >> self.post_process()
 
     return group
 
@@ -366,7 +368,9 @@ class XpkTask(BaseTask):
 
     return group
 
-  def run_model(self) -> DAGNode:
+  def run_model(
+      self, shared_gcs_location: Optional[airflow.XComArg] = None
+  ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
 
     Returns:
@@ -374,6 +378,12 @@ class XpkTask(BaseTask):
     """
     with TaskGroup(group_id="run_model") as group:
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
+      if shared_gcs_location:
+        gcs_path = shared_gcs_location
+      else:
+        gcs_path = name_format.generate_gcs_folder_location(
+            self.task_test_config.benchmark_id
+        )
       run_workload = xpk.run_workload.override(
           owner=self.task_test_config.task_owner
       )(
@@ -397,7 +407,7 @@ class XpkTask(BaseTask):
           cluster_name=self.task_test_config.cluster_name,
       )
 
-      workload_id >> run_workload >> wait_for_workload_completion
+      (workload_id, gcs_path) >> run_workload >> wait_for_workload_completion
       return group
 
   def post_process(self) -> DAGNode:
