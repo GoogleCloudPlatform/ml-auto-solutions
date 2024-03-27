@@ -68,7 +68,10 @@ Comment out any test cases in the DAG that you do not want to run, or create a t
 
 ##### XPK-based tests
 
-When running Airflow locally, XPK requires kubectl to support GKE-based authentication. Install the required component using
+XPK will run in the same environment as the local airflow execution, and there are two XPK requirements to be aware of:
+
+1. Python version >= 3.10.
+1. kubectl must support GKE-based authentication. Install the required component using
 
 ```
 gcloud components install gke-gcloud-auth-plugin
