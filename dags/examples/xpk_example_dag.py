@@ -55,9 +55,16 @@ with models.DAG(
       num_slices=2,
   ).run()
 
+  # Example to run multiple tests that share one GCS location for artifacts
+  # The value of 'test_group_id':
+  #  1) a task group name for those chained tests
+  #  2) an ID to generate gcs folder path in format:
+  #    "{gcs_bucket.BASE_OUTPUT_DIR}/{group_id}-{current_datetime}/"
   test_group_id = "chained_tests"
   with TaskGroup(group_id=test_group_id) as group:
-    shared_gcs_location = name_format.generate_gcs_folder_location(test_group_id)
+    shared_gcs_location = name_format.generate_gcs_folder_location(
+        test_group_id
+    )
     chained_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=8,
@@ -67,7 +74,7 @@ with models.DAG(
         cluster_name=ClusterName.V4_8_CLUSTER.value,
         docker_image=DockerImage.XPK_JAX_TEST.value,
         time_out_in_min=60,
-    ).run(shared_gcs_location)
+    ).run(gcs_location=shared_gcs_location)
 
     chained_resnet_tpu_multislice_v4_128 = config.get_flax_resnet_xpk_config(
         tpu_version=TpuVersion.V4,
@@ -79,7 +86,7 @@ with models.DAG(
         docker_image=DockerImage.XPK_JAX_TEST.value,
         time_out_in_min=60,
         num_slices=2,
-    ).run(shared_gcs_location)
+    ).run(gcs_location=shared_gcs_location)
 
     (
         shared_gcs_location

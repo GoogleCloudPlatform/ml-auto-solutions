@@ -315,6 +315,7 @@ class XpkTask(BaseTask):
     task_test_config: Test configs to run on this TPU/GPU.
     task_gcp_config: Runtime TPU/GPU creation parameters.
     task_metric_config: Metric configs to process metrics.
+    workload_provision_timeout: Time allowed for provisioning a workload.
   """
 
   task_test_config: Union[test_config.TpuGkeTest, test_config.GpuXpkTest]
@@ -326,16 +327,20 @@ class XpkTask(BaseTask):
 
   def run(
       self,
-      shared_gcs_location: Optional[airflow.XComArg] = None,
+      *,
+      gcs_location: Optional[airflow.XComArg] = None,
   ) -> DAGNode:
     """Run a test job within a docker image.
+
+    Attributes:
+      gcs_location: GCS path for all artifacts of the test.
 
     Returns:
       A task group with the following tasks chained: run_model and
       post_process.
     """
     with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
-      self.run_model(shared_gcs_location) >> self.post_process()
+      self.run_model(gcs_location) >> self.post_process()
 
     return group
 
@@ -374,17 +379,20 @@ class XpkTask(BaseTask):
 
   def run_model(
       self,
-      shared_gcs_location: Optional[airflow.XComArg] = None,
+      gcs_location: Optional[airflow.XComArg] = None,
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
+
+    Attributes:
+      gcs_location: GCS path for all artifacts of the test.
 
     Returns:
       A DAG node that executes the model test.
     """
     with TaskGroup(group_id="run_model") as group:
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
-      if shared_gcs_location:
-        gcs_path = shared_gcs_location
+      if gcs_location:
+        gcs_path = gcs_location
       else:
         gcs_path = name_format.generate_gcs_folder_location(
             self.task_test_config.benchmark_id
