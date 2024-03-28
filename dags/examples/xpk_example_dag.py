@@ -55,9 +55,9 @@ with models.DAG(
       num_slices=2,
   ).run()
 
-  group_id = "chained_tests"
-  with TaskGroup(group_id=group_id) as group:
-    shared_gcs_location = name_format.generate_gcs_folder_location(group_id)
+  test_group_id = "chained_tests"
+  with TaskGroup(group_id=test_group_id) as group:
+    shared_gcs_location = name_format.generate_gcs_folder_location(test_group_id)
     chained_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=8,
