@@ -141,7 +141,6 @@ with models.DAG(
         test_owner=test_owner.MATT_D,
     ).run()
 
-
   # v4-8 2 slices checkpoint resharding test
   gke_config.get_gke_config(
       tpu_version=TpuVersion.V4,
