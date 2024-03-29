@@ -132,9 +132,11 @@ with models.DAG(
         tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-determinism-{test_mode.value}",
-        run_model_cmds=("bash end_to_end/test_determinism.sh"
+        run_model_cmds=(
+            "bash end_to_end/test_determinism.sh"
             f" determinism-{test_mode.value}-{slice_num}x-{accelerator}"
-            f" {base_output_directory} {dataset_path}",),
+            f" {base_output_directory} {dataset_path}",
+        ),
         docker_image=DOCKER_IMAGE[test_mode].value,
         test_owner=test_owner.MATT_D,
     ).run()
