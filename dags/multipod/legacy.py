@@ -127,7 +127,7 @@ with models.DAG(
     maxtext_v4_configs_test = gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=16,
-        num_slices=2,
+        num_slices=slice_num,
         cluster_name=ClusterName.V4_16_MULTISLICE_CLUSTER.value,
         tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
