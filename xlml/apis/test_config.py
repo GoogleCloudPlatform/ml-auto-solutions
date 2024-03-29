@@ -178,11 +178,25 @@ class TpuVmTest(TestConfig[Tpu]):
 
   @property
   def setup_script(self) -> Optional[str]:
-    return '\n'.join(('set -xue', *self.set_up_cmds))
+    cmds = '\\n'.join(self.set_up_cmds)
+    cmds = cmds.replace('"', '\\"')
+    return '\n'.join((
+        'set -xue',
+        'printf "Setup Commands:"',
+        f'printf "{cmds}"',
+        *self.set_up_cmds,
+    ))
 
   @property
   def test_script(self) -> str:
-    return '\n'.join(('set -xue', *self.run_model_cmds))
+    cmds = '\\n'.join(self.run_model_cmds)
+    cmds = cmds.replace('"', '\\"')
+    return '\n'.join((
+        'set -xue',
+        'printf "Run Model Commands:"',
+        f'printf "{cmds}"',
+        *self.run_model_cmds,
+    ))
 
 
 @attrs.define
