@@ -49,14 +49,16 @@ with models.DAG(
 
   pod_latest = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_jax(
-          "jax-pod-latest-tpu-ubuntu2204-base-func-v2-32-1vm"
+          "jax-pod-latest-tpu-ubuntu2204-base-func-v2-32-1vm",
+          reserved = True,
       ),
       US_CENTRAL1_A,
   ).run()
 
   pod_head = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_jax(
-          "jax-pod-head-tpu-ubuntu2204-base-func-v2-32-1vm"
+          "jax-pod-head-tpu-ubuntu2204-base-func-v2-32-1vm",
+          reserved = True,
       ),
       US_CENTRAL1_A,
   ).run()
