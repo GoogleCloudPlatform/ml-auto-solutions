@@ -148,18 +148,18 @@ def torchvision():
 
 @task_group(prefix_group_id=False)
 def huggingface():
-  accelerate_v2_8 = task.TpuQueuedResourceTask(
-      test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-accelerate-smoke-v2-8-1vm", reserved=True
-      ),
-      US_CENTRAL1_C,
-  ).run()
-  accelerate_v4_8 = task.TpuQueuedResourceTask(
-      test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-accelerate-smoke-v4-8-1vm"
-      ),
-      US_CENTRAL2_B,
-  ).run()
+#   accelerate_v2_8 = task.TpuQueuedResourceTask(
+#       test_config.JSonnetTpuVmTest.from_pytorch(
+#           "pt-2-3-accelerate-smoke-v2-8-1vm", reserved=True
+#       ),
+#       US_CENTRAL1_C,
+#   ).run()
+#   accelerate_v4_8 = task.TpuQueuedResourceTask(
+#       test_config.JSonnetTpuVmTest.from_pytorch(
+#           "pt-2-3-accelerate-smoke-v4-8-1vm"
+#       ),
+#       US_CENTRAL2_B,
+#   ).run()
   diffusers_v4_8 = task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-3-hf-diffusers-func-v4-8-1vm"
@@ -167,15 +167,15 @@ def huggingface():
       US_CENTRAL2_B,
   ).run()
 
-  accelerate_v4_8 >> accelerate_v2_8
-  accelerate_v4_8 >> diffusers_v4_8
+#   accelerate_v4_8 >> accelerate_v2_8
+#   accelerate_v4_8 >> diffusers_v4_8
 
-  task.TpuQueuedResourceTask(
-      test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-hf-bert-pjrt-func-v4-8-1vm"
-      ),
-      US_CENTRAL2_B,
-  ).run()
+#   task.TpuQueuedResourceTask(
+#       test_config.JSonnetTpuVmTest.from_pytorch(
+#           "pt-2-3-hf-bert-pjrt-func-v4-8-1vm"
+#       ),
+#       US_CENTRAL2_B,
+#   ).run()
 
 
 @task_group(prefix_group_id=False)
@@ -186,12 +186,12 @@ def llama():
       ),
       US_CENTRAL2_B,
   ).run()
-  llama_train_v4_8 = task.TpuQueuedResourceTask(
-      test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-llama2-train-spmd-func-v4-8-1vm"
-      ),
-      US_CENTRAL2_B,
-  ).run()
+#   llama_train_v4_8 = task.TpuQueuedResourceTask(
+#       test_config.JSonnetTpuVmTest.from_pytorch(
+#           "pt-2-3-llama2-train-spmd-func-v4-8-1vm"
+#       ),
+#       US_CENTRAL2_B,
+#   ).run()
 
 
 with models.DAG(
@@ -201,7 +201,7 @@ with models.DAG(
     start_date=datetime.datetime(2023, 7, 12),
     catchup=False,
 ):
-  torchvision()
+#   torchvision()
   huggingface()
   llama()
 
