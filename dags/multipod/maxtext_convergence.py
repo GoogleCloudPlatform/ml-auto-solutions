@@ -50,6 +50,11 @@ with models.DAG(
       "maxtext-convergence-int8": (
           (f"export M_QUANTIZATION=int8; {base_convergence_command}"),
       ),
+      "maxtext-convergence-subset-hosts": (
+          (
+              f"export M_EXPANSION_FACTOR_REAL_DATA=2; {base_convergence_command}"
+          ),
+      ),
   }
 
   for test_name, run_command in convergence_tests.items():
