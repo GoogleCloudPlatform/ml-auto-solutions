@@ -61,10 +61,10 @@ def run_workload(
   """Run workload through xpk tool."""
 
   with tempfile.TemporaryDirectory() as tmpdir:
-    if accelerator_type==GpuVersion.XPK_H100.value:
-      multi_keyword="num-nodes"
+    if accelerator_type == GpuVersion.XPK_H100.value:
+      multi_keyword = "num-nodes"
     else:
-      multi_keyword="num-slices"
+      multi_keyword = "num-slices"
     cmds = (
         "set -xue",
         f"git clone https://github.com/google/xpk {tmpdir}/xpk",
