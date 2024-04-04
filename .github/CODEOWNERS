@@ -15,3 +15,5 @@ dags/legacy_test/tests/pytorch @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpc
 dags/multipod @jonb377
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
+
+dags/imagegen_devx @RissyRan
