@@ -13,5 +13,6 @@ dags/pytorch_xla @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore
 dags/legacy_test/tests/pytorch @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore
 
 dags/multipod @jonb377
+.github/workflows/multipod @jonb377 @tonyjohnchen
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
