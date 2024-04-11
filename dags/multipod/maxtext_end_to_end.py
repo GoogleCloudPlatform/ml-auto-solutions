@@ -34,14 +34,18 @@ with models.DAG(
     catchup=False,
 ) as dag:
   test_name_prefix = "maxtext"
-  test_models = {
-      "llama2-7b": "test_llama2_7b",
-      "mistral": "test_mistral",
-      "gemma-2b": "gemma/2b/test_gemma",
-      "gpt3": "test_gpt3",
+  test_models_tpu = {
+      "llama2-7b": "tpu/test_llama2_7b",
+      "mistral": "tpu/test_mistral",
+      "gemma-2b": "tpu/gemma/2b/test_gemma",
+      "gpt3": "tpu/test_gpt3",
   }
 
-  for model, test_script in test_models.items():
+  test_models_gpu = {
+      "llama2-7b": "gpu/a3/test_llama2_7b",
+  }
+
+  for model, test_script in test_models_tpu.items():
     stable_tpu = gke_config.get_gke_config(
         tpu_version=TpuVersion.V4,
         tpu_cores=8,
@@ -62,13 +66,16 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         test_owner=test_owner.JON_B,
     ).run()
+    stable_tpu >> nightly_tpu
+
+  for model, test_script in test_models_gpu.items():
     stable_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         accelerator_type=GpuVersion.XPK_H100,
         gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-stable-{model}",
         test_script=test_script,
-        num_slices=2,
+        num_slices=1,
         cluster_name=ClusterName.A3_CLUSTER.value,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
@@ -79,9 +86,9 @@ with models.DAG(
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-nightly-{model}",
         test_script=test_script,
-        num_slices=2,
+        num_slices=1,
         cluster_name=ClusterName.A3_CLUSTER.value,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_NIGHTLY.value,
         test_owner=test_owner.NINA_C,
     ).run()
-    stable_tpu >> nightly_tpu >> stable_gpu >> nightly_gpu
+    stable_gpu >> nightly_gpu
