@@ -42,7 +42,9 @@ with models.DAG(
   }
 
   test_models_gpu = {
-      "llama2-7b": "gpu/a3/test_llama2_7b",
+      "llama2-7b-train-1node": ("MaxText/configs/a3/llama_2_7b/1vm", 1),
+      "llama2-7b-train-2node": ("MaxText/configs/a3/llama_2_7b/2vm", 2),
+      "llama2-7b": ("end_to_end/gpu/a3/test_llama2_7b", 1),
   }
 
   for model, test_script in test_models_tpu.items():
@@ -68,14 +70,14 @@ with models.DAG(
     ).run()
     stable_tpu >> nightly_tpu
 
-  for model, test_script in test_models_gpu.items():
+  for model, (test_script, nnodes) in test_models_gpu.items():
     stable_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         accelerator_type=GpuVersion.XPK_H100,
         gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-stable-{model}",
         test_script=test_script,
-        num_slices=1,
+        num_slices=nnodes,
         cluster_name=ClusterName.A3_CLUSTER.value,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
@@ -86,7 +88,7 @@ with models.DAG(
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-nightly-{model}",
         test_script=test_script,
-        num_slices=1,
+        num_slices=nnodes,
         cluster_name=ClusterName.A3_CLUSTER.value,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_NIGHTLY.value,
         test_owner=test_owner.NINA_C,
