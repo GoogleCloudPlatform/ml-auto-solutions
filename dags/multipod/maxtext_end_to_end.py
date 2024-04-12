@@ -71,7 +71,7 @@ with models.DAG(
     stable_tpu >> nightly_tpu
 
   for model, (test_script, nnodes) in test_models_gpu.items():
-    stable_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+    gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         accelerator_type=GpuVersion.XPK_H100,
         gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
@@ -82,15 +82,3 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
     ).run()
-    nightly_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        accelerator_type=GpuVersion.XPK_H100,
-        gpu_zone=Zone.US_CENTRAL1_C.value,
-        time_out_in_min=300,
-        test_name=f"{test_name_prefix}-nightly-{model}",
-        test_script=test_script,
-        num_slices=nnodes,
-        cluster_name=ClusterName.A3_CLUSTER.value,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_NIGHTLY.value,
-        test_owner=test_owner.NINA_C,
-    ).run()
-    stable_gpu >> nightly_gpu
