@@ -42,9 +42,9 @@ with models.DAG(
   }
 
   test_models_gpu = {
-      "llama2-7b-train-1node": ("MaxText/configs/a3/llama_2_7b/1vm", 1),
-      "llama2-7b-train-2node": ("MaxText/configs/a3/llama_2_7b/2vm", 2),
-      "llama2-7b": ("end_to_end/gpu/a3/test_llama2_7b", 1),
+      "llama2-7b-train-1node": ("MaxText/configs/a3/llama_2_7b/1vm.sh", 1),
+      "llama2-7b-train-2node": ("MaxText/configs/a3/llama_2_7b/2vm.sh", 2),
+      "llama2-7b": ("end_to_end/gpu/a3/test_llama2_7b.sh", 1),
   }
 
   for model, test_script in test_models_tpu.items():
