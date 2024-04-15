@@ -44,7 +44,7 @@ with models.DAG(
   steps = 10200  # Half Chinchilla
   loss_threshold = 2.7
 
-  base_convergence_command = f"bash end_to_end/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path} LOSS_THRESHOLD={loss_threshold} STEPS={steps}"
+  base_convergence_command = f"bash end_to_end/tpu/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path} LOSS_THRESHOLD={loss_threshold} STEPS={steps}"
   convergence_tests = {
       "maxtext-convergence-bf16": ((base_convergence_command),),
       "maxtext-convergence-int8": (
