@@ -158,7 +158,7 @@ with models.DAG(
             time_out_in_min=60,
             test_name=f"maxtext-shardings-{test_mode.value}",
             run_model_cmds=(
-                f"python pedagogical_examples/shardings.py {n_slice} {cores//2}",
+                f"python pedagogical_examples/shardings.py --dcn_data_parallelism {n_slice} --ici_fsdp_parallelism {cores//2}",
             ),
             cluster_name=cluster_name,
             docker_image=DOCKER_IMAGE[test_mode].value,
