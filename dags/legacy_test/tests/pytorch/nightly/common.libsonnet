@@ -184,7 +184,7 @@ local volumes = import 'templates/volumes.libsonnet';
         if [ -d "$HOME/.local/bin" ] ; then
           export PATH="$HOME/.local/bin:$PATH"
         fi
-        # Dependency of acceelerate, unfortunately there is no requirements.txt in acceelerate.
+        # Dependency of accelerate, unfortunately there is no requirements.txt in accelerate.
         pip install pytest
         git clone https://github.com/huggingface/accelerate.git
         pip install ./accelerate
