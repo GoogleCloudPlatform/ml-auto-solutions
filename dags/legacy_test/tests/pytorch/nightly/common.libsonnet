@@ -181,10 +181,13 @@ local volumes = import 'templates/volumes.libsonnet';
         export PATH=~/.local/bin:$PATH
       |||,
       tpuVmExtraSetup: |||
+        if [ -d "$HOME/.local/bin" ] ; then
+          export PATH="$HOME/.local/bin:$PATH"
+        fi
         # Dependency of acceelerate, unfortunately there is no requirements.txt in acceelerate.
         pip install pytest
         git clone https://github.com/huggingface/accelerate.git
-        pip install --user ./accelerate
+        pip install ./accelerate
 
         mkdir -p ~/.cache/huggingface/accelerate/
         cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'
@@ -204,7 +207,7 @@ local volumes = import 'templates/volumes.libsonnet';
         use_cpu: false
         HF_CONFIG_EOF
 
-        .local/bin/accelerate env
+        accelerate env
       ||| % [config.accelerator.numCores],
     },
   },
