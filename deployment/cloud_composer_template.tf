@@ -51,12 +51,20 @@ resource "google_project_iam_member" "tpu_admin_role" {
   role     = "roles/tpu.admin"
 }
 
-resource "google_project_iam_member" "service_account_user_role" {
+resource "google_project_iam_member" "service_account_admin_role" {
   provider = google-beta
   for_each = local.environment_config_dict
   project  = var.project_config.project_name
   member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
-  role     = "roles/iam.serviceAccountUser"
+  role     = "roles/iam.serviceAccountAdmin"
+}
+
+resource "google_project_iam_member" "project_iam_admin_role" {
+  provider = google-beta
+  for_each = local.environment_config_dict
+  project  = var.project_config.project_name
+  member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
+  role     = "roles/resourcemanager.projectIamAdmin"
 }
 
 resource "google_project_iam_member" "big_query_admin_role" {
