@@ -63,7 +63,7 @@ with models.DAG(
   #    "{gcs_bucket.BASE_OUTPUT_DIR}/{gcs_subfolder}/{group_id}-{current_datetime}/"
   test_group_id = "chained_tests"
   gcs_subfolder = f"{test_owner.Team.MULTIPOD.value}/maxtext"
-  with TaskGroup(group_id=test_group_id) as group:
+  with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
     shared_gcs_location = name_format.generate_gcs_folder_location(
         gcs_subfolder,
         test_group_id,
