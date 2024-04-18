@@ -4,5 +4,5 @@ repos:
     hooks:
       - id: pyink
         args: [--pyink-indentation=2, --pyink-use-majority-quotes, --line-length=80]
-        language_version: python3.10
+        language_version: python3
         verbose: true
