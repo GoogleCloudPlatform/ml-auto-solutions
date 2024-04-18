@@ -4,6 +4,7 @@ variable "environment_name" {
 
 variable "region" {
   type = string
+  default = null
 }
 
 variable "service_account" {
