@@ -1,6 +1,6 @@
-resource "google_composer_environment" "cloud_ml_auto_solutions_env" {
+resource "google_composer_environment" "example_environment" {
   provider = google-beta
-  name     = var.env_name
+  name     = var.environment_name
   region = var.region
 
   config {
@@ -52,7 +52,7 @@ resource "google_composer_environment" "cloud_ml_auto_solutions_env" {
     }
 
     node_config {
-      service_account = "ml-auto-solutions-dev@cloud-ml-auto-solutions.iam.gserviceaccount.com"
+      service_account = var.service_account
     }
   }
 }

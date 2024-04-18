@@ -8,7 +8,7 @@ variable "region" {
   description = "The region your Cloud Composer Env will be created in. E.g., us-east1."
 }
 
-variable "env_name" {
+variable "environment_name" {
   type = string
   description = "The name of the Cloud Composer Env. Something like <your_ldap>-test"
 }
