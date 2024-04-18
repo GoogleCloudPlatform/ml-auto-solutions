@@ -51,6 +51,15 @@ resource "google_project_iam_member" "tpu_admin_role" {
   role     = "roles/tpu.admin"
 }
 
+resource "google_project_iam_member" "service_account_user_role" {
+  # need `iam.serviceAccounts.actAs` that SA admin does not have
+  provider = google-beta
+  for_each = local.environment_config_dict
+  project  = var.project_config.project_name
+  member   = format("serviceAccount:%s", google_service_account.custom_service_account[each.key].email)
+  role     = "roles/iam.serviceAccountUser"
+}
+
 resource "google_project_iam_member" "service_account_admin_role" {
   provider = google-beta
   for_each = local.environment_config_dict
