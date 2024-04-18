@@ -148,7 +148,7 @@ def torchvision():
 
 @task_group(prefix_group_id=False)
 def huggingface():
-  accelerate_v2_8 = task.TpuQueuedResourceTask(
+  task.TpuQueuedResourceTask(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-accelerate-smoke-v2-8-1vm", reserved=True
       ),
@@ -167,7 +167,6 @@ def huggingface():
       US_CENTRAL2_B,
   ).run()
 
-  accelerate_v4_8 >> accelerate_v2_8
   accelerate_v4_8 >> diffusers_v4_8
 
   task.TpuQueuedResourceTask(
