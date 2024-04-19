@@ -63,8 +63,14 @@ with models.DAG(
   #    "{gcs_bucket.BASE_OUTPUT_DIR}/{gcs_subfolder}/{group_id}-{current_datetime}/"
   test_group_id = "chained_tests"
   gcs_subfolder = f"{test_owner.Team.MULTIPOD.value}/maxtext"
-  with TaskGroup(group_id=test_group_id) as group:
-    shared_gcs_location = name_format.generate_gcs_folder_location(
+  with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
+    # With prefix_group_id=False, ensure each task
+    # under your chained tests in the same DAG has a unique task id.
+    # For gcs folder generation, the default task id is
+    # `generate_gcs_folder_location`.
+    shared_gcs_location = name_format.generate_gcs_folder_location.override(
+        task_id=f"{test_group_id}_generate_gcs_folder_location"
+    )(
         gcs_subfolder,
         test_group_id,
     )
