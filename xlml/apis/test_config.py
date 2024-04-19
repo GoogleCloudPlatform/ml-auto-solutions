@@ -50,7 +50,7 @@ import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 
 import attrs
-from dags.vm_resource import TpuVersion
+from dags.vm_resource import TpuVersion, CpuVersion
 
 
 class Accelerator(abc.ABC):
@@ -112,6 +112,23 @@ class Gpu(Accelerator):
   def name(self):
     """Name of this GPU type in the Cloud GPU API (e.g. 'a2-highgpu-1g')."""
     return self.accelerator_type
+
+
+@attrs.define
+class Cpu(Accelerator):
+  """Represents a single Cloud CPU instance.
+
+  Attributes:
+    device_type: CPU device type. E.g., `m1-megamem-96-1` or `n2-standard-64-1`.
+  """
+
+  device_type: CpuVersion
+  machine_count: int
+
+  @property
+  def name(self):
+    """Name of this CPU type (e.g. 'n2-standard-64-1')."""
+    return f'{self.device_type.value}-{self.machine_count}'
 
 
 A = TypeVar('A', bound=Accelerator)
@@ -213,6 +230,41 @@ class GpuVmTest(TestConfig[Gpu]):
   @property
   def test_script(self) -> str:
     return '\n'.join(('set -xue', *self.run_model_cmds))
+
+
+@attrs.define
+class CpuGkeTest(TestConfig[Cpu]):
+  """Test config that runs on a single Cloud CPU instance in GKE cluster.
+
+  Attributes:
+    test_name: Unique name for this test/model.
+    cluster_name: Name of the cluster that has provisioned CPUs.
+    docker_image: Image of the docker to run.
+    set_up_cmds: List of commands to run once when CPU is created.
+    run_model_cmds: List of commands to run the model under test.
+    startup_time_out_in_sec: Timeout to start up the pod.
+    num_slices: Number of CPU slices.
+  """
+
+  test_name: str
+  cluster_name: str
+  docker_image: str
+  set_up_cmds: Iterable[str]
+  run_model_cmds: Iterable[str]
+  startup_time_out_in_sec: int = attrs.field(default=300, kw_only=True)
+  num_slices: int = attrs.field(default=1, kw_only=True)
+
+  @property
+  def benchmark_id(self) -> str:
+    return f'{self.test_name}-{self.accelerator.name}'
+
+  @property
+  def setup_script(self) -> Optional[str]:
+    return ';'.join(('set -xue', *self.set_up_cmds))
+
+  @property
+  def test_script(self) -> str:
+    return ';'.join(('set -xue', *self.run_model_cmds))
 
 
 @attrs.define
