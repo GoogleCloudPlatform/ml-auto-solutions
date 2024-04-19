@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to construct configs for maxtext DAG."""
+"""Utilities to construct configs for maxtext inference DAG."""
 
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner
@@ -47,12 +47,8 @@ def get_maxtext_inference_nightly_config(
   set_up_cmds = (
       "pip install --upgrade pip",
       # Download jetstream and maxtext
-      # "git clone -b jetstream-v0.2.0 https://github.com/google/maxtext.git",
       "git clone https://github.com/google/maxtext.git",
-      # "git clone -b v0.2.0 https://github.com/google/JetStream.git",
-      "git clone -b consolidate_benchmark_results https://github.com/google/JetStream.git",
-      # "git clone https://github.com/google/maxtext.git",
-      # "git clone https://github.com/google/JetStream.git",
+      "git clone https://github.com/google/JetStream.git",
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
@@ -94,6 +90,7 @@ def get_maxtext_inference_nightly_config(
       # We run decoding on the `UNSCANNED_CKPT_PATH` for efficient decoding on the unscanned version of the checkpoint converted directly from Meta's PyTorch checkpoint aka `CONVERTED_CHECKPOINT`. Note that this checkpoint only has parameters and no optimizer state. So, we use it by specifying`load_parameters_path=${CONVERTED_CHECKPOINT}`
       # We compare our decoded results by asserting with golden PyTorch outputs using `autoregressive_decode_assert`
       'python3 MaxText/decode.py MaxText/configs/base.yml load_parameters_path=${UNSCANNED_CKPT_PATH} run_name=runner_decode_unscanned_${idx} base_output_directory=${BASE_OUTPUT_DIRECTORY} per_device_batch_size=1 model_name=\'llama2-7b\' ici_autoregressive_parallelism=4 max_prefill_predict_length=4  max_target_length=16 prompt="I love to" autoregressive_decode_assert="read. I love to write. I love to share." attention=dot_product scan_layers=false',
+      ### Benchmark
       # Configure flags
       "export TOKENIZER_PATH=assets/tokenizer.llama2",
       "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
