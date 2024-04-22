@@ -72,9 +72,18 @@ class TpuQueuedResourceTask(BaseTask):
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
       provision, queued_resource, ssh_keys, gcs_location = self.provision()
-      env_variable = {
-          f"{metric_config.SshEnvVars.GCS_OUTPUT.name}": gcs_location
-      }
+      # If you didn't set `MetricConfig.use_runtime_generated_gcs_folder`
+      # value in the test config script then `gcs_location` will take
+      # no effect.
+      if (
+          self.task_metric_config
+          and self.task_metric_config.use_runtime_generated_gcs_folder
+      ):
+        env_variable = {
+            f"{metric_config.SshEnvVars.GCS_OUTPUT.name}": gcs_location
+        }
+      else:
+        env_variable = None
       run_model = self.run_model(queued_resource, ssh_keys, env_variable)
       post_process = self.post_process(result_location=gcs_location)
       clean_up = self.clean_up(queued_resource)

@@ -16,6 +16,4 @@ dags/multipod @jonb377
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/imagegen_devx @RissyRan
-
 dags/inference @yeandy @vipannalla

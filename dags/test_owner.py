@@ -22,7 +22,6 @@ class Team(enum.Enum):
   PYTORCH_XLA = "pytorch_xla"
   MULTIPOD = "multipod"
   MLCOMPASS = "mlcompass"
-  IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
 
 
@@ -36,6 +35,7 @@ GERSON_K = "Gerson K."
 ERIC_L = "Eric L."
 CHANDRA_D = "Chandra D."
 GAGIK_A = "Gagik A."
+RAN_R = "Ran R."
 
 # PYTORCH
 PEI_Z = "Pei Z."
@@ -54,9 +54,6 @@ ANISHA_M = "Anisha M."
 
 # MLCompass
 ORTI_B = "Orti B."
-
-# ImageGen DevX
-RAN_R = "Ran R."
 
 # Inference
 ANDY_Y = "Andy Y."
