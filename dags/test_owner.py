@@ -23,6 +23,7 @@ class Team(enum.Enum):
   MULTIPOD = "multipod"
   MLCOMPASS = "mlcompass"
   IMAGEGEN_DEVX = "imagegen_devx"
+  INFERENCE = "inference"
 
 
 # XLML - JAX/FLAX
@@ -49,9 +50,13 @@ NINA_C = "Nina C."
 SURBHI_J = "Surbhi J."
 ZHIYU_L = "Zhiyu L."
 MOHIT_K = "Mohit K."
+ANISHA_M = "Anisha M."
 
 # MLCompass
 ORTI_B = "Orti B."
 
 # ImageGen DevX
 RAN_R = "Ran R."
+
+# Inference
+ANDY_Y = "Andy Y."

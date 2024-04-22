@@ -82,7 +82,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"maxtext-decode-{test_mode.value}",
         run_model_cmds=(
-            f"bash end_to_end/test_decode.sh 10 gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-decode-v4-8-1slice-{test_mode.value}",
+            f"bash end_to_end/tpu/test_decode.sh 10 gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-decode-v4-8-1slice-{test_mode.value}",
         ),
         docker_image=DOCKER_IMAGE[test_mode].value,
         test_owner=test_owner.JON_B,
@@ -96,7 +96,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"maxtext-perf-{test_mode.value}",
         run_model_cmds=(
-            f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-8']['1']} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
+            f"bash end_to_end/tpu/test_tflops.sh xlml {tflop_thresholds['v4-8']['1']} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
         ),
         docker_image=DOCKER_IMAGE[test_mode].value,
         test_owner=test_owner.PRIYANKA_G,
@@ -112,7 +112,7 @@ with models.DAG(
           time_out_in_min=60,
           test_name=f"maxtext-perf-{test_mode.value}",
           run_model_cmds=(
-              f"bash end_to_end/test_tflops.sh xlml {tflop_thresholds['v4-16'][str(n_slice)]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-16-{n_slice}slice-{test_mode.value}",
+              f"bash end_to_end/tpu/test_tflops.sh xlml {tflop_thresholds['v4-16'][str(n_slice)]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-16-{n_slice}slice-{test_mode.value}",
           ),
           cluster_name=ClusterName.V4_16_MULTISLICE_CLUSTER.value,
           docker_image=DOCKER_IMAGE[test_mode].value,
@@ -133,7 +133,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"maxtext-determinism-{test_mode.value}",
         run_model_cmds=(
-            "bash end_to_end/test_determinism.sh"
+            "bash end_to_end/tpu/test_determinism.sh"
             f" determinism-{test_mode.value}-{slice_num}x-{accelerator}"
             f" {base_output_directory} {dataset_path}",
         ),
@@ -158,7 +158,7 @@ with models.DAG(
             time_out_in_min=60,
             test_name=f"maxtext-shardings-{test_mode.value}",
             run_model_cmds=(
-                f"python pedagogical_examples/shardings.py {n_slice} {cores//2}",
+                f"python pedagogical_examples/shardings.py --dcn_data_parallelism {n_slice} --ici_fsdp_parallelism {cores//2}",
             ),
             cluster_name=cluster_name,
             docker_image=DOCKER_IMAGE[test_mode].value,
@@ -174,7 +174,7 @@ with models.DAG(
       time_out_in_min=60,
       test_name=f"maxtext-checkpoint-reshard-{SetupMode.STABLE.value}",
       run_model_cmds=(
-          f"bash end_to_end/test_checkpoint_resharding.sh xlml-checkpoint-resharding-v4-8-2slice-{SetupMode.STABLE.value} gs://maxtext-xlml gs://maxtext-xlml/dataset",
+          f"bash end_to_end/tpu/test_checkpoint_resharding.sh xlml-checkpoint-resharding-v4-8-2slice-{SetupMode.STABLE.value} gs://maxtext-xlml gs://maxtext-xlml/dataset",
       ),
       docker_image=DOCKER_IMAGE[SetupMode.STABLE].value,
       test_owner=test_owner.PRIYANKA_G,
