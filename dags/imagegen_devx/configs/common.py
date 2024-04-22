@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""GCS bucket for data."""
+"""Utilities to construct common configs."""
 
-# GCS bucket for training data
-CRITEO_DIR = "gs://ml-auto-solutions/data/criteo/terabyte_processed_shuffled"
-IMAGENET_DIR = "gs://ml-auto-solutions/data/imagenet"
-TFDS_DATA_DIR = "gs://ml-auto-solutions/data/tfds-data"
-PAX_DIR = "gs://cloud-tpu-checkpoints/pax"
-MAXTEXT_DIR = "gs://max-datasets-rogue"
-AXLEARN_DIR = "gs://axlearn-public/tensorflow_datasets"
+from typing import Tuple
 
-# GCS bucket for output
-BASE_OUTPUT_DIR = "gs://ml-auto-solutions/output"
+
+UPGRADE_PIP = "pip install --upgrade pip"
+
+
+def set_up_nightly_jax() -> Tuple[str]:
+  return (
+      (
+          "pip install -U --pre libtpu-nightly -f"
+          " https://storage.googleapis.com/jax-releases/libtpu_releases.html"
+      ),
+      (
+          "pip install --pre -U jaxlib -f"
+          " https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html"
+      ),
+      "pip install git+https://github.com/google/jax",
+  )
