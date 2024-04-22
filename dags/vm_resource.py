@@ -32,6 +32,7 @@ class Project(enum.Enum):
   TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
+  CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
 
 
 class ImageProject(enum.Enum):
@@ -68,6 +69,8 @@ class Zone(enum.Enum):
   US_EAST5_A = "us-east5-a"
   # reserved v5e in tpu-prod-env-multipod
   US_WEST4_B = "us-west4-b"
+  # reserved v5e in cloud-tpu-inference-test
+  US_WEST1_C = "us-west1-c"
 
 
 class MachineVersion(enum.Enum):

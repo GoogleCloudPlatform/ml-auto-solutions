@@ -22,6 +22,7 @@ class Team(enum.Enum):
   PYTORCH_XLA = "pytorch_xla"
   MULTIPOD = "multipod"
   MLCOMPASS = "mlcompass"
+  INFERENCE = "inference"
 
 
 # XLML - JAX/FLAX
@@ -53,3 +54,6 @@ ANISHA_M = "Anisha M."
 
 # MLCompass
 ORTI_B = "Orti B."
+
+# Inference
+ANDY_Y = "Andy Y."
