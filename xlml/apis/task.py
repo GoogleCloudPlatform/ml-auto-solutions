@@ -336,7 +336,8 @@ class XpkTask(BaseTask):
       post_process.
     """
     with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
-      self.run_model(gcs_location) >> self.post_process()
+      run_model, gcs_path = self.run_model(gcs_location)
+      run_model >> self.post_process(gcs_path)
 
     return group
 
@@ -405,7 +406,7 @@ class XpkTask(BaseTask):
       )
 
       (workload_id, gcs_path) >> launch_workload >> wait_for_workload_completion
-      return group
+      return group, gcs_path
 
   def launch_workload(self, workload_id: str, gcs_path: str) -> DAGNode:
     """Create the workload and wait for it to provision."""
@@ -436,7 +437,7 @@ class XpkTask(BaseTask):
       run_workload >> wait_for_workload_start
       return group
 
-  def post_process(self) -> DAGNode:
+  def post_process(self, result_location: Optional[str] = None) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
     Returns:
@@ -449,6 +450,7 @@ class XpkTask(BaseTask):
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
+          folder_location=result_location,
       )
 
       return group
