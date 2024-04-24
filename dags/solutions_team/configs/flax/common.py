@@ -21,6 +21,7 @@ INSTALL_LATEST_JAX = (
     "pip install jax[tpu] -f"
     " https://storage.googleapis.com/jax-releases/libtpu_releases.html"
 )
+INSTALL_TF_KERAS = "pip install tf-keras-nightly"
 
 
 def set_up_google_flax() -> Tuple[str]:
@@ -39,6 +40,7 @@ def set_up_hugging_face_transformers() -> Tuple[str]:
   return (
       UPGRADE_PIP,
       INSTALL_LATEST_JAX,
+      INSTALL_TF_KERAS,
       (
           "git clone https://github.com/huggingface/transformers.git"
           " /tmp/transformers"
