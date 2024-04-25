@@ -38,6 +38,7 @@ def get_gke_config(
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     base_output_directory: str = None,
     metric_aggregation_strategy: metric_config.AggregationStrategy = None,
+    user_specified_job_metric_config: metric_config.MetricConfig = None,
 ) -> task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -61,18 +62,19 @@ def get_gke_config(
       cluster_name=cluster_name,
       docker_image=docker_image,
   )
-
-  job_metric_config = (
-      metric_config.MetricConfig(
-          tensorboard_summary=metric_config.SummaryConfig(
-              file_location=base_output_directory,
-              aggregation_strategy=metric_aggregation_strategy,
-              use_regex_file_location=True,
-          ),
-      )
-      if base_output_directory and metric_aggregation_strategy
-      else None
-  )
+  job_metric_config = user_specified_job_metric_config
+  if job_metric_config is None:
+    job_metric_config = (
+        metric_config.MetricConfig(
+            tensorboard_summary=metric_config.SummaryConfig(
+                file_location=base_output_directory,
+                aggregation_strategy=metric_aggregation_strategy,
+                use_regex_file_location=True,
+            ),
+        )
+        if base_output_directory and metric_aggregation_strategy
+        else None
+    )
 
   return task.XpkTask(
       task_test_config=job_test_config,
