@@ -3,11 +3,15 @@
 * @RissyRan @will-cromar
 
 dags/solutions_team/configs/flax @sshahrokhi
+dags/solutions_team/solutionsteam_flax* @sshahrokhi
 dags/legacy_test/tests/jax @sshahrokhi
+dags/solutions_team/solutionsteam_jax* @sshahrokhi
 
 dags/solutions_team/configs/pax @gkroiz
+dags/solutions_team/solutionsteam_pax* @gkroiz
 
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @EricLeFort
+dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @EricLeFort
 
 dags/pytorch_xla @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore
 dags/legacy_test/tests/pytorch @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore
