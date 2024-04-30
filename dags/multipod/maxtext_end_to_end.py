@@ -103,6 +103,7 @@ with models.DAG(
               "cpu_device_type": CpuVersion.N2_STANDARD,
               "cpu_zone": Zone.US_CENTRAL1_B.value,
               "cluster_name": ClusterName.CPU_N2_STANDARD_64.value,
+              "time_out_in_min": 60,
           },
           {
               "script_name": "tpu/gemma/7b/2_test_gemma",
@@ -110,8 +111,26 @@ with models.DAG(
               "tpu_cores": 16,
               "cluster_name": ClusterName.V4_16_MULTISLICE_CLUSTER.value,
               "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "time_out_in_min": 60,
           },
-      ]
+      ],
+      "mixtral-8x7b": [
+          {
+              "script_name": "tpu/mixtral/8x7b/1_test_mixtral",
+              "cpu_device_type": CpuVersion.M1_MEGAMEM,
+              "cpu_zone": Zone.US_CENTRAL1_B.value,
+              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "time_out_in_min": 180,
+          },
+          {
+              "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
+              "tpu_version": TpuVersion.V4,
+              "tpu_cores": 128,
+              "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+              "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "time_out_in_min": 60,
+          },
+      ],
   }
 
   for model, test_scripts_details in multicluster_test_models.items():
@@ -129,7 +148,7 @@ with models.DAG(
       stable_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
           device_type=test_scripts_details[0]["cpu_device_type"],
           cpu_zone=test_scripts_details[0]["cpu_zone"],
-          time_out_in_min=60,
+          time_out_in_min=test_scripts_details[0]["time_out_in_min"],
           test_name=f"{test_name_prefix}-stable-{model}",
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
@@ -142,7 +161,7 @@ with models.DAG(
           tpu_version=test_scripts_details[1]["tpu_version"],
           tpu_cores=test_scripts_details[1]["tpu_cores"],
           tpu_zone=test_scripts_details[1]["tpu_zone"],
-          time_out_in_min=60,
+          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
           test_name=f"{test_name_prefix}-stable-{model}",
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
@@ -164,7 +183,7 @@ with models.DAG(
       nightly_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
           device_type=test_scripts_details[0]["cpu_device_type"],
           cpu_zone=test_scripts_details[0]["cpu_zone"],
-          time_out_in_min=60,
+          time_out_in_min=test_scripts_details[0]["time_out_in_min"],
           test_name=f"{test_name_prefix}-nightly-{model}",
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
@@ -177,7 +196,7 @@ with models.DAG(
           tpu_version=test_scripts_details[1]["tpu_version"],
           tpu_cores=test_scripts_details[1]["tpu_cores"],
           tpu_zone=test_scripts_details[1]["tpu_zone"],
-          time_out_in_min=60,
+          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
           test_name=f"{test_name_prefix}-nightly-{model}",
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
