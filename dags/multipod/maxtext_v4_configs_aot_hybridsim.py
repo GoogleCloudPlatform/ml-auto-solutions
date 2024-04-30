@@ -23,6 +23,7 @@ from dags.multipod.configs import gke_config
 from xlml.utils import name_format
 from airflow.utils.task_group import TaskGroup
 from dags.multipod.configs import gke_config
+from xlml.apis import metric_config
 
 # Run once a day at 10 am UTC (2 am PST / 3 am PDT)
 SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
@@ -91,7 +92,13 @@ with models.DAG(
           chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
           hybridsim_cmd = (
               "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
-              f"bash run_hybridsim.sh GCS_PATH=${{GCS_OUTPUT}}xla_dump CHIP_CONFIG={chip_config}",
+              f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}} CHIP_CONFIG={chip_config}",
+          )
+          job_metric_config = metric_config.MetricConfig(
+              json_lines=metric_config.JSONLinesConfig(
+                  file_location="estimated_cost_ns.jsonl",
+              ),
+              use_runtime_generated_gcs_folder=True,
           )
           maxtext_hybridsim = gke_config.get_gke_config(
               tpu_version=tpu,
@@ -104,6 +111,7 @@ with models.DAG(
               run_model_cmds=hybridsim_cmd,
               docker_image="gcr.io/tpu-prod-env-multipod/internal_cloud_hybridsim_nightly:2024-04-18",
               test_owner=test_owner.RAYMOND_Z,
+              user_specified_job_metric_config=job_metric_config,
           ).run(gcs_location=shared_gcs_location)
 
           shared_gcs_location >> maxtext_aot >> maxtext_hybridsim

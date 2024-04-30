@@ -96,10 +96,27 @@ def install_tf(
   if libtpu_version is not None:
     libtpu_version_str = f"{libtpu_version}/latest"
 
-  return (
-      "pip install tensorflow-text-nightly",
+  # TODO(ericlefort): Use these commands instead once the build is fixed or
+  # remove them if we want to keep using the existing nightly whl indefinitely
+  cmds_install_solutions_team_tf_whl = (
       f"sudo gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/tensorflow/{gs_version_str}/latest/t*.whl /tmp/ && pip install /tmp/t*.whl --force",
       f"sudo gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/libtpu/{libtpu_version_str}/libtpu.so /lib/",
+  )
+
+  # Not sure if today's whl will be built by the time this test runs, so use yesterday's
+  # Fail explicitly if the whl isn't available
+  cmds_install_tf_team_tf_whl = (
+      "export DATE=$(date -d '1 day ago' '+%Y%m%d')",
+      "export WHL_URL=$(gsutil ls gs://tensorflow-public-build-artifacts/prod/tensorflow/official/release/nightly/linux_x86_tpu/wheel_py310/*/${DATE}*/github/tensorflow/build_output/*.whl | grep whl | tail -n 1)",
+      'if [ -z "${WHL_URL}" ]; then echo "No .whl found for ${DATE}"; exit 1; fi',
+      'export WHL_URL=$(sed "s/gs:\/\//https:\/\/storage.googleapis.com\//g" <<< "$WHL_URL")',
+      "pip install ${WHL_URL} -f https://storage.googleapis.com/libtpu-tf-releases/index.html --force",
+      "sudo cp /home/ml-auto-solutions/.local/lib/python3.10/site-packages/libtpu/libtpu.so /lib/libtpu.so",
+  )
+
+  return (
+      "pip install tensorflow-text-nightly",
+      *cmds_install_tf_team_tf_whl,
       CMD_PRINT_TF_VERSION,
   )
 
