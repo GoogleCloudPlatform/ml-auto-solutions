@@ -16,6 +16,7 @@
 
 import datetime
 from airflow import models
+from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
 from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, RuntimeVersion
 from dags.inference.configs import maxtext_inference_gce_config
@@ -35,13 +36,25 @@ with models.DAG(
 ) as dag:
   test_name_prefix = "maxtext-inference"
   test_models = {
-      "llama2-7b": "llama2_7b",
-      # "mistral": "test_mistral",
-      # "gemma-2b": "gemma/2b/test_gemma",
-      # "gpt3": "test_gpt3",
+      "llama2-7b": {
+        "per_device_batch_sizes": [1, 2, 4],
+        "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+        "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
+        "tokenizer": "tokenizer.llama2",
+      },
+      "llama2-13b": {
+        "per_device_batch_sizes": [1, 2],
+        "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+        "maxtext_logs": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/",
+        "tokenizer": "tokenizer.llama2",
+      },
+      "gemma-7b": {
+        "per_device_batch_sizes": [1, 2, 4],
+        "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+        "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
+        "tokenizer": "tokenizer.gemma",
+      },
   }
-
-  test_mode = SetupMode.NIGHTLY
 
   # TODO(yeandy) Setup peer network, and then change to CLOUD_TPU_INFERENCE_TEST
   # v5e_project_name = Project.CLOUD_TPU_INFERENCE_TEST.value
@@ -52,21 +65,47 @@ with models.DAG(
   v5e_subnetwork = V5E_SUBNETWORKS
   v5e_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
 
-  for model, test_script in test_models.items():
-    maxtext_nightly_1slice_v5e_8 = (
-        maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
-            tpu_version=TpuVersion.V5E,
-            tpu_cores=8,
-            tpu_zone=v5e_zone,
-            runtime_version=v5e_runtime_version,
-            project_name=v5e_project_name,
-            time_out_in_min=60,
-            is_tpu_reserved=True,
-            test_name=f"{test_name_prefix}-nightly-{model}",
-            test_mode=test_mode,
-            network=v5e_network,
-            subnetwork=v5e_subnetwork,
-        ).run()
-    )
+  for model, sweep_model_configs in test_models.items():
+    # tasks_per_model = []
+    for per_device_batch_size in sweep_model_configs['per_device_batch_sizes']:
+      # Set per_device_batch_size to a single value, not a list
+      model_configs = {}
+      model_configs['model_name'] = model
+      model_configs['per_device_batch_size'] = per_device_batch_size
+      model_configs['checkpoint'] = sweep_model_configs["checkpoint"]
+      model_configs['maxtext_logs'] = sweep_model_configs["maxtext_logs"]
+      model_configs['tokenizer'] = sweep_model_configs["tokenizer"]
 
-    maxtext_nightly_1slice_v5e_8
+      maxtext_stable_1slice_v5e_8 = (
+          maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+              tpu_version=TpuVersion.V5E,
+              tpu_cores=8,
+              tpu_zone=v5e_zone,
+              runtime_version=v5e_runtime_version,
+              project_name=v5e_project_name,
+              time_out_in_min=60,
+              is_tpu_reserved=True,
+              test_name=f"{test_name_prefix}-stable-{model}-per_device_batch_size-{per_device_batch_size}",
+              test_mode=SetupMode.STABLE,
+              network=v5e_network,
+              subnetwork=v5e_subnetwork,
+              model_configs=model_configs
+          ).run()
+      )
+      maxtext_nightly_1slice_v5e_8 = (
+          maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+              tpu_version=TpuVersion.V5E,
+              tpu_cores=8,
+              tpu_zone=v5e_zone,
+              runtime_version=v5e_runtime_version,
+              project_name=v5e_project_name,
+              time_out_in_min=60,
+              is_tpu_reserved=True,
+              test_name=f"{test_name_prefix}-nightly-{model}-per_device_batch_size-{per_device_batch_size}",
+              test_mode=SetupMode.NIGHTLY,
+              network=v5e_network,
+              subnetwork=v5e_subnetwork,
+              model_configs=model_configs
+          ).run()
+      )
+      maxtext_stable_1slice_v5e_8 >> maxtext_nightly_1slice_v5e_8
