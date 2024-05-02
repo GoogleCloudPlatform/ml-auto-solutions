@@ -38,7 +38,7 @@ def get_maxtext_inference_nightly_config(
     subnetwork: str = "default",
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
-    model_configs: Dict = {}
+    model_configs: Dict = {},
 ) -> task.TpuQueuedResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
