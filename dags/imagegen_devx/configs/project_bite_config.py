@@ -28,9 +28,9 @@ GCS_SUBFOLDER_PREFIX = test_owner.Team.IMAGEGEN_DEVX.value
 def set_up_axlearn() -> Tuple[str]:
   return (
       common.UPGRADE_PIP,
-      *common.set_up_nightly_jax(),
-      "python -m pip install axlearn",
       "git clone https://github.com/apple/axlearn.git",
+      "python -m pip install ./axlearn",
+      *common.set_up_nightly_jax(),
   )
 
 

@@ -40,6 +40,7 @@ with models.DAG(
   model_configs = {
       # accelerator: [(model_size, num_cores), ...],
       TpuVersion.V4: [("22b", 128), ("52b", 384)],
+      TpuVersion.V5E: [("16b", 256), ("32b", 256), ("64b", 256), ("128b", 256)],
   }
   num_slices = [1, 2]
   clusters = {
@@ -50,7 +51,14 @@ with models.DAG(
           Project.TPU_PROD_ENV_MULTIPOD.value,
           8,
       ),
+      TpuVersion.V5E: (
+          ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
+          Zone.US_WEST4_B.value,
+          Project.TPU_PROD_ENV_MULTIPOD.value,
+          256,
+      ),
   }
+  v5e_alt = "5e"
 
   for tpu, models in model_configs.items():
     for model_size, num_cores in models:
@@ -72,7 +80,7 @@ with models.DAG(
           # Run AOT workload: generate HLO, upload to GCS
           aot_cmd = (
               'export XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/"',
-              f"bash MaxText/configs/v{tpu.value}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=v{tpu.value}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}",
+              f"bash MaxText/configs/v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}",
               "gsutil cp gs://cloud-hybridsim-prod/desanitize_and_upload_hlo.sh .",
               "bash desanitize_and_upload_hlo.sh LOCAL_DIR=/tmp/xla_dump/ GCS_OUTPUT_PATH=${GCS_OUTPUT}",
           )
