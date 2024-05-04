@@ -36,7 +36,7 @@ with models.DAG(
 ) as dag:
   test_name_prefix = "maxtext"
   test_models_tpu = {
-      "llama2-7b": "tpu/test_llama2_7b",
+      "llama2-7b": "tpu/llama2/7b/test_llama2_7b",
       "mistral": "tpu/test_mistral",
       "gemma-2b": "tpu/gemma/2b/test_gemma",
       "gpt3": "tpu/test_gpt3",
@@ -124,6 +124,23 @@ with models.DAG(
           },
           {
               "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
+              "tpu_version": TpuVersion.V4,
+              "tpu_cores": 128,
+              "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+              "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "time_out_in_min": 60,
+          },
+      ],
+      "llama2-70b": [
+          {
+              "script_name": "tpu/llama2/70b/1_test_llama2_70b",
+              "cpu_device_type": CpuVersion.M1_MEGAMEM,
+              "cpu_zone": Zone.US_CENTRAL1_B.value,
+              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "time_out_in_min": 360,
+          },
+          {
+              "script_name": "tpu/llama2/70b/2_test_llama2_70b",
               "tpu_version": TpuVersion.V4,
               "tpu_cores": 128,
               "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
