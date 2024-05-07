@@ -64,9 +64,11 @@ def get_maxtext_inference_nightly_config(
   )
 
   additional_metadata_dict = {
-    "ici_fsdp_parallelism": model_configs['ici_fsdp_parallelism'],
-    "ici_autoregressive_parallelism": model_configs['ici_autoregressive_parallelism'],
-    "ici_tensor_parallelism": model_configs['ici_tensor_parallelism'],
+      "ici_fsdp_parallelism": model_configs["ici_fsdp_parallelism"],
+      "ici_autoregressive_parallelism": model_configs[
+          "ici_autoregressive_parallelism"
+      ],
+      "ici_tensor_parallelism": model_configs["ici_tensor_parallelism"],
   }
 
   run_model_cmds = (
