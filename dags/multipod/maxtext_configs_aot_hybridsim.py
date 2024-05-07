@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-A DAG to run AOT compilation and HybridSim tests for MaxText model configs on TPU v4.
+A DAG to run AOT compilation and HybridSim tests for MaxText model configs on TPU v4, v5e.
 """
 import datetime
 from airflow import models
@@ -25,13 +25,13 @@ from airflow.utils.task_group import TaskGroup
 from dags.multipod.configs import gke_config
 from xlml.apis import metric_config
 
-# Run once a day at 10 am UTC (2 am PST / 3 am PDT)
-SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 1 pm UTC (5 am PST / 6 am PDT)
+SCHEDULED_TIME = "0 13 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
-    dag_id="maxtext_v4_configs_aot_hybridsim",
+    dag_id="maxtext_configs_aot_hybridsim",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable"],
+    tags=["multipod_team", "maxtext", "nightly"],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
     concurrency=10,
@@ -91,7 +91,7 @@ with models.DAG(
               time_out_in_min=240,
               test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-aot",
               run_model_cmds=aot_cmd,
-              docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+              docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
               test_owner=test_owner.RAYMOND_Z,
           ).run(gcs_location=shared_gcs_location)
 
@@ -117,7 +117,7 @@ with models.DAG(
               time_out_in_min=240,
               test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-hybridsim",
               run_model_cmds=hybridsim_cmd,
-              docker_image="gcr.io/tpu-prod-env-multipod/internal_cloud_hybridsim_nightly:2024-04-18",
+              docker_image=DockerImage.CLOUD_HYBRIDSIM_NIGHTLY.value,
               test_owner=test_owner.RAYMOND_Z,
               user_specified_job_metric_config=job_metric_config,
           ).run(gcs_location=shared_gcs_location)
