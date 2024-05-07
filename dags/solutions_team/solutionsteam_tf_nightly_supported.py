@@ -43,7 +43,7 @@ with models.DAG(
         time_out_in_min=common.FEATURE_TIMEOUT.get(feature),
         test_feature=feature,
         test_name=name,
-    ).run()
+    )
     if tf_keras_v2_8:
       tf_keras_v2_8[-1] >> test
     tf_keras_v2_8.append(test)
@@ -60,7 +60,7 @@ with models.DAG(
         test_name=name,
         network=V5_NETWORKS,
         subnetwork=V5E_SUBNETWORKS,
-    ).run()
+    )
     if tf_keras_v5e_4:
       tf_keras_v5e_4[-1] >> test
     tf_keras_v5e_4.append(test)
@@ -77,7 +77,7 @@ with models.DAG(
         test_name=name,
         network=V5_NETWORKS,
         subnetwork=V5P_SUBNETWORKS,
-    ).run()
+    )
     if tf_keras_v5p_8:
       tf_keras_v5p_8[-1] >> test
     tf_keras_v5p_8.append(test)
@@ -89,21 +89,21 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL1_C.value,
       time_out_in_min=60,
       global_batch_size=1024,
-  ).run()
+  )
 
   tf_resnet_v3_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V3,
       tpu_cores=8,
       tpu_zone=Zone.US_EAST1_D.value,
       time_out_in_min=60,
-  ).run()
+  )
 
   tf_resnet_v4_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-  ).run()
+  )
 
   tf_resnet_v4_32 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V4,
@@ -112,7 +112,7 @@ with models.DAG(
       time_out_in_min=60,
       is_pod=True,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
+  )
 
   tf_resnet_v5e_4 = tf_config.get_tf_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -123,7 +123,7 @@ with models.DAG(
       global_batch_size=2048,
       network=V5_NETWORKS,
       subnetwork=V5E_SUBNETWORKS,
-  ).run()
+  )
 
   tf_resnet_v5e_16 = tf_config.get_tf_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -136,7 +136,7 @@ with models.DAG(
       subnetwork=V5E_SUBNETWORKS,
       is_pod=True,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
+  )
 
   tf_resnet_v5p_8 = tf_config.get_tf_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -146,7 +146,7 @@ with models.DAG(
       time_out_in_min=60,
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
-  ).run()
+  )
 
   tf_resnet_v5p_32 = tf_config.get_tf_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -158,7 +158,7 @@ with models.DAG(
       subnetwork=V5P_SUBNETWORKS,
       is_pod=True,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
+  )
 
   # Test dependencies
   tf_keras_v2_8

@@ -39,4 +39,4 @@ with models.DAG(
       runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
       model_config="fuji_test",
       time_out_in_min=60,
-  ).run()
+  )

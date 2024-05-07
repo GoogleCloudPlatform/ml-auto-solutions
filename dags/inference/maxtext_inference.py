@@ -176,7 +176,7 @@ with models.DAG(
               network=network,
               subnetwork=subnetwork,
               model_configs=model_configs,
-          ).run()
+          )
           maxtext_nightly_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
               tpu_version=tpu_version,
               tpu_cores=tpu_cores,
@@ -190,5 +190,5 @@ with models.DAG(
               network=network,
               subnetwork=subnetwork,
               model_configs=model_configs,
-          ).run()
+          )
           maxtext_stable_1slice >> maxtext_nightly_1slice

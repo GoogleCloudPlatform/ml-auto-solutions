@@ -46,7 +46,7 @@ with models.DAG(
         test_name=name,
         is_pjrt=False,
         runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-    ).run()
+    )
     if tf_keras_v2_8:
       tf_keras_v2_8[-1] >> test
     tf_keras_v2_8.append(test)
@@ -60,7 +60,7 @@ with models.DAG(
       global_batch_size=1024,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   tf_resnet_v2_32 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V2,
@@ -71,7 +71,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   tf_resnet_v3_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V3,
@@ -80,7 +80,7 @@ with models.DAG(
       time_out_in_min=60,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   tf_resnet_v3_32 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V3,
@@ -90,7 +90,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   tf_resnet_v4_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V4,
@@ -99,7 +99,7 @@ with models.DAG(
       time_out_in_min=60,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   tf_resnet_v4_32 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V4,
@@ -109,7 +109,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   # DLRM
   embedding_dim = 16
@@ -124,7 +124,7 @@ with models.DAG(
       extraFlags="--mode=train",
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   embedding_dim = 64
   tf_dlrm_v2_32 = tf_config.get_tf_dlrm_config(
@@ -139,7 +139,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   embedding_dim = 64
   tf_dlrm_v4_8 = tf_config.get_tf_dlrm_config(
@@ -153,7 +153,7 @@ with models.DAG(
       extraFlags="--mode=train",
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   embedding_dim = 128
   tf_dlrm_v4_32 = tf_config.get_tf_dlrm_config(
@@ -168,7 +168,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
-  ).run()
+  )
 
   embedding_dim = 32
   tf_dlrm_v5p_8 = tf_config.get_tf_dlrm_config(
@@ -186,7 +186,7 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
       runtime_version=RuntimeVersion.TPU_VM_TF_V5P_ALPHA.value,
-  ).run()
+  )
 
   # Test dependencies
   tf_keras_v2_8
