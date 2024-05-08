@@ -67,6 +67,7 @@ def get_maxtext_inference_nightly_config(
       "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
       "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
       "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
+      "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
   }
 
   run_model_cmds = (
