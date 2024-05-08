@@ -174,3 +174,7 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
+  CLOUD_HYBRIDSIM_NIGHTLY = (
+      "us-docker.pkg.dev/cloud-tpu-v2-images-dev/hybridsim/cloud_hybridsim_gcloud_python:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
