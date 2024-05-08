@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for maxtext inference DAG."""
 
+import json
 from typing import Dict
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner
@@ -61,6 +62,13 @@ def get_maxtext_inference_nightly_config(
       "cd JetStream && pip install -e . && cd benchmarks && pip install -r requirements.in",
       "pip install torch --index-url https://download.pytorch.org/whl/cpu",
   )
+
+  additional_metadata_dict = {
+      "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
+      "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
+      "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
+      "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
+  }
 
   run_model_cmds = (
       # Start virtual environment
@@ -110,6 +118,7 @@ def get_maxtext_inference_nightly_config(
       --request-rate 5 \
       --warmup-first true \
       --save-result \
+      --additional-metadata-metrics-to-save '{json.dumps(additional_metadata_dict)}' \
       --save-request-outputs \
       --run-eval true""",
       'export BENCHMARK_OUTPUT=$(find . -name "*JetStream*" -type f -printf "%T@ %Tc %p\n" | sort -n | head -1 | awk \'NF>1{print $NF}\')',
