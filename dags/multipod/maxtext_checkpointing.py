@@ -55,7 +55,7 @@ with models.DAG(
       cores = accelerator.rsplit("-", maxsplit=1)[-1]
       for slice_num in slices:
         command = (
-            "bash end_to_end/tpu/test_checkpointing.sh"
+            "bash end_to_end/test_checkpointing.sh"
             f" checkpointing-{mode.value}-{slice_num}x-{accelerator}"
             f" {base_output_directory} {dataset_path} true",
         )
