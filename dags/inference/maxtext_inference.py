@@ -18,7 +18,7 @@ import datetime
 from airflow import models
 from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, RuntimeVersion
+from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
 from dags.inference.configs import maxtext_inference_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
 
@@ -36,14 +36,14 @@ with models.DAG(
 ) as dag:
   test_name_prefix = "maxtext-inference"
   test_models = {
-      "llama2-7b": {
-          "per_device_batch_sizes": [1, 2, 4],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
-          "tokenizer": "tokenizer.llama2",
-          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-      },
+      # "llama2-7b": {
+      #     "per_device_batch_sizes": [1, 2, 4],
+      #     "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+      #     "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
+      #     "tokenizer": "tokenizer.llama2",
+      #     # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+      #     "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+      # },
       "llama2-13b": {
           "per_device_batch_sizes": [1, 2],
           "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
@@ -52,24 +52,15 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
       },
-      "gemma-7b": {
-          "per_device_batch_sizes": [1, 2, 4],
-          "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
-          "tokenizer": "tokenizer.gemma",
-          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-      },
+      # "gemma-7b": {
+      #     "per_device_batch_sizes": [1, 2, 4],
+      #     "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+      #     "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
+      #     "tokenizer": "tokenizer.gemma",
+      #     # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+      #     "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+      # },
   }
-
-  # TODO(yeandy) Setup peer network, and then change to CLOUD_TPU_INFERENCE_TEST
-  # v5e_project_name = Project.CLOUD_TPU_INFERENCE_TEST.value
-  # v5e_zone = Zone.US_WEST1_C.value
-  v5e_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
-  v5e_zone = Zone.US_EAST1_C.value
-  v5e_network = V5_NETWORKS
-  v5e_subnetwork = V5E_SUBNETWORKS
-  v5e_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
 
   for model, sweep_model_configs in test_models.items():
     # tasks_per_model = []
@@ -89,32 +80,74 @@ with models.DAG(
         model_configs["ici_autoregressive_parallelism"] = ici_ar
         model_configs["ici_tensor_parallelism"] = ici_tensor
 
-        maxtext_stable_1slice_v5e_8 = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
-            tpu_version=TpuVersion.V5E,
+        # v5e benchmarks
+        v5e_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
+        v5e_zone = Zone.US_EAST1_C.value
+        v5_network = V5_NETWORKS
+        v5e_subnetwork = V5E_SUBNETWORKS
+        v5e_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+        # maxtext_stable_1slice_v5e_8 = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+        #     tpu_version=TpuVersion.V5E,
+        #     tpu_cores=8,
+        #     tpu_zone=v5e_zone,
+        #     runtime_version=v5e_runtime_version,
+        #     project_name=v5e_project_name,
+        #     time_out_in_min=60,
+        #     is_tpu_reserved=True,
+        #     test_name=f"{test_name_prefix}-stable-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
+        #     test_mode=SetupMode.STABLE,
+        #     network=v5_network,
+        #     subnetwork=v5e_subnetwork,
+        #     model_configs=model_configs,
+        # ).run()
+        # maxtext_nightly_1slice_v5e_8 = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+        #     tpu_version=TpuVersion.V5E,
+        #     tpu_cores=8,
+        #     tpu_zone=v5e_zone,
+        #     runtime_version=v5e_runtime_version,
+        #     project_name=v5e_project_name,
+        #     time_out_in_min=60,
+        #     is_tpu_reserved=True,
+        #     test_name=f"{test_name_prefix}-nightly-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
+        #     test_mode=SetupMode.NIGHTLY,
+        #     network=v5_network,
+        #     subnetwork=v5e_subnetwork,
+        #     model_configs=model_configs,
+        # ).run()
+
+        # v5p benchmarks
+        v5p_zone = Zone.US_EAST5_A.value
+        v5p_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5.value
+        v5p_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
+        v5p_subnetwork = V5P_SUBNETWORKS
+        maxtext_stable_1slice_v5p_8 = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+            tpu_version=TpuVersion.V5P,
             tpu_cores=8,
-            tpu_zone=v5e_zone,
-            runtime_version=v5e_runtime_version,
-            project_name=v5e_project_name,
+            tpu_zone=v5p_zone,
+            runtime_version=v5p_runtime_version,
+            project_name=v5p_project_name,
             time_out_in_min=60,
             is_tpu_reserved=True,
-            test_name=f"{test_name_prefix}-stable-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
+            test_name=f"{test_name_prefix}-nightly-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
             test_mode=SetupMode.STABLE,
-            network=v5e_network,
-            subnetwork=v5e_subnetwork,
+            network=v5_network,
+            subnetwork=v5p_subnetwork,
             model_configs=model_configs,
         ).run()
-        maxtext_nightly_1slice_v5e_8 = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
-            tpu_version=TpuVersion.V5E,
+        maxtext_nightly_1slice_v5p_8 = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+            tpu_version=TpuVersion.V5P,
             tpu_cores=8,
-            tpu_zone=v5e_zone,
-            runtime_version=v5e_runtime_version,
-            project_name=v5e_project_name,
+            tpu_zone=v5p_zone,
+            runtime_version=v5p_runtime_version,
+            project_name=v5p_project_name,
             time_out_in_min=60,
             is_tpu_reserved=True,
             test_name=f"{test_name_prefix}-nightly-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
             test_mode=SetupMode.NIGHTLY,
-            network=v5e_network,
-            subnetwork=v5e_subnetwork,
+            network=v5_network,
+            subnetwork=v5p_subnetwork,
             model_configs=model_configs,
         ).run()
-        maxtext_stable_1slice_v5e_8 >> maxtext_nightly_1slice_v5e_8
+
+        # maxtext_stable_1slice_v5e_8 >> maxtext_nightly_1slice_v5e_8
+        maxtext_stable_1slice_v5p_8 >> maxtext_nightly_1slice_v5p_8
