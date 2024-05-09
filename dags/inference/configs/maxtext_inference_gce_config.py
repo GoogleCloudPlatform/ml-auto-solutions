@@ -73,16 +73,14 @@ def get_maxtext_inference_nightly_config(
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
-      # Download dataset
-      "wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json > /dev/null 2>&1",
       ### Benchmark
       "cd maxtext",
       # Configure flags
       f"export UNSCANNED_CKPT_PATH={model_configs['checkpoint']}",
       f"export TOKENIZER_PATH=assets/{model_configs['tokenizer']}",
       "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
-      "export MAX_PREFILL_PREDICT_LENGTH=1024",
-      "export MAX_TARGET_LENGTH=2048",
+      f"export MAX_PREFILL_PREDICT_LENGTH={model_configs['max_prefill_predict_length']}",
+      f"export MAX_TARGET_LENGTH={model_configs['max_target_length']}",
       f"export MODEL_NAME={model_configs['model_name']}",
       f"export ICI_FSDP_PARALLELISM={model_configs['ici_fsdp_parallelism']}",
       f"export ICI_AUTOREGRESSIVE_PARALLELISM={model_configs['ici_autoregressive_parallelism']}",
@@ -106,16 +104,15 @@ def get_maxtext_inference_nightly_config(
         per_device_batch_size=${PER_DEVICE_BATCH_SIZE} > /dev/null 2>&1 &""",
       "cd ..",
       # Give server time to start
-      "sleep 120",
+      f"sleep {model_configs['sleep_time']}",
       # Run benchmark, run eval, save benchmark and eval results, and save predictions to /tmp/request-outputs.json
       f"""python JetStream/benchmarks/benchmark_serving.py \
       --tokenizer maxtext/assets/{model_configs['tokenizer']} \
       --model {model_configs['model_name']} \
       --num-prompts 1000  \
-      --dataset sharegpt \
-      --dataset-path ~/ShareGPT_V3_unfiltered_cleaned_split.json \
+      --dataset openorca \
       --max-output-length 1024 \
-      --request-rate 5 \
+      --request-rate {model_configs['request_rate']} \
       --warmup-first true \
       --save-result \
       --additional-metadata-metrics-to-save '{json.dumps(additional_metadata_dict)}' \
