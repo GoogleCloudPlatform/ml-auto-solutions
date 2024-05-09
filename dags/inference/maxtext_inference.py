@@ -55,7 +55,7 @@ with models.DAG(
           "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/",
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [1, 2],
+          "per_device_batch_sizes": [12, 16, 20, 24],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
           "request_rate": 5,
