@@ -42,7 +42,7 @@ with models.DAG(
           "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [1, 2, 4],
+          "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
           "request_rate": 5,
@@ -55,7 +55,7 @@ with models.DAG(
           "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/",
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [12, 16, 20, 24],
+          "per_device_batch_sizes": [1, 2, 4, 5, 6],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
           "request_rate": 5,
@@ -65,7 +65,7 @@ with models.DAG(
       "llama2-70b": {
           "sleep_time": 240,
           "tpu_version_cores": [(TpuVersion.V5P, 8)],
-          "per_device_batch_sizes": [2, 4],
+          "per_device_batch_sizes": [12, 16, 20, 24],
           "checkpoint": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/",
           "tokenizer": "tokenizer.llama2",
@@ -81,7 +81,7 @@ with models.DAG(
           "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
           "tokenizer": "tokenizer.gemma",
-          "per_device_batch_sizes": [1, 2, 4],
+          "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
           "request_rate": 5,
