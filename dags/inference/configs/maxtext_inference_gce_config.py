@@ -73,8 +73,6 @@ def get_maxtext_inference_nightly_config(
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
-      # Download dataset
-      "wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json > /dev/null 2>&1",
       ### Benchmark
       "cd maxtext",
       # Configure flags
@@ -112,8 +110,7 @@ def get_maxtext_inference_nightly_config(
       --tokenizer maxtext/assets/{model_configs['tokenizer']} \
       --model {model_configs['model_name']} \
       --num-prompts 1000  \
-      --dataset sharegpt \
-      --dataset-path ~/ShareGPT_V3_unfiltered_cleaned_split.json \
+      --dataset openorca \
       --max-output-length 1024 \
       --request-rate {model_configs['request_rate']} \
       --warmup-first true \
