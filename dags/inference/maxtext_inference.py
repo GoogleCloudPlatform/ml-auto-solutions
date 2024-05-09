@@ -110,8 +110,12 @@ with models.DAG(
           model_configs["ici_autoregressive_parallelism"] = ici_ar
           model_configs["ici_tensor_parallelism"] = ici_tensor
           model_configs["request_rate"] = sweep_model_configs["request_rate"]
-          model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
-          model_configs["max_prefill_predict_length"] = sweep_model_configs["max_prefill_predict_length"]
+          model_configs["max_target_length"] = sweep_model_configs[
+              "max_target_length"
+          ]
+          model_configs["max_prefill_predict_length"] = sweep_model_configs[
+              "max_prefill_predict_length"
+          ]
 
           if tpu_version == TpuVersion.V5E:
             # v5e benchmarks
