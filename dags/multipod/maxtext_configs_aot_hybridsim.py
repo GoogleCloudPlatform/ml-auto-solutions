@@ -42,7 +42,7 @@ with models.DAG(
       TpuVersion.V4: [("22b", 128), ("52b", 384)],
       TpuVersion.V5E: [("16b", 256), ("32b", 256), ("64b", 256), ("128b", 256)],
   }
-  num_slices = [1, 2]
+  num_slices = [1, 2, 4, 8]
   clusters = {
       # accelerator: [(cluster_name, cluster_zone, cluster_project, num_cores)],
       TpuVersion.V4: (
