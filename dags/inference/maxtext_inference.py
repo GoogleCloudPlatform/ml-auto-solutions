@@ -41,6 +41,7 @@ with models.DAG(
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
+          "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.llama2",
           "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
@@ -54,6 +55,7 @@ with models.DAG(
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/",
+          "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.llama2",
           "per_device_batch_sizes": [1, 2, 4, 5, 6],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
@@ -68,6 +70,7 @@ with models.DAG(
           "per_device_batch_sizes": [12, 16, 20, 24],
           "checkpoint": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/",
+          "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.llama2",
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
@@ -80,6 +83,7 @@ with models.DAG(
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
           "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
+          "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.gemma",
           "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
@@ -101,6 +105,7 @@ with models.DAG(
           model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
           model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
           model_configs["maxtext_logs"] = sweep_model_configs["maxtext_logs"]
+          model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
           model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
           model_configs["per_device_batch_size"] = per_device_batch_size
           ici_fsdp = ici_parallelism[0]

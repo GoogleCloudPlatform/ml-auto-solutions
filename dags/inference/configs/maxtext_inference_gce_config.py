@@ -68,6 +68,7 @@ def get_maxtext_inference_nightly_config(
       "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
       "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
       "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
+      "weight_dtype": f"{model_configs['weight_dtype']}",
   }
 
   run_model_cmds = (
@@ -86,7 +87,7 @@ def get_maxtext_inference_nightly_config(
       f"export ICI_AUTOREGRESSIVE_PARALLELISM={model_configs['ici_autoregressive_parallelism']}",
       f"export ICI_TENSOR_PARALLELISM={model_configs['ici_tensor_parallelism']}",
       "export SCAN_LAYERS=false",
-      "export WEIGHT_DTYPE=bfloat16",
+      f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
