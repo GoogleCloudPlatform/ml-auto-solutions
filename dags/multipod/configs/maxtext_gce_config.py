@@ -81,7 +81,7 @@ def get_maxtext_nightly_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      time_out=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.TONY_C,
       num_slices=num_slices,
   )
@@ -129,7 +129,7 @@ def get_maxtext_end_to_end_test_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      time_out=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.JON_B,
       num_slices=num_slices,
   )

@@ -14,6 +14,7 @@
 
 """Tests for benchmark metric.py."""
 
+import datetime
 import hashlib
 import os
 import sys
@@ -346,7 +347,7 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
         test_name="test_name",
         set_up_cmds="set_up_cmds",
         run_model_cmds="run_model_cmds",
-        time_out_in_min=60,
+        time_out=datetime.timedelta(minutes=60),
         task_owner="test_owner",
         num_slices=1,
     )

@@ -14,6 +14,7 @@
 
 """Utilities to construct job sweep GCE configs for maxtext DAG."""
 
+import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags.vm_resource import TpuVersion
 import itertools
@@ -91,7 +92,7 @@ def get_maxtext_sweep_gce_config(
         test_name=f"{run_name_prefix}-{idx}",
         set_up_cmds=base_set_up_cmds,
         run_model_cmds=run_model_cmds,
-        time_out_in_min=time_out_in_min,
+        time_out=datetime.timedelta(minutes=time_out_in_min),
         task_owner=test_owner,
         num_slices=curr_num_slices,
     )

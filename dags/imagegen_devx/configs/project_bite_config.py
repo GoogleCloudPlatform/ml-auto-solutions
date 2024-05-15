@@ -15,6 +15,7 @@
 """Utilities to construct configs for solutionsteam_jax_bite DAG."""
 
 
+import datetime
 from typing import Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
@@ -69,7 +70,7 @@ def get_bite_tpu_config(
       test_name=f"jax_{model_config}",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      time_out=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RAN_R,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jax",
   )

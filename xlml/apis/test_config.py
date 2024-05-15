@@ -50,6 +50,7 @@ import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 
 import attrs
+import datetime
 from dags.vm_resource import TpuVersion, CpuVersion
 
 
@@ -146,8 +147,7 @@ class TestConfig(abc.ABC, Generic[A]):
   """
 
   accelerator: A
-  # TODO(wcromar): make this a timedelta
-  time_out_in_min: Optional[int] = attrs.field(default=None, kw_only=True)
+  time_out: Optional[datetime.timedelta] = attrs.field(default=None, kw_only=True)
   task_owner: str = attrs.field(default='unowned', kw_only=True)
   gcs_subfolder: str = attrs.field(default='unowned', kw_only=True)
 
@@ -401,7 +401,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         exports=exports,
         test_command=test_command,
         # `timeout` is in seconds
-        time_out_in_min=test['timeout'] // 60,
+        time_out_in_min=datetime.timedelta(minutes = test['timeout']),
     )
 
   @staticmethod
@@ -503,8 +503,7 @@ class JSonnetGpuTest(TestConfig[Gpu]):
         entrypoint_script=test['entrypoint'],
         test_command=test['command'],
         num_hosts=test['accelerator']['num_hosts'],
-        # `timeout` is in seconds
-        time_out_in_min=test['timeout'] // 60,
+        time_out=datetime.timedelta(minutes = test['timeout']),
     )
 
   @property

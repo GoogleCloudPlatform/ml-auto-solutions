@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for pytorchxla_torchbench DAG."""
 
+import datetime
 import enum
 from typing import Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
@@ -171,7 +172,7 @@ def get_torchbench_tpu_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
-      time_out_in_min=time_out_in_min,
+      time_out=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.PEI_Z,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
   )
@@ -332,7 +333,7 @@ def get_torchbench_gpu_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
-      time_out_in_min=time_out_in_min,
+      time_out=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.PEI_Z,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
   )
