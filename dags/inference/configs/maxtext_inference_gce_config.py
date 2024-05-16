@@ -55,6 +55,7 @@ def get_maxtext_inference_nightly_config(
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
+      "sudo apt-get -y install jq",
       "python -m venv .env",
       "source .env/bin/activate",
       # Setup MaxText & JetStream
@@ -64,6 +65,13 @@ def get_maxtext_inference_nightly_config(
   )
 
   additional_metadata_dict = {
+      "model_mode": f"{model_configs['model_mode']}",
+      "checkpoint": f"{model_configs['checkpoint']}",
+      "scan_layers": f"{model_configs['scan_layers']}",
+      "dataset": f"{model_configs['dataset']}",
+      "max_prefill_predict_length": f"{model_configs['max_prefill_predict_length']}",
+      "max_target_length": f"{model_configs['max_target_length']}",
+      "max_output_length": f"{model_configs['max_output_length']}",
       "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
       "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
       "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
@@ -74,6 +82,12 @@ def get_maxtext_inference_nightly_config(
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
+      # Get commit hash of the maxtext and jetstream repos
+      f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
+      'cd maxtext && export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
+      'cd JetStream && export JETSTREAM_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
+      'export METADATA_DICT=$(jq -c \'. + { "maxtext_commit_hash": $newVal}\' --arg newVal ${MAXTEXT_COMMIT_HASH} <<<"$METADATA_DICT")',
+      'export METADATA_DICT=$(jq -c \'. + { "jetstream_commit_hash": $newVal}\' --arg newVal ${JETSTREAM_COMMIT_HASH} <<<"$METADATA_DICT")',
       ### Benchmark
       "cd maxtext",
       # Configure flags
@@ -86,7 +100,7 @@ def get_maxtext_inference_nightly_config(
       f"export ICI_FSDP_PARALLELISM={model_configs['ici_fsdp_parallelism']}",
       f"export ICI_AUTOREGRESSIVE_PARALLELISM={model_configs['ici_autoregressive_parallelism']}",
       f"export ICI_TENSOR_PARALLELISM={model_configs['ici_tensor_parallelism']}",
-      "export SCAN_LAYERS=false",
+      f"export SCAN_LAYERS={model_configs['scan_layers']}",
       f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
       # Start JetStream MaxText server in the background
@@ -110,13 +124,13 @@ def get_maxtext_inference_nightly_config(
       f"""python JetStream/benchmarks/benchmark_serving.py \
       --tokenizer maxtext/assets/{model_configs['tokenizer']} \
       --model {model_configs['model_name']} \
-      --num-prompts 1000  \
-      --dataset openorca \
-      --max-output-length 1024 \
+      --num-prompts {model_configs['num_prompts']}  \
+      --dataset {model_configs['dataset']} \
+      --max-output-length {model_configs['max_output_length']} \
       --request-rate {model_configs['request_rate']} \
       --warmup-first true \
       --save-result \
-      --additional-metadata-metrics-to-save '{json.dumps(additional_metadata_dict)}' \
+      --additional-metadata-metrics-to-save ${{METADATA_DICT}} \
       --save-request-outputs \
       --run-eval true""",
       'export BENCHMARK_OUTPUT=$(find . -name "*JetStream*" -type f -printf "%T@ %Tc %p\n" | sort -n | head -1 | awk \'NF>1{print $NF}\')',
