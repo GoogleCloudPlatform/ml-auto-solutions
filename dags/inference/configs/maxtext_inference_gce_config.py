@@ -65,6 +65,7 @@ def get_maxtext_inference_nightly_config(
   )
 
   additional_metadata_dict = {
+      "model_mode": f"{model_configs['model_mode']}",
       "checkpoint": f"{model_configs['checkpoint']}",
       "scan_layers": f"{model_configs['scan_layers']}",
       "dataset": f"{model_configs['dataset']}",

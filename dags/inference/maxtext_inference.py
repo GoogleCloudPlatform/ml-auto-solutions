@@ -40,6 +40,7 @@ with models.DAG(
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "base",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
           "scan_layers": "false",
           "dataset": "openorca",
@@ -58,6 +59,7 @@ with models.DAG(
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "base",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/",
           "scan_layers": "false",
           "dataset": "openorca",
@@ -77,6 +79,7 @@ with models.DAG(
           "tpu_version_cores": [(TpuVersion.V5P, 8)],
           "per_device_batch_sizes": [12, 16, 20, 24],
           "checkpoint": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "chat",
           "maxtext_logs": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/",
           "scan_layers": "false",
           "dataset": "openorca",
@@ -94,6 +97,7 @@ with models.DAG(
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "base",
           "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
           "scan_layers": "false",
           "dataset": "openorca",
@@ -118,6 +122,7 @@ with models.DAG(
           # Set per_device_batch_size to a single value, not a list
           model_configs = {}
           model_configs["model_name"] = model
+          model_configs["model_mode"] = sweep_model_configs["model_mode"]
           model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
           model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
           model_configs["maxtext_logs"] = sweep_model_configs["maxtext_logs"]
