@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to construct configs for maxtext inference DAG."""
+"""Utilities to construct configs for maxtext inference microbenchmarks DAG."""
 
 import json
 from typing import Dict
@@ -50,7 +50,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
   set_up_cmds = (
       "pip install --upgrade pip",
       # Download maxtext
-      "git clone https://github.com/google/maxtext.git",
+      "git clone -b mor--kv-cache-layout https://github.com/google/maxtext.git",
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
@@ -63,6 +63,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
   )
 
   additional_metadata_dict = {
+      "base_output_directory": f"{model_configs['base_output_directory']}",
       "model_name": f"{model_configs['model_name']}",
       "tokenizer": f"{model_configs['tokenizer']}",
       "weight_dtype": f"{model_configs['weight_dtype']}",
@@ -75,7 +76,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
       "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
       "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
-      "model_name": f"{model_configs['enable_profiler']}",
+      "enable_profiler": f"{model_configs['enable_profiler']}",
       "scan_layers": f"{model_configs['scan_layers']}",
       "quantization": f"{model_configs['quantization']}",
       "quantize_kvcache": f"{model_configs['quantize_kvcache']}",
@@ -92,13 +93,15 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
       'cd maxtext && export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
       'export METADATA_DICT=$(jq -c \'. + { "maxtext_commit_hash": $newVal}\' --arg newVal ${MAXTEXT_COMMIT_HASH} <<<"$METADATA_DICT")',
+      "echo ${METADATA_DICT}",
       ### Benchmark
       "cd maxtext",
       # Configure flags
       "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
+      f"export run_name={model_configs['key_value_axis_order_product_id']}-{model_configs['ar_key_axis_order']}-{model_configs['ar_value_axis_order']}",
       f"""python MaxText/inference_microbenchmark.py \
           MaxText/configs/base.yml \
-          base_output_directory=gs://morgandu-tpu/maxtext-logs/llama2-7b/microbenchmark/int8 \
+          base_output_directory={model_configs['base_output_directory']} \
           model_name={model_configs['model_name']} \
           tokenizer_path=assets/{model_configs['tokenizer']} \
           weight_dtype={model_configs['weight_dtype']} \
@@ -113,12 +116,13 @@ def get_maxtext_inference_microbenchmark_nightly_config(
           ici_autoregressive_parallelism={model_configs['ici_autoregressive_parallelism']} \
           enable_profiler={model_configs['enable_profiler']} \
           scan_layers={model_configs['scan_layers']} \
-          run_name={model_configs['key_value_axis_order_product_id']}-{model_configs['ar_key_axis_order']}-{model_configs['ar_value_axis_order']} \
+          run_name=${{run_name}} \
           quantization={model_configs['quantization']} \
           quantize_kvcache={model_configs['quantize_kvcache']} \
           attention={model_configs['attention']} \
           ar_key_axis_order={model_configs['ar_key_axis_order']} \
-          ar_value_axis_order={model_configs['ar_value_axis_order']}""",
+          ar_value_axis_order={model_configs['ar_value_axis_order']} \
+          inference_microbenchmark_log_file_path=${{run_name}}.json""",
 
       # Upload results (in jsonlines format) to GCS to be post-processed into
       # our BigQuery table
