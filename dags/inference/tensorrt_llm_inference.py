@@ -16,9 +16,8 @@
 
 import datetime
 from airflow import models
-from airflow.models.baseoperator import chain
-from dags import composer_env, test_owner
-from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject,MachineVersion
+from dags import composer_env
+from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion
 from dags.inference.configs import tensorrt_llm_inference_config
 from dags.multipod.configs.common import SetupMode, Platform
 
