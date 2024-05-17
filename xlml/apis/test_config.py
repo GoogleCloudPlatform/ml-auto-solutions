@@ -402,7 +402,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         setup=setup,
         exports=exports,
         test_command=test_command,
-        time_out=datetime.timedelta(minutes=test['timeout']),
+        time_out=datetime.timedelta(seconds=test['timeout']),
     )
 
   @staticmethod
@@ -504,7 +504,7 @@ class JSonnetGpuTest(TestConfig[Gpu]):
         entrypoint_script=test['entrypoint'],
         test_command=test['command'],
         num_hosts=test['accelerator']['num_hosts'],
-        time_out=datetime.timedelta(minutes=test['timeout']),
+        time_out=datetime.timedelta(seconds=test['timeout']),
     )
 
   @property
