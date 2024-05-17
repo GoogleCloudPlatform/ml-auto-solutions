@@ -402,8 +402,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         setup=setup,
         exports=exports,
         test_command=test_command,
-        # `timeout` is in seconds
-        time_out_in_min=datetime.timedelta(minutes=test['timeout']),
+        time_out=datetime.timedelta(minutes=test['timeout']),
     )
 
   @staticmethod
