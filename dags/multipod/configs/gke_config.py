@@ -87,7 +87,7 @@ def get_gke_maxtext_nightly_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
-    time_out: int,
+    time_out_in_min: int,
     test_name: str,
     docker_image: str,
     test_owner: str,
