@@ -395,7 +395,7 @@ class XpkTask(BaseTask):
         )
       launch_workload = self.launch_workload(workload_id, gcs_path)
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
-          timeout=self.task_test_config.time_out * 60,
+          timeout=int(self.task_test_config.time_out.total_seconds()),
       )(
           workload_id=workload_id,
           project_id=self.task_gcp_config.project_name,
