@@ -680,7 +680,9 @@ class GpuGkeTask(BaseTask):
             },
         },
         "spec": {
-            "activeDeadlineSeconds": int(self.task_test_config.time_out.total_seconds())
+            "activeDeadlineSeconds": int(
+                self.task_test_config.time_out.total_seconds()
+            )
             or 3600,
             "backoffLimit": 0,
             "completionMode": "Indexed",
