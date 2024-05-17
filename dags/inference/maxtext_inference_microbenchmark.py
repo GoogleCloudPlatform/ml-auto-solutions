@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run MaxText inference benchmarks with nightly version."""
+"""A DAG to run MaxText inference microbenchmarks with nightly version."""
 
 import datetime
 from airflow import models
@@ -23,8 +23,8 @@ from dags.inference.configs import maxtext_inference_microbenchmark_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
 
 
-# Run once a day at 4 am UTC (8 pm PST)
-SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 12 pm UTC (4 am PST)
+SCHEDULED_TIME = "0 12 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
@@ -37,46 +37,44 @@ with models.DAG(
   test_name_prefix = "maxtext-inference-microbenchmark"
   test_models = {
       "llama2-7b": {
-          "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 4)],
-          "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
-          "scan_layers": "false",
-          "weight_dtype": "bfloat16",
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "attention": "dot_product",
+          "base_output_directory": "gs://inference-benchmarks/logs/llama2-7b/microbenchmark/int8",
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [24],
-          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, 1, -1)],
-          "max_prefill_predict_length": 1024,
-          "max_target_length": 2048,
+          "weight_dtype": "bfloat16",
           "inference_microbenchmark_prefill_lengths": 1024,
           "inference_microbenchmark_stages": "generate",
           "inference_microbenchmark_loop_iters": 10,
+          "max_prefill_predict_length": 1024,
+          "max_target_length": 2048,
+          "per_device_batch_sizes": [24],
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          "ici_parallelisms": [(1, 1, -1)],
           "enable_profiler": "false",
-          "key_value_axis_order_product_id": "",
-          "ar_key_axis_order": "1,2,0,3",
-          "ar_value_axis_order": "1,2,0,3",
+          "scan_layers": "false",
+          "quantization": "int8",
+          "quantize_kvcache": "true",
+          "attention": "dot_product",
+          "key_value_axis_order_product_id": 0,
+          "ar_key_axis_order": "0,1,2,3",
+          "ar_value_axis_order": "0,1,2,3",
+          "sleep_time": 120,
       },
   }
 
   for model, sweep_model_configs in test_models.items():
-    # tasks_per_model = []
     for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
       for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
         for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
-          # Set per_device_batch_size to a single value, not a list
           model_configs = {}
           model_configs["model_name"] = model
-          model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
-          model_configs["maxtext_logs"] = sweep_model_configs["maxtext_logs"]
-          model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
-          model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
-          model_configs["quantization"] = sweep_model_configs["quantization"]
-          model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
-          model_configs["attention"] = sweep_model_configs["attention"]
+          model_configs["base_output_directory"] = sweep_model_configs["base_output_directory"]
           model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
+          model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
+          model_configs["inference_microbenchmark_prefill_lengths"] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
+          model_configs["inference_microbenchmark_stages"] = sweep_model_configs["inference_microbenchmark_stages"]
+          model_configs["inference_microbenchmark_loop_iters"] = sweep_model_configs["inference_microbenchmark_loop_iters"]
+          model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
+          model_configs["max_prefill_predict_length"] = sweep_model_configs["max_prefill_predict_length"]
           model_configs["per_device_batch_size"] = per_device_batch_size
           ici_fsdp = ici_parallelism[0]
           ici_ar = ici_parallelism[1]
@@ -84,19 +82,15 @@ with models.DAG(
           model_configs["ici_fsdp_parallelism"] = ici_fsdp
           model_configs["ici_autoregressive_parallelism"] = ici_ar
           model_configs["ici_tensor_parallelism"] = ici_tensor
-          model_configs["max_target_length"] = sweep_model_configs[
-              "max_target_length"
-          ]
-          model_configs["max_prefill_predict_length"] = sweep_model_configs[
-              "max_prefill_predict_length"
-          ]
-          model_configs["inference_microbenchmark_prefill_lengths"] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
-          model_configs["inference_microbenchmark_stages"] = sweep_model_configs["inference_microbenchmark_stages"]
-          model_configs["inference_microbenchmark_loop_iters"] = sweep_model_configs["inference_microbenchmark_loop_iters"]
           model_configs["enable_profiler"] = sweep_model_configs["enable_profiler"]
+          model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
+          model_configs["quantization"] = sweep_model_configs["quantization"]
+          model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
+          model_configs["attention"] = sweep_model_configs["attention"]
           model_configs["key_value_axis_order_product_id"] = sweep_model_configs["key_value_axis_order_product_id"]
           model_configs["ar_key_axis_order"] = sweep_model_configs["ar_key_axis_order"]
           model_configs["ar_value_axis_order"] = sweep_model_configs["ar_value_axis_order"]
+          model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
 
           if tpu_version == TpuVersion.V5E:
             # v5e benchmarks
@@ -126,6 +120,7 @@ with models.DAG(
               subnetwork=subnetwork,
               model_configs=model_configs,
           ).run()
+          maxtext_stable_1slice
           # maxtext_nightly_1slice = maxtext_inference_microbenchmark_gce_config.get_maxtext_inference_microbenchmark_nightly_config(
           #     tpu_version=tpu_version,
           #     tpu_cores=tpu_cores,
@@ -141,4 +136,3 @@ with models.DAG(
           #     model_configs=model_configs,
           # ).run()
           # maxtext_stable_1slice >> maxtext_nightly_1slice
-          maxtext_stable_1slice
