@@ -47,7 +47,7 @@ def get_simple_config() -> task.TpuQueuedResourceTask:
       test_name="simple-jax-code",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out=datetime.timedelta(minutes = 60),
+      time_out=datetime.timedelta(minutes=60),
       task_owner=test_owner.ORTI_B,
       num_slices=1,
   )

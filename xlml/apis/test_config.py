@@ -147,7 +147,9 @@ class TestConfig(abc.ABC, Generic[A]):
   """
 
   accelerator: A
-  time_out: Optional[datetime.timedelta] = attrs.field(default=None, kw_only=True)
+  time_out: Optional[datetime.timedelta] = attrs.field(
+      default=None, kw_only=True
+  )
   task_owner: str = attrs.field(default='unowned', kw_only=True)
   gcs_subfolder: str = attrs.field(default='unowned', kw_only=True)
 
@@ -401,7 +403,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         exports=exports,
         test_command=test_command,
         # `timeout` is in seconds
-        time_out_in_min=datetime.timedelta(minutes = test['timeout']),
+        time_out_in_min=datetime.timedelta(minutes=test['timeout']),
     )
 
   @staticmethod
@@ -503,7 +505,7 @@ class JSonnetGpuTest(TestConfig[Gpu]):
         entrypoint_script=test['entrypoint'],
         test_command=test['command'],
         num_hosts=test['accelerator']['num_hosts'],
-        time_out=datetime.timedelta(minutes = test['timeout']),
+        time_out=datetime.timedelta(minutes=test['timeout']),
     )
 
   @property
