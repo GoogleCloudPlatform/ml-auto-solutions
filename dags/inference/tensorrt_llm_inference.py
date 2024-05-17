@@ -19,7 +19,6 @@ from airflow import models
 from dags import composer_env
 from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion
 from dags.inference.configs import tensorrt_llm_inference_config
-from dags.multipod.configs.common import SetupMode, Platform
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
@@ -58,17 +57,17 @@ with models.DAG(
   #     test_name=f"{test_name_prefix}-nightly-llama-7b-l4-1",
   # ).run()
 
-  # # Running on A100 GPU
-  # tensorrt_llm_inference_config.get_tensorrt_llm_gpu_config(
-  #     machine_type=MachineVersion.A2_HIGHGPU_1G,
-  #     image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-  #     image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-  #     accelerator_type=GpuVersion.A100,
-  #     count=1,
-  #     gpu_zone=Zone.US_CENTRAL1_F,
-  #     time_out_in_min=1600,
-  #     test_name=f"{test_name_prefix}-nightly-llama-7b-a100-1",
-  # ).run()
+  # Running on A100 GPU
+  tensorrt_llm_inference_config.get_tensorrt_llm_gpu_config(
+      machine_type=MachineVersion.A2_HIGHGPU_1G,
+      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=GpuVersion.A100,
+      count=1,
+      gpu_zone=Zone.US_CENTRAL1_F,
+      time_out_in_min=1600,
+      test_name=f"{test_name_prefix}-nightly-llama-7b-a100-1",
+  ).run()
 
   # Running on V100 GPU
   tensorrt_llm_inference_config.get_tensorrt_llm_gpu_config(

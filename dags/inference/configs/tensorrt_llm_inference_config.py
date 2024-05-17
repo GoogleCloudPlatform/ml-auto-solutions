@@ -16,7 +16,7 @@
 
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, vm_resource
-from dags.vm_resource import GpuVersion, Project, RuntimeVersion
+from dags.vm_resource import Project, RuntimeVersion
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 # TODO is this default ?
