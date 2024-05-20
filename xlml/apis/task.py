@@ -20,7 +20,6 @@ import datetime
 import shlex
 from typing import Dict, Optional, Tuple, Union
 import airflow
-from airflow.decorators import task_group
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
@@ -65,8 +64,7 @@ def run_queued_resource_test(
       post_process and clean_up.
   """
 
-  @task_group()
-  def provision() -> Tuple[airflow.XComArg, airflow.XComArg, airflow.XComArg]:
+  def _provision() -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
     """Provision a TPU accelerator via a Queued Resource.
 
     Generates a random TPU name and SSH keys, creates a Queued Resource, and
@@ -79,33 +77,34 @@ def run_queued_resource_test(
     Raises:
       AirflowTaskTimeout: An error occurs when execution_timeout is breached.
     """
-    with TaskGroup(group_id="initialize"):
-      tpu_name = tpu.generate_tpu_name(
-          task_test_config.benchmark_id, tpu_name_env_var
-      )
-      ssh_keys = ssh.generate_ssh_keys()
-      output_location = name_format.generate_gcs_folder_location(
-          task_test_config.gcs_subfolder,
-          task_test_config.benchmark_id,
-      )
+    with TaskGroup(group_id="provision") as group:
+      with TaskGroup(group_id="initialize"):
+        tpu_name = tpu.generate_tpu_name(
+            task_test_config.benchmark_id, tpu_name_env_var
+        )
+        ssh_keys = ssh.generate_ssh_keys()
+        output_location = name_format.generate_gcs_folder_location(
+            task_test_config.gcs_subfolder,
+            task_test_config.benchmark_id,
+        )
 
-    queued_resource_op, queued_resource_name = tpu.create_queued_resource(
-        tpu_name,
-        task_gcp_config,
-        ssh_keys,
-        tpu_create_timeout,
-        task_test_config,
-    )
-    queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
-        queued_resource_name,
-        # TODO(wcromar): remove split
-        task_test_config.setup_script,
-        ssh_keys,
-        all_workers,
-    )
-    return queued_resource_name, ssh_keys, output_location
+      queued_resource_op, queued_resource_name = tpu.create_queued_resource(
+          tpu_name,
+          task_gcp_config,
+          ssh_keys,
+          tpu_create_timeout,
+          task_test_config,
+      )
+      queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
+          queued_resource_name,
+          # TODO(wcromar): remove split
+          task_test_config.setup_script,
+          ssh_keys,
+          all_workers,
+      )
+    return group, queued_resource_name, ssh_keys, output_location
 
-  def run_model(
+  def _run_model(
       # TODO(wcromar): Is there a way to annotate the type of the XCom arg?
       queued_resource: airflow.XComArg,
       ssh_keys: airflow.XComArg,
@@ -134,8 +133,7 @@ def run_queued_resource_test(
         env,
     )
 
-  @task_group()
-  def post_process(
+  def _post_process(
       use_startup_script: bool = False,
       result_location: Optional[str] = None,
   ) -> DAGNode:
@@ -154,10 +152,10 @@ def run_queued_resource_test(
           use_startup_script=use_startup_script,
           folder_location=result_location,
       )
-      return group
 
-  @task_group()
-  def clean_up(queued_resource: airflow.XComArg) -> DAGNode:
+    return group
+
+  def _clean_up(queued_resource: airflow.XComArg) -> DAGNode:
     """Clean up TPU resources created by `provision`.
 
     Args:
@@ -176,13 +174,14 @@ def run_queued_resource_test(
   with TaskGroup(
       group_id=task_test_config.benchmark_id, prefix_group_id=True
   ) as group:
-    queued_resource, ssh_keys, gcs_location = provision()
-    env = {f"{metric_config.SshEnvVars.GCS_OUTPUT.name}": gcs_location}
-    (
-        run_model(queued_resource, ssh_keys, env)
-        >> post_process(result_location=gcs_location)
-        >> clean_up(queued_resource)
-    )
+    provision, queued_resource, ssh_keys, gcs_location = _provision()
+    env_variable = {
+        f"{metric_config.SshEnvVars.GCS_OUTPUT.name}": gcs_location
+    }
+    run_model = _run_model(queued_resource, ssh_keys, env_variable)
+    post_process = _post_process(result_location=gcs_location)
+    clean_up = _clean_up(queued_resource)
+    provision >> run_model >> post_process >> clean_up
 
   return group
 

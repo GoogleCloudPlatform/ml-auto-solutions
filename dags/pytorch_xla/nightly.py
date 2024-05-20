@@ -204,7 +204,7 @@ with models.DAG(
   huggingface()
   llama()
 
-  resnet_v5lp_4 = task.run_queued_resource_test(
+  ci_v5lp_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-ci-func-v5litepod-4-1vm",
           network=V5_NETWORKS,
