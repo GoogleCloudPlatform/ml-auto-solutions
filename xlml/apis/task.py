@@ -18,7 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
@@ -40,7 +40,7 @@ class BaseTask(abc.ABC):
 
 
 def run_queued_resource_test(
-    # TODO(wcromar): make these attributes less verbose
+    # TODO(wcromar): make these args less verbose
     task_test_config: test_config.TestConfig[test_config.Tpu],
     task_gcp_config: gcp_config.GCPConfig,
     task_metric_config: Optional[metric_config.MetricConfig] = None,
@@ -49,6 +49,13 @@ def run_queued_resource_test(
     all_workers: bool = True,
 ):
   """This is a class to set up tasks for TPU provisioned by Queued Resource.
+
+  Test steps:
+  1. Generates a random TPU name and SSH keys, creates a Queued Resource, and
+     runs the test config's setup script on the TPU when it is ready.
+  2. Run the TPU test in `task_test_config` via SSH.
+  3. Process metrics and metadata, then insert them into BigQuery tables.
+  4. Clean up TPU resources created by for this test
 
   Attributes:
     task_test_config: Test configs to run on this TPU.
@@ -64,20 +71,10 @@ def run_queued_resource_test(
       post_process and clean_up.
   """
 
-  def _provision() -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
-    """Provision a TPU accelerator via a Queued Resource.
-
-    Generates a random TPU name and SSH keys, creates a Queued Resource, and
-    runs the test config's setup script on the TPU when it is ready.
-
-    Returns:
-      A DAG node that will provision a TPU, an XCom value for the qualified
-      queued resource name, and an XCom value for the SSH keys.
-
-    Raises:
-      AirflowTaskTimeout: An error occurs when execution_timeout is breached.
-    """
-    with TaskGroup(group_id="provision") as group:
+  with TaskGroup(
+      group_id=task_test_config.benchmark_id, prefix_group_id=True
+  ) as test:
+    with TaskGroup(group_id="provision") as provision:
       with TaskGroup(group_id="initialize"):
         tpu_name = tpu.generate_tpu_name(
             task_test_config.benchmark_id, tpu_name_env_var
@@ -97,93 +94,42 @@ def run_queued_resource_test(
       )
       queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
           queued_resource_name,
-          # TODO(wcromar): remove split
           task_test_config.setup_script,
           ssh_keys,
           all_workers,
       )
-    return group, queued_resource_name, ssh_keys, output_location
 
-  def _run_model(
-      # TODO(wcromar): Is there a way to annotate the type of the XCom arg?
-      queued_resource: airflow.XComArg,
-      ssh_keys: airflow.XComArg,
-      env: Dict[str, airflow.XComArg] = None,
-  ) -> DAGNode:
-    """Run the TPU test in `task_test_config`.
-
-    Args:
-      queued_resource: XCom value for the queued resource name (string).
-      ssh_keys: And XCom value for the TPU's SSH keys (SshKeys).
-
-    Returns:
-      A DAG node that executes the model test.
-    """
-
-    return tpu.ssh_tpu.override(
+    run_model = tpu.ssh_tpu.override(
         task_id="run_model",
         execution_timeout=task_test_config.timeout,
         owner=task_test_config.task_owner,
     )(
-        queued_resource,
-        # TODO(wcromar): remove split
+        queued_resource_name,
         task_test_config.test_script,
         ssh_keys,
         all_workers,
-        env,
+        env={
+            metric_config.SshEnvVars.GCS_OUTPUT.name: output_location
+        },
     )
 
-  def _post_process(
-      use_startup_script: bool = False,
-      result_location: Optional[str] = None,
-  ) -> DAGNode:
-    """Process metrics and metadata, and insert them into BigQuery tables.
-
-    Returns:
-      A DAG node that executes the post process.
-    """
-    with TaskGroup(group_id="post_process") as group:
+    with TaskGroup(group_id="post_process") as post_process:
       process_id = metric.generate_process_id.override(retries=0)()
       metric.process_metrics.override(retries=0)(
           process_id,
           task_test_config,
           task_metric_config,
           task_gcp_config,
-          use_startup_script=use_startup_script,
-          folder_location=result_location,
+          folder_location=output_location,
       )
 
-    return group
-
-  def _clean_up(queued_resource: airflow.XComArg) -> DAGNode:
-    """Clean up TPU resources created by `provision`.
-
-    Args:
-      queued_resource: an XCom value for the qualified QR name.
-
-    Returns:
-      A DAG node that deletes the queued resource and its owned nodes.
-
-    Raises:
-      AirflowTaskTimeout: An error occurs when execution_timeout is breached.
-    """
-    return tpu.delete_queued_resource.override(group_id="clean_up")(
-        queued_resource
+    clean_up = tpu.delete_queued_resource.override(group_id="clean_up")(
+        queued_resource_name
     )
 
-  with TaskGroup(
-      group_id=task_test_config.benchmark_id, prefix_group_id=True
-  ) as group:
-    provision, queued_resource, ssh_keys, gcs_location = _provision()
-    env_variable = {
-        f"{metric_config.SshEnvVars.GCS_OUTPUT.name}": gcs_location
-    }
-    run_model = _run_model(queued_resource, ssh_keys, env_variable)
-    post_process = _post_process(result_location=gcs_location)
-    clean_up = _clean_up(queued_resource)
     provision >> run_model >> post_process >> clean_up
 
-  return group
+  return test
 
 
 @dataclasses.dataclass
