@@ -108,9 +108,7 @@ def run_queued_resource_test(
         task_test_config.test_script,
         ssh_keys,
         all_workers,
-        env={
-            metric_config.SshEnvVars.GCS_OUTPUT.name: output_location
-        },
+        env={metric_config.SshEnvVars.GCS_OUTPUT.name: output_location},
     )
 
     with TaskGroup(group_id="post_process") as post_process:
