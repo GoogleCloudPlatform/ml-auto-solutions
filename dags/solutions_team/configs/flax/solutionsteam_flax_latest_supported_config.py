@@ -14,19 +14,19 @@
 
 """Utilities to construct configs for solutionsteam_flax_latest_supported DAG."""
 
+import datetime
 from typing import Tuple
 import uuid
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
 from dags.solutions_team.configs.flax import common
 from dags.vm_resource import TpuVersion, Project, RuntimeVersion
-from datetime import datetime
 import os
 
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
-RUN_DATE = datetime.now().strftime("%Y_%m_%d")
+RUN_DATE = datetime.datetime.now().strftime("%Y_%m_%d")
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
 
 
@@ -73,7 +73,7 @@ def get_flax_resnet_config(
       test_name="flax_resnet_imagenet",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
   )
 
@@ -148,7 +148,7 @@ def get_flax_vit_config(
       test_name="flax_vit_imagenette",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
   )
 
@@ -203,7 +203,7 @@ def get_flax_vit_conv_config(
       test_name="flax_vit_imagenette_conv",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/flax",
   )
@@ -280,7 +280,7 @@ def get_flax_gpt2_config(
       test_name="flax_gpt2_oscar",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
   )
 
@@ -345,7 +345,7 @@ def get_flax_sd_config(
       test_name="flax_sd_pokemon",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
   )
 
@@ -409,7 +409,7 @@ def get_flax_bart_config(
       test_name="flax_bart_wiki",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
   )
 
@@ -456,7 +456,7 @@ def get_flax_bart_conv_config(
       test_name="flax_bart_wiki_conv",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/flax",
   )
@@ -531,7 +531,7 @@ def get_flax_bert_config(
       test_name=f"flax_bert_{task_name}",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
   )
 
@@ -579,7 +579,7 @@ def get_flax_bert_conv_config(
       test_name=f"flax_bert_{task_name}_conv",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/flax",
   )
@@ -643,7 +643,7 @@ def get_flax_wmt_config(
       test_name="flax_wmt_translate",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.SHIVA_S,
   )
 

@@ -71,7 +71,7 @@ def get_legacy_unit_test_config(
       test_name=test_name,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       num_slices=num_slices,
       cluster_name=cluster_name,

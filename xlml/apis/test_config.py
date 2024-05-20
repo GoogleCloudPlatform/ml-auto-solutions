@@ -50,6 +50,7 @@ import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 
 import attrs
+import datetime
 from dags.vm_resource import TpuVersion, CpuVersion
 
 
@@ -140,14 +141,15 @@ class TestConfig(abc.ABC, Generic[A]):
 
   Attributes:
     accelerator: Accelerator type required for this test.
-    time_out_in_min: Test timeout in minutes.
+    timeout: Test timeout.
     task_owner: Task owner username or link.
     gcs_subfolder: Subfolder name for default GCS bucket.
   """
 
   accelerator: A
-  # TODO(wcromar): make this a timedelta
-  time_out_in_min: Optional[int] = attrs.field(default=None, kw_only=True)
+  timeout: Optional[datetime.timedelta] = attrs.field(
+      default=None, kw_only=True
+  )
   task_owner: str = attrs.field(default='unowned', kw_only=True)
   gcs_subfolder: str = attrs.field(default='unowned', kw_only=True)
 
@@ -400,8 +402,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         setup=setup,
         exports=exports,
         test_command=test_command,
-        # `timeout` is in seconds
-        time_out_in_min=test['timeout'] // 60,
+        timeout=datetime.timedelta(seconds=test['timeout']),
     )
 
   @staticmethod
@@ -503,8 +504,7 @@ class JSonnetGpuTest(TestConfig[Gpu]):
         entrypoint_script=test['entrypoint'],
         test_command=test['command'],
         num_hosts=test['accelerator']['num_hosts'],
-        # `timeout` is in seconds
-        time_out_in_min=test['timeout'] // 60,
+        timeout=datetime.timedelta(seconds=test['timeout']),
     )
 
   @property
