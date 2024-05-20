@@ -74,7 +74,7 @@ def get_mxla_collective_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.TONY_C,
       num_slices=num_slices,
   )

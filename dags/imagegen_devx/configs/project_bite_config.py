@@ -70,7 +70,7 @@ def get_bite_tpu_config(
       test_name=f"jax_{model_config}",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RAN_R,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jax",
   )

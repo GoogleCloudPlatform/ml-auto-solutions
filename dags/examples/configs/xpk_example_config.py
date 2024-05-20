@@ -55,7 +55,7 @@ def get_flax_resnet_xpk_config(
       docker_image=docker_image,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,
-      time_out=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RAN_R,
       num_slices=num_slices,
   )

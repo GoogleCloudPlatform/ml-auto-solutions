@@ -75,7 +75,7 @@ def get_tf_keras_config(
       test_name=keras_test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.ERIC_L,
   )
 
@@ -163,7 +163,7 @@ def get_tf_resnet_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.CHANDRA_D,
   )
 
@@ -312,7 +312,7 @@ def get_tf_dlrm_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.CHANDRA_D,
   )
 

@@ -115,8 +115,8 @@ def create_queued_resource(
     }
 
     create_tpu_timeout_in_sec = int(timeout.total_seconds())
-    if task_test_config.time_out:
-      run_model_timeout_in_sec = int(task_test_config.time_out.total_seconds())
+    if task_test_config.timeout:
+      run_model_timeout_in_sec = int(task_test_config.timeout.total_seconds())
     else:
       run_model_timeout_in_sec = 0
     # Time to live (ttl) is combination of:
@@ -200,7 +200,7 @@ def create_queued_resource(
 
     return ssh_tpu.override(
         task_id='check_if_startup_script_end',
-        execution_timeout=task_test_config.time_out,
+        execution_timeout=task_test_config.timeout,
         owner=task_test_config.task_owner,
     )(
         queued_resource,

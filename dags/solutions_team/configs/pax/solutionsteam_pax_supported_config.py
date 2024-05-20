@@ -135,7 +135,7 @@ def get_pax_lm_config(
       test_name=f"pax_{pax_version.value}_{model_name}",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.GERSON_K,
   )
 

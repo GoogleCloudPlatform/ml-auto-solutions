@@ -85,7 +85,7 @@ def get_maxtext_sweep_gke_config(
         test_name=f"{run_name_prefix}-{idx}",
         set_up_cmds=None,
         run_model_cmds=run_model_cmds,
-        time_out=datetime.timedelta(minutes=time_out_in_min),
+        timeout=datetime.timedelta(minutes=time_out_in_min),
         task_owner=test_owner,
         num_slices=curr_num_slices,
         cluster_name=cluster_name,

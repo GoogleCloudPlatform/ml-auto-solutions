@@ -249,7 +249,7 @@ class TpuQueuedResourceTask(BaseTask):
 
     return tpu.ssh_tpu.override(
         task_id="run_model",
-        execution_timeout=self.task_test_config.time_out,
+        execution_timeout=self.task_test_config.timeout,
         owner=self.task_test_config.task_owner,
     )(
         queued_resource,
@@ -395,7 +395,7 @@ class XpkTask(BaseTask):
         )
       launch_workload = self.launch_workload(workload_id, gcs_path)
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
-          timeout=int(self.task_test_config.time_out.total_seconds()),
+          timeout=int(self.task_test_config.timeout.total_seconds()),
       )(
           workload_id=workload_id,
           project_id=self.task_gcp_config.project_name,
@@ -581,7 +581,7 @@ class GpuCreateResourceTask(BaseTask):
     """
     return gpu.ssh_host.override(
         task_id="run_model",
-        execution_timeout=self.task_test_config.time_out,
+        execution_timeout=self.task_test_config.timeout,
         owner=self.task_test_config.task_owner,
     )(
         resource,
@@ -681,7 +681,7 @@ class GpuGkeTask(BaseTask):
         },
         "spec": {
             "activeDeadlineSeconds": int(
-                self.task_test_config.time_out.total_seconds()
+                self.task_test_config.timeout.total_seconds()
             )
             or 3600,
             "backoffLimit": 0,
