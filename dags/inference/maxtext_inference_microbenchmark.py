@@ -70,7 +70,7 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
-  sweep_vm_count=32
+  sweep_vm_count=12
   (
     key_value_axis_order_product_id_concat_list,
     ar_key_axis_order_concat_list,
@@ -152,7 +152,7 @@ with models.DAG(
                 tpu_zone=zone,
                 runtime_version=runtime_version,
                 project_name=project_name,
-                time_out_in_min=60,
+                time_out_in_min=180,
                 is_tpu_reserved=True,
                 test_name=f"{test_name_prefix}-stable-{model}-batch-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}-vm-{vm_number}",
                 test_mode=SetupMode.STABLE,
