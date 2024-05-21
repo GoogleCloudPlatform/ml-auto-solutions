@@ -44,6 +44,7 @@ def run_job(
     gcp: gcp_config.GCPConfig,
     cluster_name: str,
     job_create_timeout: datetime.timedelta,
+    gcs_location: str = '',
 ):
   """Run a batch job directly on a GKE cluster.
 
@@ -55,10 +56,14 @@ def run_job(
   """
 
   @task
-  def deploy_job():
+  def deploy_job(gcs_location):
+    body['spec']['template']['spec']['containers'][0]['env'].append(
+        {'name': 'GCS_OUTPUT', 'value': gcs_location}
+    )
     client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
 
     jobs_client = kubernetes.client.BatchV1Api(client)
+
     resp = jobs_client.create_namespaced_job(namespace='default', body=body)
 
     logging.info(f'response: {resp}')
@@ -148,5 +153,5 @@ def run_job(
 
     return True
 
-  name = deploy_job()
+  name = deploy_job(gcs_location)
   stream_logs(name)

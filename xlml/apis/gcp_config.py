@@ -17,6 +17,7 @@
 import dataclasses
 
 from dags.vm_resource import Project
+from typing import Optional
 from xlml.apis import metric_config
 
 

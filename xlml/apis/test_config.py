@@ -465,12 +465,8 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
 
 
 @attrs.define
-class JSonnetGpuTest(TestConfig[Gpu]):
-  """Convert legacy JSonnet test configs into a TestConfig.
-
-  Do not construct directly. Instead, use the `from_*` factory functions which
-  parse pre-compiled JSonnet test configs.
-
+class GpuGkeTest(TestConfig[Gpu]):
+  """
   Attributes:
     test_name: Unique name of this test/model.
     test_command: Command and arguments to execute on the TPU VM.
@@ -481,17 +477,18 @@ class JSonnetGpuTest(TestConfig[Gpu]):
   """
 
   test_name: str
-  test_command: List[str]
   entrypoint_script: List[str]
+  test_command: List[str]
   docker_image: str
   num_hosts: int = 1
+  gcs_subfolder: str = '/tmp/'
 
   @staticmethod
-  def from_pytorch(test_name: str, network='default', subnetwork='default'):
+  def from_pytorch(test_name: str):
     """Parses a compiled legacy JSonnet test config from `tests/pytorch`."""
     test = _load_compiled_jsonnet(test_name)
 
-    return JSonnetGpuTest(
+    return GpuGkeTest(
         test_name=test_name,
         docker_image=f'{test["image"]}:{test["imageTag"]}',
         accelerator=Gpu(
@@ -509,10 +506,8 @@ class JSonnetGpuTest(TestConfig[Gpu]):
 
   @property
   def benchmark_id(self) -> str:
-    return self.test_name
+    return f'{self.test_name}-{self.accelerator.name}'
 
-  # HACK: setup script is used as the entrypoint in the test. Make sure it
-  # invokes the content of `test_script` at the end (e.g. "${@:0}").
   @property
   def setup_script(self) -> str:
     return shlex.join(self.entrypoint_script)

@@ -18,7 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
-from typing import Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
@@ -635,21 +635,21 @@ class GpuGkeTask(BaseTask):
   """This is a class to set up tasks for GPU on a GKE cluster.
 
   Attributes:
-    image_project: the project that an image belongs to.
-    image_family: the family group that an image belongs to.
+    task_test_config: task configutation.
+    task_gcp_config: gcp related config (e.g., zone, project) for the task.
     cluster_name: Name of the GCP cluster.
     job_create_timeout: Amount of time to wait for all pods to become active.
+    task_metric_config: metric configuration (e.g., result gcs path).
   """
 
-  task_test_config: test_config.JSonnetGpuTest
+  task_test_config: test_config.GpuGkeTest
   task_gcp_config: gcp_config.GCPConfig
   cluster_name: str
   job_create_timeout: datetime.timedelta = datetime.timedelta(minutes=10)
-  # TODO(wcromar): job history metrics
-  # task_metric_config: Optional[metric_config.MetricConfig] = None
+  task_metric_config: Optional[metric_config.MetricConfig] = None
 
   def run(self) -> DAGNode:
-    """Run a test job.
+    """Run a test job and do post data process.
 
     Returns:
       A task group that runs the given test config on a GKE cluster.
@@ -657,15 +657,42 @@ class GpuGkeTask(BaseTask):
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
+      gcs_location = name_format.generate_gcs_folder_location(
+          self.task_test_config.gcs_subfolder,
+          self.task_test_config.benchmark_id,
+      )
+
       job_body = self._get_job_manifest()
-      gke.run_job.override(group_id="run_model")(
+
+      gke_run = gke.run_job.override(group_id="run_model")(
           job_body,
           self.task_gcp_config,
           self.cluster_name,
           self.job_create_timeout,
+          gcs_location,
       )
-
+      post_process = self.post_process(gcs_location)
+      gcs_location >> gke_run >> post_process
     return group
+
+  def post_process(
+      self, result_location: Optional[airflow.XComArg] = None
+  ) -> DAGNode:
+    """Process metrics and metadata, and insert them into BigQuery tables.
+
+    Returns:
+      A DAG node that executes the post process.
+    """
+    with TaskGroup(group_id="post_process") as group:
+      process_id = metric.generate_process_id.override(retries=0)()
+      metric.process_metrics.override(retries=0)(
+          process_id,
+          self.task_test_config,
+          self.task_metric_config,
+          self.task_gcp_config,
+          folder_location=result_location,
+      )
+      return group
 
   def _get_job_manifest(self):
     accelerator = self.task_test_config.accelerator
@@ -673,7 +700,7 @@ class GpuGkeTask(BaseTask):
         "apiVersion": "batch/v1",
         "kind": "Job",
         "metadata": {
-            "generateName": f"{self.task_test_config.benchmark_id}-",
+            "generateName": f"{self.task_test_config.test_name}",
             "labels": {
                 "accelerator": accelerator.name,
                 "benchmarkId": self.task_test_config.benchmark_id,
