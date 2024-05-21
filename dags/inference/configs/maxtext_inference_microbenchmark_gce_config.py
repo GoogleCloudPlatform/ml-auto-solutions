@@ -50,7 +50,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
   set_up_cmds = (
       "pip install --upgrade pip",
       # Download maxtext
-      "git clone -b mor--kv-cache-layout https://github.com/google/maxtext.git",
+      "git clone -b mor--kv-cache-layout-reformat-output https://github.com/google/maxtext.git",
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
@@ -81,9 +81,6 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       "quantization": f"{model_configs['quantization']}",
       "quantize_kvcache": f"{model_configs['quantize_kvcache']}",
       "attention": f"{model_configs['attention']}",
-      "key_value_axis_order_product_id": f"{model_configs['key_value_axis_order_product_id']}",
-      "ar_key_axis_order": f"{model_configs['ar_key_axis_order']}",
-      "ar_value_axis_order": f"{model_configs['ar_value_axis_order']}",
   }
 
   run_model_cmds = (
@@ -98,8 +95,9 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       "cd maxtext",
       # Configure flags
       "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
-      f"export run_name={model_configs['key_value_axis_order_product_id']}-{model_configs['ar_key_axis_order']}-{model_configs['ar_value_axis_order']}",
-      f"""python MaxText/inference_microbenchmark.py \
+      # f"export run_name={model_configs['ar_key_axis_order']}-{model_configs['ar_value_axis_order']}",
+      f"export run_name={model_configs['key_value_axis_order_product_id_list']}-{model_configs['ar_key_axis_order_list']}-{model_configs['ar_value_axis_order_list']}",
+      f"""python MaxText/inference_microbenchmark_sweep.py \
           MaxText/configs/base.yml \
           base_output_directory={model_configs['base_output_directory']} \
           model_name={model_configs['model_name']} \
@@ -120,13 +118,12 @@ def get_maxtext_inference_microbenchmark_nightly_config(
           quantization={model_configs['quantization']} \
           quantize_kvcache={model_configs['quantize_kvcache']} \
           attention={model_configs['attention']} \
-          ar_key_axis_order={model_configs['ar_key_axis_order']} \
-          ar_value_axis_order={model_configs['ar_value_axis_order']} \
-          inference_microbenchmark_log_file_path=${{run_name}}.json""",
-
-      # Upload results (in jsonlines format) to GCS to be post-processed into
-      # our BigQuery table
-      "mv ${BENCHMARK_OUTPUT} metric_report.jsonl",
+          inference_microbenchmark_sweep_ar_key_axis_order_list={model_configs['ar_key_axis_order_list']} \
+          inference_microbenchmark_sweep_ar_value_axis_order_list={model_configs['ar_value_axis_order_list']} \
+          inference_microbenchmark_sweep_additional_metadata=${{METADATA_DICT}} \
+          inference_microbenchmark_log_file_path=${{run_name}}.json \
+          inference_microbenchmark_flatten_results=True""",
+      "mv inference_microbenchmark_sweep_results.jsonl metric_report.jsonl",
       f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
