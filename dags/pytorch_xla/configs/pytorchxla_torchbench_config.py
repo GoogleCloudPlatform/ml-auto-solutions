@@ -73,6 +73,16 @@ class VERSION_MAPPING:
 
 
 def get_version_mapping(test_version):
+  """Get version dependecies based on version type.
+  Args:
+    output_file: If not None, model installation message will be piped to a file.
+
+  Returns:
+    Version mapping of the version type.
+
+  Raises:
+    Version type not found value error.
+  """
   if test_version == VERSION.NIGHTLY:
     version_mapping = VERSION_MAPPING.NIGHTLY
   elif test_version == VERSION.R2_2:
