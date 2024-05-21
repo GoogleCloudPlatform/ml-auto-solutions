@@ -96,7 +96,8 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       # Configure flags
       "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
       # f"export run_name={model_configs['ar_key_axis_order']}-{model_configs['ar_value_axis_order']}",
-      f"export run_name={model_configs['key_value_axis_order_product_id_list']}-{model_configs['ar_key_axis_order_list']}-{model_configs['ar_value_axis_order_list']}",
+      # f"export run_name={model_configs['key_value_axis_order_product_id_list']}-{model_configs['ar_key_axis_order_list']}-{model_configs['ar_value_axis_order_list']}",
+      f"export run_name={model_configs['key_value_axis_order_product_id_list']}",
       f"""python MaxText/inference_microbenchmark_sweep.py \
           MaxText/configs/base.yml \
           base_output_directory={model_configs['base_output_directory']} \
