@@ -97,7 +97,7 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
 
 
 # Run once a day at 12 pm UTC (4 am PST)
-SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 12 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
