@@ -214,7 +214,7 @@ with models.DAG(
                 tpu_zone=zone,
                 runtime_version=runtime_version,
                 project_name=project_name,
-                time_out_in_min=datetime.timedelta(minutes=180),
+                time_out_in_min=180,
                 is_tpu_reserved=True,
                 test_name=f"{test_name_prefix}-stable-{model}-batch-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}-vm-{vm_number}",
                 test_mode=SetupMode.STABLE,
