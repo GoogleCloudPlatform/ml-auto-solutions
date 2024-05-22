@@ -95,8 +95,6 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       "cd maxtext",
       # Configure flags
       "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
-      # f"export run_name={model_configs['ar_key_axis_order']}-{model_configs['ar_value_axis_order']}",
-      # f"export run_name={model_configs['key_value_axis_order_product_id_list']}-{model_configs['ar_key_axis_order_list']}-{model_configs['ar_value_axis_order_list']}",
       f"export run_name={model_configs['key_value_axis_order_product_id_list']}",
       f"""python MaxText/inference_microbenchmark_sweep.py \
           MaxText/configs/base.yml \
@@ -119,10 +117,10 @@ def get_maxtext_inference_microbenchmark_nightly_config(
           quantization={model_configs['quantization']} \
           quantize_kvcache={model_configs['quantize_kvcache']} \
           attention={model_configs['attention']} \
+          inference_microbenchmark_sweep_key_value_axis_order_product_id_list={model_configs['key_value_axis_order_product_id_list']} \
           inference_microbenchmark_sweep_ar_key_axis_order_list={model_configs['ar_key_axis_order_list']} \
           inference_microbenchmark_sweep_ar_value_axis_order_list={model_configs['ar_value_axis_order_list']} \
           inference_microbenchmark_sweep_additional_metadata=${{METADATA_DICT}} \
-          inference_microbenchmark_log_file_path=${{run_name}}.json \
           inference_microbenchmark_flatten_results=True""",
       "mv inference_microbenchmark_sweep_results.jsonl metric_report.jsonl",
       f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
