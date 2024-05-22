@@ -28,17 +28,35 @@ from dags.multipod.configs.common import SetupMode, Platform
 def get_concatenated_list_of_params(sweep_vm_count=1):
   cache_rank = 4
   cache_permu_values = list(itertools.permutations(range(cache_rank)))
-  cache_permu_strs = [",".join([str(i) for i in value]) for value in cache_permu_values]
-  cache_permu_idx_strs = {cache_permu_idx: cache_permu_str for cache_permu_idx, cache_permu_str in enumerate(cache_permu_strs)}
+  cache_permu_strs = [
+      ",".join([str(i) for i in value]) for value in cache_permu_values
+  ]
+  cache_permu_idx_strs = {
+      cache_permu_idx: cache_permu_str
+      for cache_permu_idx, cache_permu_str in enumerate(cache_permu_strs)
+  }
   num_cache_permu = len(cache_permu_strs)
-  key_value_cache_idx_product_values = list(itertools.product(range(num_cache_permu), range(num_cache_permu)))
-  key_value_cache_idx_product_idx_values = {key_value_cache_idx_product_idx: key_value_cache_idx_product_value for key_value_cache_idx_product_idx, key_value_cache_idx_product_value in enumerate(key_value_cache_idx_product_values)}
+  key_value_cache_idx_product_values = list(
+      itertools.product(range(num_cache_permu), range(num_cache_permu))
+  )
+  key_value_cache_idx_product_idx_values = {
+      key_value_cache_idx_product_idx: key_value_cache_idx_product_value
+      for key_value_cache_idx_product_idx, key_value_cache_idx_product_value in enumerate(
+          key_value_cache_idx_product_values
+      )
+  }
 
   key_value_axis_order_product_id_list = []
   ar_key_axis_order_str_list = []
   ar_value_axis_order_str_list = []
-  for key_value_axis_order_product_id in range(len(key_value_cache_idx_product_idx_values)):
-    key_axis_order_idx, value_axis_order_idx = key_value_cache_idx_product_idx_values[int(key_value_axis_order_product_id)]
+  for key_value_axis_order_product_id in range(
+      len(key_value_cache_idx_product_idx_values)
+  ):
+    key_axis_order_idx, value_axis_order_idx = (
+        key_value_cache_idx_product_idx_values[
+            int(key_value_axis_order_product_id)
+        ]
+    )
     ar_key_axis_order_str = cache_permu_idx_strs[key_axis_order_idx]
     ar_value_axis_order_str = cache_permu_idx_strs[value_axis_order_idx]
 
@@ -46,18 +64,37 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
     ar_key_axis_order_str_list.append(ar_key_axis_order_str)
     ar_value_axis_order_str_list.append(ar_value_axis_order_str)
 
-  key_value_axis_order_product_id_split = numpy.array_split(key_value_axis_order_product_id_list, sweep_vm_count)
-  ar_key_axis_order_str_split = numpy.array_split(ar_key_axis_order_str_list, sweep_vm_count)
-  ar_value_axis_order_str_split = numpy.array_split(ar_value_axis_order_str_list, sweep_vm_count)
-  key_value_axis_order_product_id_concat_list = [':'.join(list(str(y) for y in x)) for x in key_value_axis_order_product_id_split]
-  ar_key_axis_order_concat_list = [':'.join(list(x)) for x in ar_key_axis_order_str_split]
-  ar_value_axis_order_concat_list = [':'.join(list(x)) for x in ar_value_axis_order_str_split]
+  key_value_axis_order_product_id_split = numpy.array_split(
+      key_value_axis_order_product_id_list, sweep_vm_count
+  )
+  ar_key_axis_order_str_split = numpy.array_split(
+      ar_key_axis_order_str_list, sweep_vm_count
+  )
+  ar_value_axis_order_str_split = numpy.array_split(
+      ar_value_axis_order_str_list, sweep_vm_count
+  )
+  key_value_axis_order_product_id_concat_list = [
+      ":".join(list(str(y) for y in x))
+      for x in key_value_axis_order_product_id_split
+  ]
+  ar_key_axis_order_concat_list = [
+      ":".join(list(x)) for x in ar_key_axis_order_str_split
+  ]
+  ar_value_axis_order_concat_list = [
+      ":".join(list(x)) for x in ar_value_axis_order_str_split
+  ]
 
   return (
-    key_value_axis_order_product_id_concat_list,
-    ar_key_axis_order_concat_list,
-    ar_value_axis_order_concat_list,
+      key_value_axis_order_product_id_concat_list,
+      ar_key_axis_order_concat_list,
+      ar_value_axis_order_concat_list,
   )
+  # return (
+  #     ["0:1", "2:3"],
+  #     ["0,1,2,3:0,1,2,3", "0,1,2,3:0,1,2,3"],
+  #     ["0,1,2,3:0,1,3,2", "0,2,1,3:0,2,3,1"],
+  # )
+
 
 # Run once a day at 12 pm UTC (4 am PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
@@ -66,15 +103,22 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxtext_inference_microbenchmark",
     schedule=SCHEDULED_TIME,
-    tags=["inference_team", "maxtext", "nightly", "benchmark", "microbenchmark"],
+    tags=[
+        "inference_team",
+        "maxtext",
+        "nightly",
+        "benchmark",
+        "microbenchmark",
+    ],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
-  sweep_vm_count=12
+  sweep_vm_count = 12
+  # sweep_vm_count = 2
   (
-    key_value_axis_order_product_id_concat_list,
-    ar_key_axis_order_concat_list,
-    ar_value_axis_order_concat_list,
+      key_value_axis_order_product_id_concat_list,
+      ar_key_axis_order_concat_list,
+      ar_value_axis_order_concat_list,
   ) = get_concatenated_list_of_params(sweep_vm_count=sweep_vm_count)
   test_name_prefix = "maxtext-inf-microbench"
   test_models = {
@@ -91,7 +135,8 @@ with models.DAG(
           "per_device_batch_sizes": [24],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
-          "enable_profiler": "false",
+          "enable_profiler": "true",
+          "save_config_to_gcs": "true",
           "scan_layers": "false",
           "quantization": "int8",
           "quantize_kvcache": "true",
@@ -107,14 +152,26 @@ with models.DAG(
           for vm_number in range(sweep_vm_count):
             model_configs = {}
             model_configs["model_name"] = model
-            model_configs["base_output_directory"] = sweep_model_configs["base_output_directory"]
+            model_configs["base_output_directory"] = sweep_model_configs[
+                "base_output_directory"
+            ]
             model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
             model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
-            model_configs["inference_microbenchmark_prefill_lengths"] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
-            model_configs["inference_microbenchmark_stages"] = sweep_model_configs["inference_microbenchmark_stages"]
-            model_configs["inference_microbenchmark_loop_iters"] = sweep_model_configs["inference_microbenchmark_loop_iters"]
-            model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
-            model_configs["max_prefill_predict_length"] = sweep_model_configs["max_prefill_predict_length"]
+            model_configs["inference_microbenchmark_prefill_lengths"] = (
+                sweep_model_configs["inference_microbenchmark_prefill_lengths"]
+            )
+            model_configs["inference_microbenchmark_stages"] = (
+                sweep_model_configs["inference_microbenchmark_stages"]
+            )
+            model_configs["inference_microbenchmark_loop_iters"] = (
+                sweep_model_configs["inference_microbenchmark_loop_iters"]
+            )
+            model_configs["max_target_length"] = sweep_model_configs[
+                "max_target_length"
+            ]
+            model_configs["max_prefill_predict_length"] = sweep_model_configs[
+                "max_prefill_predict_length"
+            ]
             model_configs["per_device_batch_size"] = per_device_batch_size
             ici_fsdp = ici_parallelism[0]
             ici_ar = ici_parallelism[1]
@@ -122,14 +179,24 @@ with models.DAG(
             model_configs["ici_fsdp_parallelism"] = ici_fsdp
             model_configs["ici_autoregressive_parallelism"] = ici_ar
             model_configs["ici_tensor_parallelism"] = ici_tensor
-            model_configs["enable_profiler"] = sweep_model_configs["enable_profiler"]
+            model_configs["enable_profiler"] = sweep_model_configs[
+                "enable_profiler"
+            ]
             model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
             model_configs["quantization"] = sweep_model_configs["quantization"]
-            model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
+            model_configs["quantize_kvcache"] = sweep_model_configs[
+                "quantize_kvcache"
+            ]
             model_configs["attention"] = sweep_model_configs["attention"]
-            model_configs["key_value_axis_order_product_id_list"] = key_value_axis_order_product_id_concat_list[vm_number]
-            model_configs["ar_key_axis_order_list"] = ar_key_axis_order_concat_list[vm_number]
-            model_configs["ar_value_axis_order_list"] = ar_value_axis_order_concat_list[vm_number]
+            model_configs["key_value_axis_order_product_id_list"] = (
+                key_value_axis_order_product_id_concat_list[vm_number]
+            )
+            model_configs["ar_key_axis_order_list"] = (
+                ar_key_axis_order_concat_list[vm_number]
+            )
+            model_configs["ar_value_axis_order_list"] = (
+                ar_value_axis_order_concat_list[vm_number]
+            )
             model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
 
             if tpu_version == TpuVersion.V5E:
