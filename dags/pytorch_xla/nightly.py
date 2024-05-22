@@ -43,7 +43,7 @@ US_CENTRAL1 = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     # HACK: use region in place of zone, since clusters are regional
     zone="us-central1",
-    dataset_name=...,
+    dataset_name=metric_config.DatasetOption.XLML_DATASET,
 )
 
 US_EAST1_C = gcp_config.GCPConfig(
@@ -110,7 +110,7 @@ def torchvision():
   resnet_v2_8 >> resnet_v3_8_tests
 
   resnet_v100_2x2 = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
+      test_config.GpuGkeTest.from_pytorch(
           "pt-nightly-resnet50-mp-fake-v100-x2x2"
       ),
       US_CENTRAL1,
@@ -118,7 +118,7 @@ def torchvision():
   ).run()
 
   resnet_v100_2x2_spmd = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
+      test_config.GpuGkeTest.from_pytorch(
           "pt-nightly-resnet50-spmd-batch-fake-v100-x2x2"
       ),
       US_CENTRAL1,
@@ -128,7 +128,7 @@ def torchvision():
   resnet_v100_2x2 >> resnet_v100_2x2_spmd
 
   resnet_v100_2x1_plugin = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
+      test_config.GpuGkeTest.from_pytorch(
           "pt-nightly-resnet50-mp-plugin-fake-v100-x2x1"
       ),
       US_CENTRAL1,
@@ -136,7 +136,7 @@ def torchvision():
   ).run()
 
   resnet_v100_2x2_plugin = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
+      test_config.GpuGkeTest.from_pytorch(
           "pt-nightly-resnet50-mp-plugin-fake-v100-x2x2"
       ),
       US_CENTRAL1,

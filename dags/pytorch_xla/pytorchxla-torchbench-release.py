@@ -32,7 +32,7 @@ with models.DAG(
 ) as dag:
   model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
   torchbench_extra_flags = [f"--filter={model}"]
-  test_version = config.VERSION.R2_2
+  test_version = config.VERSION.R2_3
   # Running on V4-8:
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V4,
