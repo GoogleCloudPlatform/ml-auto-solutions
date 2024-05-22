@@ -52,11 +52,12 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
   for key_value_axis_order_product_id in range(
       len(key_value_cache_idx_product_idx_values)
   ):
-    key_axis_order_idx, value_axis_order_idx = (
-        key_value_cache_idx_product_idx_values[
-            int(key_value_axis_order_product_id)
-        ]
-    )
+    (
+        key_axis_order_idx,
+        value_axis_order_idx,
+    ) = key_value_cache_idx_product_idx_values[
+        int(key_value_axis_order_product_id)
+    ]
     ar_key_axis_order_str = cache_permu_idx_strs[key_axis_order_idx]
     ar_value_axis_order_str = cache_permu_idx_strs[value_axis_order_idx]
 
@@ -89,11 +90,6 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
       ar_key_axis_order_concat_list,
       ar_value_axis_order_concat_list,
   )
-  # return (
-  #     ["0:1", "2:3"],
-  #     ["0,1,2,3:0,1,2,3", "0,1,2,3:0,1,2,3"],
-  #     ["0,1,2,3:0,1,3,2", "0,2,1,3:0,2,3,1"],
-  # )
 
 
 # Run once a day at 12 pm UTC (4 am PST)
@@ -114,7 +110,6 @@ with models.DAG(
     catchup=False,
 ) as dag:
   sweep_vm_count = 12
-  # sweep_vm_count = 2
   (
       key_value_axis_order_product_id_concat_list,
       ar_key_axis_order_concat_list,
@@ -157,15 +152,15 @@ with models.DAG(
             ]
             model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
             model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
-            model_configs["inference_microbenchmark_prefill_lengths"] = (
-                sweep_model_configs["inference_microbenchmark_prefill_lengths"]
-            )
-            model_configs["inference_microbenchmark_stages"] = (
-                sweep_model_configs["inference_microbenchmark_stages"]
-            )
-            model_configs["inference_microbenchmark_loop_iters"] = (
-                sweep_model_configs["inference_microbenchmark_loop_iters"]
-            )
+            model_configs[
+                "inference_microbenchmark_prefill_lengths"
+            ] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
+            model_configs[
+                "inference_microbenchmark_stages"
+            ] = sweep_model_configs["inference_microbenchmark_stages"]
+            model_configs[
+                "inference_microbenchmark_loop_iters"
+            ] = sweep_model_configs["inference_microbenchmark_loop_iters"]
             model_configs["max_target_length"] = sweep_model_configs[
                 "max_target_length"
             ]
@@ -188,15 +183,15 @@ with models.DAG(
                 "quantize_kvcache"
             ]
             model_configs["attention"] = sweep_model_configs["attention"]
-            model_configs["key_value_axis_order_product_id_list"] = (
-                key_value_axis_order_product_id_concat_list[vm_number]
-            )
-            model_configs["ar_key_axis_order_list"] = (
-                ar_key_axis_order_concat_list[vm_number]
-            )
-            model_configs["ar_value_axis_order_list"] = (
-                ar_value_axis_order_concat_list[vm_number]
-            )
+            model_configs[
+                "key_value_axis_order_product_id_list"
+            ] = key_value_axis_order_product_id_concat_list[vm_number]
+            model_configs[
+                "ar_key_axis_order_list"
+            ] = ar_key_axis_order_concat_list[vm_number]
+            model_configs[
+                "ar_value_axis_order_list"
+            ] = ar_value_axis_order_concat_list[vm_number]
             model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
 
             if tpu_version == TpuVersion.V5E:
