@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run MaxText inference benchmarks with nightly version."""
+"""A DAG to run JetStream inference E2E test."""
 
 import datetime
 from airflow import models
