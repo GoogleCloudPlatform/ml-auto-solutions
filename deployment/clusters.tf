@@ -60,6 +60,8 @@ resource "google_container_node_pool" "nvidia-v100x2" {
   node_config {
     preemptible  = true
     machine_type = "n1-highmem-16"
+    disk_size_gb = 500
+    disk_type = "pd-ssd"
 
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform"
