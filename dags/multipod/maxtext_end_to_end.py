@@ -234,6 +234,23 @@ with models.DAG(
               "time_out_in_min": 60,
           },
       ],
+      "llama3-8b": [
+          {
+              "script_name": "tpu/llama3/8b/1_test_llama3_8b",
+              "cpu_device_type": CpuVersion.N2_STANDARD,
+              "cpu_zone": Zone.US_CENTRAL1_B.value,
+              "cluster_name": ClusterName.CPU_N2_STANDARD_64.value,
+              "time_out_in_min": 60,
+          },
+          {
+              "script_name": "tpu/llama3/8b/2_test_llama3_8b",
+              "tpu_version": TpuVersion.V4,
+              "tpu_cores": 16,
+              "cluster_name": ClusterName.V4_16_MULTISLICE_CLUSTER.value,
+              "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "time_out_in_min": 60,
+          },
+      ],
   }
 
   for model, test_scripts_details in multicluster_test_models.items():
