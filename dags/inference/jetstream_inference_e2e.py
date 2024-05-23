@@ -20,7 +20,7 @@ from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETW
 from dags.inference.configs import maxtext_inference_gce_config
 from dags.multipod.configs.common import SetupMode
 
-"""A JetStream inference E2E test DAG.
+"""A JetStream inference E2E test (JAX nightly, no schedule) DAG.
 
 Usage:
 gcloud composer environments run ml-automation-solutions \
@@ -81,7 +81,6 @@ with models.DAG(
   }
 
   for model, sweep_model_configs in test_models.items():
-    # tasks_per_model = []
     for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
       for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
         for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
