@@ -19,9 +19,9 @@ local tpus = import 'templates/tpus.libsonnet';
 local utils = import 'templates/utils.libsonnet';
 
 {
-  local llama2 = self.llama2,
-  llama2:: common.PyTorchTest {
-    modelName: 'llama2',
+  local gemma2b = self.gemma2b,
+  gemma2b:: common.PyTorchTest {
+    modelName: 'gemma2b',
   },
 
   local infer = self.infer,
@@ -31,101 +31,46 @@ local utils = import 'templates/utils.libsonnet';
       'bash',
       '-c',
       |||
-        python3 llama/example_text_completion.py True llama/7B ~/spiece.model --max_seq_len=2048 --max_gen_len=1000 --max_batch_size=2 --dynamo=openxla |& tee output.txt
-
-        # Defined in setup script
-        python3 getvalue.py
+        sudo docker exec -it testhf bash -c '
+        python -m pytest -sv text-generation-inference/tests
+        '
       |||,
     ],
 
     tpuSettings+: {
       tpuVmExtraSetup: |||
-        # install tokenizer model
-        wget https://storage.googleapis.com/tpu-pytorch/lsiyuan-experiment/llama/spiece.model
+        # create docker container
+        export TPUVM_IMAGE_URL=us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla
+        export TPUVM_IMAGE_VERSION=8f1dcd5b03f993e4da5c20d17c77aff6a5f22d5455f8eb042d2e4b16ac460526
 
-        # git clone and build llama
-        git clone --branch llama2-google-next-inference https://github.com/pytorch-tpu/llama.git
-        cd llama
-        pip3 install -r requirements.txt
-        pip3 install -e .
+        sudo docker pull ${TPUVM_IMAGE_URL}@sha256:${TPUVM_IMAGE_VERSION}
 
-        # 7B config
-        mkdir 7B
-        cd 7B/
-        echo -e '{"dim": 4096, "multiple_of": 256, "n_heads": 32, "n_layers": 32, "norm_eps": 1e-05, "vocab_size": -1}' >> params.json
+        sudo docker run --privileged  --shm-size 16G --name testhf -it -d ${TPUVM_IMAGE_URL}@sha256:${TPUVM_IMAGE_VERSION}
 
-        cd
-        cat > getvalue.py << GETVALUE_EOF
-        file = open("output.txt")
-        content = file.readlines()
-        warm_line = content[-6]
-        warm_value = float((warm_line.split())[5])
-        if warm_value > 7.948752:
-            raise ValueError(f"warm latency/token {warm_value} exceeded threshold 7.57024 + 5%")
-        else:
-            print(f"Finished llama2 test and warm latency/token {warm_value} within expected threshold 7.57024 + 5%")
-        GETVALUE_EOF
-      |||,
-    },
-  },
-  local spmd = self.spmd,
-  spmd:: common.Functional + common.PyTorchTpuVmMixin {
-    modelName+: '-train-spmd',
-    command: [
-      'python',
-      'transformers/examples/pytorch/language-modeling/run_clm.py',
-      '--tokenizer_name=gpt2',
-      '--dataset_name=wikitext',
-      '--dataset_config_name=wikitext-2-raw-v1',
-      '--per_device_train_batch_size=32',
-      '--per_device_eval_batch_size=8',
-      '--num_train_epochs=1',
-      '--do_train',
-      '--output_dir=/tmp/output',
-      '--overwrite_output_dir',
-      '--config_name=7B/2B.json',
-      '--save_strategy=no',
-      '--logging_strategy=no',
-      '--remove_unused_columns=no',
-      '--spmd_fsdp_sharding',
-      '--torch_dtype=bfloat16',
-      '--dataloader_drop_last=yes',
-      '--spmd_grad_chkpt',
-      '--report_to=none',
-    ],
-    tpuSettings+: {
-      tpuVmExports+: |||
-        export XLA_USE_BF16=1
-        export XLA_IR_DEBUG=1
-        export XLA_HLO_DEBUG=1
-        export BATCH_SIZE=32
-        export NUM_EPOCH=5
-        export PROFILE_EPOCH=2
-        export PROFILE_STEP=0
-        export PROFILE_DURATION_MS=20000
-        export XLA_USE_SPMD=1
-        export PJRT_DEVICE=TPU
-        export TPU_MEGACORE=megacore_dense
-      |||,
-      tpuVmExtraSetup: |||
-        # install tokenizer model
-        wget https://storage.googleapis.com/tpu-pytorch/lsiyuan-experiment/llama/spiece.model
+        # sudo docker run -ti --rm --privileged --network=host --name testhf ${TPUVM_IMAGE_URL}@sha256:${TPUVM_IMAGE_VERSION} bash -c "
+        sudo docker exec -it testhf bash -c '
+          #TODO: add HF token available as public token
+          export HF_TOKEN=xxx
+          apt install sudo
+          sudo pip install -U "huggingface_hub[cli]"
+          sudo huggingface-cli login --token $HF_TOKEN
+          git clone https://github.com/huggingface/optimum-tpu.git
+          cd optimum-tpu/
 
-        # git clone and build transformers ### llama/transformers/
-        git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.git
-        cd transformers
-        sudo pip3 uninstall transformers
-        sudo pip3 install -e .
-        pip3 install datasets
-        pip3 install evaluate
-        pip3 install scikit-learn
-        pip3 install accelerate
+          ### sudo make tgi_test
+          # test_installs
+          python -m pip install .[tests] -f https://storage.googleapis.com/libtpu-releases/index.html
+        
+          # tgi_server
+	        python -m pip install -r text-generation-inference/server/build-requirements.txt
+	        make -C text-generation-inference/server clean
+	        VERSION=${VERSION} TGI_VERSION=${TGI_VERSION} make -C text-generation-inference/server gen-server
 
-        cd
-        # 7B config
-        mkdir 7B
-        cd 7B/
-        wget https://storage.googleapis.com/manfei_public_experimental/2B.json
+          # tgi_test: test_installs tgi_server
+	        find text-generation-inference -name "text_generation_server-$(VERSION)-py3-none-any.whl" \
+	                                 -exec python -m pip install --force-reinstall {} \;
+	        # python -m pytest -sv text-generation-inference/tests
+        ‘
       |||,
     },
   },
@@ -136,7 +81,6 @@ local utils = import 'templates/utils.libsonnet';
   },
 
   configs: [
-    llama2 + v4_8 + infer + timeouts.Hours(3),
-    llama2 + v4_8 + spmd + timeouts.Hours(3),
+    gemma + v4_8 + infer + timeouts.Hours(3),
   ],
 }
