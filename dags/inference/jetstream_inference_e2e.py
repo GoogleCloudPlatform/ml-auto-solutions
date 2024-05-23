@@ -54,7 +54,7 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1)],
           "request_rate": 5,
-          "num_prompts": 1000,
+          "num_prompts": 100,
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
           "max_output_length": 1024,
@@ -73,7 +73,7 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1)],
           "request_rate": 5,
-          "num_prompts": 1000,
+          "num_prompts": 100,
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
           "max_output_length": 1024,
