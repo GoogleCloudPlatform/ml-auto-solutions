@@ -83,7 +83,6 @@ def get_flax_resnet_config(
   )
 
 
-
 def get_flax_wmt_config(
     tpu_version: TpuVersion,
     tpu_cores: int,

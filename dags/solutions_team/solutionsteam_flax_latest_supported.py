@@ -135,13 +135,4 @@ with models.DAG(
   jax_resnet_v4_8 >> jax_resnet_v4_32
   jax_resnet_v5e_4 >> jax_resnet_v5e_16
   jax_resnet_v5p_8 >> jax_resnet_v5p_32
-  jax_vit_v4_8 >> jax_vit_conv_v4_32
-  jax_vit_v5e_4
-  jax_gpt2_v4_8 >> jax_gpt2_v4_32
-  jax_gpt2_v5e_4
-  jax_sd_v4_8 >> jax_sd_v4_32
-  jax_sd_v5p_8 >> jax_sd_v5p_32
-  jax_bart_v4_8 >> jax_bart_conv_v4_32
-  jax_bert_mnli_v4_8 >> jax_bert_mnli_conv_v4_32
-  jax_bert_mrpc_v4_8 >> jax_bert_mrpc_conv_v4_32
   jax_wmt_v4_8
