@@ -78,8 +78,14 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
       ":".join(list(str(y) for y in x))
       for x in key_value_axis_order_product_id_split
   ]
-  ar_key_axis_order_concat_list = [
+  prefill_key_axis_order_concat_list = [
       ":".join(list(x)) for x in ar_key_axis_order_str_split
+  ]
+  prefill_value_axis_order_concat_list = [
+      ":".join(list(x)) for x in ar_key_axis_order_str_split
+  ]
+  ar_key_axis_order_concat_list = [
+      ":".join(list(x)) for x in ar_value_axis_order_str_split
   ]
   ar_value_axis_order_concat_list = [
       ":".join(list(x)) for x in ar_value_axis_order_str_split
@@ -87,6 +93,8 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
 
   return (
       key_value_axis_order_product_id_concat_list,
+      prefill_key_axis_order_concat_list,
+      prefill_value_axis_order_concat_list,
       ar_key_axis_order_concat_list,
       ar_value_axis_order_concat_list,
   )
@@ -112,6 +120,8 @@ with models.DAG(
   sweep_vm_count = 12
   (
       key_value_axis_order_product_id_concat_list,
+      prefill_key_axis_order_concat_list,
+      prefill_value_axis_order_concat_list,
       ar_key_axis_order_concat_list,
       ar_value_axis_order_concat_list,
   ) = get_concatenated_list_of_params(sweep_vm_count=sweep_vm_count)
@@ -119,7 +129,7 @@ with models.DAG(
   test_models = {
       "llama2-7b": {
           "tpu_version_cores": [(TpuVersion.V5E, 4)],
-          "base_output_directory": "gs://inference-benchmarks/logs/llama2-7b/microbenchmark/int8",
+          "base_output_directory": "gs://inference-benchmarks/logs/llama2-7b/microbenchmark/int8/tmp/",
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
           "inference_microbenchmark_prefill_lengths": 1024,
@@ -177,6 +187,9 @@ with models.DAG(
             model_configs["enable_profiler"] = sweep_model_configs[
                 "enable_profiler"
             ]
+            model_configs["save_config_to_gcs"] = sweep_model_configs[
+                "save_config_to_gcs"
+            ]
             model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
             model_configs["quantization"] = sweep_model_configs["quantization"]
             model_configs["quantize_kvcache"] = sweep_model_configs[
@@ -186,6 +199,12 @@ with models.DAG(
             model_configs[
                 "key_value_axis_order_product_id_list"
             ] = key_value_axis_order_product_id_concat_list[vm_number]
+            model_configs[
+                "prefill_key_axis_order_list"
+            ] = prefill_key_axis_order_concat_list[vm_number]
+            model_configs[
+                "prefill_value_axis_order_list"
+            ] = prefill_value_axis_order_concat_list[vm_number]
             model_configs[
                 "ar_key_axis_order_list"
             ] = ar_key_axis_order_concat_list[vm_number]
