@@ -64,36 +64,27 @@ def get_maxtext_inference_microbenchmark_nightly_config(
   )
 
   additional_metadata_dict = {
-      "base_output_directory": f"{model_configs['base_output_directory']}",
-      "model_name": f"{model_configs['model_name']}",
-      "tokenizer": f"{model_configs['tokenizer']}",
-      "weight_dtype": f"{model_configs['weight_dtype']}",
-      "inference_microbenchmark_prefill_lengths": f"{model_configs['inference_microbenchmark_prefill_lengths']}",
-      "inference_microbenchmark_stages": f"{model_configs['inference_microbenchmark_stages']}",
-      "inference_microbenchmark_loop_iters": f"{model_configs['inference_microbenchmark_loop_iters']}",
-      "max_prefill_predict_length": f"{model_configs['max_prefill_predict_length']}",
-      "max_target_length": f"{model_configs['max_target_length']}",
-      "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
-      "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
-      "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
-      "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
-      "enable_profiler": f"{model_configs['enable_profiler']}",
-      "scan_layers": f"{model_configs['scan_layers']}",
-      "quantization": f"{model_configs['quantization']}",
-      "quantize_kvcache": f"{model_configs['quantize_kvcache']}",
-      "attention": f"{model_configs['attention']}",
+      "key_value_axis_order_product_id_list": f"{model_configs['key_value_axis_order_product_id_list']}",
+      "prefill_key_axis_order_list": f"{model_configs['prefill_key_axis_order_list']}",
+      "prefill_value_axis_order_list": f"{model_configs['prefill_value_axis_order_list']}",
+      "ar_key_axis_order_list": f"{model_configs['ar_key_axis_order_list']}",
+      "ar_value_axis_order_list": f"{model_configs['ar_value_axis_order_list']}",
+      "accelerator": f"v{tpu_version.value}-{tpu_cores}",
+      "flatten_microbenchmark_results": "true",
   }
 
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
       # Get commit hash of the maxtext and jetstream repos
-      f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
-      'cd maxtext && export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
-      'export METADATA_DICT=$(jq -c \'. + { "maxtext_commit_hash": $newVal}\' --arg newVal ${MAXTEXT_COMMIT_HASH} <<<"$METADATA_DICT")',
-      "echo ${METADATA_DICT}",
-      ### Benchmark
       "cd maxtext",
+      f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
+      'export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H")',
+      # 'export METADATA_DICT=$(jq -c \'. + { "maxtext_commit_hash": $newVal}\' --arg newVal ${MAXTEXT_COMMIT_HASH} <<<"$METADATA_DICT")',
+      # "echo ${METADATA_DICT}",
+      'jq \'. + { "maxtext_commit_hash": $newVal}\' --arg newVal ${MAXTEXT_COMMIT_HASH} <<<"$METADATA_DICT" > MaxText/metadata.json',
+      "cat MaxText/metadata.json",
+      ### Benchmark
       # Configure flags
       "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
       f"export run_name={model_configs['key_value_axis_order_product_id_list']}",
@@ -118,11 +109,9 @@ def get_maxtext_inference_microbenchmark_nightly_config(
           quantization={model_configs['quantization']} \
           quantize_kvcache={model_configs['quantize_kvcache']} \
           attention={model_configs['attention']} \
-          inference_microbenchmark_sweep_key_value_axis_order_product_id_list={model_configs['key_value_axis_order_product_id_list']} \
-          inference_microbenchmark_sweep_ar_key_axis_order_list={model_configs['ar_key_axis_order_list']} \
-          inference_microbenchmark_sweep_ar_value_axis_order_list={model_configs['ar_value_axis_order_list']} \
-          inference_microbenchmark_sweep_additional_metadata=${{METADATA_DICT}} \
-          inference_microbenchmark_flatten_results=True""",
+          save_config_to_gcs={model_configs['save_config_to_gcs']} \
+          inference_metadata_file=MaxText/metadata.json""",
+      "cat inference_microbenchmark_sweep_results.jsonl",
       "mv inference_microbenchmark_sweep_results.jsonl metric_report.jsonl",
       f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
@@ -139,7 +128,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=datetime.timedelta(minutes=time_out_in_min),
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.ANDY_Y,
       num_slices=num_slices,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxtext",
