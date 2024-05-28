@@ -73,6 +73,9 @@ resource "google_container_node_pool" "nvidia-v100x2" {
         gpu_driver_version = "LATEST"
       }
     }
+    ephemeral_storage_local_ssd_config {
+      local_ssd_count = 2
+    }
   }
 }
 
