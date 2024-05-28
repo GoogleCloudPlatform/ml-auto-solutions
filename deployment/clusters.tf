@@ -74,7 +74,7 @@ resource "google_container_node_pool" "nvidia-v100x2" {
       }
     }
     ephemeral_storage_local_ssd_config {
-      local_ssd_count = 2
+      local_ssd_count = 1
     }
   }
 }
