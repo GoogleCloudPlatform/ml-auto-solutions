@@ -44,4 +44,4 @@ with models.DAG(
       bash_command="echo {{params.commit_sha}}",
   )
 
-  simple = get_simple_config().run()
+  simple = get_simple_config()

@@ -38,35 +38,35 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL1_C.value,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v2_32 = flax_config.get_flax_resnet_config(
       tpu_version=TpuVersion.V2,
       tpu_cores=32,
       tpu_zone=Zone.US_CENTRAL1_A.value,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v3_8 = flax_config.get_flax_resnet_config(
       tpu_version=TpuVersion.V3,
       tpu_cores=8,
       tpu_zone=Zone.US_EAST1_D.value,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v3_32 = flax_config.get_flax_resnet_config(
       tpu_version=TpuVersion.V3,
       tpu_cores=32,
       tpu_zone=Zone.US_EAST1_D.value,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v4_8 = flax_config.get_flax_resnet_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v4_32 = flax_config.get_flax_resnet_config(
       tpu_version=TpuVersion.V4,
@@ -74,7 +74,7 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       is_tpu_reserved=False,
-  ).run()
+  )
 
   jax_resnet_v5e_4 = flax_config.get_flax_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -85,7 +85,7 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5E_SUBNETWORKS,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v5e_16 = flax_config.get_flax_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -96,7 +96,7 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5E_SUBNETWORKS,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v5p_8 = flax_config.get_flax_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -107,7 +107,7 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
       time_out_in_min=60,
-  ).run()
+  )
 
   jax_resnet_v5p_32 = flax_config.get_flax_resnet_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -118,7 +118,7 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
       time_out_in_min=60,
-  ).run()
+  )
 
   # WMT
   jax_wmt_v4_8 = flax_config.get_flax_wmt_config(
@@ -127,7 +127,7 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       num_train_steps=10,
-  ).run()
+  )
 
   # Test dependencies
   jax_resnet_v2_8 >> jax_resnet_v2_32

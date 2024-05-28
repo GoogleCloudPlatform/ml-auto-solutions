@@ -42,7 +42,7 @@ def get_flax_resnet_config(
     subnetwork: str = "default",
     extraFlags: str = "",
     is_tpu_reserved: bool = True,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -77,7 +77,7 @@ def get_flax_resnet_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -92,7 +92,7 @@ def get_flax_wmt_config(
     data_dir: str = gcs_bucket.TFDS_DATA_DIR,
     extraFlags: str = "",
     is_tpu_reserved: bool = True,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=PROJECT_NAME,
       zone=tpu_zone,
@@ -131,7 +131,7 @@ def get_flax_wmt_config(
       task_owner=test_owner.SHIVA_S,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

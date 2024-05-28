@@ -45,7 +45,7 @@ with models.DAG(
       is_tpu_reserved=False,
       test_name=default_test_name,
       test_mode=test_mode,
-  ).run()
+  )
 
   maxtext_nightly_2slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
       tpu_version=TpuVersion.V4,
@@ -56,7 +56,7 @@ with models.DAG(
       num_slices=2,
       test_name=default_test_name,
       test_mode=test_mode,
-  ).run()
+  )
 
   maxtext_nightly_4slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
       tpu_version=TpuVersion.V4,
@@ -67,7 +67,7 @@ with models.DAG(
       num_slices=4,
       test_name=default_test_name,
       test_mode=test_mode,
-  ).run()
+  )
 
   maxtext_nightly_8slice_v4_8 = maxtext_gce_config.get_maxtext_nightly_config(
       tpu_version=TpuVersion.V4,
@@ -78,7 +78,7 @@ with models.DAG(
       num_slices=8,
       test_name=default_test_name,
       test_mode=test_mode,
-  ).run()
+  )
 
   # v5p Maxtext test
   v5p_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
@@ -98,7 +98,7 @@ with models.DAG(
       test_mode=test_mode,
       network=v5p_network,
       subnetwork=v5p_subnetwork,
-  ).run()
+  )
 
   maxtext_nightly_2slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
       tpu_version=TpuVersion.V5P,
@@ -113,7 +113,7 @@ with models.DAG(
       test_mode=test_mode,
       network=v5p_network,
       subnetwork=v5p_subnetwork,
-  ).run()
+  )
 
   maxtext_nightly_4slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
       tpu_version=TpuVersion.V5P,
@@ -128,7 +128,7 @@ with models.DAG(
       test_mode=test_mode,
       network=v5p_network,
       subnetwork=v5p_subnetwork,
-  ).run()
+  )
 
   maxtext_nightly_8slice_v5p_8 = maxtext_gce_config.get_maxtext_nightly_config(
       tpu_version=TpuVersion.V5P,
@@ -143,7 +143,7 @@ with models.DAG(
       test_mode=test_mode,
       network=v5p_network,
       subnetwork=v5p_subnetwork,
-  ).run()
+  )
 
   # Test dependencie
   (

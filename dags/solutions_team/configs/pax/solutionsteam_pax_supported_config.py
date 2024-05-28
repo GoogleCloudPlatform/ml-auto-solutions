@@ -98,7 +98,7 @@ def get_pax_lm_config(
     extraFlags: str = "",
     network: str = "default",
     subnetwork: str = "default",
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -139,7 +139,7 @@ def get_pax_lm_config(
       task_owner=test_owner.GERSON_K,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

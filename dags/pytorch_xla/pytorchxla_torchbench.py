@@ -43,7 +43,7 @@ with models.DAG(
       model_name=model,
       time_out_in_min=1600,
       extraFlags=" ".join(torchbench_extra_flags),
-  ).run()
+  )
 
   # Running on V5P
   config.get_torchbench_tpu_config(
@@ -57,7 +57,7 @@ with models.DAG(
       time_out_in_min=700,
       model_name=model,
       extraFlags=" ".join(torchbench_extra_flags),
-  ).run()
+  )
 
   # Running on V5E
   config.get_torchbench_tpu_config(
@@ -71,7 +71,7 @@ with models.DAG(
       time_out_in_min=1600,
       model_name=model,
       extraFlags=" ".join(torchbench_extra_flags),
-  ).run()
+  )
 
   # Running on V100 GPU
   config.get_torchbench_gpu_gke_config(
