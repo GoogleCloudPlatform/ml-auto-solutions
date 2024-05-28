@@ -47,7 +47,7 @@ def get_tf_keras_config(
     is_pjrt: bool = True,
     network: str = "default",
     subnetwork: str = "default",
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -94,7 +94,7 @@ def get_tf_keras_config(
       task_owner=test_owner.ERIC_L,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
@@ -118,7 +118,7 @@ def get_tf_resnet_config(
     global_batch_size: int = 4096,
     train_steps: int = 320,
     validation_interval: int = 320,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -185,7 +185,7 @@ def get_tf_resnet_config(
       task_owner=test_owner.CHANDRA_D,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
@@ -209,7 +209,7 @@ def get_tf_dlrm_config(
     criteo_dir: str = gcs_bucket.CRITEO_DIR,
     network: str = "default",
     subnetwork: str = "default",
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -338,7 +338,7 @@ def get_tf_dlrm_config(
       task_owner=test_owner.CHANDRA_D,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,

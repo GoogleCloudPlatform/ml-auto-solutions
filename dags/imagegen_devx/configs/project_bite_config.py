@@ -21,6 +21,7 @@ from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
 from dags.imagegen_devx.configs import common
 from dags.vm_resource import TpuVersion, Project
+from airflow.models.taskmixin import DAGNode
 
 
 GCS_SUBFOLDER_PREFIX = test_owner.Team.IMAGEGEN_DEVX.value
@@ -43,7 +44,7 @@ def get_bite_tpu_config(
     model_config: str,
     time_out_in_min: int,
     is_tpu_reserved: bool = False,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       zone=tpu_zone,
@@ -75,7 +76,7 @@ def get_bite_tpu_config(
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jax",
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

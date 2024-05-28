@@ -149,7 +149,7 @@ def get_torchbench_tpu_config(
     test_version: VERSION = VERSION.NIGHTLY,
     model_name: str = "",
     extraFlags: str = "",
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project.value,
       zone=tpu_zone.value,
@@ -198,7 +198,7 @@ def get_torchbench_tpu_config(
       use_runtime_generated_gcs_folder=True,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,

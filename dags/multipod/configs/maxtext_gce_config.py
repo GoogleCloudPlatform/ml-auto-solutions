@@ -38,7 +38,7 @@ def get_maxtext_nightly_config(
     is_tpu_reserved: bool = True,
     automated_test: bool = True,
     num_slices: int = 1,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -86,7 +86,7 @@ def get_maxtext_nightly_config(
       num_slices=num_slices,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
@@ -106,7 +106,7 @@ def get_maxtext_end_to_end_test_config(
     subnetwork: str = "default",
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -134,7 +134,7 @@ def get_maxtext_end_to_end_test_config(
       num_slices=num_slices,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
