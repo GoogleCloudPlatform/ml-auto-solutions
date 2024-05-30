@@ -129,7 +129,7 @@ with models.DAG(
   test_models = {
       "llama2-7b": {
           "tpu_version_cores": [(TpuVersion.V5E, 4)],
-          "base_output_directory": "gs://inference-benchmarks/logs/llama2-7b/microbenchmark/int8/tmp/",
+          "base_output_directory": "gs://inference-benchmarks/logs/llama2-7b/microbenchmark/int8/",
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
           "inference_microbenchmark_prefill_lengths": 1024,
