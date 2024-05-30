@@ -35,12 +35,11 @@ class VERSION_MAPPING:
 
   class NIGHTLY(enum.Enum):
     TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl"
-    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-nightly-cp38-cp38-linux_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-nightly-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch"
     TORCHVISION = "torchvision"
     TORCHAUDIO = "torchaudio"
-    # TODO(@piz): update to xla:nightly_3.10_cuda_12.1 once available
-    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.8_cuda_12.1"
+    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.10_cuda_12.1"
     TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/nightly/cpu"
     TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/nightly/cu121"
     TORCH_REPO_BRANCH = "-b main"
@@ -95,7 +94,10 @@ def get_version_mapping(test_version):
 
 
 def set_up_torchbench_tpu(
-    model_name: str = "", test_version: VERSION = VERSION.NIGHTLY
+    model_name: str = "",
+    test_version: VERSION = VERSION.NIGHTLY,
+    use_startup_script: bool = False,
+    use_xla2: bool = False,
 ) -> Tuple[str]:
   """Common set up for TorchBench."""
 
@@ -114,6 +116,18 @@ def set_up_torchbench_tpu(
     if not model_name or model_name.lower() == "all":
       return f"python install.py --continue_on_fail {pipe_file_cmd}"
     return f"python install.py models {model_name} {pipe_file_cmd}"
+
+  install_torch_xla2_dependency = (
+      (
+          # TODO(piz): torch_xla2 only support nightly test at this time.
+          # "pip install torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html",
+          "pip3 uninstall -y libtpu-nightly jax jaxlib",
+          "cd ~/xla/experimental/torch_xla2/",
+          "pip3 install --user -e .[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html",
+      )
+      if use_xla2
+      else ()
+  )
 
   return (
       "pip3 install -U setuptools",
@@ -134,6 +148,7 @@ def set_up_torchbench_tpu(
       f"cd benchmark && {model_install_cmds()}",
       f"cd; git clone {version_mapping.TORCH_REPO_BRANCH.value} https://github.com/pytorch/pytorch.git",
       f"cd; git clone {version_mapping.TORCH_XLA_REPO_BRANCH.value} https://github.com/pytorch/xla.git",
+      *install_torch_xla2_dependency,
   )
 
 
@@ -144,6 +159,7 @@ def get_torchbench_tpu_config(
     tpu_zone: resource.Zone,
     runtime_version: resource.RuntimeVersion,
     time_out_in_min: int,
+    use_xla2: bool = False,
     network: str = "default",
     subnetwork: str = "default",
     test_version: VERSION = VERSION.NIGHTLY,
@@ -156,14 +172,16 @@ def get_torchbench_tpu_config(
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
-  set_up_cmds = set_up_torchbench_tpu(model_name, test_version)
+  set_up_cmds = set_up_torchbench_tpu(
+      model_name, test_version, use_xla2=use_xla2
+  )
   local_output_location = "~/xla/benchmarks/output/metric_report.jsonl"
 
   if not model_name or model_name.lower() == "all":
     run_filter = ""
   else:
     run_filter = f"--filter={model_name}"
-  run_script_cmds = (
+  run_script_cmds_xla1 = (
       "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
       (
           "export PJRT_DEVICE=TPU && cd ~/xla/benchmarks && python experiment_runner.py"
@@ -174,6 +192,19 @@ def get_torchbench_tpu_config(
       "python ~/xla/benchmarks/result_analyzer.py --output-format=jsonl",
       f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
+
+  run_script_cmds_xla2 = (
+      "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
+      (
+          "export PJRT_DEVICE=TPU && cd ~/xla/benchmarks && python experiment_runner.py"
+          " --suite-name=torchbench --xla=PJRT --accelerator=tpu --torch-xla2=torch_export"
+          f" --torch-xla2=extract_jax --progress-bar {run_filter}"
+      ),
+      "rm -rf ~/xla/benchmarks/output/metric_report.jsonl",
+      "python ~/xla/benchmarks/result_analyzer.py --output-format=jsonl",
+      f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+  )
+  run_script_cmds = run_script_cmds_xla2 if use_xla2 else run_script_cmds_xla1
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
   job_test_config = test_config.TpuVmTest(
@@ -211,6 +242,7 @@ def set_up_torchbench_gpu(
     test_version: VERSION,
     nvidia_driver_version: str = "n/a",
     use_self_docker: bool = True,
+    use_xla2: bool = False,
 ) -> Tuple[str]:
   """Common set up for TorchBench."""
   version_mapping = get_version_mapping(test_version)
@@ -242,6 +274,17 @@ def set_up_torchbench_gpu(
     )
     return nvidia_driver_install
 
+  install_torch_xla2_dependency = (
+      (
+          # TODO(piz): torch_xla2 only support nightly test at this time.
+          "pip3 uninstall -y libtpu-nightly jax jaxlib",  # in case libtpu is installed from torch_xla
+          "cd /tmp/xla/experimental/torch_xla2/",
+          "pip3 install --user -e .[cuda] -f https://storage.googleapis.com/libtpu-releases/index.html",
+      )
+      if use_xla2
+      else ()
+  )
+
   docker_cmds_ls = (
       "apt-get update",
       "apt-get install -y libgl1",
@@ -262,6 +305,7 @@ def set_up_torchbench_gpu(
       "cd /tmp/",
       f"git clone {version_mapping.TORCH_REPO_BRANCH.value} https://github.com/pytorch/pytorch.git",
       f"git clone {version_mapping.TORCH_XLA_REPO_BRANCH.value} https://github.com/pytorch/xla.git",
+      *install_torch_xla2_dependency,
   )
 
   if not use_self_docker:
@@ -296,6 +340,7 @@ def get_torchbench_gpu_config(
     count: int,
     gpu_zone: resource.Zone,
     time_out_in_min: int,
+    use_xla2: bool = False,
     nvidia_driver_version: str = "525.125.06",
     test_version: VERSION = VERSION.NIGHTLY,
     model_name: str = "",
@@ -308,7 +353,11 @@ def get_torchbench_gpu_config(
   )
 
   set_up_cmds = set_up_torchbench_gpu(
-      model_name, test_version, nvidia_driver_version
+      model_name,
+      test_version,
+      nvidia_driver_version=nvidia_driver_version,
+      use_self_docker=True,
+      use_xla2=use_xla2,
   )
   local_output_location = "/tmp/xla/benchmarks/output/metric_report.jsonl"
 
@@ -316,15 +365,26 @@ def get_torchbench_gpu_config(
     run_filter = " "
   else:
     run_filter = f" --filter={model_name}"
-  cmd_list = (
+  cmd_list_xla1 = (
       "export PJRT_DEVICE=CUDA",
       f"export GPU_NUM_DEVICES={count}",
       "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
       "cd /tmp/xla/benchmarks",
-      f"python experiment_runner.py --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None {run_filter}",
+      f"python experiment_runner.py --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT {run_filter}",
       "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
       "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
   )
+
+  cmd_list_xla2 = (
+      "export PJRT_DEVICE=CUDA",
+      f"export GPU_NUM_DEVICES={count}",
+      "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
+      "cd /tmp/xla/benchmarks",
+      f"python experiment_runner.py --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --torch-xla2=torch_export --torch-xla2=extract_jax {run_filter}",
+      "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
+      "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
+  )
+  cmd_list = cmd_list_xla2 if use_xla2 else cmd_list_xla1
   cmds = "\n".join(cmd_list)
   run_script_cmds = (
       (
@@ -376,6 +436,7 @@ def get_torchbench_gpu_gke_config(
     gpu_zone: resource.Zone,
     time_out_in_min: int,
     count: int = 1,
+    use_xla2: bool = False,
     test_version: VERSION = VERSION.NIGHTLY,
     model_name: str = "",
     extraFlags: str = "",
@@ -397,7 +458,10 @@ def get_torchbench_gpu_gke_config(
     run_filter = f"--filter={model_name}"
 
   setup_script_cmds = set_up_torchbench_gpu(
-      model_name, test_version, use_self_docker=False
+      model_name,
+      test_version,
+      use_self_docker=False,
+      use_xla2=use_xla2,
   )
 
   set_lib_path = (
@@ -414,7 +478,7 @@ def get_torchbench_gpu_gke_config(
       "source /google-cloud-sdk/path.bash.inc",
       "which gsutil",
   )
-  run_script_cmds = (
+  run_script_cmds_xla1 = (
       "export PJRT_DEVICE=CUDA",
       f"export GPU_NUM_DEVICES={count}",
       "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
@@ -424,7 +488,17 @@ def get_torchbench_gpu_gke_config(
       "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
       f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
-
+  run_script_cmds_xla2 = (
+      "export PJRT_DEVICE=CUDA",
+      f"export GPU_NUM_DEVICES={count}",
+      "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
+      "cd /tmp/xla/benchmarks",
+      f"python experiment_runner.py --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --torch-xla2=torch_export --torch-xla2=extract_jax {run_filter}",
+      "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
+      "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
+      f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+  )
+  run_script_cmds = run_script_cmds_xla2 if use_xla2 else run_script_cmds_xla1
   command_script = ["bash", "-cxue"]
   command_script.append(
       "\n".join(
