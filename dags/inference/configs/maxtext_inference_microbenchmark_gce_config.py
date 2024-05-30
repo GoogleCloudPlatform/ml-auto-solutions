@@ -103,7 +103,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
           ici_fsdp_parallelism={model_configs['ici_fsdp_parallelism']} \
           ici_tensor_parallelism={model_configs['ici_tensor_parallelism']} \
           ici_autoregressive_parallelism={model_configs['ici_autoregressive_parallelism']} \
-          enable_profiler={model_configs['enable_profiler']} \
+          profiler={model_configs['profiler']} \
           scan_layers={model_configs['scan_layers']} \
           run_name=${{run_name}} \
           quantization={model_configs['quantization']} \

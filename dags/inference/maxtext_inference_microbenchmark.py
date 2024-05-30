@@ -140,7 +140,7 @@ with models.DAG(
           "per_device_batch_sizes": [24],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
-          "enable_profiler": "true",
+          "profiler": "xplane",
           "save_config_to_gcs": "true",
           "scan_layers": "false",
           "quantization": "int8",
@@ -184,8 +184,8 @@ with models.DAG(
             model_configs["ici_fsdp_parallelism"] = ici_fsdp
             model_configs["ici_autoregressive_parallelism"] = ici_ar
             model_configs["ici_tensor_parallelism"] = ici_tensor
-            model_configs["enable_profiler"] = sweep_model_configs[
-                "enable_profiler"
+            model_configs["profiler"] = sweep_model_configs[
+                "profiler"
             ]
             model_configs["save_config_to_gcs"] = sweep_model_configs[
                 "save_config_to_gcs"
