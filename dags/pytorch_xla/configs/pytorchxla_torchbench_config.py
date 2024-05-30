@@ -121,8 +121,9 @@ def set_up_torchbench_tpu(
       (
           # TODO(piz): torch_xla2 only support nightly test at this time.
           # "pip install torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html",
+          "pip3 uninstall -y libtpu-nightly jax jaxlib",
           "cd ~/xla/experimental/torch_xla2/",
-          "pip install -e .[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html",
+          "pip3 install --user -e .[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html",
       )
       if use_xla2
       else ()
@@ -276,8 +277,9 @@ def set_up_torchbench_gpu(
   install_torch_xla2_dependency = (
       (
           # TODO(piz): torch_xla2 only support nightly test at this time.
+          "pip3 uninstall -y libtpu-nightly jax jaxlib",  # in case libtpu is installed from torch_xla
           "cd /tmp/xla/experimental/torch_xla2/",
-          "pip install -e .[cuda] -f https://storage.googleapis.com/libtpu-releases/index.html",
+          "pip3 install --user -e .[cuda] -f https://storage.googleapis.com/libtpu-releases/index.html",
       )
       if use_xla2
       else ()
