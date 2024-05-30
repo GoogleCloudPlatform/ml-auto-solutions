@@ -41,7 +41,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
     model_configs: Dict = {},
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -139,7 +139,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       use_runtime_generated_gcs_folder=True,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
