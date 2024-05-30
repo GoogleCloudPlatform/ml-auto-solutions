@@ -184,9 +184,7 @@ with models.DAG(
             model_configs["ici_fsdp_parallelism"] = ici_fsdp
             model_configs["ici_autoregressive_parallelism"] = ici_ar
             model_configs["ici_tensor_parallelism"] = ici_tensor
-            model_configs["profiler"] = sweep_model_configs[
-                "profiler"
-            ]
+            model_configs["profiler"] = sweep_model_configs["profiler"]
             model_configs["save_config_to_gcs"] = sweep_model_configs[
                 "save_config_to_gcs"
             ]
