@@ -238,5 +238,5 @@ with models.DAG(
                 network=network,
                 subnetwork=subnetwork,
                 model_configs=model_configs,
-            ).run()
+            )
             maxtext_stable_1slice
