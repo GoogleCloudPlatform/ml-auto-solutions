@@ -47,6 +47,13 @@ class ImageFamily(enum.Enum):
   COMMON_CU121_DEBIAN_11 = "common-cu121-debian-11"
 
 
+class Region(enum.Enum):
+  """Common GCP regions."""
+
+  # used for GKE
+  US_CENTRAL1 = "us-central1"
+
+
 class Zone(enum.Enum):
   """Common GCP zones."""
 

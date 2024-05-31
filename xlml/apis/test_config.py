@@ -50,6 +50,7 @@ import shlex
 from typing import Any, Generic, Iterable, List, Optional, TypeVar
 
 import attrs
+import datetime
 from dags.vm_resource import TpuVersion, CpuVersion
 
 
@@ -140,14 +141,15 @@ class TestConfig(abc.ABC, Generic[A]):
 
   Attributes:
     accelerator: Accelerator type required for this test.
-    time_out_in_min: Test timeout in minutes.
+    timeout: Test timeout.
     task_owner: Task owner username or link.
     gcs_subfolder: Subfolder name for default GCS bucket.
   """
 
   accelerator: A
-  # TODO(wcromar): make this a timedelta
-  time_out_in_min: Optional[int] = attrs.field(default=None, kw_only=True)
+  timeout: Optional[datetime.timedelta] = attrs.field(
+      default=None, kw_only=True
+  )
   task_owner: str = attrs.field(default='unowned', kw_only=True)
   gcs_subfolder: str = attrs.field(default='unowned', kw_only=True)
 
@@ -400,8 +402,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         setup=setup,
         exports=exports,
         test_command=test_command,
-        # `timeout` is in seconds
-        time_out_in_min=test['timeout'] // 60,
+        timeout=datetime.timedelta(seconds=test['timeout']),
     )
 
   @staticmethod
@@ -456,20 +457,18 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   # TODO(wcromar): replace configmaps
   @property
   def test_script(self) -> str:
-    return '\n'.join([
-        'set -xue',
-        self.exports,
-        ' '.join(shlex.quote(s) for s in self.test_command),
-    ])
+    return '\n'.join(
+        [
+            'set -xue',
+            self.exports,
+            ' '.join(shlex.quote(s) for s in self.test_command),
+        ]
+    )
 
 
 @attrs.define
-class JSonnetGpuTest(TestConfig[Gpu]):
-  """Convert legacy JSonnet test configs into a TestConfig.
-
-  Do not construct directly. Instead, use the `from_*` factory functions which
-  parse pre-compiled JSonnet test configs.
-
+class GpuGkeTest(TestConfig[Gpu]):
+  """
   Attributes:
     test_name: Unique name of this test/model.
     test_command: Command and arguments to execute on the TPU VM.
@@ -480,17 +479,18 @@ class JSonnetGpuTest(TestConfig[Gpu]):
   """
 
   test_name: str
-  test_command: List[str]
   entrypoint_script: List[str]
+  test_command: List[str]
   docker_image: str
   num_hosts: int = 1
+  gcs_subfolder: str = '/tmp/'
 
   @staticmethod
-  def from_pytorch(test_name: str, network='default', subnetwork='default'):
+  def from_pytorch(test_name: str):
     """Parses a compiled legacy JSonnet test config from `tests/pytorch`."""
     test = _load_compiled_jsonnet(test_name)
 
-    return JSonnetGpuTest(
+    return GpuGkeTest(
         test_name=test_name,
         docker_image=f'{test["image"]}:{test["imageTag"]}',
         accelerator=Gpu(
@@ -503,16 +503,13 @@ class JSonnetGpuTest(TestConfig[Gpu]):
         entrypoint_script=test['entrypoint'],
         test_command=test['command'],
         num_hosts=test['accelerator']['num_hosts'],
-        # `timeout` is in seconds
-        time_out_in_min=test['timeout'] // 60,
+        timeout=datetime.timedelta(seconds=test['timeout']),
     )
 
   @property
   def benchmark_id(self) -> str:
-    return self.test_name
+    return f'{self.test_name}-{self.accelerator.name}'
 
-  # HACK: setup script is used as the entrypoint in the test. Make sure it
-  # invokes the content of `test_script` at the end (e.g. "${@:0}").
   @property
   def setup_script(self) -> str:
     return shlex.join(self.entrypoint_script)

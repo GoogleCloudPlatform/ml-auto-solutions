@@ -47,7 +47,7 @@ with models.DAG(
       pax_version=pax_config.PaxVersion.NIGHTLY,
       exp_path=c4spmd1b_pretraining_exp_path,
       model_name="c4spmd1b_pretraining",
-  ).run()
+  )
 
   # Language model with SPMD and Adam
   lmcloudspmdadam_exp_path = "tasks.lm.params.c4.LmCloudSpmdAdamLimitSteps"
@@ -60,7 +60,7 @@ with models.DAG(
       pax_version=pax_config.PaxVersion.NIGHTLY,
       exp_path=lmcloudspmdadam_exp_path,
       model_name="lmcloudspmdadam",
-  ).run()
+  )
 
   # Language model with SPMD
   pax_lmspmd2b_extra_flags = [
@@ -77,7 +77,7 @@ with models.DAG(
       exp_path=lmspmd2b_exp_path,
       model_name="lmspmd2b",
       extraFlags=" ".join(pax_lmspmd2b_extra_flags),
-  ).run()
+  )
 
   pax_nightly_lmspmd2b_ckpt_v4_8 = pax_config.get_pax_lm_config(
       tpu_version=TpuVersion.V4,
@@ -89,7 +89,7 @@ with models.DAG(
       exp_path=lmspmd2b_exp_path,
       model_name="lmspmd2b_ckpt",
       ckp_path=f"{gcs_bucket.PAX_DIR}/lmcloudspmd2B/pax-nightly-lmspmd2b-func-v4-8-1vm-run1/*",
-  ).run()
+  )
 
   # Language model transformer with adam
   pax_transformer_adam_extra_flags = [
@@ -109,7 +109,7 @@ with models.DAG(
       pax_version=pax_config.PaxVersion.NIGHTLY,
       model_name="lmtransformeradam",
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
-  ).run()
+  )
 
   pax_nightly_lmtransformeradam_v4_16 = pax_config.get_pax_lm_config(
       tpu_version=TpuVersion.V4,
@@ -121,7 +121,7 @@ with models.DAG(
       pax_version=pax_config.PaxVersion.NIGHTLY,
       model_name="lmtransformeradam",
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
-  ).run()
+  )
 
   pax_nightly_lmtransformeradam_v5p_8 = pax_config.get_pax_lm_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -136,7 +136,7 @@ with models.DAG(
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
-  ).run()
+  )
 
   pax_nightly_lmtransformeradam_v5p_32 = pax_config.get_pax_lm_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -151,7 +151,7 @@ with models.DAG(
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
-  ).run()
+  )
 
   pax_nightly_lmtransformeradam_v5e_4 = pax_config.get_pax_lm_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -166,7 +166,7 @@ with models.DAG(
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
       network=V5_NETWORKS,
       subnetwork=V5E_SUBNETWORKS,
-  ).run()
+  )
 
   pax_nightly_lmtransformeradam_v5e_16 = pax_config.get_pax_lm_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
@@ -181,7 +181,7 @@ with models.DAG(
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
       network=V5_NETWORKS,
       subnetwork=V5E_SUBNETWORKS,
-  ).run()
+  )
 
   # Test dependencies
   pax_nightly_c4spmd1b_pretraining_v4_8

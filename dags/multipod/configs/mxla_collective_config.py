@@ -37,7 +37,7 @@ def get_mxla_collective_config(
     subnetwork: str = "default",
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -74,12 +74,12 @@ def get_mxla_collective_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.TONY_C,
       num_slices=num_slices,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

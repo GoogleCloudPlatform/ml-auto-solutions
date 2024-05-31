@@ -42,10 +42,74 @@ with models.DAG(
       "gpt3": "tpu/test_gpt3",
   }
 
+  timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+  train_base = (
+      "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
+      "python3 MaxText/train.py MaxText/configs/base.yml "
+      "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
+      "steps=2 enable_checkpointing=false attention=dot_product"
+  )
+  decode_base = (
+      "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
+      "python3 MaxText/decode.py MaxText/configs/base.yml "
+      "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
+      "steps=2 enable_checkpointing=false attention=dot_product "
+      "max_target_length=128 per_device_batch_size=1"
+  )
   test_models_gpu = {
-      "llama2-7b-train-1node": ("MaxText/configs/a3/llama_2_7b/1vm.sh", 1),
-      "llama2-7b-train-2node": ("MaxText/configs/a3/llama_2_7b/2vm.sh", 2),
-      "llama2-7b": ("end_to_end/gpu/a3/test_llama2_7b.sh", 1),
+      "train-c4-data": (f"{train_base} run_name=runner-{timestamp}-0", 1),
+      "train-synthetic-data": (
+          f"{train_base} run_name=runner-{timestamp}-1 dataset_type=synthetic",
+          1,
+      ),
+      "train-flash": (
+          f"{train_base} run_name=runner-{timestamp}-2 attention=cudnn_flash_te",
+          1,
+      ),
+      "train-quarter-batch-size": (
+          f"{train_base} run_name=runner-{timestamp}-3 per_device_batch_size=0.25 ici_tensor_parallelism=4",
+          1,
+      ),
+      "train-int8": (
+          f"{train_base} run_name=runner-{timestamp}-6 quantization=int8",
+          1,
+      ),
+      "train-fp8": (
+          f"{train_base} run_name=runner-{timestamp}-7 quantization=fp8",
+          1,
+      ),
+      "decode": (f"{decode_base} run_name=runner-{timestamp}-4", 1),
+      "decode-quarter-batch-size": (
+          f"{decode_base} run_name=runner-{timestamp}-5 per_device_batch_size=.25 ici_tensor_parallelism=4",
+          1,
+      ),
+      "generate-param-only-checkpoint": (
+          "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
+          f"bash end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-8 "
+          "-o gs://runner-maxtext-logs -d gs://maxtext-dataset -i 4 -a dot_product",
+          1,
+      ),
+      "generate-param-only-checkpoint-int8": (
+          "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
+          f"bash end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-9 "
+          "-o gs://runner-maxtext-logs -d gs://maxtext-dataset -i 4 -q int8 -a dot_product",
+          1,
+      ),
+      "grain-checkpoint-determinism": (
+          "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
+          "bash end_to_end/test_checkpointing.sh runner gs://runner-maxtext-logs "
+          "gs://maxtext-dataset False c4-array_record dot_product",
+          1,
+      ),
+      "checkpoint-compatibility": (
+          "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
+          "bash end_to_end/test_checkpoint_compatibility.sh runner "
+          "gs://runner-maxtext-logs gs://maxtext-dataset dot_product",
+          1,
+      ),
+      "llama2-7b-train-1node": ("bash MaxText/configs/a3/llama_2_7b/1vm.sh", 1),
+      "llama2-7b-train-2node": ("bash MaxText/configs/a3/llama_2_7b/2vm.sh", 2),
+      "llama2-7b": ("bash end_to_end/gpu/a3/test_llama2_7b.sh", 1),
   }
 
   for model, test_script in test_models_tpu.items():
@@ -77,7 +141,7 @@ with models.DAG(
         gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-pinned-{model}",
-        test_script=test_script,
+        run_model_cmds=(test_script,),
         num_slices=nnodes,
         cluster_name=ClusterName.A3_CLUSTER.value,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
@@ -88,7 +152,7 @@ with models.DAG(
         gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-stable-{model}",
-        test_script=test_script,
+        run_model_cmds=(test_script,),
         num_slices=nnodes,
         cluster_name=ClusterName.A3_CLUSTER.value,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,

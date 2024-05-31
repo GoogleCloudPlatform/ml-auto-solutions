@@ -81,8 +81,7 @@ with models.DAG(
           aot_cmd = (
               'export XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/"',
               f"bash MaxText/configs/v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}",
-              "gsutil cp gs://cloud-hybridsim-prod/desanitize_and_upload_hlo.sh .",
-              "bash desanitize_and_upload_hlo.sh LOCAL_DIR=/tmp/xla_dump/ GCS_OUTPUT_PATH=${GCS_OUTPUT}",
+              "gsutil -m cp -r /tmp/xla_dump/ ${GCS_OUTPUT}",
           )
           maxtext_aot = gke_config.get_gke_config(
               tpu_version=TpuVersion.V4,
@@ -100,7 +99,7 @@ with models.DAG(
           chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
           hybridsim_cmd = (
               "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
-              f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}} CHIP_CONFIG={chip_config}",
+              f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}}estimated_cost_ns.jsonl CHIP_CONFIG={chip_config}",
           )
           job_metric_config = metric_config.MetricConfig(
               json_lines=metric_config.JSONLinesConfig(

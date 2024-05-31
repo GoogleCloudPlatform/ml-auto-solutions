@@ -46,7 +46,7 @@ with models.DAG(
           is_tpu_reserved=False,
           num_slices=4,
           test_name=mxla_1mb_test_name,
-      ).run()
+      )
   )
 
   mxla_collective_1mb_nightly_8slice_v4_8 = (
@@ -59,7 +59,7 @@ with models.DAG(
           is_tpu_reserved=False,
           num_slices=8,
           test_name=mxla_1mb_test_name,
-      ).run()
+      )
   )
 
   mxla_collective_256mb_nightly_4slice_v4_8 = (
@@ -72,7 +72,7 @@ with models.DAG(
           is_tpu_reserved=False,
           num_slices=4,
           test_name=mxla_256mb_test_name,
-      ).run()
+      )
   )
 
   mxla_collective_256mb_nightly_8slice_v4_8 = (
@@ -85,7 +85,7 @@ with models.DAG(
           is_tpu_reserved=False,
           num_slices=8,
           test_name=mxla_256mb_test_name,
-      ).run()
+      )
   )
   # Test dependencie
   (
