@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run MaxText inference benchmarks with nightly version."""
+"""A DAG to run Maxdiffusion inference benchmarks"""
 
 import datetime
 from airflow import models
@@ -36,24 +36,58 @@ with models.DAG(
   test_name_prefix = "maxdiffusion-inference"
   test_models = {
       "SDXL-Base-1.0": {
-          "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
-          "maxdiffusion_logs": "gs://inference-benchmarks/models/SDXL-Base-1.0/2024-05-14-14-01/",
-          "per_device_batch_sizes": [2],
-          # "request_rate": 5,
+          "model_configs": [
+              (TpuVersion.V5E, 8, [1, 2], ["dot_attention", "flash"]),
+              (TpuVersion.V5E, 4, [1, 2], ["dot_attention", "flash"]),
+              (
+                  TpuVersion.V5P,
+                  8,
+                  [2, 10, 20, 40, 80, 320],
+                  "dot_attention",
+                  "flash",
+              ),
+          ]
+      },
+      "SDXL-Lightning": {
+          "model_configs": [
+              (TpuVersion.V5E, 8, [1, 2], ["dot_attention", "flash"]),
+              (TpuVersion.V5E, 4, [1, 2], ["dot_attention", "flash"]),
+              (
+                  TpuVersion.V5P,
+                  8,
+                  [2, 10, 20, 40, 80, 320],
+                  ["dot_attention", "flash"],
+              ),
+          ]
+      },
+      "SDXL-ContolNet": {
+          "model_configs": [
+              (TpuVersion.V5E, 8, [1], ["dot_attention", "flash"]),
+              (TpuVersion.V5E, 4, [1], ["dot_attention", "flash"]),
+              (
+                  TpuVersion.V5P,
+                  8,
+                  [2, 10, 20, 40, 80],
+                  ["dot_attention", "flash"],
+              ),
+          ]
       },
   }
 
   for model, sweep_model_configs in test_models.items():
     # tasks_per_model = []
-    for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
-        for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
+    for (
+        tpu_version,
+        tpu_cores,
+        per_device_batch_sizes,
+        attentions,
+    ) in sweep_model_configs["model_configs"]:
+      for per_device_batch_size in per_device_batch_sizes:
+        for attention in attentions:
           model_configs = {}
           model_configs["model_name"] = model
-          model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
-          model_configs["maxdiffusion_logs"] = sweep_model_configs["maxdiffusion_logs"]
           model_configs["per_device_batch_size"] = per_device_batch_size
-          model_configs["request_rate"] = sweep_model_configs["request_rate"]
+          model_configs["attention"] = attention
 
           if tpu_version == TpuVersion.V5E:
             # v5e benchmarks

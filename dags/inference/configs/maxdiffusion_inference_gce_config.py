@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for maxdiffusion inference DAG."""
 
+import datetime
 import json
 from typing import Dict
 from xlml.apis import gcp_config, metric_config, task, test_config
@@ -24,6 +25,14 @@ from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
+
+
+def _modify_save_metrics(metrics_file, model_configs):
+  metrics = json.loads(metrics_file)
+  for k, v in model_configs:
+    metrics["dimensions"][k] = str(v)
+  with open(metrics_file, "w") as f:
+    f.write(json.dumps(metrics))
 
 
 def get_maxdiffusion_inference_nightly_config(
@@ -47,10 +56,13 @@ def get_maxdiffusion_inference_nightly_config(
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
+  per_device_bat_size = model_configs["per_device_batch_size"]
+  attention = model_configs["attention"]
+  model_name = model_configs["model_name"]
   set_up_cmds = (
       "pip install --upgrade pip",
       # Download maxdiffusion
-      "git clone -b inference_utils https://github.com/google/maxdiffusion.git"
+      "git clone https://github.com/google/maxdiffusion.git"
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
@@ -59,29 +71,50 @@ def get_maxdiffusion_inference_nightly_config(
       # Setup Maxdiffusion
       "cd maxdiffusion",
       "pip3 install jax[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
-      "pip3 install -r requirements.txt"
-      "pip3 install ."
-      "cd .."
+      "pip3 install -r requirements.txt",
+      "pip3 install .",
+      # dependency for controlnet
+      "apt-get install ffmpeg libsm6 libxext6  -y" "cd ..",
   )
 
-  additional_metadata_dict = {
-      "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
-  }
+  if model_name == "SDXL-Base-1.0":
+    run_model_cmds = (
+        # Start virtual environment
+        "source .env/bin/activate",
+        ### Benchmark
+        "cd maxdiffusion",
+        # Configure flags
+        "cd .."
+        f""" python -m src.maxdiffusion.generate_sdxl src/maxdiffusion/configs/base_xl.yml run_name="my_run" per_device_batch_size={per_device_bat_size} attention="{attention}" """,
+        "cd ..",
+        f"gsutil cp metrics.json {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+    )
+  if model_name == "SDXL-Lightning":
+    run_model_cmds = (
+        # Start virtual environment
+        "source .env/bin/activate",
+        ### Benchmark
+        "cd maxdiffusion",
+        # Configure flags
+        "cd .."
+        f""" python -m src.maxdiffusion.generate_sdxl src/maxdiffusion/configs/base_xl.yml run_name="my_run" lightning_repo="ByteDance/SDXL-Lightning" lightning_ckpt="sdxl_lightning_4step_unet.safetensors" per_device_batch_size={per_device_bat_size} attention="{attention}" """,
+        "cd ..",
+        f"gsutil cp metrics.json {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+    )
+  if model_name == "SDXL-ControlNet":
+    run_model_cmds = (
+        # Start virtual environment
+        "source .env/bin/activate",
+        ### Benchmark
+        "cd maxdiffusion",
+        # Configure flags
+        "cd .."
+        f""" python src/maxdiffusion/controlnet/generate_controlnet_sdxl_replicated.py per_device_batch_size={per_device_bat_size} attention="{attention}" """,
+        "cd ..",
+        f"gsutil cp metrics.json {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+    )
 
-  run_model_cmds = (
-      # Start virtual environment
-      "source .env/bin/activate",
-      ### Benchmark
-      "cd maxdiffusion",
-      # Configure flags
-      "cd .."
-      """ python -m src.maxdiffusion.generate_sdxl src/maxdiffusion/configs/base_xl.yml run_name="my_run" """,
-      "cd ..",
-      # Give server time to start
-      f"sleep {model_configs['sleep_time']}",
-      f"gsutil cp metrics.json {metric_config.SshEnvVars.GCS_OUTPUT.value}",
-  )
-
+  _modify_save_metrics("metrics.json", model_configs)
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
@@ -94,7 +127,7 @@ def get_maxdiffusion_inference_nightly_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.VIJAYA_S,
       num_slices=num_slices,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxdiffusion",
