@@ -14,7 +14,7 @@
 
 """Utilities to construct configs for pax DAGs."""
 
-from datetime import datetime
+import datetime
 import enum
 from typing import Tuple
 import uuid
@@ -43,7 +43,7 @@ def get_setup_cmds(
     return common.set_up_google_pax() + (ckp_cmds,)
   elif pax_version is PaxVersion.NIGHTLY:
     logging.info("Running nightly Pax version.")
-    build_date = datetime.today().strftime("%Y%m%d")
+    build_date = datetime.datetime.today().strftime("%Y%m%d")
     ckp_cmds = (
         f"gsutil -m cp -r {ckp_path} {job_log_dir}" if ckp_path else "echo"
     )
@@ -98,7 +98,7 @@ def get_pax_lm_config(
     extraFlags: str = "",
     network: str = "default",
     subnetwork: str = "default",
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -135,11 +135,11 @@ def get_pax_lm_config(
       test_name=f"pax_{pax_version.value}_{model_name}",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.GERSON_K,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

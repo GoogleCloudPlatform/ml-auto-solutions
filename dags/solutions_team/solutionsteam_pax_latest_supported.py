@@ -44,7 +44,7 @@ with models.DAG(
       log_dir=f"{log_dir_prefix}/lmspmd2b/v4-8",
       exp_path=lmspmd2b_exp_path,
       model_name="lmspmd2b",
-  ).run()
+  )
 
   pax_stable_lmspmd2b_ckpt_v4_8 = pax_config.get_pax_lm_config(
       tpu_version=TpuVersion.V4,
@@ -55,7 +55,7 @@ with models.DAG(
       exp_path=lmspmd2b_exp_path,
       model_name="lmspmd2b_ckpt",
       ckp_path=f"{gcs_bucket.PAX_DIR}/lmcloudspmd2B/pax-nightly-lmspmd2b-func-v4-8-1vm-run1/*",
-  ).run()
+  )
 
   # Language model transformer with adam
   pax_transformer_adam_extra_flags = [
@@ -71,7 +71,7 @@ with models.DAG(
       exp_path="tasks.lm.params.lm_cloud.LmCloudTransformerAdamLimitSteps",
       model_name="lmtransformeradam",
       extraFlags=" ".join(pax_transformer_adam_extra_flags),
-  ).run()
+  )
 
   # Test dependencies
   pax_stable_lmspmd2b_v4_8 >> pax_stable_lmspmd2b_ckpt_v4_8

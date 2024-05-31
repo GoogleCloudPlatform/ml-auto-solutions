@@ -47,6 +47,13 @@ class ImageFamily(enum.Enum):
   COMMON_CU121_DEBIAN_11 = "common-cu121-debian-11"
 
 
+class Region(enum.Enum):
+  """Common GCP regions."""
+
+  # used for GKE
+  US_CENTRAL1 = "us-central1"
+
+
 class Zone(enum.Enum):
   """Common GCP zones."""
 
@@ -172,5 +179,9 @@ class DockerImage(enum.Enum):
   )
   MAXTEXT_GPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_nightly:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
+  CLOUD_HYBRIDSIM_NIGHTLY = (
+      "us-docker.pkg.dev/cloud-tpu-v2-images-dev/hybridsim/cloud_hybridsim_gcloud_python:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )

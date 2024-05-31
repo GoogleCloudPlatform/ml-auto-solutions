@@ -36,12 +36,7 @@ with models.DAG(
 ) as dag:
   # MaxText set up
   quantization_sweep = {"M_QUANTIZATION": ["", "int8"]}
-  model_configs = [
-      ("16b", quantization_sweep),
-      ("32b", quantization_sweep),
-      ("64b", quantization_sweep),
-      ("128b", {}),  # Only running 128B with bf16 since int8 causes OOM
-  ]
+  model_configs = ["16b", "32b", "64b", "128b"]
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
@@ -49,7 +44,7 @@ with models.DAG(
   base_output_directory = "gs://runner-maxtext-logs"
 
   for mode, image in docker_images:
-    for model, sweep_params in model_configs:
+    for model in model_configs:
       base_run_model_cmds = [
           f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={base_output_directory} DATASET_PATH=gs://max-datasets-rogue PLATFORM=gke",
       ]
@@ -61,7 +56,7 @@ with models.DAG(
           dataset_name=metric_config.DatasetOption.XLML_DATASET,
           cluster_name=ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
           tpu_zone=Zone.US_WEST4_B.value,
-          time_out_in_min=180,
+          time_out_in_min=240,
           base_output_directory=base_output_directory,
           tpu_version=TpuVersion.V5E,
           tpu_cores=256,
@@ -69,7 +64,7 @@ with models.DAG(
           docker_image=image.value,
           run_name_prefix=f"maxtext-{model}-{mode.value}",
           base_run_model_cmds=base_run_model_cmds,
-          sweep_params=sweep_params,
+          sweep_params=quantization_sweep,
       )
 
       for test in maxtext_sweep_gke_test:

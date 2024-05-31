@@ -14,6 +14,8 @@
 
 """Utilities to construct configs for maxtext inference DAG."""
 
+import datetime
+import json
 from typing import Dict
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner
@@ -39,7 +41,7 @@ def get_maxtext_inference_nightly_config(
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
     model_configs: Dict = {},
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -54,6 +56,7 @@ def get_maxtext_inference_nightly_config(
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
+      "sudo apt-get -y install jq",
       "python -m venv .env",
       "source .env/bin/activate",
       # Setup MaxText & JetStream
@@ -62,25 +65,44 @@ def get_maxtext_inference_nightly_config(
       "pip install torch --index-url https://download.pytorch.org/whl/cpu",
   )
 
+  additional_metadata_dict = {
+      "model_mode": f"{model_configs['model_mode']}",
+      "checkpoint": f"{model_configs['checkpoint']}",
+      "scan_layers": f"{model_configs['scan_layers']}",
+      "dataset": f"{model_configs['dataset']}",
+      "max_prefill_predict_length": f"{model_configs['max_prefill_predict_length']}",
+      "max_target_length": f"{model_configs['max_target_length']}",
+      "max_output_length": f"{model_configs['max_output_length']}",
+      "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
+      "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
+      "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
+      "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
+      "weight_dtype": f"{model_configs['weight_dtype']}",
+  }
+
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
-      # Download dataset
-      "wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json > /dev/null 2>&1",
+      # Get commit hash of the maxtext and jetstream repos
+      f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
+      'cd maxtext && export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
+      'cd JetStream && export JETSTREAM_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
+      'export METADATA_DICT=$(jq -c \'. + { "maxtext_commit_hash": $newVal}\' --arg newVal ${MAXTEXT_COMMIT_HASH} <<<"$METADATA_DICT")',
+      'export METADATA_DICT=$(jq -c \'. + { "jetstream_commit_hash": $newVal}\' --arg newVal ${JETSTREAM_COMMIT_HASH} <<<"$METADATA_DICT")',
       ### Benchmark
       "cd maxtext",
       # Configure flags
       f"export UNSCANNED_CKPT_PATH={model_configs['checkpoint']}",
       f"export TOKENIZER_PATH=assets/{model_configs['tokenizer']}",
       "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
-      "export MAX_PREFILL_PREDICT_LENGTH=1024",
-      "export MAX_TARGET_LENGTH=2048",
+      f"export MAX_PREFILL_PREDICT_LENGTH={model_configs['max_prefill_predict_length']}",
+      f"export MAX_TARGET_LENGTH={model_configs['max_target_length']}",
       f"export MODEL_NAME={model_configs['model_name']}",
       f"export ICI_FSDP_PARALLELISM={model_configs['ici_fsdp_parallelism']}",
       f"export ICI_AUTOREGRESSIVE_PARALLELISM={model_configs['ici_autoregressive_parallelism']}",
       f"export ICI_TENSOR_PARALLELISM={model_configs['ici_tensor_parallelism']}",
-      "export SCAN_LAYERS=false",
-      "export WEIGHT_DTYPE=bfloat16",
+      f"export SCAN_LAYERS={model_configs['scan_layers']}",
+      f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
@@ -98,18 +120,18 @@ def get_maxtext_inference_nightly_config(
         per_device_batch_size=${PER_DEVICE_BATCH_SIZE} > /dev/null 2>&1 &""",
       "cd ..",
       # Give server time to start
-      "sleep 120",
+      f"sleep {model_configs['sleep_time']}",
       # Run benchmark, run eval, save benchmark and eval results, and save predictions to /tmp/request-outputs.json
       f"""python JetStream/benchmarks/benchmark_serving.py \
       --tokenizer maxtext/assets/{model_configs['tokenizer']} \
       --model {model_configs['model_name']} \
-      --num-prompts 1000  \
-      --dataset sharegpt \
-      --dataset-path ~/ShareGPT_V3_unfiltered_cleaned_split.json \
-      --max-output-length 1024 \
-      --request-rate 5 \
+      --num-prompts {model_configs['num_prompts']}  \
+      --dataset {model_configs['dataset']} \
+      --max-output-length {model_configs['max_output_length']} \
+      --request-rate {model_configs['request_rate']} \
       --warmup-first true \
       --save-result \
+      --additional-metadata-metrics-to-save ${{METADATA_DICT}} \
       --save-request-outputs \
       --run-eval true""",
       'export BENCHMARK_OUTPUT=$(find . -name "*JetStream*" -type f -printf "%T@ %Tc %p\n" | sort -n | head -1 | awk \'NF>1{print $NF}\')',
@@ -133,7 +155,7 @@ def get_maxtext_inference_nightly_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.ANDY_Y,
       num_slices=num_slices,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxtext",
@@ -144,7 +166,7 @@ def get_maxtext_inference_nightly_config(
       use_runtime_generated_gcs_folder=True,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,

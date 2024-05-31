@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for example_dag."""
 
+import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner
 from dags.vm_resource import TpuVersion
@@ -54,7 +55,7 @@ def get_flax_resnet_xpk_config(
       docker_image=docker_image,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RAN_R,
       num_slices=num_slices,
   )

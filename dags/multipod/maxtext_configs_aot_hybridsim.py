@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-A DAG to run AOT compilation and HybridSim tests for MaxText model configs on TPU v4.
+A DAG to run AOT compilation and HybridSim tests for MaxText model configs on TPU v4, v5e.
 """
 import datetime
 from airflow import models
@@ -25,13 +25,13 @@ from airflow.utils.task_group import TaskGroup
 from dags.multipod.configs import gke_config
 from xlml.apis import metric_config
 
-# Run once a day at 10 am UTC (2 am PST / 3 am PDT)
-SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 1 pm UTC (5 am PST / 6 am PDT)
+SCHEDULED_TIME = "0 13 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
-    dag_id="maxtext_v4_configs_aot_hybridsim",
+    dag_id="maxtext_configs_aot_hybridsim",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable"],
+    tags=["multipod_team", "maxtext", "nightly"],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
     concurrency=10,
@@ -42,7 +42,7 @@ with models.DAG(
       TpuVersion.V4: [("22b", 128), ("52b", 384)],
       TpuVersion.V5E: [("16b", 256), ("32b", 256), ("64b", 256), ("128b", 256)],
   }
-  num_slices = [1, 2]
+  num_slices = [1, 2, 4, 8]
   clusters = {
       # accelerator: [(cluster_name, cluster_zone, cluster_project, num_cores)],
       TpuVersion.V4: (
@@ -81,8 +81,7 @@ with models.DAG(
           aot_cmd = (
               'export XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/"',
               f"bash MaxText/configs/v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}",
-              "gsutil cp gs://cloud-hybridsim-prod/desanitize_and_upload_hlo.sh .",
-              "bash desanitize_and_upload_hlo.sh LOCAL_DIR=/tmp/xla_dump/ GCS_OUTPUT_PATH=${GCS_OUTPUT}",
+              "gsutil -m cp -r /tmp/xla_dump/ ${GCS_OUTPUT}",
           )
           maxtext_aot = gke_config.get_gke_config(
               tpu_version=TpuVersion.V4,
@@ -91,7 +90,7 @@ with models.DAG(
               time_out_in_min=240,
               test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-aot",
               run_model_cmds=aot_cmd,
-              docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+              docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
               test_owner=test_owner.RAYMOND_Z,
           ).run(gcs_location=shared_gcs_location)
 
@@ -100,7 +99,7 @@ with models.DAG(
           chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
           hybridsim_cmd = (
               "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
-              f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}} CHIP_CONFIG={chip_config}",
+              f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}}estimated_cost_ns.jsonl CHIP_CONFIG={chip_config}",
           )
           job_metric_config = metric_config.MetricConfig(
               json_lines=metric_config.JSONLinesConfig(
@@ -117,7 +116,7 @@ with models.DAG(
               time_out_in_min=240,
               test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-hybridsim",
               run_model_cmds=hybridsim_cmd,
-              docker_image="gcr.io/tpu-prod-env-multipod/internal_cloud_hybridsim_nightly:2024-04-18",
+              docker_image=DockerImage.CLOUD_HYBRIDSIM_NIGHTLY.value,
               test_owner=test_owner.RAYMOND_Z,
               user_specified_job_metric_config=job_metric_config,
           ).run(gcs_location=shared_gcs_location)
