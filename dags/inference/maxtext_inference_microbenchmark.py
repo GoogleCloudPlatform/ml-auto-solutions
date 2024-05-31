@@ -133,7 +133,7 @@ with models.DAG(
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
           "inference_microbenchmark_prefill_lengths": 1024,
-          "inference_microbenchmark_stages": "generate",
+          "inference_microbenchmark_stages": "prefill,generate",
           "inference_microbenchmark_loop_iters": 10,
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
