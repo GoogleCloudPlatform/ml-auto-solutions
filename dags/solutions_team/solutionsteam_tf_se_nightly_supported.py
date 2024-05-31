@@ -32,7 +32,6 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 4),
     catchup=False,
 ) as dag:
-
   # ResNet
   tf_resnet_v2_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V2,
@@ -150,7 +149,6 @@ with models.DAG(
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
   )
-
 
   # Test dependencies
   tf_resnet_v2_8 >> tf_resnet_v2_32

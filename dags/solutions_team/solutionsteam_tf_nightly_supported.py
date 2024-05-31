@@ -33,7 +33,6 @@ with models.DAG(
     start_date=datetime.datetime(2023, 8, 16),
     catchup=False,
 ) as dag:
-
   # ResNet
   tf_resnet_v2_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V2,
