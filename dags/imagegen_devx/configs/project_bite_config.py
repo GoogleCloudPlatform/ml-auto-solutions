@@ -33,6 +33,9 @@ def set_up_axlearn() -> Tuple[str]:
       "git clone https://github.com/apple/axlearn.git",
       "python -m pip install ./axlearn",
       *common.set_up_nightly_jax(),
+      "pip install tensorflow_text==2.16.1",
+      "pip install tensorflow==2.16.1",
+      "pip install ml-dtypes==0.4.0",
   )
 
 
@@ -68,7 +71,7 @@ def get_bite_tpu_config(
           runtime_version=runtime_version,
           reserved=is_tpu_reserved,
       ),
-      test_name=f"jax_{model_config}",
+      test_name=f"bite_{model_config}",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
