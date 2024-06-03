@@ -60,3 +60,4 @@ RAN_R = "Ran R."
 
 # Inference
 ANDY_Y = "Andy Y."
+MORGAN_D = "Morgan D."
