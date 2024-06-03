@@ -147,7 +147,15 @@ def run_job(
 
       # Wait for pods to complete, and exit with the first non-zero exit code.
       for f in concurrent.futures.as_completed(futures):
-        exit_code = f.result()
+        try:
+          exit_code = f.result()
+        except kubernetes.client.ApiException as e:
+          logging.error('Kubernetes error. Retrying...', exc_info=e)
+          exit_code = None
+
+        # Retry if status is unknown
+        if exit_code is None:
+          return False
         if exit_code:
           raise RuntimeError('Non-zero exit code')
 
