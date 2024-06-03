@@ -8,8 +8,8 @@ dags/solutions_team/solutionsteam_flax* @sshahrokhi
 dags/solutions_team/configs/pax @gkroiz
 dags/solutions_team/solutionsteam_pax* @gkroiz
 
-dags/solutions_team/configs/tensorflow @chandrasekhard2 @EricLeFort
-dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @EricLeFort
+dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng
+dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
 
 dags/pytorch_xla @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore
 dags/legacy_test/tests/pytorch @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore
@@ -19,5 +19,7 @@ dags/multipod @jonb377
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
 dags/imagegen_devx @RissyRan
+dags/imagegen_devx/project_bite* @RissyRan @jiya-zhang
+dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang
 
 dags/inference @yeandy @vipannalla

@@ -37,6 +37,6 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
-      model_config="fuji_test",
-      time_out_in_min=60,
+      model_config="fuji-test-v1",
+      time_out_in_min=180,
   )
