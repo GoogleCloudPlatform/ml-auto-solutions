@@ -35,8 +35,9 @@ with models.DAG(
     catchup=False,
 ) as dag:
   test_name_prefix = "maxtext-inference"
-  test_models = {
-      "llama2-7b": {
+  test_models = [
+      # 8-chip, bf16
+      ("llama2-7b", {
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
@@ -46,16 +47,43 @@ with models.DAG(
           "dataset": "openorca",
           "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
+          # "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
+          "per_device_batch_sizes": [11, 12],
+          # "per_device_batch_sizes": "1,2,4,8,11,12",
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
           "request_rate": 5,
           "num_prompts": 1000,
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
           "max_output_length": 1024,
-      },
-      "llama2-13b": {
+          "quantization": "",
+      }),
+      # 4-chip
+      ("llama2-7b", {
+          "sleep_time": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 4)],
+          "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "base",
+          "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
+          "scan_layers": "false",
+          "dataset": "openorca",
+          "weight_dtype": "bfloat16",
+          "tokenizer": "tokenizer.llama2",
+          # "per_device_batch_sizes": [1, 2, 4, 5, 6],
+          "per_device_batch_sizes": [5, 6],
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
+          "request_rate": 5,
+          "num_prompts": 1000,
+          "max_prefill_predict_length": 1024,
+          "max_target_length": 2048,
+          "max_output_length": 1024,
+          "quantization": "",
+      }),
+      ("llama2-13b", {
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
@@ -65,16 +93,64 @@ with models.DAG(
           "dataset": "openorca",
           "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [1, 2, 4, 5, 6],
+          # "per_device_batch_sizes": [1, 2, 4, 5, 6],
+          "per_device_batch_sizes": [5, 6],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
           "request_rate": 5,
           "num_prompts": 1000,
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
           "max_output_length": 1024,
-      },
-      "llama2-70b": {
+          "quantization": "",
+      }),
+      ("llama2-13b", {
+          "sleep_time": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 4)],
+          "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "base",
+          "maxtext_logs": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/",
+          "scan_layers": "false",
+          "dataset": "openorca",
+          "weight_dtype": "bfloat16",
+          "tokenizer": "tokenizer.llama2",
+          # "per_device_batch_sizes": [1, 2, 3, 4],
+          "per_device_batch_sizes": [3, 4],
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
+          "request_rate": 5,
+          "num_prompts": 1000,
+          "max_prefill_predict_length": 1024,
+          "max_target_length": 2048,
+          "max_output_length": 1024,
+          "quantization": "",
+      }),
+      ("llama2-70b", {
+          "sleep_time": 240,
+          "tpu_version_cores": [(TpuVersion.V5P, 8)],
+          # "per_device_batch_sizes": [12, 16, 20, 24, 28, 32],
+          "per_device_batch_sizes": [20, 24],
+          "checkpoint": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "chat",
+          "maxtext_logs": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/",
+          "scan_layers": "false",
+          "dataset": "openorca",
+          "weight_dtype": "bfloat16",
+          "tokenizer": "tokenizer.llama2",
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
+          "request_rate": 5,
+          "num_prompts": 1000,
+          "max_prefill_predict_length": 1024,
+          "max_target_length": 2048,
+          "max_output_length": 1024,
+          "quantization": "",
+      }),
+      # quantization
+      ("llama2-70b", {
           "sleep_time": 240,
           "tpu_version_cores": [(TpuVersion.V5P, 8)],
           "per_device_batch_sizes": [12, 16, 20, 24],
@@ -86,14 +162,16 @@ with models.DAG(
           "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.llama2",
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
           "request_rate": 5,
           "num_prompts": 1000,
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
           "max_output_length": 1024,
-      },
-      "gemma-7b": {
+          "quantization": "int8",
+      }),
+      ("gemma-7b", {
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
           "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
@@ -103,22 +181,48 @@ with models.DAG(
           "dataset": "openorca",
           "weight_dtype": "bfloat16",
           "tokenizer": "tokenizer.gemma",
-          "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
+          # "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
+          "per_device_batch_sizes": [11, 12],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
           "request_rate": 5,
           "num_prompts": 1000,
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
           "max_output_length": 1024,
-      },
-  }
+          "quantization": "",
+      }),
+      ("gemma-7b", {
+          "sleep_time": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 4)],
+          "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+          "model_mode": "base",
+          "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
+          "scan_layers": "false",
+          "dataset": "openorca",
+          "weight_dtype": "bfloat16",
+          "tokenizer": "tokenizer.gemma",
+          # "per_device_batch_sizes": [1, 2, 4, 5, 6],
+          "per_device_batch_sizes": [5, 6],
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          # "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "ici_parallelisms": [(1, 1, -1)],
+          "request_rate": 5,
+          "num_prompts": 1000,
+          "max_prefill_predict_length": 1024,
+          "max_target_length": 2048,
+          "max_output_length": 1024,
+          "quantization": "",
+      }),
+  ]
 
-  for model, sweep_model_configs in test_models.items():
-    # tasks_per_model = []
-    for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
-      for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
-        for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
+  for model, sweep_model_configs in test_models:
+    for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
+      for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
+        dags = []
+        for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
+
           # Set per_device_batch_size to a single value, not a list
           model_configs = {}
           model_configs["model_name"] = model
@@ -148,6 +252,9 @@ with models.DAG(
           model_configs["max_output_length"] = sweep_model_configs[
               "max_output_length"
           ]
+          quant = sweep_model_configs["quantization"]
+          quant_name = quant if quant else "bf16"
+          model_configs["quantization"] = quant
 
           if tpu_version == TpuVersion.V5E:
             # v5e benchmarks
@@ -163,20 +270,20 @@ with models.DAG(
             network = V5_NETWORKS
             subnetwork = V5P_SUBNETWORKS
 
-          maxtext_stable_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
-              tpu_version=tpu_version,
-              tpu_cores=tpu_cores,
-              tpu_zone=zone,
-              runtime_version=runtime_version,
-              project_name=project_name,
-              time_out_in_min=60,
-              is_tpu_reserved=True,
-              test_name=f"{test_name_prefix}-stable-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
-              test_mode=SetupMode.STABLE,
-              network=network,
-              subnetwork=subnetwork,
-              model_configs=model_configs,
-          )
+          # maxtext_stable_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+          #     tpu_version=tpu_version,
+          #     tpu_cores=tpu_cores,
+          #     tpu_zone=zone,
+          #     runtime_version=runtime_version,
+          #     project_name=project_name,
+          #     time_out_in_min=60,
+          #     is_tpu_reserved=True,
+          #     test_name=f"{test_name_prefix}-stable-{model}-batch-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
+          #     test_mode=SetupMode.STABLE,
+          #     network=network,
+          #     subnetwork=subnetwork,
+          #     model_configs=model_configs,
+          # )
           maxtext_nightly_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
               tpu_version=tpu_version,
               tpu_cores=tpu_cores,
@@ -185,10 +292,15 @@ with models.DAG(
               project_name=project_name,
               time_out_in_min=60,
               is_tpu_reserved=True,
-              test_name=f"{test_name_prefix}-nightly-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
+              test_name=f"{test_name_prefix}-nightly-{model}-quant-{quant_name}-batch-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
               test_mode=SetupMode.NIGHTLY,
               network=network,
               subnetwork=subnetwork,
               model_configs=model_configs,
           )
-          maxtext_stable_1slice >> maxtext_nightly_1slice
+          # dags.append(maxtext_stable_1slice)
+          dags.append(maxtext_nightly_1slice)
+          # maxtext_stable_1slice >> maxtext_nightly_1slice
+
+        for i in range(1, len(dags)):
+          dags[i-1] >> dags[i]

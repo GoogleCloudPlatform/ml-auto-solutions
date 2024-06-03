@@ -78,6 +78,7 @@ def get_maxtext_inference_nightly_config(
       "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
       "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
       "weight_dtype": f"{model_configs['weight_dtype']}",
+      "quantization": f"{model_configs['quantization']}",
   }
 
   run_model_cmds = (
@@ -104,6 +105,7 @@ def get_maxtext_inference_nightly_config(
       f"export SCAN_LAYERS={model_configs['scan_layers']}",
       f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
+      f"export QUANTIZATION={model_configs['quantization']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
         MaxText/configs/base.yml \
@@ -117,6 +119,7 @@ def get_maxtext_inference_nightly_config(
         ici_tensor_parallelism=${ICI_TENSOR_PARALLELISM} \
         scan_layers=${SCAN_LAYERS} \
         weight_dtype=${WEIGHT_DTYPE} \
+        quantization=${QUANTIZATION} \
         per_device_batch_size=${PER_DEVICE_BATCH_SIZE} > /dev/null 2>&1 &""",
       "cd ..",
       # Give server time to start
