@@ -55,6 +55,7 @@ def run_workload(
     accelerator_type: str,
     run_cmds: str,
     num_slices: int = 1,
+    use_vertex_tensorboard: bool = False,
 ):
   """Run workload through xpk tool."""
 
@@ -63,18 +64,24 @@ def run_workload(
       multi_keyword = "num-nodes"
     else:
       multi_keyword = "num-slices"
+
+    workload_create_cmd = (
+        f"python {tmpdir}/xpk/xpk.py workload create"
+        f" --cluster={cluster_name} --workload={workload_id}"
+        f" --command='{run_cmds}' --device-type={accelerator_type}"
+        f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
+        f" --project={cluster_project} --zone={zone}"
+        f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
+        " --restart-on-user-code-failure"
+    )
+    if use_vertex_tensorboard:
+      workload_create_cmd += " --use-vertex-tensorboard"
+
     cmds = (
-        "set -xue",
-        f"git clone https://github.com/google/xpk {tmpdir}/xpk",
-        (
-            f"python {tmpdir}/xpk/xpk.py workload create"
-            f" --cluster={cluster_name} --workload={workload_id}"
-            f" --command='{run_cmds}' --device-type={accelerator_type}"
-            f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
-            f" --project={cluster_project} --zone={zone}"
-            f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
-            " --restart-on-user-code-failure"
-        ),
+      "set -xue",
+      f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+      "pip install cloud-accelerator-diagnostics",
+      workload_create_cmd,
     )
     hook = SubprocessHook()
     result = hook.run_command(
