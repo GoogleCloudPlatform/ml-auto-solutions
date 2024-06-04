@@ -27,7 +27,7 @@ RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
 
 
-def get_maxtext_inference_microbenchmark_nightly_config(
+def config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
@@ -41,6 +41,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
     model_configs: Dict = {},
+    maxtext_branch: str = "",
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -51,7 +52,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
   set_up_cmds = (
       "pip install --upgrade pip",
       # Download maxtext
-      "git clone -b mor--kv-cache-layout-reformat-output https://github.com/google/maxtext.git",
+      f"if [ ! -d maxtext ]; then git clone {maxtext_branch} https://github.com/google/maxtext.git; fi",
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
@@ -64,6 +65,7 @@ def get_maxtext_inference_microbenchmark_nightly_config(
   )
 
   additional_metadata_dict = {
+      "quant_mode": f"{model_configs['quant_mode']}",
       "key_value_axis_order_product_id_list": f"{model_configs['key_value_axis_order_product_id_list']}",
       "prefill_key_axis_order_list": f"{model_configs['prefill_key_axis_order_list']}",
       "prefill_value_axis_order_list": f"{model_configs['prefill_value_axis_order_list']}",
@@ -87,28 +89,27 @@ def get_maxtext_inference_microbenchmark_nightly_config(
       ### Benchmark
       # Configure flags
       "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
-      f"export run_name={model_configs['key_value_axis_order_product_id_list']}",
       f"""python MaxText/inference_microbenchmark_sweep.py \
           MaxText/configs/base.yml \
-          base_output_directory={model_configs['base_output_directory']} \
           model_name={model_configs['model_name']} \
           tokenizer_path=assets/{model_configs['tokenizer']} \
           weight_dtype={model_configs['weight_dtype']} \
+          scan_layers={model_configs['scan_layers']} \
+          max_prefill_predict_length={model_configs['max_prefill_predict_length']} \
+          max_target_length={model_configs['max_target_length']} \
+          attention={model_configs['attention']} \
+          ici_fsdp_parallelism={model_configs['ici_fsdp_parallelism']} \
+          ici_autoregressive_parallelism={model_configs['ici_autoregressive_parallelism']} \
+          ici_tensor_parallelism={model_configs['ici_tensor_parallelism']} \
+          quantization={model_configs['quantization']} \
+          quantize_kvcache={model_configs['quantize_kvcache']} \
+          per_device_batch_size={model_configs['per_device_batch_size']} \
           inference_microbenchmark_prefill_lengths={model_configs['inference_microbenchmark_prefill_lengths']} \
           inference_microbenchmark_stages={model_configs['inference_microbenchmark_stages']} \
           inference_microbenchmark_loop_iters={model_configs['inference_microbenchmark_loop_iters']} \
-          max_prefill_predict_length={model_configs['max_prefill_predict_length']} \
-          max_target_length={model_configs['max_target_length']} \
-          per_device_batch_size={model_configs['per_device_batch_size']} \
-          ici_fsdp_parallelism={model_configs['ici_fsdp_parallelism']} \
-          ici_tensor_parallelism={model_configs['ici_tensor_parallelism']} \
-          ici_autoregressive_parallelism={model_configs['ici_autoregressive_parallelism']} \
+          base_output_directory={model_configs['base_output_directory']} \
+          run_name={model_configs['run_name']} \
           profiler={model_configs['profiler']} \
-          scan_layers={model_configs['scan_layers']} \
-          run_name=${{run_name}} \
-          quantization={model_configs['quantization']} \
-          quantize_kvcache={model_configs['quantize_kvcache']} \
-          attention={model_configs['attention']} \
           save_config_to_gcs={model_configs['save_config_to_gcs']} \
           inference_metadata_file=MaxText/metadata.json""",
       "cat inference_microbenchmark_sweep_results.jsonl",
