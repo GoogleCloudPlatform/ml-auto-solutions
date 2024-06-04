@@ -132,7 +132,7 @@ def get_maxtext_inference_nightly_config(
       --dataset {model_configs['dataset']} \
       --max-output-length {model_configs['max_output_length']} \
       --request-rate {model_configs['request_rate']} \
-      --warmup-first true \
+      --warmup-mode sampled \
       --save-result \
       --additional-metadata-metrics-to-save ${{METADATA_DICT}} \
       --save-request-outputs \
