@@ -33,30 +33,30 @@ with models.DAG(
     catchup=False,
     concurrency=2,
 ) as dag:
-    base_output_directory = (
-        f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_vertex_ai_tensorboard"
-    )
-    dataset_path = gcs_bucket.MAXTEXT_DIR
-    docker_images = [
-        (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
-        (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
-    ]
+  base_output_directory = (
+      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_vertex_ai_tensorboard"
+  )
+  dataset_path = gcs_bucket.MAXTEXT_DIR
+  docker_images = [
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+  ]
 
-    for mode, image in docker_images:
-        profiling_in_vertex_ai_tb_cmds = (
-            f"export RUN_NAME=vertex_ai_{mode.value}_$(date +%Y-%m-%d-%H-%M-%S)",
-            "python3 MaxText/train.py MaxText/configs/base.yml"
-            f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
-            f" dataset_path={dataset_path} profiler=xplane steps=10",
-            "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
-        )
-        profiling_in_vertex_ai_tb_test = gke_config.get_gke_config(
-            tpu_version=TpuVersion.V4,
-            tpu_cores=8,
-            tpu_zone=Zone.US_CENTRAL2_B.value,
-            time_out_in_min=240,
-            test_name=f"profiling-vertex-ai-tensorboard-{mode.value}",
-            run_model_cmds=profiling_in_vertex_ai_tb_cmds,
-            docker_image=image.value,
-            test_owner=test_owner.SURBHI_J,
-        ).run(use_vertex_tensorboard=True)
+  for mode, image in docker_images:
+    profiling_in_vertex_ai_tb_cmds = (
+        f"export RUN_NAME=vertex_ai_{mode.value}_$(date +%Y-%m-%d-%H-%M-%S)",
+        "python3 MaxText/train.py MaxText/configs/base.yml"
+        f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
+        f" dataset_path={dataset_path} profiler=xplane steps=10",
+        "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
+    )
+    profiling_in_vertex_ai_tb_test = gke_config.get_gke_config(
+        tpu_version=TpuVersion.V4,
+        tpu_cores=8,
+        tpu_zone=Zone.US_CENTRAL2_B.value,
+        time_out_in_min=240,
+        test_name=f"profiling-vertex-ai-tensorboard-{mode.value}",
+        run_model_cmds=profiling_in_vertex_ai_tb_cmds,
+        docker_image=image.value,
+        test_owner=test_owner.SURBHI_J,
+    ).run(use_vertex_tensorboard=True)

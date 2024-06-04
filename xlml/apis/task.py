@@ -228,7 +228,9 @@ class XpkTask(BaseTask):
             self.task_test_config.gcs_subfolder,
             self.task_test_config.benchmark_id,
         )
-      launch_workload = self.launch_workload(workload_id, gcs_path, use_vertex_tensorboard)
+      launch_workload = self.launch_workload(
+          workload_id, gcs_path, use_vertex_tensorboard
+      )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=int(self.task_test_config.timeout.total_seconds()),
       )(
@@ -241,7 +243,9 @@ class XpkTask(BaseTask):
       (workload_id, gcs_path) >> launch_workload >> wait_for_workload_completion
       return group, gcs_path
 
-  def launch_workload(self, workload_id: str, gcs_path: str, use_vertex_tensorboard: bool) -> DAGNode:
+  def launch_workload(
+      self, workload_id: str, gcs_path: str, use_vertex_tensorboard: bool
+  ) -> DAGNode:
     """Create the workload and wait for it to provision."""
     with TaskGroup(group_id="launch_workload") as group:
       run_workload = xpk.run_workload.override(
