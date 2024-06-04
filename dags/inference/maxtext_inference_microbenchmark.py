@@ -19,6 +19,7 @@ import pytz
 import itertools
 import numpy
 from airflow import models
+from airflow.operators.python import get_current_context
 from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
 from dags.inference.configs import maxtext_inference_microbenchmark_gce_config
 from dags.multipod.configs.common import SetupMode
@@ -220,7 +221,7 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "inference_microbenchmark_prefill_lengths": 1024,
-          "inference_microbenchmark_stages": "generate",
+          "inference_microbenchmark_stages": "prefill,generate",
           "inference_microbenchmark_loop_iters": 10,
           "base_output_directory": f"{BASE_OUTPUT_DIRECTORY}/kv_cache_layout_optimization/{test_run_datetime}",
           "profiler": "xplane",
