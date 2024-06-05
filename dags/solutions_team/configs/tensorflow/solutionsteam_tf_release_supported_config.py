@@ -115,7 +115,7 @@ def get_tf_resnet_config(
     is_pjrt: bool = True,
     imagenet_dir: str = gcs_bucket.IMAGENET_DIR,
     tfds_data_dir: str = gcs_bucket.TFDS_DATA_DIR,
-    global_batch_size: int = 4096,
+    global_batch_size: int = 2048,
     train_steps: int = 320,
     validation_interval: int = 320,
 ):
