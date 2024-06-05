@@ -76,13 +76,18 @@ def run_workload(
     )
     if use_vertex_tensorboard:
       workload_create_cmd += " --use-vertex-tensorboard"
-
-    cmds = (
-        "set -xue",
-        f"git clone https://github.com/google/xpk {tmpdir}/xpk",
-        "pip install cloud-accelerator-diagnostics",
-        workload_create_cmd,
-    )
+      cmds = (
+          "set -xue",
+          f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+          "pip install -U google-cloud-aiplatform cloud-accelerator-diagnostics",
+          workload_create_cmd,
+      )
+    else:
+      cmds = (
+          "set -xue",
+          f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+          workload_create_cmd,
+      )
     hook = SubprocessHook()
     result = hook.run_command(
         ["bash", "-c", ";".join(cmds)],

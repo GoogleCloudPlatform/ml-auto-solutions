@@ -18,7 +18,7 @@ A DAG to test MaxText Automatic Profile Upload to Vertex AI Tensorboard.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Zone, DockerImage
+from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -41,22 +41,37 @@ with models.DAG(
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
+  test_configs = {
+      # accelerator: list of slices to test
+      "v4-8": [1],
+      "v4-16": [1, 2],
+  }
+  cluster_names = {
+      # accelerator: cluster name
+      "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
+      "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
+  }
 
   for mode, image in docker_images:
-    profiling_in_vertex_ai_tb_cmds = (
-        f"export RUN_NAME=vertex_ai_{mode.value}_$(date +%Y-%m-%d-%H-%M-%S)",
-        "python3 MaxText/train.py MaxText/configs/base.yml"
-        f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
-        f" dataset_path={dataset_path} profiler=xplane steps=10",
-        "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
-    )
-    profiling_in_vertex_ai_tb_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
-        time_out_in_min=240,
-        test_name=f"profiling-vertex-ai-tensorboard-{mode.value}",
-        run_model_cmds=profiling_in_vertex_ai_tb_cmds,
-        docker_image=image.value,
-        test_owner=test_owner.SURBHI_J,
-    ).run(use_vertex_tensorboard=True)
+    for accelerator, slices in test_configs.items():
+      cores = accelerator.rsplit("-", maxsplit=1)[-1]
+      for slice_num in slices:
+        profiling_in_vertex_ai_tb_cmds = (
+            f"export RUN_NAME=vertex_ai_{mode.value}_$(date +%Y-%m-%d-%H-%M-%S)",
+            "python3 MaxText/train.py MaxText/configs/base.yml"
+            f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
+            f" dataset_path={dataset_path} profiler=xplane steps=10",
+            "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
+        )
+        profiling_in_vertex_ai_tb_test = gke_config.get_gke_config(
+            tpu_version=TpuVersion.V4,
+            tpu_cores=cores,
+            num_slices=slice_num,
+            cluster_name=cluster_names[accelerator].value,
+            tpu_zone=Zone.US_CENTRAL2_B.value,
+            time_out_in_min=240,
+            test_name=f"profiling-vertex-ai-tensorboard-{mode.value}",
+            run_model_cmds=profiling_in_vertex_ai_tb_cmds,
+            docker_image=image.value,
+            test_owner=test_owner.SURBHI_J,
+        ).run(use_vertex_tensorboard=True)
