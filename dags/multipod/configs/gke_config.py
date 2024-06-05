@@ -346,11 +346,11 @@ def get_gke_maxtext_jax_ss_config(
   run_name = f"{num_slices}slice-V{tpu_version.value}_{tpu_cores}-maxtext-jax-ss-{current_datetime}"
 
   run_model_cmds = (
-    f"python MaxText/train.py MaxText/configs/base.yml run_name={run_name} "
-    "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
-    "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
-    "dataset_type=synthetic async_checkpointing=false "
-    f"base_output_directory={base_output_directory}",
+      f"python MaxText/train.py MaxText/configs/base.yml run_name={run_name} "
+      "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
+      "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
+      "dataset_type=synthetic async_checkpointing=false "
+      f"base_output_directory={base_output_directory}",
   )
 
   job_test_config = test_config.TpuGkeTest(

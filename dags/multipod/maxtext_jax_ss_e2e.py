@@ -59,17 +59,17 @@ with models.DAG(
       "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
   }
   for accelerator, slices in test_configs.items():
-      cores = accelerator.rsplit("-", maxsplit=1)[-1]
-      for slice_num in slices:
-        maxtext_jax_ss_test = gke_config.get_gke_maxtext_jax_ss_config(
-            tpu_version=tpu_versions[accelerator],
-            tpu_cores=cores,
-            num_slices=slice_num,
-            cluster_name=cluster_names[accelerator].value,
-            tpu_zone=tpu_zones[accelerator].value,
-            project_name=project_names[accelerator].value,
-            time_out_in_min=60,
-            test_name=f"maxtext-jax-ss-{accelerator}-{slice_num}x",
-            docker_image=DockerImage.MAXTEXT_TPU_JAX_SS.value,
-            test_owner=test_owner.PARAM_B,
-        ).run()
+    cores = accelerator.rsplit("-", maxsplit=1)[-1]
+    for slice_num in slices:
+      maxtext_jax_ss_test = gke_config.get_gke_maxtext_jax_ss_config(
+          tpu_version=tpu_versions[accelerator],
+          tpu_cores=cores,
+          num_slices=slice_num,
+          cluster_name=cluster_names[accelerator].value,
+          tpu_zone=tpu_zones[accelerator].value,
+          project_name=project_names[accelerator].value,
+          time_out_in_min=60,
+          test_name=f"maxtext-jax-ss-{accelerator}-{slice_num}x",
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_SS.value,
+          test_owner=test_owner.PARAM_B,
+      ).run()

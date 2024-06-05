@@ -166,7 +166,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_SS = (
-    "gcr.io/tpu-prod-env-multipod/jax-ss-maxtext-unpinned:06032024"
+      "gcr.io/tpu-prod-env-multipod/jax-ss-maxtext-unpinned:06032024"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
