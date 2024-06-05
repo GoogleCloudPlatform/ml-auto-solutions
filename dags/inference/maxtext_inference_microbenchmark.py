@@ -19,7 +19,6 @@ import pytz
 import itertools
 import numpy
 from airflow import models
-from airflow.operators.python import get_current_context
 from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
 from dags.inference.configs import maxtext_inference_microbenchmark_gce_config
 from dags.multipod.configs.common import SetupMode
@@ -33,6 +32,7 @@ W_INT8_KV_INT8 = "w-i8-kv-i8"
 W_INT8_KV_BF16 = "w-i8-kv-b16"
 
 BASE_OUTPUT_DIRECTORY = "gs://inference-benchmarks/logs/maxtext-inference-microbenchmark"
+test_run_datetime = datetime.datetime.now(pytz.timezone("America/Los_Angeles")).strftime("%Y%m%d-%H%M%S")
 
 def get_concatenated_list_of_params(sweep_vm_count=1):
   cache_rank = 4
@@ -196,7 +196,7 @@ with models.DAG(
 
   test_name_prefix = "max-micro"
 
-  sweep_vm_count = 12
+  sweep_vm_count = 24
   (
       key_value_axis_order_product_id_concat_list,
       prefill_key_axis_order_concat_list,
@@ -205,10 +205,9 @@ with models.DAG(
       ar_value_axis_order_concat_list,
   ) = get_concatenated_list_of_params(sweep_vm_count=sweep_vm_count)
 
-  test_run_datetime = datetime.datetime.now(pytz.timezone("America/Los_Angeles")).strftime("%Y%m%d-%H%M%S")
   test_templates = {
       LLAMA2_7B: {
-          "maxtext_branch": "-b mor--kv-cache-layout-reformat-output",
+          "maxtext_branch": "-b mor--kv-cache-sweep",
           "sleep_time": 60,
           "tpu_version_cores": [(TpuVersion.V5E, 4)],
           "model_name": LLAMA2_7B,
@@ -220,10 +219,10 @@ with models.DAG(
           "attention": ["autoselected"],
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
-          "inference_microbenchmark_prefill_lengths": 1024,
+          "inference_microbenchmark_prefill_lengths": "64,128,256,512,1024",
           "inference_microbenchmark_stages": "prefill,generate",
           "inference_microbenchmark_loop_iters": 10,
-          "base_output_directory": f"{BASE_OUTPUT_DIRECTORY}/kv_cache_layout_optimization/{test_run_datetime}",
+          "base_output_directory": f"{BASE_OUTPUT_DIRECTORY}/{test_name_prefix}/kv_cache_layout_optimization/{test_run_datetime}",
           "profiler": "xplane",
           "save_config_to_gcs": "true",
       },
@@ -235,31 +234,31 @@ with models.DAG(
           "quantization": "",
           "quantize_kvcache": "false",
           "per_device_batch_sizes": [10],
-          "time_out_in_min": 120,
+          "time_out_in_min": 180,
       },
       f"{LLAMA2_7B}-{W_BF16_KV_INT8}": test_templates[LLAMA2_7B] | {
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
           "per_device_batch_sizes": [24],
-          "time_out_in_min": 120,
+          "time_out_in_min": 210,
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B] | {
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
           "per_device_batch_sizes": [24],
-          "time_out_in_min": 180,
+          "time_out_in_min": 210,
       },
   }
 
   run_configs = [
-    f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
-    f"{LLAMA2_7B}-{W_BF16_KV_INT8}",
     f"{LLAMA2_7B}-{W_INT8_KV_INT8}",
   ]
 
   skip_configs = [
+    f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
+    f"{LLAMA2_7B}-{W_BF16_KV_INT8}",
   ]
 
   for model_config_name, sweep_model_configs in tests.items():
