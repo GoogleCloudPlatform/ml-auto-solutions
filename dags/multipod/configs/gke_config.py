@@ -314,6 +314,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
       task_metric_config=job_metric_config,
   )
 
+
 def get_gke_maxtext_jax_ss_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
