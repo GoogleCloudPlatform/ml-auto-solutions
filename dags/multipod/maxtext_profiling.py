@@ -45,7 +45,7 @@ with models.DAG(
         f"export RUN_NAME=profiling_{mode.value}_$(date +%Y-%m-%d-%H-%M-%S)",
         "python3 MaxText/train.py MaxText/configs/base.yml"
         f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
-        f" dataset_path={dataset_path} enable_profiler=true steps=20",
+        f" dataset_path={dataset_path} profiler=xplane steps=20",
         f"gsutil cp -R {base_output_directory}/$RUN_NAME/tensorboard .",
         "pip3 uninstall -y tbp-nightly",
         "pip3 uninstall -y tensorboard_plugin_profile",
