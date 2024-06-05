@@ -136,7 +136,7 @@ with models.DAG(
     stable_tpu >> nightly_tpu
 
   for model, (test_script, nnodes) in test_models_gpu.items():
-    pinned_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+    pinned_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         accelerator_type=GpuVersion.XPK_H100,
         gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
@@ -147,7 +147,7 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
         test_owner=test_owner.NINA_C,
     ).run()
-    stable_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+    stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         accelerator_type=GpuVersion.XPK_H100,
         gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
@@ -158,7 +158,30 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
     ).run()
-    pinned_gpu >> stable_gpu
+    pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+        accelerator_type=GpuVersion.XPK_H100_MEGA,
+        gpu_zone=Zone.US_EAST4_A.value,
+        time_out_in_min=300,
+        test_name=f"{test_name_prefix}-pinned-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster_name=ClusterName.A3PLUS_CLUSTER.value,
+        docker_image="gcr.io/supercomputer-testing/yooh/maxtext-tcpx",
+        test_owner=test_owner.NINA_C,
+    ).run()
+    stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+        accelerator_type=GpuVersion.XPK_H100_MEGA,
+        gpu_zone=Zone.US_EAST4_A.value,
+        time_out_in_min=300,
+        test_name=f"{test_name_prefix}-stable-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster_name=ClusterName.A3PLUS_CLUSTER.value,
+        docker_image="gcr.io/supercomputer-testing/yooh/maxtext-tcpx-stable",
+        test_owner=test_owner.NINA_C,
+    ).run()
+    pinned_a3_gpu >> stable_a3_gpu >> pinned_a3plus_gpu >> stable_a3plus_gpu
+
 
   multicluster_test_models = {
       "gemma-7b": [
