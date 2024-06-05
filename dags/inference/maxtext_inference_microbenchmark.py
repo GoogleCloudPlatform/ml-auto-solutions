@@ -235,27 +235,27 @@ with models.DAG(
           "quantization": "",
           "quantize_kvcache": "false",
           "per_device_batch_sizes": [10],
-          "time_out_in_min": 90,
+          "time_out_in_min": 120,
       },
       f"{LLAMA2_7B}-{W_BF16_KV_INT8}": test_templates[LLAMA2_7B] | {
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
           "per_device_batch_sizes": [24],
-          "time_out_in_min": 90,
+          "time_out_in_min": 120,
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B] | {
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
           "per_device_batch_sizes": [24],
-          "time_out_in_min": 120,
+          "time_out_in_min": 180,
       },
   }
 
   run_configs = [
-    # f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
-    # f"{LLAMA2_7B}-{W_BF16_KV_INT8}",
+    f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
+    f"{LLAMA2_7B}-{W_BF16_KV_INT8}",
     f"{LLAMA2_7B}-{W_INT8_KV_INT8}",
   ]
 
