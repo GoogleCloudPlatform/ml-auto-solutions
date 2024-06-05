@@ -74,20 +74,17 @@ def run_workload(
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
         " --restart-on-user-code-failure"
     )
+    cmds = [
+        "set -xue",
+        f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+    ]
     if use_vertex_tensorboard:
       workload_create_cmd += " --use-vertex-tensorboard"
-      cmds = (
-          "set -xue",
-          f"git clone https://github.com/google/xpk {tmpdir}/xpk",
-          "pip install -U google-cloud-aiplatform cloud-accelerator-diagnostics",
-          workload_create_cmd,
+      vertex_ai_dependency = (
+          "pip install -U google-cloud-aiplatform cloud-accelerator-diagnostics"
       )
-    else:
-      cmds = (
-          "set -xue",
-          f"git clone https://github.com/google/xpk {tmpdir}/xpk",
-          workload_create_cmd,
-      )
+      cmds.append(vertex_ai_dependency)
+    cmds.append(workload_create_cmd)
     hook = SubprocessHook()
     result = hook.run_command(
         ["bash", "-c", ";".join(cmds)],

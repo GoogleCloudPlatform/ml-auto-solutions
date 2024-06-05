@@ -56,8 +56,10 @@ with models.DAG(
     for accelerator, slices in test_configs.items():
       cores = accelerator.rsplit("-", maxsplit=1)[-1]
       for slice_num in slices:
+        current_time = datetime.datetime.now()
+        current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
         profiling_in_vertex_ai_tb_cmds = (
-            f"export RUN_NAME=vertex_ai_{mode.value}_$(date +%Y-%m-%d-%H-%M-%S)",
+            f"export RUN_NAME=vertex-ai-{mode.value}-{slice_num}x-{accelerator}-{current_datetime}",
             "python3 MaxText/train.py MaxText/configs/base.yml"
             f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
             f" dataset_path={dataset_path} profiler=xplane steps=10",
