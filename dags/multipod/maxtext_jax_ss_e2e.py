@@ -39,12 +39,12 @@ with models.DAG(
       "v5-8": [1, 2],
   }
   tpu_versions = {
-      # accelerator: list of slices to test
+      # accelerator: tpu versions
       "v4-16": TpuVersion.V4,
       "v5-8": TpuVersion.V5P,
   }
   cluster_names = {
-      # accelerator: cluster name
+      # accelerator: cluster names
       "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
       "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
   }
@@ -54,7 +54,7 @@ with models.DAG(
       "v5-8": Zone.US_EAST5_A,
   }
   project_names = {
-      # accelerator: cluster name
+      # accelerator: project names
       "v4-16": Project.TPU_PROD_ENV_MULTIPOD,
       "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
   }
