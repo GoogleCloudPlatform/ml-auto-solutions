@@ -163,15 +163,15 @@ def generate_model_configs(
   model_configs["save_config_to_gcs"] = sweep_model_configs[
       "save_config_to_gcs"
   ]
-  model_configs["key_value_axis_order_product_id_list"] = (
-      key_value_axis_order_product_id_concat_list[vm_number]
-  )
-  model_configs["prefill_key_axis_order_list"] = (
-      prefill_key_axis_order_concat_list[vm_number]
-  )
-  model_configs["prefill_value_axis_order_list"] = (
-      prefill_value_axis_order_concat_list[vm_number]
-  )
+  model_configs[
+      "key_value_axis_order_product_id_list"
+  ] = key_value_axis_order_product_id_concat_list[vm_number]
+  model_configs[
+      "prefill_key_axis_order_list"
+  ] = prefill_key_axis_order_concat_list[vm_number]
+  model_configs[
+      "prefill_value_axis_order_list"
+  ] = prefill_value_axis_order_concat_list[vm_number]
   model_configs["ar_key_axis_order_list"] = ar_key_axis_order_concat_list[
       vm_number
   ]
