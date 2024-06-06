@@ -59,7 +59,10 @@ def run_workload(
   """Run workload through xpk tool."""
 
   with tempfile.TemporaryDirectory() as tmpdir:
-    if accelerator_type in [GpuVersion.XPK_H100.value, GpuVersion.XPK_H100_MEGA.value]:
+    if accelerator_type in [
+        GpuVersion.XPK_H100.value,
+        GpuVersion.XPK_H100_MEGA.value,
+    ]:
       multi_keyword = "num-nodes"
     else:
       multi_keyword = "num-slices"

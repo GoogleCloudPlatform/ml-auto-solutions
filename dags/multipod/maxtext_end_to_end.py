@@ -182,7 +182,6 @@ with models.DAG(
     ).run()
     pinned_a3_gpu >> stable_a3_gpu >> pinned_a3plus_gpu >> stable_a3plus_gpu
 
-
   multicluster_test_models = {
       "gemma-7b": [
           {
