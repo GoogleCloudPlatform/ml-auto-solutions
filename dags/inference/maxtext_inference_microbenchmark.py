@@ -63,11 +63,12 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
   for key_value_axis_order_product_id in range(
       len(key_value_cache_idx_product_idx_values)
   ):
-    (key_axis_order_idx, value_axis_order_idx,) = (
-        key_value_cache_idx_product_idx_values[
-            int(key_value_axis_order_product_id)
-        ]
-    )
+    (
+        key_axis_order_idx,
+        value_axis_order_idx,
+    ) = key_value_cache_idx_product_idx_values[
+        int(key_value_axis_order_product_id)
+    ]
     ar_key_axis_order_str = cache_permu_idx_strs[key_axis_order_idx]
     ar_value_axis_order_str = cache_permu_idx_strs[value_axis_order_idx]
     key_value_axis_order_product_id_list.append(key_value_axis_order_product_id)
@@ -118,7 +119,6 @@ def generate_model_configs(
     tpu_version,
     tpu_cores,
 ):
-
   model_configs = {}
   model_configs["model_config_name"] = model_config_name
 
@@ -150,9 +150,9 @@ def generate_model_configs(
       "base_output_directory"
   ]
 
-  model_configs["inference_microbenchmark_prefill_lengths"] = (
-      sweep_model_configs["inference_microbenchmark_prefill_lengths"]
-  )
+  model_configs[
+      "inference_microbenchmark_prefill_lengths"
+  ] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
   model_configs["inference_microbenchmark_stages"] = sweep_model_configs[
       "inference_microbenchmark_stages"
   ]
@@ -163,7 +163,6 @@ def generate_model_configs(
   model_configs["save_config_to_gcs"] = sweep_model_configs[
       "save_config_to_gcs"
   ]
-
   model_configs["key_value_axis_order_product_id_list"] = (
       key_value_axis_order_product_id_concat_list[vm_number]
   )
@@ -220,7 +219,6 @@ with models.DAG(
     schedule=None,
     catchup=False,
 ) as dag:
-
   test_name_prefix = "max-micro"
 
   sweep_vm_count = 24
@@ -283,7 +281,6 @@ with models.DAG(
   ]
 
   for model_config_name, sweep_model_configs in tests.items():
-
     if run_configs and model_config_name not in run_configs:
       continue
     if skip_configs and model_config_name in skip_configs:
