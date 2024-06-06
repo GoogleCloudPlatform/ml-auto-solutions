@@ -22,4 +22,4 @@ dags/imagegen_devx @RissyRan
 dags/imagegen_devx/project_bite* @RissyRan @jiya-zhang
 dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang
 
-dags/inference @yeandy @vipannalla
+dags/inference @yeandy @vipannalla @morgandu @JoeZijunZhou @mailvijayasingh
