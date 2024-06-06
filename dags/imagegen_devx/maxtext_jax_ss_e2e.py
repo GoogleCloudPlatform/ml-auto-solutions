@@ -19,7 +19,7 @@ import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, ClusterName
-from dags.multipod.configs import gke_config
+from dags.imagegen_devx.configs import jax_ss_config as config
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -61,7 +61,7 @@ with models.DAG(
   for accelerator, slices in test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      maxtext_jax_ss_test = gke_config.get_gke_maxtext_jax_ss_config(
+      maxtext_jax_ss_test = config.get_gke_maxtext_jax_ss_config(
           tpu_version=tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
