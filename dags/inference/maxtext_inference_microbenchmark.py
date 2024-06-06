@@ -29,8 +29,13 @@ LLAMA2_13B = "llama2-13b"
 W_BF16_KV_BF16 = "w-b16-kv-b16"
 W_INT8_KV_INT8 = "w-i8-kv-i8"
 
-BASE_OUTPUT_DIRECTORY = "gs://inference-benchmarks/logs/maxtext-inference-microbenchmark"
-test_run_datetime = datetime.datetime.now(pytz.timezone("America/Los_Angeles")).strftime("%Y%m%d-%H%M%S")
+BASE_OUTPUT_DIRECTORY = (
+    "gs://inference-benchmarks/logs/maxtext-inference-microbenchmark"
+)
+test_run_datetime = datetime.datetime.now(
+    pytz.timezone("America/Los_Angeles")
+).strftime("%Y%m%d-%H%M%S")
+
 
 def get_concatenated_list_of_params(sweep_vm_count=1):
   cache_rank = 4
@@ -58,12 +63,11 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
   for key_value_axis_order_product_id in range(
       len(key_value_cache_idx_product_idx_values)
   ):
-    (
-        key_axis_order_idx,
-        value_axis_order_idx,
-    ) = key_value_cache_idx_product_idx_values[
-        int(key_value_axis_order_product_id)
-    ]
+    (key_axis_order_idx, value_axis_order_idx,) = (
+        key_value_cache_idx_product_idx_values[
+            int(key_value_axis_order_product_id)
+        ]
+    )
     ar_key_axis_order_str = cache_permu_idx_strs[key_axis_order_idx]
     ar_value_axis_order_str = cache_permu_idx_strs[value_axis_order_idx]
     key_value_axis_order_product_id_list.append(key_value_axis_order_product_id)
@@ -102,6 +106,7 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
       ar_value_axis_order_concat_list,
   )
 
+
 def generate_model_configs(
     test_name_prefix,
     model_config_name,
@@ -119,9 +124,9 @@ def generate_model_configs(
 
   model_configs["attention"] = attention
   (
-    model_configs["ici_fsdp_parallelism"],
-    model_configs["ici_autoregressive_parallelism"],
-    model_configs["ici_tensor_parallelism"]
+      model_configs["ici_fsdp_parallelism"],
+      model_configs["ici_autoregressive_parallelism"],
+      model_configs["ici_tensor_parallelism"],
   ) = ici_parallelism
 
   model_configs["per_device_batch_size"] = per_device_batch_size
@@ -135,23 +140,45 @@ def generate_model_configs(
   model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
   model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
   model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
-  model_configs["max_prefill_predict_length"] = sweep_model_configs["max_prefill_predict_length"]
+  model_configs["max_prefill_predict_length"] = sweep_model_configs[
+      "max_prefill_predict_length"
+  ]
   model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
   model_configs["quantization"] = sweep_model_configs["quantization"]
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
-  model_configs["base_output_directory"] = sweep_model_configs["base_output_directory"]
+  model_configs["base_output_directory"] = sweep_model_configs[
+      "base_output_directory"
+  ]
 
-  model_configs["inference_microbenchmark_prefill_lengths"] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
-  model_configs["inference_microbenchmark_stages"] = sweep_model_configs["inference_microbenchmark_stages"]
-  model_configs["inference_microbenchmark_loop_iters"] = sweep_model_configs["inference_microbenchmark_loop_iters"]
+  model_configs["inference_microbenchmark_prefill_lengths"] = (
+      sweep_model_configs["inference_microbenchmark_prefill_lengths"]
+  )
+  model_configs["inference_microbenchmark_stages"] = sweep_model_configs[
+      "inference_microbenchmark_stages"
+  ]
+  model_configs["inference_microbenchmark_loop_iters"] = sweep_model_configs[
+      "inference_microbenchmark_loop_iters"
+  ]
   model_configs["profiler"] = sweep_model_configs["profiler"]
-  model_configs["save_config_to_gcs"] = sweep_model_configs["save_config_to_gcs"]
+  model_configs["save_config_to_gcs"] = sweep_model_configs[
+      "save_config_to_gcs"
+  ]
 
-  model_configs["key_value_axis_order_product_id_list"] = key_value_axis_order_product_id_concat_list[vm_number]
-  model_configs["prefill_key_axis_order_list"] = prefill_key_axis_order_concat_list[vm_number]
-  model_configs["prefill_value_axis_order_list"] = prefill_value_axis_order_concat_list[vm_number]
-  model_configs["ar_key_axis_order_list"] = ar_key_axis_order_concat_list[vm_number]
-  model_configs["ar_value_axis_order_list"] = ar_value_axis_order_concat_list[vm_number]
+  model_configs["key_value_axis_order_product_id_list"] = (
+      key_value_axis_order_product_id_concat_list[vm_number]
+  )
+  model_configs["prefill_key_axis_order_list"] = (
+      prefill_key_axis_order_concat_list[vm_number]
+  )
+  model_configs["prefill_value_axis_order_list"] = (
+      prefill_value_axis_order_concat_list[vm_number]
+  )
+  model_configs["ar_key_axis_order_list"] = ar_key_axis_order_concat_list[
+      vm_number
+  ]
+  model_configs["ar_value_axis_order_list"] = ar_value_axis_order_concat_list[
+      vm_number
+  ]
 
   test_run_tag = f"{model_config_name}-bs{per_device_batch_size}-{attention[:4]}-vm{vm_number}"
   test_name = f"{test_name_prefix}-{test_run_tag}"
@@ -165,20 +192,22 @@ def generate_model_configs(
     subnetwork = V5E_SUBNETWORKS
     runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
 
-  maxtext_kv_cache_layout_optimization = maxtext_inference_microbenchmark_gce_config.config(
-      tpu_version=tpu_version,
-      tpu_cores=tpu_cores,
-      tpu_zone=zone,
-      time_out_in_min=sweep_model_configs["time_out_in_min"],
-      test_name=test_name,
-      test_mode=SetupMode.STABLE,
-      project_name=project_name,
-      runtime_version=runtime_version,
-      network=network,
-      subnetwork=subnetwork,
-      is_tpu_reserved=True,
-      model_configs=model_configs,
-      maxtext_branch=model_configs["maxtext_branch"],
+  maxtext_kv_cache_layout_optimization = (
+      maxtext_inference_microbenchmark_gce_config.config(
+          tpu_version=tpu_version,
+          tpu_cores=tpu_cores,
+          tpu_zone=zone,
+          time_out_in_min=sweep_model_configs["time_out_in_min"],
+          test_name=test_name,
+          test_mode=SetupMode.STABLE,
+          project_name=project_name,
+          runtime_version=runtime_version,
+          network=network,
+          subnetwork=subnetwork,
+          is_tpu_reserved=True,
+          model_configs=model_configs,
+          maxtext_branch=model_configs["maxtext_branch"],
+      )
   )
 
   return maxtext_kv_cache_layout_optimization
@@ -227,14 +256,16 @@ with models.DAG(
   }
 
   tests = {
-      f"{LLAMA2_7B}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B] | {
+      f"{LLAMA2_7B}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
+      | {
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
           "per_device_batch_sizes": [10],
           "time_out_in_min": 180,
       },
-      f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B] | {
+      f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
+      | {
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
@@ -244,11 +275,11 @@ with models.DAG(
   }
 
   run_configs = [
-    f"{LLAMA2_7B}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_7B}-{W_INT8_KV_INT8}",
   ]
 
   skip_configs = [
-    f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
   ]
 
   for model_config_name, sweep_model_configs in tests.items():
@@ -261,7 +292,9 @@ with models.DAG(
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for attention in sweep_model_configs["attention"]:
         for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
-          for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
+          for per_device_batch_size in sweep_model_configs[
+              "per_device_batch_sizes"
+          ]:
             for vm_number in range(sweep_vm_count):
               maxtext_kv_cache_layout_optimization = generate_model_configs(
                   test_name_prefix=test_name_prefix,
@@ -273,4 +306,4 @@ with models.DAG(
                   vm_number=vm_number,
                   tpu_version=tpu_version,
                   tpu_cores=tpu_cores,
-                )
+              )
