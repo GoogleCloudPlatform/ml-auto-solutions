@@ -27,9 +27,7 @@ LLAMA2_7B = "llama2-7b"
 LLAMA2_13B = "llama2-13b"
 
 W_BF16_KV_BF16 = "w-b16-kv-b16"
-W_BF16_KV_INT8 = "w-b16-kv-i8"
 W_INT8_KV_INT8 = "w-i8-kv-i8"
-W_INT8_KV_BF16 = "w-i8-kv-b16"
 
 BASE_OUTPUT_DIRECTORY = "gs://inference-benchmarks/logs/maxtext-inference-microbenchmark"
 test_run_datetime = datetime.datetime.now(pytz.timezone("America/Los_Angeles")).strftime("%Y%m%d-%H%M%S")
@@ -236,13 +234,6 @@ with models.DAG(
           "per_device_batch_sizes": [10],
           "time_out_in_min": 180,
       },
-      f"{LLAMA2_7B}-{W_BF16_KV_INT8}": test_templates[LLAMA2_7B] | {
-          "quant_mode": W_BF16_KV_INT8,
-          "quantization": "",
-          "quantize_kvcache": "true",
-          "per_device_batch_sizes": [24],
-          "time_out_in_min": 210,
-      },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B] | {
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
@@ -258,7 +249,6 @@ with models.DAG(
 
   skip_configs = [
     f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
-    f"{LLAMA2_7B}-{W_BF16_KV_INT8}",
   ]
 
   for model_config_name, sweep_model_configs in tests.items():
