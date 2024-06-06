@@ -58,3 +58,4 @@ PARAM_B = "Param B."
 
 # Inference
 ANDY_Y = "Andy Y."
+MORGAN_DU = "Morgan D."
