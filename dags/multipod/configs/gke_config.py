@@ -313,4 +313,3 @@ def get_maxtext_cpu_end_to_end_gke_config(
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
   )
-
