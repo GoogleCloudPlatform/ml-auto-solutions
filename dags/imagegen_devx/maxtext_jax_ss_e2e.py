@@ -30,7 +30,7 @@ with models.DAG(
     dag_id="maxtext_jax_ss_e2e",
     schedule=SCHEDULED_TIME,
     tags=["multipod_team", "maxtext", "jax-ss"],
-    start_date=datetime.datetime(2024, 1, 19),
+    start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
 ) as dag:
   test_configs = {
