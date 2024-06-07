@@ -221,7 +221,7 @@ with models.DAG(
 ) as dag:
   test_name_prefix = "max-micro"
 
-  sweep_vm_count = 24
+  sweep_vm_count = 12
   (
       key_value_axis_order_product_id_concat_list,
       prefill_key_axis_order_concat_list,
@@ -260,7 +260,7 @@ with models.DAG(
           "quantization": "",
           "quantize_kvcache": "false",
           "per_device_batch_sizes": [10],
-          "time_out_in_min": 180,
+          "time_out_in_min": 330,
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
       | {
@@ -268,7 +268,7 @@ with models.DAG(
           "quantization": "int8",
           "quantize_kvcache": "true",
           "per_device_batch_sizes": [24],
-          "time_out_in_min": 210,
+          "time_out_in_min": 360,
       },
   }
 
