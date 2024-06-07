@@ -24,4 +24,4 @@ dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang
 dags/imagegen_devx/configs/jax_ss_config* @parambole @RissyRan
 dags/imagegen_devx/maxtext_jax_ss_e2e* @parambole @RissyRan
 
-dags/inference @yeandy @vipannalla
+dags/inference @yeandy @vipannalla @morgandu @mailvijayasingh
