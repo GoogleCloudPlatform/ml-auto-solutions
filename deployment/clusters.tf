@@ -99,3 +99,80 @@ resource "kubernetes_service" "example" {
     cluster_ip = "None"
   }
 }
+
+resource "google_container_cluster" "benchmarking-gpu-uc1" {
+  name     = "benchmarking-gpu-uc1"
+  project  = "cloud-ml-benchmarking"
+  location = "us-central1"
+
+  release_channel {
+    channel = "RAPID"
+  }
+
+  # We can't create a cluster with no node pool defined, but we want to only use
+  # separately managed node pools. So we create the smallest possible default
+  # node pool and immediately delete it.
+  remove_default_node_pool = true
+  initial_node_count       = 1
+}
+
+resource "google_container_node_pool" "benchmarking-primary" {
+  name       = "benchmarking-primary-pool"
+  project  = google_container_cluster.benchmarking-gpu-uc1.project
+  location   = google_container_cluster.benchmarking-gpu-uc1.location
+  cluster    = google_container_cluster.benchmarking-gpu-uc1.name
+  node_count = 1
+
+  management {
+    auto_repair = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    preemptible  = true
+    machine_type = "e2-medium"
+
+    oauth_scopes    = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+  }
+}
+
+resource "google_container_node_pool" "nvidia-H100x8" {
+  name       = "nvidia-H100x8-pool"
+  project  = google_container_cluster.benchmarking-gpu-uc1.project
+  location   = google_container_cluster.benchmarking-gpu-uc1.location
+  cluster    = google_container_cluster.benchmarking-gpu-uc1.name
+
+  autoscaling {
+    min_node_count = 2
+    max_node_count = 6
+  }
+
+  node_locations = [
+    "us-central1-a"
+  ]
+
+  management {
+    auto_repair = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    preemptible  = true
+    machine_type = "a3-highgpu-8g"
+    disk_size_gb = 500
+    disk_type = "pd-balanced"
+
+    oauth_scopes    = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    guest_accelerator {
+      type  = "nvidia-h100-80gb"
+      count = 8
+      gpu_driver_installation_config {
+        gpu_driver_version = "LATEST"
+      }
+    }
+  }
+}
