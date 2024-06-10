@@ -36,7 +36,7 @@ with models.DAG(
 ) as dag:
   # MaxText set up
   quantization_sweep = {"M_QUANTIZATION": ["", "int8"]}
-  model_configs = ["16b", "32b", "64b", "128b"]
+  model_configs = ["16b", "32b", "64b", "128b", "gpt3_175b"]
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
