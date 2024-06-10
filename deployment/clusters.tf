@@ -138,8 +138,8 @@ resource "google_container_node_pool" "benchmarking-primary" {
   }
 }
 
-resource "google_container_node_pool" "nvidia-H100x8" {
-  name       = "nvidia-H100x8-pool"
+resource "google_container_node_pool" "nvidia-h100x8" {
+  name       = "nvidia-h100x8-pool"
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
