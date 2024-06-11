@@ -73,6 +73,8 @@ class Zone(enum.Enum):
   US_EAST1_C = "us-east1-c"
   # reserved v3-8 & reserved/on-demand v3-32 in cloud-ml-auto-solutions
   US_EAST1_D = "us-east1-d"
+  # reserved h100-mega in supercomputer-testing
+  US_EAST4_A = "us-east4-a"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
   # reserved v5e in tpu-prod-env-multipod
@@ -109,6 +111,7 @@ class GpuVersion(enum.Enum):
   A100 = "nvidia-tesla-a100"
   H100 = "nvidia-h100-80gb"
   XPK_H100 = "h100-80gb-8"
+  XPK_H100_MEGA = "h100-mega-80gb-8"
   V100 = "nvidia-tesla-v100"
 
 
@@ -150,6 +153,7 @@ class ClusterName(enum.Enum):
   V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
   V5E_256_US_WEST_4_MULTISLICE_CLUSTER = "v5e-256-bodaborg-us-west4"
   A3_CLUSTER = "maxtext-a3-20n"
+  A3PLUS_CLUSTER = "a3plus-benchmark"
   CPU_M1_MEGAMEM_96 = "m1-megamem-96-shared"
   CPU_N2_STANDARD_64 = "shared-n2-standard-64"
 
