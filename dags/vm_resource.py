@@ -28,6 +28,7 @@ class Project(enum.Enum):
   """Common GCP projects."""
 
   CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
+  CLOUD_ML_BENCHMARKING = "cloud-ml-benchmarking"
   TPU_PROD_ENV_MULTIPOD = "tpu-prod-env-multipod"
   TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
