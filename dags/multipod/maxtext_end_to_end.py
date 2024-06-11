@@ -206,7 +206,7 @@ with models.DAG(
               "cpu_device_type": CpuVersion.M1_MEGAMEM,
               "cpu_zone": Zone.US_CENTRAL1_B.value,
               "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
-              "time_out_in_min": 180,
+              "time_out_in_min": 240,
           },
           {
               "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
