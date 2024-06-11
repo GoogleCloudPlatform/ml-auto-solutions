@@ -214,7 +214,7 @@ def generate_model_configs(
 
 with models.DAG(
     dag_id="maxtext_inference_microbenchmark",
-    tags=["mor", "inference_team", "maxtext", "benchmark"],
+    tags=["inference_team", "maxtext", "microbenchmark"],
     start_date=datetime.datetime(2024, 1, 19),
     schedule=None,
     catchup=False,
