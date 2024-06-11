@@ -143,6 +143,7 @@ resource "google_container_node_pool" "nvidia-h100x8" {
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
+  initial_node_count = 2
 
   autoscaling {
     min_node_count = 2
@@ -170,6 +171,126 @@ resource "google_container_node_pool" "nvidia-h100x8" {
     guest_accelerator {
       type  = "nvidia-h100-80gb"
       count = 8
+      gpu_driver_installation_config {
+        gpu_driver_version = "LATEST"
+      }
+    }
+  }
+}
+
+resource "google_container_node_pool" "nvidia-a100x1" {
+  name       = "nvidia-a100x1-pool"
+  project  = google_container_cluster.benchmarking-gpu-uc1.project
+  location   = google_container_cluster.benchmarking-gpu-uc1.location
+  cluster    = google_container_cluster.benchmarking-gpu-uc1.name
+  initial_node_count = 2
+
+  autoscaling {
+    min_node_count = 2
+    max_node_count = 6
+  }
+
+  node_locations = [
+    "us-central1-a"
+  ]
+
+  management {
+    auto_repair = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    preemptible  = true
+    machine_type = "a2-highgpu-1g"
+    disk_size_gb = 500
+    disk_type = "pd-balanced"
+
+    oauth_scopes    = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    guest_accelerator {
+      type  = "nvidia-tesla-a100"
+      count = 1
+      gpu_driver_installation_config {
+        gpu_driver_version = "LATEST"
+      }
+    }
+  }
+}
+
+resource "google_container_node_pool" "nvidia-l4x1" {
+  name       = "nvidia-l4x1-pool"
+  project  = google_container_cluster.benchmarking-gpu-uc1.project
+  location   = google_container_cluster.benchmarking-gpu-uc1.location
+  cluster    = google_container_cluster.benchmarking-gpu-uc1.name
+  initial_node_count = 2
+
+  autoscaling {
+    min_node_count = 2
+    max_node_count = 8
+  }
+
+  node_locations = [
+    "us-central1-a"
+  ]
+
+  management {
+    auto_repair = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    preemptible  = true
+    machine_type = "g2-standard-4"
+    disk_size_gb = 500
+    disk_type = "pd-balanced"
+
+    oauth_scopes    = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 1
+      gpu_driver_installation_config {
+        gpu_driver_version = "LATEST"
+      }
+    }
+  }
+}
+
+resource "google_container_node_pool" "nvidia-v100x1" {
+  name       = "nvidia-v100x1-pool"
+  project  = google_container_cluster.benchmarking-gpu-uc1.project
+  location   = google_container_cluster.benchmarking-gpu-uc1.location
+  cluster    = google_container_cluster.benchmarking-gpu-uc1.name
+  initial_node_count = 4
+
+  autoscaling {
+    min_node_count = 2
+    max_node_count = 8
+  }
+
+  node_locations = [
+    "us-central1-c"
+  ]
+
+  management {
+    auto_repair = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    preemptible  = true
+    machine_type = "n1-standard-8"
+    disk_size_gb = 500
+    disk_type = "pd-balanced"
+
+    oauth_scopes    = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    guest_accelerator {
+      type  = "nvidia-tesla-v100"
+      count = 1
       gpu_driver_installation_config {
         gpu_driver_version = "LATEST"
       }
