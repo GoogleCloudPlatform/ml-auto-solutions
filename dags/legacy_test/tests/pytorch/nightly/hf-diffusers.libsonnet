@@ -57,6 +57,7 @@ local tpus = import 'templates/tpus.libsonnet';
         sed '/accelerate>=0.28.0/d' requirements.txt > clean_requirements.txt
         sed '/torchvision/d' requirements.txt > clean_requirements.txt
         sed -i 's/transformers>=.*/transformers>=4.36.2/g' clean_requirements.txt
+        echo "Pillow>=9.4.0" >> clean_requirements.txt
         pip install -r clean_requirements.txt
 
         # Skip saving the pretrained model, which contains invalid tensor storage
