@@ -106,7 +106,7 @@ def run_job(
 
     return True
 
-  @task
+  @task(retries=5)
   def stream_logs(name: str):
     def _watch_pod(name, namespace) -> Optional[int]:
       logs_watcher = kubernetes.watch.Watch()
@@ -178,6 +178,8 @@ def run_job(
       # Wait for pods to complete, and exit with the first non-zero exit code.
       for f in concurrent.futures.as_completed(futures):
         try:
+          # TODO(piz/wcromar): it looks like there is a delay between as_completed
+          # and update of f.result(). exit_code can be None even task is complete.
           exit_code = f.result()
         except kubernetes.client.ApiException as e:
           logging.error('Kubernetes error. Retrying...', exc_info=e)
