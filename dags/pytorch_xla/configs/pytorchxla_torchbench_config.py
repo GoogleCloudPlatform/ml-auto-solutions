@@ -438,11 +438,13 @@ def get_torchbench_gpu_gke_config(
     count: int = 1,
     use_xla2: bool = False,
     test_version: VERSION = VERSION.NIGHTLY,
+    project_name: resource.Project = resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
+    cluster_name: str = "gpu-uc1",
     model_name: str = "",
     extraFlags: str = "",
 ) -> task.GpuGkeTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      project_name=project_name.value,
       zone=gpu_zone.value,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
@@ -534,5 +536,5 @@ def get_torchbench_gpu_gke_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
-      cluster_name="gpu-uc1",
+      cluster_name=cluster_name,
   )
