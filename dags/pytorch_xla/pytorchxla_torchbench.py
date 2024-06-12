@@ -66,7 +66,7 @@ with models.DAG(
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V5E,
       tpu_cores=4,
-      project=resource.Project.TPU_PROD_ENV_AUTOMATED,
+      project=resource.Project.CLOUD_ML_BENCHMARKING,
       tpu_zone=resource.Zone.US_WEST1_C,
       runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE,
       network=resource.V5_NETWORKS_BENCHMARKING,
