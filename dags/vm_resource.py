@@ -28,7 +28,7 @@ V5_NETWORKS_BENCHMARKING = (
     f"{V5_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
 )
 V5E_SUBNETWORKS_BENCHMARKING = (
-    f"{V5_NETWORKS_PREFIX_BENCHMARKING}/regions/us-east1/subnetworks/mas-test"
+    f"{V5_NETWORKS_PREFIX_BENCHMARKING}/regions/us-west1/subnetworks/mas-test"
 )
 V5P_SUBNETWORKS_BENCHMARKING = (
     f"{V5_NETWORKS_PREFIX_BENCHMARKING}/regions/us-east5/subnetworks/mas-test"
