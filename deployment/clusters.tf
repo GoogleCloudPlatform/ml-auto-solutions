@@ -241,7 +241,7 @@ resource "google_container_node_pool" "nvidia-l4x1" {
 
   node_config {
     preemptible  = true
-    machine_type = "g2-standard-4"
+    machine_type = "g2-standard-16"
     disk_size_gb = 500
     disk_type = "pd-balanced"
 
@@ -258,12 +258,12 @@ resource "google_container_node_pool" "nvidia-l4x1" {
   }
 }
 
-resource "google_container_node_pool" "nvidia-v100x1" {
-  name       = "nvidia-v100x1-pool"
+resource "google_container_node_pool" "nvidia-v100x2-bm" {
+  name       = "nvidia-v100x2-pool-bm"
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
-  initial_node_count = 4
+  initial_node_count = 2
 
   autoscaling {
     min_node_count = 2
@@ -281,7 +281,7 @@ resource "google_container_node_pool" "nvidia-v100x1" {
 
   node_config {
     preemptible  = true
-    machine_type = "n1-standard-8"
+    machine_type = "n1-standard-16"
     disk_size_gb = 500
     disk_type = "pd-balanced"
 
@@ -290,7 +290,7 @@ resource "google_container_node_pool" "nvidia-v100x1" {
     ]
     guest_accelerator {
       type  = "nvidia-tesla-v100"
-      count = 1
+      count = 2
       gpu_driver_installation_config {
         gpu_driver_version = "LATEST"
       }
