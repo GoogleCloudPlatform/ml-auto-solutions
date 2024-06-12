@@ -94,7 +94,7 @@ class MachineVersion(enum.Enum):
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
-  G2_STAND_16 = "g2-standard-32"  # 128GB memroy
+  G2_STAND_32 = "g2-standard-32"  # 128GB memroy
 
 
 class TpuVersion(enum.Enum):
