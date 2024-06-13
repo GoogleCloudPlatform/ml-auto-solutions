@@ -57,6 +57,7 @@ ORTI_B = "Orti B."
 
 # ImageGen DevX
 RAN_R = "Ran R."
+PARAM_B = "Param B."
 
 # Inference
 ANDY_Y = "Andy Y."
