@@ -163,7 +163,7 @@ resource "google_container_node_pool" "nvidia-h100x8" {
     preemptible  = true
     machine_type = "a3-highgpu-8g"
     disk_size_gb = 500
-    disk_type = "pd-balanced"
+    disk_type = "pd-ssd"
 
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform"
@@ -231,7 +231,7 @@ resource "google_container_node_pool" "nvidia-l4x1" {
   }
 
   node_locations = [
-    "us-central1-a"
+    "us-central1-c"
   ]
 
   management {
