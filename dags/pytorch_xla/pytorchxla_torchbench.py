@@ -81,10 +81,10 @@ with models.DAG(
 
   # Running on V100 GPU
   config.get_torchbench_gpu_gke_config(
-      machine_type=resource.MachineVersion.N1_STANDARD_8,
+      machine_type=resource.MachineVersion.N1_STANDARD_16,
       image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=resource.GpuVersion.V100,
-      count=1,
+      count=2,
       gpu_zone=resource.Region.US_CENTRAL1,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
@@ -123,7 +123,7 @@ with models.DAG(
 
   # Running on L4 GPU
   config.get_torchbench_gpu_gke_config(
-      machine_type=resource.MachineVersion.G2_STAND_4,
+      machine_type=resource.MachineVersion.G2_STAND_16,
       image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=resource.GpuVersion.L4,
       count=1,

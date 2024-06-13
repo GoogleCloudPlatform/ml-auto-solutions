@@ -93,11 +93,14 @@ class MachineVersion(enum.Enum):
   """Common machine types."""
 
   N1_STANDARD_8 = "n1-standard-8"
+  N1_STANDARD_16 = "n1-standard-16"  # 60GB memory
   N1_STANDARD_32 = "n1-standard-32"
   A2_HIGHGPU_1G = "a2-highgpu-1g"
   A2_HIGHGPU_4G = "a2-highgpu-4g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
+  G2_STAND_16 = "g2-standard-16"  # 64GB memory
+  G2_STAND_32 = "g2-standard-32"  # 128GB memroy
 
 
 class TpuVersion(enum.Enum):
