@@ -31,8 +31,7 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
-  # model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
-  model = "all"
+  model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
   torchbench_extra_flags = [f"--filter={model}"]
 
   # Running on V4-8:
