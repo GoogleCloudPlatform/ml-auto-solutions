@@ -23,16 +23,11 @@ V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
 
-V5_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
-V5_NETWORKS_BENCHMARKING = (
-    f"{V5_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
-)
-V5E_SUBNETWORKS_BENCHMARKING = (
-    f"{V5_NETWORKS_PREFIX_BENCHMARKING}/regions/us-west1/subnetworks/mas-test"
-)
-V5P_SUBNETWORKS_BENCHMARKING = (
-    f"{V5_NETWORKS_PREFIX_BENCHMARKING}/regions/us-east5/subnetworks/mas-test"
-)
+BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
+BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
+V4_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-central2/subnetworks/mas-test"
+V5E_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-west1/subnetworks/mas-test"
+V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
 
 
 class Project(enum.Enum):
