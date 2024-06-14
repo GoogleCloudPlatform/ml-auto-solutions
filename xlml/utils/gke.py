@@ -108,46 +108,66 @@ def run_job(
 
   @task(retries=5)
   def stream_logs(name: str):
+
     def _watch_pod(name, namespace) -> Optional[int]:
+
+      def persistent_logging(name, logs_watcher):
+        logging.info(f'Waiting for pod {name} to start...')
+        pod_watcher = kubernetes.watch.Watch()
+        for event in pod_watcher.stream(
+            core_api.list_namespaced_pod,
+            namespace=namespace,
+            field_selector=f'metadata.name={name}',
+            timeout_seconds=0,
+        ):
+          status = event['object'].status
+          logging.info(
+              f'Pod {event["object"].metadata.name} status: {status.phase}'
+          )
+          if status.phase != 'Pending':
+            break
+
+        logging.info(f'Streaming pod logs for {name}...')
+        for line in logs_watcher.stream(
+            core_api.read_namespaced_pod_log,
+            name=name,
+            namespace=namespace,
+            _request_timeout=3600,
+        ):
+          logging.info(f'{name}] {line}')
+
+        logging.warning(f'Lost logs stream for {name}.')
+        try:
+          pod = core_api.read_namespaced_pod(namespace='default', name=name) # 401 exception trigger here
+        except kubernetes.client.ApiException as e:
+          status_code = e.status
+          logging.error(f'Kubernetes error (status code {status_code}). Retrying...', exc_info=e)
+          return -1
+
+        if pod.status.container_statuses:
+          container_status = pod.status.container_statuses[0]
+          if pod.status.container_statuses[0].state.terminated:
+            exit_code = container_status.state.terminated.exit_code
+            if exit_code is None:
+              # this can be credential expire or experiment complete (maybe??).
+              logging.warning("Credential possibly expired. Re-connect with streamer.")
+              return -1
+            elif exit_code == 0:
+              # completed successfully
+              return 0
+            else:
+              # severe issue happens to nodes. Need to retry
+              logging.error(f'Pod {name} had non-zero exit code {exit_code}')
+              raise RuntimeError(f"Pod failed with exit_code: {exit_code}.")
+
       logs_watcher = kubernetes.watch.Watch()
 
-      logging.info(f'Waiting for pod {name} to start...')
-      pod_watcher = kubernetes.watch.Watch()
-      for event in pod_watcher.stream(
-          core_api.list_namespaced_pod,
-          namespace,
-          field_selector=f'metadata.name={name}',
-      ):
-        status = event['object'].status
-        logging.info(
-            f'Pod {event["object"].metadata.name} status: {status.phase}'
-        )
-        if status.phase != 'Pending':
-          break
+      # Continue attach to streamer if we have error code, but is not 0.
+      # Otherwise raise exception and retry the task.
+      while (exit_code:=persistent_logging(name, logs_watcher)) != 0:
+        pass
 
-      logging.info(f'Streaming pod logs for {name}...')
-      for line in logs_watcher.stream(
-          core_api.read_namespaced_pod_log,
-          name,
-          namespace,
-          _request_timeout=3600,
-      ):
-        logging.info(f'{name}] {line}')
-
-      logging.warning(f'Lost logs stream for {name}.')
-
-      pod = core_api.read_namespaced_pod(namespace='default', name=name)
-      if pod.status.container_statuses:
-        container_status = pod.status.container_statuses[0]
-        if pod.status.container_statuses[0].state.terminated:
-          exit_code = container_status.state.terminated.exit_code
-          if exit_code:
-            logging.error(f'Pod {name} had non-zero exit code {exit_code}')
-
-          return exit_code
-
-      logging.warning(f'Unknown status for pod {name}')
-      return None
+      return exit_code
 
     # We need to re-authenticate if the stream_logs fail. This can happen when
     # the job runs for too long and the credential expire.
@@ -176,20 +196,12 @@ def run_job(
         futures.append(f)
 
       # Wait for pods to complete, and exit with the first non-zero exit code.
-      for f in concurrent.futures.as_completed(futures):
-        try:
-          # TODO(piz/wcromar): it looks like there is a delay between as_completed
-          # and update of f.result(). exit_code can be None even task is complete.
-          exit_code = f.result()
-        except kubernetes.client.ApiException as e:
-          logging.error('Kubernetes error. Retrying...', exc_info=e)
-          exit_code = None
-
-        # Retry if status is unknown
-        if exit_code is None:
-          raise RuntimeError('unknown exit code')
-        if exit_code:
-          raise RuntimeError('Non-zero exit code')
+      # for f in concurrent.futures.as_completed(futures):
+      #   try:
+      #     f.result()
+      #   except kubernetes.client.ApiException as e:
+      #     logging.error(f'Kubernetes error. Retrying...', exc_info=e)
+      #     raise RuntimeError("Kubernetes error. Retrying...")
 
   name = deploy_job(gcs_location)
   wait_all_pods_ready(name) >> stream_logs(name)

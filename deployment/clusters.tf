@@ -143,11 +143,12 @@ resource "google_container_node_pool" "nvidia-h100x8" {
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
-  initial_node_count = 2
+  initial_node_count = 4
 
   autoscaling {
-    min_node_count = 2
-    max_node_count = 6
+    location_policy = "ANY"
+    total_min_node_count = 2
+    total_max_node_count = 4
   }
 
   node_locations = [
@@ -160,11 +161,11 @@ resource "google_container_node_pool" "nvidia-h100x8" {
   }
 
   node_config {
-    preemptible  = true
+    preemptible  = false
     machine_type = "a3-highgpu-8g"
     disk_size_gb = 500
     disk_type = "pd-ssd"
-
+    local_ssd_count = 0
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
@@ -176,6 +177,14 @@ resource "google_container_node_pool" "nvidia-h100x8" {
       }
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes to local_ssd_count. Reason mentioned in
+      # https://github.com/hashicorp/terraform-provider-google/issues/17068
+      node_config["local_ssd_count"],
+    ]
+  }
 }
 
 resource "google_container_node_pool" "nvidia-a100x1" {
@@ -183,11 +192,12 @@ resource "google_container_node_pool" "nvidia-a100x1" {
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
-  initial_node_count = 2
+  initial_node_count = 6
 
   autoscaling {
-    min_node_count = 2
-    max_node_count = 6
+    location_policy = "ANY"
+    total_min_node_count = 6
+    total_max_node_count = 12
   }
 
   node_locations = [
@@ -223,15 +233,16 @@ resource "google_container_node_pool" "nvidia-l4x1" {
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
-  initial_node_count = 2
+  initial_node_count = 6
 
   autoscaling {
-    min_node_count = 2
-    max_node_count = 8
+    location_policy = "ANY"
+    total_min_node_count = 4
+    total_max_node_count = 8
   }
 
   node_locations = [
-    "us-central1-c"
+    "us-central1-a"
   ]
 
   management {
@@ -240,7 +251,7 @@ resource "google_container_node_pool" "nvidia-l4x1" {
   }
 
   node_config {
-    preemptible  = true
+    preemptible  = false
     machine_type = "g2-standard-16"
     disk_size_gb = 500
     disk_type = "pd-balanced"
@@ -263,11 +274,12 @@ resource "google_container_node_pool" "nvidia-v100x2-bm" {
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
-  initial_node_count = 2
+  initial_node_count = 8
 
   autoscaling {
-    min_node_count = 2
-    max_node_count = 8
+    location_policy = "ANY"
+    total_min_node_count = 6
+    total_max_node_count = 12
   }
 
   node_locations = [
@@ -280,7 +292,7 @@ resource "google_container_node_pool" "nvidia-v100x2-bm" {
   }
 
   node_config {
-    preemptible  = true
+    preemptible  = false
     machine_type = "n1-standard-16"
     disk_size_gb = 500
     disk_type = "pd-balanced"
