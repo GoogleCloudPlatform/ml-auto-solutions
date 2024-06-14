@@ -121,7 +121,7 @@ with models.DAG(
           subnetwork = V5E_SUBNETWORKS
           runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
 
-          maxtext_nightly_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
+          maxtext_nightly_1slice = maxtext_inference_gce_config.get_config(
               tpu_version=tpu_version,
               tpu_cores=tpu_cores,
               tpu_zone=zone,
