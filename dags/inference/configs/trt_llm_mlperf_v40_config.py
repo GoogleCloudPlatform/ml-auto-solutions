@@ -14,17 +14,18 @@
 
 """Utilities to construct configs for MLPerf4.0 Reproduce DAG."""
 
+import datetime
 from typing import Dict
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, vm_resource
 from dags.vm_resource import Project, RuntimeVersion
 
-PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+PROJECT_NAME = Project.CLOUD_TPU_INFERENCE_TEST.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
 
 
-def get_trt_llm_mlperf_v4_0_gpu_config(
+def get_trt_llm_mlperf_v40_gpu_config(
     machine_type: vm_resource.MachineVersion,
     image_project: vm_resource.ImageProject,
     image_family: vm_resource.ImageFamily,
@@ -33,17 +34,19 @@ def get_trt_llm_mlperf_v4_0_gpu_config(
     gpu_zone: vm_resource.Zone,
     time_out_in_min: int,
     test_name: str,
-    model_configs: Dict = dict(model_name="llama2-70b"),
+    model_configs: Dict = {},
 ) -> task.GpuCreateResourceTask:
 
   docker_container_name = "mlperf-inference"
   set_up_cmds = (
       "sudo mkdir -p /scratch",
+      "sudo chmod a+w /scratch",
       "cd /scratch",
       # Prepare data
-      "gsutil -m cp -r gs://tohaowu/mlpinf-v40/data .",
-      "gsutil -m cp -r gs://tohaowu/mlpinf-v40/models .",
-      "gsutil -m cp -r gs://tohaowu/mlpinf-v40/preprocessed_data .",
+      "mkdir -p models",
+      "mkdir -p preprocessed_data",
+      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/models/Llama2 models/",
+      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/preprocessed_data/open_orca preprocessed_data/",
       "git clone https://github.com/mlcommons/inference_results_v4.0",
       "export MLPERF_SCRATCH_PATH=/scratch",
       "cd /scratch/inference_results_v4.0/closed/Google",
@@ -82,7 +85,7 @@ def get_trt_llm_mlperf_v4_0_gpu_config(
 
   docker_cmds = (
       "make build BUILD_TRTLLM=1",
-      f"make run RUN_ARGS=\"--benchmarks={model_configs['model_mode']} --scenarios=Offline\"",
+      f'make run RUN_ARGS="--benchmarks={model_configs["model_name"]} --scenarios=Offline"',
   )
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
@@ -104,9 +107,9 @@ def get_trt_llm_mlperf_v4_0_gpu_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.YIJIA_J,
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm_mlperf_4_0",
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm_mlperf_v40",
   )
 
   job_gcp_config = gcp_config.GCPConfig(
