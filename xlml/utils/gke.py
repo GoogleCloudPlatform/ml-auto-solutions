@@ -4,7 +4,7 @@ import datetime
 import logging
 import tempfile
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from airflow.decorators import task, task_group
 import google.auth
@@ -38,7 +38,9 @@ def get_authenticated_client(
   configuration = kubernetes.client.Configuration()
   configuration.host = f'https://{response.endpoint}'
 
-  ca_cert_content = base64.b64decode(response.master_auth.cluster_ca_certificate)
+  ca_cert_content = base64.b64decode(
+      response.master_auth.cluster_ca_certificate
+  )
   with tempfile.NamedTemporaryFile(delete=False) as ca_cert:
     ca_cert.write(ca_cert_content)
     configuration.ssl_ca_cert = ca_cert.name
