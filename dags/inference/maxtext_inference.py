@@ -69,7 +69,6 @@ def generate_model_configs(
     tpu_version,
     tpu_cores,
 ):
-
   model_configs = {}
   model_configs["model_config_name"] = model_config_name
 
@@ -162,7 +161,6 @@ with models.DAG(
     schedule=SCHEDULED_TIME,
     catchup=False,
 ) as dag:
-
   test_name_prefix = "a-max-js"
 
   test_templates = {
@@ -535,7 +533,6 @@ with models.DAG(
   skip_configs = []
 
   for model_config_name, sweep_model_configs in tests.items():
-
     if run_configs and model_config_name not in run_configs:
       continue
     if skip_configs and model_config_name in skip_configs:
@@ -548,11 +545,9 @@ with models.DAG(
             for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
               for request_rate in sweep_model_configs["request_rate"]:
                 for warmup_mode in sweep_model_configs["warmup_mode"]:
-
                   for per_device_batch_size in sweep_model_configs[
                       "per_device_batch_sizes"
                   ]:
-
                     jetstream_benchmark_serving_kv_cache_layout = (
                         generate_model_configs(
                             test_name_prefix=test_name_prefix,
