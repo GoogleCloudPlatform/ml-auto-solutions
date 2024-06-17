@@ -47,8 +47,9 @@ project_names = {
 
 
 def get_current_datetime() -> str:
-  now = datetime.now()
-  return now.strftime("%Y-%m-%d-%H-%M-%S")
+  current_time = datetime.datetime.now()
+  current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
+  return current_datetime
 
 
 def get_gke_jax_ss_config(
