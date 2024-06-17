@@ -38,11 +38,11 @@ with models.DAG(
       # accelerator: list of slices to test
       "v4-8": [1],
   }
-  base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{config.get_current_datetime}"
+  base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{config.get_current_datetime()}"
   for accelerator, slices in test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      run_name = f"{slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-ss-{config.get_current_datetime}"
+      run_name = f"{slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-ss-{config.get_current_datetime()}"
       maxtext_jax_ss_test = config.get_gke_jax_ss_config(
           tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
