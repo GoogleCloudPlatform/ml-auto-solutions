@@ -45,6 +45,7 @@ project_names = {
     "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
 }
 
+
 def get_current_datetime() -> str:
   now = datetime.now() 
   return now.strftime("%Y-%m-%d-%H-%M-%S") 
