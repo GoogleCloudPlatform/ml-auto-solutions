@@ -165,7 +165,7 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
-          "request_rate": [5],
+          "request_rate": [0.],
           "num_prompts": 200,
           "warmup_mode": ["full"]
       },
@@ -191,7 +191,7 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
-          "request_rate": [5],
+          "request_rate": [0.],
           "num_prompts": 200,
           "warmup_mode": ["full"]
       },
