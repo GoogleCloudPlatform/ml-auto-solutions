@@ -253,8 +253,8 @@ with models.DAG(
       LLAMA2_70B: {
           "maxtext_branch": "",
           "jetstream_branch": "",
-          "sleep_time": 120,
-          "time_out_in_min": 120,
+          "sleep_time": 360,
+          "time_out_in_min": 240,
           "tpu_version_cores": [(TpuVersion.V5P, 8)],
           "model_name": LLAMA2_70B,
           "tokenizer": "tokenizer.llama2",
@@ -545,8 +545,8 @@ with models.DAG(
     # f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
     # f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
 
-    f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-    f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
+    # f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+    # f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
     f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
 
     # f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
@@ -564,7 +564,7 @@ with models.DAG(
     if skip_configs and model_config_name in skip_configs:
       continue
 
-    dags = []
+    # dags = []
 
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for max_output_length in sweep_model_configs["max_output_length"]:
@@ -591,7 +591,7 @@ with models.DAG(
                       tpu_version=tpu_version,
                       tpu_cores=tpu_cores,
                     )
-                    dags.append(jetstream_benchmark_serving_kv_cache_layout)
+                    # dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
-    for i in range(1, len(dags)):
-      dags[i-1] >> dags[i]
+    # for i in range(1, len(dags)):
+      # dags[i-1] >> dags[i]
