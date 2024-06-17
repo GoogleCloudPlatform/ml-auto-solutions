@@ -232,7 +232,7 @@ with models.DAG(
 
   test_templates = {
       LLAMA2_7B: {
-          "maxtext_branch": "-b mor--kv-cache-layout-reformat-output",
+          "maxtext_branch": "",
           "sleep_time": 60,
           "tpu_version_cores": [(TpuVersion.V5E, 4)],
           "model_name": LLAMA2_7B,
