@@ -130,7 +130,7 @@ def get_config(
       f"export AR_VALUE_AXIS_ORDER={model_configs['ar_value_axis_order']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
-        MaxText/configs/base.yml \
+        MaxText/configs/inference_jetstream.yml \
         model_name=${MODEL_NAME} \
         tokenizer_path=${TOKENIZER_PATH} \
         weight_dtype=${WEIGHT_DTYPE} \
