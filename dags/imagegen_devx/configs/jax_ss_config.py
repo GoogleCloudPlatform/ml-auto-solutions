@@ -22,21 +22,25 @@ import datetime
 
 tpu_versions = {
     # accelerator: tpu versions
+    "v4-8": TpuVersion.V4,
     "v4-16": TpuVersion.V4,
     "v5-8": TpuVersion.V5P,
 }
 cluster_names = {
     # accelerator: cluster names
+    "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
     "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
     "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
 }
 tpu_zones = {
     # accelerator: cluster name
+    "v4-8": Zone.US_CENTRAL2_B,
     "v4-16": Zone.US_CENTRAL2_B,
     "v5-8": Zone.US_EAST5_A,
 }
 project_names = {
     # accelerator: project names
+    "v4-8": Project.TPU_PROD_ENV_MULTIPOD,
     "v4-16": Project.TPU_PROD_ENV_MULTIPOD,
     "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
 }

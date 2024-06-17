@@ -38,9 +38,7 @@ with models.DAG(
       # accelerator: list of slices to test
       "v4-8": [1],
   }
-  base_output_directory = (
-      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{config.get_current_datetime}"
-  )
+  base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{config.get_current_datetime}"
   for accelerator, slices in test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
@@ -54,7 +52,7 @@ with models.DAG(
           project_name=config.project_names[accelerator].value,
           time_out_in_min=60,
           run_model_cmds = (
-            f"python -m src.maxdiffusion.models.train src/maxdiffusion/configs/base_2_base.yml run_name={run_name} base_output_directory={base_output_directory}",
+              f"python -m src.maxdiffusion.models.train src/maxdiffusion/configs/base_2_base.yml run_name={run_name} base_output_directory={base_output_directory}",
           ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_SS.value,

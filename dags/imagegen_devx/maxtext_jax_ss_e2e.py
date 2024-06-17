@@ -38,10 +38,14 @@ with models.DAG(
       "v4-16": [1, 2],
       "v5-8": [1, 2],
   }
+  base_output_directory = (
+      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-ss/automated/{config.get_current_datetime}"
+  )
   for accelerator, slices in test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      maxtext_jax_ss_test = config.get_gke_maxtext_jax_ss_config(
+     run_name = f"{slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxtext-jax-ss-{config.get_current_datetime}"
+     maxtext_jax_ss_test = config.get_gke_jax_ss_config(
           tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
@@ -49,6 +53,13 @@ with models.DAG(
           tpu_zone=config.tpu_zones[accelerator].value,
           project_name=config.project_names[accelerator].value,
           time_out_in_min=60,
+          run_model_cmds = (
+            f"python MaxText/train.py MaxText/configs/base.yml run_name={run_name} "
+            "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
+            "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
+            "dataset_type=synthetic async_checkpointing=false "
+            f"base_output_directory={base_output_directory}",
+          ),
           test_name=f"maxtext-jax-ss-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXTEXT_TPU_JAX_SS.value,
           test_owner=test_owner.PARAM_B,
