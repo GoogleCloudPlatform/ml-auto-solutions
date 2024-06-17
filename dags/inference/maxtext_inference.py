@@ -161,7 +161,7 @@ with models.DAG(
     schedule=SCHEDULED_TIME,
     catchup=False,
 ) as dag:
-  test_name_prefix = "a-max-js"
+  test_name_prefix = "max-js"
 
   test_templates = {
       # LLAMA2_7B

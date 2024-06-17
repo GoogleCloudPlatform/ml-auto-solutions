@@ -148,7 +148,7 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
-  test_name_prefix = "a-max-js"
+  test_name_prefix = "jetstream-e2e-inference"
 
   test_templates = {
       # LLAMA2_7B
@@ -229,7 +229,7 @@ with models.DAG(
           "quantization": "",
           "quantize_kvcache": "false",
           "per_device_batch_sizes": [12],
-          "max_output_length": [0, 1024],
+          "max_output_length": [1024],
           "run_eval": True,
       },
   }
