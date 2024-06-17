@@ -16,9 +16,13 @@
 
 import datetime
 from airflow import models
+from dags import composer_env
 from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
 from dags.inference.configs import jetstream_benchmark_serving_gce_config
 from dags.multipod.configs.common import SetupMode
+
+# Run once a day at 8 am UTC (12 pm PST)
+SCHEDULED_TIME = "0 8 * * *" if composer_env.is_prod_env() else None
 
 LLAMA2_7B = "llama2-7b"
 LLAMA2_13B = "llama2-13b"
@@ -150,7 +154,7 @@ with models.DAG(
     dag_id="jetstream_benchmark_serving",
     tags=["inference_team", "jetstream", "maxtext", "benchmark"],
     start_date=datetime.datetime(2024, 1, 19),
-    schedule=None,
+    schedule=SCHEDULED_TIME,
     catchup=False,
 ) as dag:
 
@@ -351,7 +355,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10, 12],
+          "per_device_batch_sizes": [12],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -361,7 +365,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -371,7 +375,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -381,7 +385,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10, 12],
+          "per_device_batch_sizes": [12],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -391,7 +395,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -401,7 +405,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -412,7 +416,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10, 12],
+          "per_device_batch_sizes": [12],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -422,7 +426,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -432,7 +436,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -442,7 +446,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10],
+          "per_device_batch_sizes": [12],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -473,7 +477,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10, 12],
+          "per_device_batch_sizes": [12],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -483,7 +487,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -493,7 +497,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [18, 24],
+          "per_device_batch_sizes": [24],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -504,7 +508,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10],
+          "per_device_batch_sizes": [12],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -563,10 +567,9 @@ with models.DAG(
       continue
     if skip_configs and model_config_name in skip_configs:
       continue
-
+    dags = []
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for max_output_length in sweep_model_configs["max_output_length"]:
-        dags = []
         for axis_order in sweep_model_configs["axis_order"]:
           for attention in sweep_model_configs["attention"]:
             for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
@@ -592,5 +595,5 @@ with models.DAG(
                     )
                     dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
-        for i in range(1, len(dags)):
-          dags[i-1] >> dags[i]
+    for i in range(1, len(dags)):
+      dags[i-1] >> dags[i]
