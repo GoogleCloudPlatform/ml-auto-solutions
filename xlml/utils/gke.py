@@ -4,7 +4,7 @@ import datetime
 import logging
 import tempfile
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from airflow.decorators import task, task_group
 import google.auth
@@ -37,9 +37,11 @@ def get_authenticated_client(
   creds.refresh(auth_req)
   configuration = kubernetes.client.Configuration()
   configuration.host = f'https://{response.endpoint}'
+
+  ca_cert_content = base64.b64decode(response.master_auth.cluster_ca_certificate)
   with tempfile.NamedTemporaryFile(delete=False) as ca_cert:
-    ca_cert.write(base64.b64decode(response.master_auth.cluster_ca_certificate))
-  configuration.ssl_ca_cert = ca_cert.name
+    ca_cert.write(ca_cert_content)
+    configuration.ssl_ca_cert = ca_cert.name
   configuration.api_key_prefix['authorization'] = 'Bearer'
   configuration.api_key['authorization'] = creds.token
 
@@ -109,99 +111,105 @@ def run_job(
   @task(retries=5)
   def stream_logs(name: str):
 
-    def _watch_pod(name, namespace) -> Optional[int]:
+    def _watch_pod(name: str, namespace: str, start_line: int) -> Tuple[Optional[int], int]:
+      """ Reads the gke workload log continuously
 
-      def persistent_logging(name, logs_watcher):
-        logging.info(f'Waiting for pod {name} to start...')
-        pod_watcher = kubernetes.watch.Watch()
-        for event in pod_watcher.stream(
-            core_api.list_namespaced_pod,
-            namespace=namespace,
-            field_selector=f'metadata.name={name}',
-            timeout_seconds=0,
-        ):
-          status = event['object'].status
-          logging.info(
-              f'Pod {event["object"].metadata.name} status: {status.phase}'
-          )
-          if status.phase != 'Pending':
-            break
-
-        logging.info(f'Streaming pod logs for {name}...')
-        for line in logs_watcher.stream(
-            core_api.read_namespaced_pod_log,
-            name=name,
-            namespace=namespace,
-            _request_timeout=3600,
-        ):
-          logging.info(f'{name}] {line}')
-
-        logging.warning(f'Lost logs stream for {name}.')
-        try:
-          pod = core_api.read_namespaced_pod(namespace='default', name=name) # 401 exception trigger here
-        except kubernetes.client.ApiException as e:
-          status_code = e.status
-          logging.error(f'Kubernetes error (status code {status_code}). Retrying...', exc_info=e)
-          return -1
-
-        if pod.status.container_statuses:
-          container_status = pod.status.container_statuses[0]
-          if pod.status.container_statuses[0].state.terminated:
-            exit_code = container_status.state.terminated.exit_code
-            if exit_code is None:
-              # this can be credential expire or experiment complete (maybe??).
-              logging.warning("Credential possibly expired. Re-connect with streamer.")
-              return -1
-            elif exit_code == 0:
-              # completed successfully
-              return 0
-            else:
-              # severe issue happens to nodes. Need to retry
-              logging.error(f'Pod {name} had non-zero exit code {exit_code}')
-              raise RuntimeError(f"Pod failed with exit_code: {exit_code}.")
-
+      Args:
+        name: name of the workload.
+        namespace: namespace of the pod that runs the workload.
+        start_line: Omit the log message before start_line. This is used to skip
+          messages that have been fetched previously.
+      Returns:
+        Tuple of exit code and line number of the log that the process is reading.
+      """
       logs_watcher = kubernetes.watch.Watch()
 
-      # Continue attach to streamer if we have error code, but is not 0.
-      # Otherwise raise exception and retry the task.
-      while (exit_code:=persistent_logging(name, logs_watcher)) != 0:
-        pass
-
-      return exit_code
-
-    # We need to re-authenticate if the stream_logs fail. This can happen when
-    # the job runs for too long and the credential expire.
-    client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
-
-    batch_api = kubernetes.client.BatchV1Api(client)
-    core_api = kubernetes.client.CoreV1Api(client)
-    pod_label_selector = f'batch.kubernetes.io/job-name={name}'
-    pods = core_api.list_namespaced_pod(
-        namespace='default', label_selector=pod_label_selector
-    )
-    # TODO(piz): Use time.sleep may not be a good solution here. However, I expect
-    # resources are all ready in wait_all_pods_ready stage. This just in case
-    # authentication takes time. Check with Will for better solutions.
-    time.sleep(30)
-    if len(pods.items) != body['spec']['parallelism']:
-      logging.info('Waiting for all pods to be re-connected...')
-      raise PodsNotReadyError('pods are not ready after refreshing credential.')
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-      futures = []
-      for pod in pods.items:
-        f = executor.submit(
-            _watch_pod, pod.metadata.name, pod.metadata.namespace
+      logging.info(f'Waiting for pod {name} to start...')
+      pod_watcher = kubernetes.watch.Watch()
+      for event in pod_watcher.stream(
+          core_api.list_namespaced_pod,
+          namespace,
+          field_selector=f'metadata.name={name}',
+      ):
+        status = event['object'].status
+        logging.info(
+            f'Pod {event["object"].metadata.name} status: {status.phase}'
         )
-        futures.append(f)
+        if status.phase != 'Pending':
+          break
 
-      # Wait for pods to complete, and exit with the first non-zero exit code.
-      # for f in concurrent.futures.as_completed(futures):
-      #   try:
-      #     f.result()
-      #   except kubernetes.client.ApiException as e:
-      #     logging.error(f'Kubernetes error. Retrying...', exc_info=e)
-      #     raise RuntimeError("Kubernetes error. Retrying...")
+      logging.info(f'Streaming pod logs for {name}...')
+      line_cnt = 0
+      for line_cnt, line in enumerate(logs_watcher.stream(
+          core_api.read_namespaced_pod_log,
+          name,
+          namespace,
+          # This controls client side log reader timeout. Timeout can be triggered
+          # if no new update line from the watcher stream.
+          _request_timeout=3600,
+      )):
+        if line_cnt < start_line:
+          continue
+        logging.info(f'{name}] {line}')
+
+      logging.warning(f'Lost logs stream for {name}.')
+
+      # following line will trigger 401 exception if credential expire
+      try:
+        pod = core_api.read_namespaced_pod(namespace='default', name=name)
+      except kubernetes.client.ApiException as e:
+        status_code = e.status
+        logging.warning(f'Kubernetes error (status code {status_code}).', exc_info=e)
+        return (None, line_cnt)
+
+      if pod.status.container_statuses:
+        container_status = pod.status.container_statuses[0]
+        if pod.status.container_statuses[0].state.terminated:
+          exit_code = container_status.state.terminated.exit_code
+          if exit_code:
+            logging.error(f'Pod {name} had non-zero exit code {exit_code}')
+          return (exit_code, line_cnt)
+
+      logging.warning(f'Unknown status for pod {name}')
+      return (None, line_cnt)
+
+
+    exit_code = None
+    start_line = 0
+    while exit_code != 0:
+      # We need to re-authenticate if the stream_logs fail. This can happen when
+      # the job runs for too long and the credential expire.
+      client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
+
+      batch_api = kubernetes.client.BatchV1Api(client)
+      core_api = kubernetes.client.CoreV1Api(client)
+      pod_label_selector = f'batch.kubernetes.io/job-name={name}'
+      pods = core_api.list_namespaced_pod(
+          namespace='default', label_selector=pod_label_selector
+      )
+      # TODO(piz): Use time.sleep may not be a good solution here. However, I expect
+      # resources are all ready in wait_all_pods_ready stage. This just in case
+      # authentication takes time. Check with Will for better solutions.
+      time.sleep(30)
+      if len(pods.items) != body['spec']['parallelism']:
+        logging.info('Waiting for all pods to be re-connected...')
+        raise PodsNotReadyError('pods are not ready after refreshing credential.')
+
+      with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for pod in pods.items:
+          f = executor.submit(
+              _watch_pod,
+              pod.metadata.name,
+              pod.metadata.namespace,
+              start_line,
+          )
+          futures.append(f)
+
+        for f in concurrent.futures.as_completed(futures):
+          exit_code, start_line = f.result()
+          if exit_code not in [None, 0]:
+            raise RuntimeError("Potential infra issue with the host. Retry the task...")
 
   name = deploy_job(gcs_location)
   wait_all_pods_ready(name) >> stream_logs(name)

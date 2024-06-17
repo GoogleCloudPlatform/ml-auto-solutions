@@ -151,10 +151,6 @@ resource "google_container_node_pool" "nvidia-h100x8" {
     total_max_node_count = 4
   }
 
-  node_locations = [
-    "us-central1-a"
-  ]
-
   management {
     auto_repair = true
     auto_upgrade = true
@@ -192,17 +188,13 @@ resource "google_container_node_pool" "nvidia-a100x1" {
   project  = google_container_cluster.benchmarking-gpu-uc1.project
   location   = google_container_cluster.benchmarking-gpu-uc1.location
   cluster    = google_container_cluster.benchmarking-gpu-uc1.name
-  initial_node_count = 6
+  initial_node_count = 4
 
   autoscaling {
     location_policy = "ANY"
-    total_min_node_count = 6
+    total_min_node_count = 4
     total_max_node_count = 12
   }
-
-  node_locations = [
-    "us-central1-a"
-  ]
 
   management {
     auto_repair = true
@@ -210,7 +202,7 @@ resource "google_container_node_pool" "nvidia-a100x1" {
   }
 
   node_config {
-    preemptible  = true
+    preemptible  = false
     machine_type = "a2-highgpu-1g"
     disk_size_gb = 500
     disk_type = "pd-balanced"
@@ -240,10 +232,6 @@ resource "google_container_node_pool" "nvidia-l4x1" {
     total_min_node_count = 4
     total_max_node_count = 8
   }
-
-  node_locations = [
-    "us-central1-a"
-  ]
 
   management {
     auto_repair = true
@@ -281,10 +269,6 @@ resource "google_container_node_pool" "nvidia-v100x2-bm" {
     total_min_node_count = 6
     total_max_node_count = 12
   }
-
-  node_locations = [
-    "us-central1-c"
-  ]
 
   management {
     auto_repair = true
