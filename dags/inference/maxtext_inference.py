@@ -38,21 +38,22 @@ W_INT8_KV_INT8 = "w-i8-kv-i8"
 W_INT8_KV_BF16 = "w-i8-kv-b16"
 
 CKPT = {
-  LLAMA2_7B: {
-    BASE_MODE: "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-    CHAT_MODE: "gs://inference-benchmarks/models/llama2-7b-chat/2024-05-24-12-39/param-only-decode-ckpt-maxtext/checkpoints/0/items"
-  },
-  LLAMA2_13B: {
-    BASE_MODE: "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-    CHAT_MODE: "gs://inference-benchmarks/models/llama2-13b-chat/2024-05-24-12-39/param-only-decode-ckpt-maxtext/checkpoints/0/items"
-  },
-  LLAMA2_70B: {
-    CHAT_MODE: "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items"
-  },
-  GEMMA_7B: {
-    BASE_MODE: "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items"
-  },
+    LLAMA2_7B: {
+        BASE_MODE: "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+        CHAT_MODE: "gs://inference-benchmarks/models/llama2-7b-chat/2024-05-24-12-39/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+    },
+    LLAMA2_13B: {
+        BASE_MODE: "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+        CHAT_MODE: "gs://inference-benchmarks/models/llama2-13b-chat/2024-05-24-12-39/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+    },
+    LLAMA2_70B: {
+        CHAT_MODE: "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items"
+    },
+    GEMMA_7B: {
+        BASE_MODE: "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items"
+    },
 }
+
 
 def generate_model_configs(
     test_name_prefix,
@@ -74,9 +75,9 @@ def generate_model_configs(
 
   model_configs["attention"] = attention
   (
-    model_configs["ici_fsdp_parallelism"],
-    model_configs["ici_autoregressive_parallelism"],
-    model_configs["ici_tensor_parallelism"]
+      model_configs["ici_fsdp_parallelism"],
+      model_configs["ici_autoregressive_parallelism"],
+      model_configs["ici_tensor_parallelism"],
   ) = ici_parallelism
 
   prefill_axis_order, ar_axis_order = axis_order.split("-")
@@ -103,7 +104,9 @@ def generate_model_configs(
   model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
   model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
   model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
-  model_configs["max_prefill_predict_length"] = sweep_model_configs["max_prefill_predict_length"]
+  model_configs["max_prefill_predict_length"] = sweep_model_configs[
+      "max_prefill_predict_length"
+  ]
   model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
   model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
   model_configs["quantization"] = sweep_model_configs["quantization"]
@@ -112,7 +115,7 @@ def generate_model_configs(
   model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
   model_configs["run_eval"] = sweep_model_configs["run_eval"]
 
-  test_run_tag=f"{model_config_name}-{axis_order}-bs{per_device_batch_size}-{attention[:4]}-mol{max_output_length}"
+  test_run_tag = f"{model_config_name}-{axis_order}-bs{per_device_batch_size}-{attention[:4]}-mol{max_output_length}"
 
   test_name = f"{test_name_prefix}-{test_run_tag}"
 
@@ -130,21 +133,23 @@ def generate_model_configs(
     network = V5_NETWORKS
     subnetwork = V5P_SUBNETWORKS
 
-  jetstream_benchmark_serving = jetstream_benchmark_serving_gce_config.get_config(
-      tpu_version=tpu_version,
-      tpu_cores=tpu_cores,
-      tpu_zone=zone,
-      time_out_in_min=sweep_model_configs["time_out_in_min"],
-      test_name=test_name,
-      test_mode=SetupMode.STABLE,
-      project_name=project_name,
-      runtime_version=runtime_version,
-      network=network,
-      subnetwork=subnetwork,
-      is_tpu_reserved=True,
-      model_configs=model_configs,
-      maxtext_branch=model_configs["maxtext_branch"],
-      jetstream_branch=model_configs["jetstream_branch"],
+  jetstream_benchmark_serving = (
+      jetstream_benchmark_serving_gce_config.get_config(
+          tpu_version=tpu_version,
+          tpu_cores=tpu_cores,
+          tpu_zone=zone,
+          time_out_in_min=sweep_model_configs["time_out_in_min"],
+          test_name=test_name,
+          test_mode=SetupMode.STABLE,
+          project_name=project_name,
+          runtime_version=runtime_version,
+          network=network,
+          subnetwork=subnetwork,
+          is_tpu_reserved=True,
+          model_configs=model_configs,
+          maxtext_branch=model_configs["maxtext_branch"],
+          jetstream_branch=model_configs["jetstream_branch"],
+      )
   )
 
   return jetstream_benchmark_serving
@@ -178,34 +183,18 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
-          "request_rate": [0.],
+          "request_rate": [0.0],
           "num_prompts": 1000,
-          # "warmup_mode": ["sampled", "full"]
-          "warmup_mode": ["full"]
+          "warmup_mode": ["full"],
       },
       f"{LLAMA2_7B}-{W_BF16_KV_BF16}-axis-order": {
-          "axis_order": [
-            "2103-2013",
-            "2013-2013",
-            "2130-2013",
-            "1203-1203"
-          ]
+          "axis_order": ["2103-2013", "2013-2013", "2130-2013", "1203-1203"]
       },
       f"{LLAMA2_7B}-{W_BF16_KV_INT8}-axis-order": {
-          "axis_order": [
-            "2031-2031",
-            "0231-0231",
-            "0231-2031",
-            "1203-1203"
-          ]
+          "axis_order": ["2031-2031", "0231-0231", "0231-2031", "1203-1203"]
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}-axis-order": {
-          "axis_order": [
-            "0231-2130",
-            "0231-2103",
-            "0231-0231",
-            "1203-1203"
-          ]
+          "axis_order": ["0231-2130", "0231-2103", "0231-0231", "1203-1203"]
       },
       # LLAMA2_13B
       LLAMA2_13B: {
@@ -224,34 +213,18 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
-          "request_rate": [0.],
+          "request_rate": [0.0],
           "num_prompts": 1000,
-          # "warmup_mode": ["sampled", "full"]
-          "warmup_mode": ["full"]
+          "warmup_mode": ["full"],
       },
       f"{LLAMA2_13B}-{W_BF16_KV_BF16}-axis-order": {
-          "axis_order": [
-            "2103-2013",
-            "2013-2013",
-            "2130-2013",
-            "1203-1203"
-          ]
+          "axis_order": ["2103-2013", "2013-2013", "2130-2013", "1203-1203"]
       },
       f"{LLAMA2_13B}-{W_BF16_KV_INT8}-axis-order": {
-          "axis_order": [
-            "2031-2031",
-            "0231-0231",
-            "0231-2031",
-            "1203-1203"
-          ]
+          "axis_order": ["2031-2031", "0231-0231", "0231-2031", "1203-1203"]
       },
       f"{LLAMA2_13B}-{W_INT8_KV_INT8}-axis-order": {
-          "axis_order": [
-            "0231-2130",
-            "0231-2103",
-            "0231-0231",
-            "1203-1203"
-          ]
+          "axis_order": ["0231-2130", "0231-2103", "0231-0231", "1203-1203"]
       },
       # LLAMA2_70B
       LLAMA2_70B: {
@@ -270,34 +243,18 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
-          "request_rate": [0.],
+          "request_rate": [0.0],
           "num_prompts": 1000,
-          # "warmup_mode": ["sampled", "full"]
-          "warmup_mode": ["full"]
+          "warmup_mode": ["full"],
       },
       f"{LLAMA2_70B}-{W_BF16_KV_BF16}-axis-order": {
-          "axis_order": [
-            "2103-2013",
-            "2013-2013",
-            "2130-2013",
-            "1203-1203"
-          ]
+          "axis_order": ["2103-2013", "2013-2013", "2130-2013", "1203-1203"]
       },
       f"{LLAMA2_70B}-{W_BF16_KV_INT8}-axis-order": {
-          "axis_order": [
-            "2031-2031",
-            "0231-0231",
-            "0231-2031",
-            "1203-1203"
-          ]
+          "axis_order": ["2031-2031", "0231-0231", "0231-2031", "1203-1203"]
       },
       f"{LLAMA2_70B}-{W_INT8_KV_INT8}-axis-order": {
-          "axis_order": [
-            "0231-2130",
-            "0231-2103",
-            "0231-0231",
-            "1203-1203"
-          ]
+          "axis_order": ["0231-2130", "0231-2103", "0231-0231", "1203-1203"]
       },
       # GEMMA_7B
       GEMMA_7B: {
@@ -316,40 +273,26 @@ with models.DAG(
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
-          "request_rate": [0.],
+          "request_rate": [0.0],
           "num_prompts": 1000,
-          # "warmup_mode": ["sampled", "full"]
-          "warmup_mode": ["full"]
+          "warmup_mode": ["full"],
       },
       f"{GEMMA_7B}-{W_BF16_KV_BF16}-axis-order": {
-          "axis_order": [
-            "2103-2013",
-            "2013-2013",
-            "2130-2013",
-            "1203-1203"
-          ]
+          "axis_order": ["2103-2013", "2013-2013", "2130-2013", "1203-1203"]
       },
       f"{GEMMA_7B}-{W_BF16_KV_INT8}-axis-order": {
-          "axis_order": [
-            "2031-2031",
-            "0231-0231",
-            "0231-2031",
-            "1203-1203"
-          ]
+          "axis_order": ["2031-2031", "0231-0231", "0231-2031", "1203-1203"]
       },
       f"{GEMMA_7B}-{W_INT8_KV_INT8}-axis-order": {
-          "axis_order": [
-            "0231-2130",
-            "0231-2103",
-            "0231-0231",
-            "1203-1203"
-          ]
+          "axis_order": ["0231-2130", "0231-2103", "0231-0231", "1203-1203"]
       },
   }
 
   tests = {
       # LLAMA2_7B
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B] | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-axis-order"] | {
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_BF16_KV_BF16,
@@ -359,7 +302,9 @@ with models.DAG(
           "max_output_length": [1024],
           "run_eval": False,
       },
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_7B] | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_BF16_KV_INT8,
@@ -369,7 +314,9 @@ with models.DAG(
           "max_output_length": [1024],
           "run_eval": False,
       },
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B] | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_INT8_KV_INT8,
@@ -379,7 +326,9 @@ with models.DAG(
           "max_output_length": [1024],
           "run_eval": False,
       },
-      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B] | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-axis-order"] | {
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_BF16_KV_BF16,
@@ -389,7 +338,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_7B] | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_BF16_KV_INT8,
@@ -399,7 +350,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B] | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_INT8_KV_INT8,
@@ -410,7 +363,9 @@ with models.DAG(
           "run_eval": True,
       },
       # LLAMA2_13B
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B] | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-axis-order"] | {
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_BF16_KV_BF16,
@@ -420,7 +375,9 @@ with models.DAG(
           "max_output_length": [1024],
           "run_eval": False,
       },
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_13B] | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_BF16_KV_INT8,
@@ -430,7 +387,9 @@ with models.DAG(
           "max_output_length": [1024],
           "run_eval": False,
       },
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_13B] | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_INT8_KV_INT8,
@@ -440,7 +399,9 @@ with models.DAG(
           "max_output_length": [1024],
           "run_eval": False,
       },
-      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B] | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-axis-order"] | {
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_BF16_KV_BF16,
@@ -450,7 +411,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_13B] | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_BF16_KV_INT8,
@@ -460,7 +423,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_13B] | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_INT8_KV_INT8,
@@ -471,7 +436,9 @@ with models.DAG(
           "run_eval": True,
       },
       # LLAMA2_70B
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_70B] | test_templates[f"{LLAMA2_70B}-{W_BF16_KV_BF16}-axis-order"] | {
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_70B]
+      | test_templates[f"{LLAMA2_70B}-{W_BF16_KV_BF16}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_BF16_KV_BF16,
@@ -481,7 +448,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_70B] | test_templates[f"{LLAMA2_70B}-{W_BF16_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}": test_templates[LLAMA2_70B]
+      | test_templates[f"{LLAMA2_70B}-{W_BF16_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_BF16_KV_INT8,
@@ -491,7 +460,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_70B] | test_templates[f"{LLAMA2_70B}-{W_INT8_KV_INT8}-axis-order"] | {
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_70B]
+      | test_templates[f"{LLAMA2_70B}-{W_INT8_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_INT8_KV_INT8,
@@ -502,7 +473,9 @@ with models.DAG(
           "run_eval": True,
       },
       # GEMMA_7B
-      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[GEMMA_7B] | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-axis-order"] | {
+      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[GEMMA_7B]
+      | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-axis-order"]
+      | {
           "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_BF16_KV_BF16,
@@ -512,7 +485,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_INT8}": test_templates[GEMMA_7B] | test_templates[f"{GEMMA_7B}-{W_BF16_KV_INT8}-axis-order"] | {
+      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_INT8}": test_templates[GEMMA_7B]
+      | test_templates[f"{GEMMA_7B}-{W_BF16_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_BF16_KV_INT8,
@@ -522,7 +497,9 @@ with models.DAG(
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[GEMMA_7B] | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-axis-order"] | {
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[GEMMA_7B]
+      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-axis-order"]
+      | {
           "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_INT8_KV_INT8,
@@ -535,31 +512,27 @@ with models.DAG(
   }
 
   run_configs = [
-    # f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-    # f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_INT8}",
-    # f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-    f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-    f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
-    f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-
-    # f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-    # f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_INT8}",
-    # f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-    # f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-    # f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
-    # f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-
-    f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-    f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
-    f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-
-    # f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-    # f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_INT8}",
-    # f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_INT8}",
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_INT8}",
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_INT8}",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
   ]
 
-  skip_configs = [
-  ]
+  skip_configs = []
 
   for model_config_name, sweep_model_configs in tests.items():
 
@@ -576,24 +549,27 @@ with models.DAG(
               for request_rate in sweep_model_configs["request_rate"]:
                 for warmup_mode in sweep_model_configs["warmup_mode"]:
 
-                  for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
+                  for per_device_batch_size in sweep_model_configs[
+                      "per_device_batch_sizes"
+                  ]:
 
-
-                    jetstream_benchmark_serving_kv_cache_layout = generate_model_configs(
-                      test_name_prefix=test_name_prefix,
-                      model_config_name=model_config_name,
-                      sweep_model_configs=sweep_model_configs,
-                      axis_order=axis_order,
-                      max_output_length=max_output_length,
-                      attention=attention,
-                      ici_parallelism=ici_parallelism,
-                      per_device_batch_size=per_device_batch_size,
-                      request_rate=request_rate,
-                      warmup_mode=warmup_mode,
-                      tpu_version=tpu_version,
-                      tpu_cores=tpu_cores,
+                    jetstream_benchmark_serving_kv_cache_layout = (
+                        generate_model_configs(
+                            test_name_prefix=test_name_prefix,
+                            model_config_name=model_config_name,
+                            sweep_model_configs=sweep_model_configs,
+                            axis_order=axis_order,
+                            max_output_length=max_output_length,
+                            attention=attention,
+                            ici_parallelism=ici_parallelism,
+                            per_device_batch_size=per_device_batch_size,
+                            request_rate=request_rate,
+                            warmup_mode=warmup_mode,
+                            tpu_version=tpu_version,
+                            tpu_cores=tpu_cores,
+                        )
                     )
                     dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
     for i in range(1, len(dags)):
-      dags[i-1] >> dags[i]
+      dags[i - 1] >> dags[i]
