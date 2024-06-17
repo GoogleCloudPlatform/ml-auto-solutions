@@ -89,49 +89,44 @@ with models.DAG(
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
-  # # TODO(piz): switch to GKE for all GPU.
-  # # Running on A100 GPU
-  # config.get_torchbench_gpu_config(
-  #     machine_type=resource.MachineVersion.A2_HIGHGPU_1G,
-  #     image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-  #     image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
-  #     accelerator_type=resource.GpuVersion.A100,
-  #     count=1,
-  #     gpu_zone=resource.Zone.US_CENTRAL1_F,
-  #     nvidia_driver_version="535.86.10",
-  #     model_name=model,
-  #     time_out_in_min=1600,
-  #     use_xla2 = True,
-  #     extraFlags=" ".join(torchbench_extra_flags),
-  # )
+  # Running on A100 GPU
+  config.get_torchbench_gpu_gke_config(
+      machine_type=resource.MachineVersion.A2_HIGHGPU_1G,
+      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=resource.GpuVersion.A100,
+      count=1,
+      gpu_zone=resource.Region.US_CENTRAL1,
+      project_name=resource.Project.CLOUD_ML_BENCHMARKING,
+      cluster_name="benchmarking-gpu-uc1",
+      model_name=model,
+      time_out_in_min=1600,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
 
-  # # Running on H100 GPU
-  # # Note: H100 must use ssd.
-  # config.get_torchbench_gpu_config(
-  #     machine_type=resource.MachineVersion.A3_HIGHGPU_8G,
-  #     image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-  #     image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
-  #     accelerator_type=resource.GpuVersion.H100,
-  #     count=8,
-  #     gpu_zone=resource.Zone.US_CENTRAL1_A,
-  #     nvidia_driver_version="535.86.10",
-  #     model_name=model,
-  #     time_out_in_min=1600,
-  #     use_xla2 = True,
-  #     extraFlags=" ".join(torchbench_extra_flags),
-  # )
+  # Running on H100 GPU
+  config.get_torchbench_gpu_gke_config(
+      machine_type=resource.MachineVersion.A3_HIGHGPU_8G,
+      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=resource.GpuVersion.H100,
+      count=8,
+      gpu_zone=resource.Region.US_CENTRAL1,
+      project_name=resource.Project.CLOUD_ML_BENCHMARKING,
+      cluster_name="benchmarking-gpu-uc1",
+      model_name=model,
+      time_out_in_min=1600,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
 
-  # # Running on L4 GPU
-  # config.get_torchbench_gpu_config(
-  #     machine_type=resource.MachineVersion.G2_STAND_4,
-  #     image_project=resource.ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-  #     image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
-  #     accelerator_type=resource.GpuVersion.L4,
-  #     count=1,
-  #     gpu_zone=resource.Zone.US_CENTRAL1_C,
-  #     nvidia_driver_version="535.86.10",
-  #     model_name=model,
-  #     time_out_in_min=1600,
-  #     use_xla2 = True,
-  #     extraFlags=" ".join(torchbench_extra_flags),
-  # )
+  # Running on L4 GPU
+  config.get_torchbench_gpu_gke_config(
+      machine_type=resource.MachineVersion.G2_STAND_16,
+      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=resource.GpuVersion.L4,
+      count=1,
+      gpu_zone=resource.Region.US_CENTRAL1,
+      project_name=resource.Project.CLOUD_ML_BENCHMARKING,
+      cluster_name="benchmarking-gpu-uc1",
+      model_name=model,
+      time_out_in_min=1600,
+      extraFlags=" ".join(torchbench_extra_flags),
+  ).run()
