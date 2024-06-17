@@ -148,7 +148,7 @@ def get_config(
         prefill_key_axis_order=${PREFILL_KEY_AXIS_ORDER} \
         prefill_value_axis_order=${PREFILL_VALUE_AXIS_ORDER} \
         ar_key_axis_order=${AR_KEY_AXIS_ORDER} \
-        ar_value_axis_order=${AR_VALUE_AXIS_ORDER} > /dev/null 2>&1 &""",
+        ar_value_axis_order=${AR_VALUE_AXIS_ORDER} &""",
       "cd ..",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",

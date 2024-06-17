@@ -161,7 +161,7 @@ with models.DAG(
       LLAMA2_7B: {
           "maxtext_branch": "",
           "jetstream_branch": "",
-          "sleep_time": 120,
+          "sleep_time": 360,
           "time_out_in_min": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
           "model_name": LLAMA2_7B,
@@ -207,7 +207,7 @@ with models.DAG(
       LLAMA2_13B: {
           "maxtext_branch": "",
           "jetstream_branch": "",
-          "sleep_time": 120,
+          "sleep_time": 360,
           "time_out_in_min": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
           "model_name": LLAMA2_13B,
@@ -299,7 +299,7 @@ with models.DAG(
       GEMMA_7B: {
           "maxtext_branch": "",
           "jetstream_branch": "",
-          "sleep_time": 120,
+          "sleep_time": 360,
           "time_out_in_min": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
           "model_name": GEMMA_7B,
@@ -412,7 +412,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10],
+          "per_device_batch_sizes": [10, 12],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -422,7 +422,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [24],
+          "per_device_batch_sizes": [18, 24],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -432,7 +432,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [24],
+          "per_device_batch_sizes": [18, 24],
           "max_output_length": [1024],
           "run_eval": False,
       },
@@ -473,7 +473,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10],
+          "per_device_batch_sizes": [10, 12],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -483,7 +483,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_INT8,
           "quantization": "",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [24],
+          "per_device_batch_sizes": [18, 24],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -493,7 +493,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [24],
+          "per_device_batch_sizes": [18, 24],
           "max_output_length": [0, 1024],
           "run_eval": True,
       },
@@ -534,9 +534,9 @@ with models.DAG(
     # f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
     # f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_INT8}",
     # f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-    # f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-    # f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
-    # f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+    f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+    f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
+    f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
 
     # f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
     # f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_INT8}",
@@ -545,8 +545,8 @@ with models.DAG(
     # f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
     # f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
 
-    # f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-    # f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
+    f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+    f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_INT8}",
     f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
 
     # f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
@@ -564,10 +564,9 @@ with models.DAG(
     if skip_configs and model_config_name in skip_configs:
       continue
 
-    # dags = []
-
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for max_output_length in sweep_model_configs["max_output_length"]:
+        dags = []
         for axis_order in sweep_model_configs["axis_order"]:
           for attention in sweep_model_configs["attention"]:
             for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
@@ -591,7 +590,7 @@ with models.DAG(
                       tpu_version=tpu_version,
                       tpu_cores=tpu_cores,
                     )
-                    # dags.append(jetstream_benchmark_serving_kv_cache_layout)
+                    dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
-    # for i in range(1, len(dags)):
-      # dags[i-1] >> dags[i]
+        for i in range(1, len(dags)):
+          dags[i-1] >> dags[i]
