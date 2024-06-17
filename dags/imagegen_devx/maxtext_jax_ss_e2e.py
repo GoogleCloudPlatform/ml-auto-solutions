@@ -38,36 +38,16 @@ with models.DAG(
       "v4-16": [1, 2],
       "v5-8": [1, 2],
   }
-  tpu_versions = {
-      # accelerator: tpu versions
-      "v4-16": TpuVersion.V4,
-      "v5-8": TpuVersion.V5P,
-  }
-  cluster_names = {
-      # accelerator: cluster names
-      "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
-      "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
-  }
-  tpu_zones = {
-      # accelerator: cluster name
-      "v4-16": Zone.US_CENTRAL2_B,
-      "v5-8": Zone.US_EAST5_A,
-  }
-  project_names = {
-      # accelerator: project names
-      "v4-16": Project.TPU_PROD_ENV_MULTIPOD,
-      "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
-  }
   for accelerator, slices in test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
       maxtext_jax_ss_test = config.get_gke_maxtext_jax_ss_config(
-          tpu_version=tpu_versions[accelerator],
+          tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
-          cluster_name=cluster_names[accelerator].value,
-          tpu_zone=tpu_zones[accelerator].value,
-          project_name=project_names[accelerator].value,
+          cluster_name=config.cluster_names[accelerator].value,
+          tpu_zone=config.tpu_zones[accelerator].value,
+          project_name=config.project_names[accelerator].value,
           time_out_in_min=60,
           test_name=f"maxtext-jax-ss-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXTEXT_TPU_JAX_SS.value,

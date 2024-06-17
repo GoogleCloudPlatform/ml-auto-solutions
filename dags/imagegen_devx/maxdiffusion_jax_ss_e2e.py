@@ -38,33 +38,24 @@ with models.DAG(
       # accelerator: list of slices to test
       "v4-8": [1],
   }
-  tpu_versions = {
-      # accelerator: tpu versions
-      "v4-8": TpuVersion.V4,
-  }
-  cluster_names = {
-      # accelerator: cluster names
-      "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
-  }
-  tpu_zones = {
-      # accelerator: cluster name
-      "v4-8": Zone.US_CENTRAL2_B,
-  }
-  project_names = {
-      # accelerator: project names
-      "v4-8": Project.TPU_PROD_ENV_MULTIPOD,
-  }
+  base_output_directory = (
+      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{config.get_current_datetime}"
+  )
   for accelerator, slices in test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      maxtext_jax_ss_test = config.get_gke_maxdiffusion_jax_ss_config(
-          tpu_version=tpu_versions[accelerator],
+      run_name = f"{slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-ss-{config.get_current_datetime}"
+      maxtext_jax_ss_test = config.get_gke_jax_ss_config(
+          tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
-          cluster_name=cluster_names[accelerator].value,
-          tpu_zone=tpu_zones[accelerator].value,
-          project_name=project_names[accelerator].value,
+          cluster_name=config.cluster_names[accelerator].value,
+          tpu_zone=config.tpu_zones[accelerator].value,
+          project_name=config.project_names[accelerator].value,
           time_out_in_min=60,
+          run_model_cmds = (
+            f"python -m src.maxdiffusion.models.train src/maxdiffusion/configs/base_2_base.yml run_name={run_name} base_output_directory={base_output_directory}",
+          ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_SS.value,
           test_owner=test_owner.PARAM_B,
