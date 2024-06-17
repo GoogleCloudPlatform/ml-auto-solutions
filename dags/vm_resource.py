@@ -23,11 +23,18 @@ V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
 
+BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
+BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
+V4_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-central2/subnetworks/mas-test"
+V5E_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-west1/subnetworks/mas-test"
+V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
+
 
 class Project(enum.Enum):
   """Common GCP projects."""
 
   CLOUD_ML_AUTO_SOLUTIONS = "cloud-ml-auto-solutions"
+  CLOUD_ML_BENCHMARKING = "cloud-ml-benchmarking"
   TPU_PROD_ENV_MULTIPOD = "tpu-prod-env-multipod"
   TPU_PROD_ENV_AUTOMATED = "tpu-prod-env-automated"
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
@@ -72,6 +79,8 @@ class Zone(enum.Enum):
   US_EAST1_C = "us-east1-c"
   # reserved v3-8 & reserved/on-demand v3-32 in cloud-ml-auto-solutions
   US_EAST1_D = "us-east1-d"
+  # reserved h100-mega in supercomputer-testing
+  US_EAST4_A = "us-east4-a"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
   # reserved v5e in tpu-prod-env-multipod
@@ -84,11 +93,14 @@ class MachineVersion(enum.Enum):
   """Common machine types."""
 
   N1_STANDARD_8 = "n1-standard-8"
+  N1_STANDARD_16 = "n1-standard-16"  # 60GB memory
   N1_STANDARD_32 = "n1-standard-32"
   A2_HIGHGPU_1G = "a2-highgpu-1g"
   A2_HIGHGPU_4G = "a2-highgpu-4g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
+  G2_STAND_16 = "g2-standard-16"  # 64GB memory
+  G2_STAND_32 = "g2-standard-32"  # 128GB memroy
 
 
 class TpuVersion(enum.Enum):
@@ -108,6 +120,7 @@ class GpuVersion(enum.Enum):
   A100 = "nvidia-tesla-a100"
   H100 = "nvidia-h100-80gb"
   XPK_H100 = "h100-80gb-8"
+  XPK_H100_MEGA = "h100-mega-80gb-8"
   V100 = "nvidia-tesla-v100"
 
 
@@ -149,6 +162,7 @@ class ClusterName(enum.Enum):
   V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
   V5E_256_US_WEST_4_MULTISLICE_CLUSTER = "v5e-256-bodaborg-us-west4"
   A3_CLUSTER = "maxtext-a3-20n"
+  A3PLUS_CLUSTER = "a3plus-benchmark"
   CPU_M1_MEGAMEM_96 = "m1-megamem-96-shared"
   CPU_N2_STANDARD_64 = "shared-n2-standard-64"
 
