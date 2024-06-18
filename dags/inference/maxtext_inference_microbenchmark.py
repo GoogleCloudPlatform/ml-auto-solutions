@@ -211,7 +211,7 @@ dag_id = (
     if not USER_PREFIX
     else f"{USER_PREFIX}-maxtext-inference-microbenchmark",
 )
-tags = (["inference_team", "maxtext", "microbenchmark"],)
+tags = ["inference_team", "maxtext", "microbenchmark"]
 
 if USER_PREFIX:
   dag_id = f"{USER_PREFIX}-maxtext-inference-microbenchmark"
