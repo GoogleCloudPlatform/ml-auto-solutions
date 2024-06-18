@@ -170,6 +170,8 @@ def generate_model_configs(
       vm_number
   ]
 
+  attention = sweep_model_configs["attention"]
+  per_device_batch_size = sweep_model_configs["per_device_batch_size"]
   compute_axis_order_tag = model_configs["compute_axis_order"].replace(",", "")
   test_run_tag = f"{model_config_name}-bs{per_device_batch_size}-{attention[:3]}-{compute_axis_order_tag}-vm{vm_number}"
   test_name = f"{test_name_prefix}-{test_run_tag}"
