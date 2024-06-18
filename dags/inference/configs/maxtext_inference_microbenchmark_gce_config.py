@@ -66,11 +66,9 @@ def config(
 
   additional_metadata_dict = {
       "quant_mode": f"{model_configs['quant_mode']}",
-      "key_value_axis_order_product_id_list": f"{model_configs['key_value_axis_order_product_id_list']}",
-      "prefill_key_axis_order_list": f"{model_configs['prefill_key_axis_order_list']}",
-      "prefill_value_axis_order_list": f"{model_configs['prefill_value_axis_order_list']}",
-      "ar_key_axis_order_list": f"{model_configs['ar_key_axis_order_list']}",
-      "ar_value_axis_order_list": f"{model_configs['ar_value_axis_order_list']}",
+      "two_axis_order_product_id_list": f"{model_configs['two_axis_order_product_id_list']}",
+      "prefill_cache_axis_order_list": f"{model_configs['prefill_cache_axis_order_list']}",
+      "ar_cache_axis_order_list": f"{model_configs['ar_cache_axis_order_list']}",
       "accelerator": f"v{tpu_version.value}-{tpu_cores}",
       "flatten_microbenchmark_results": "true",
   }
@@ -111,6 +109,9 @@ def config(
           run_name={model_configs['run_name']} \
           profiler={model_configs['profiler']} \
           save_config_to_gcs={model_configs['save_config_to_gcs']} \
+          reshape_q={model_configs['reshape_q']} \
+          kv_quant_axis={model_configs['kv_quant_axis']} \
+          compute_axis_order={model_configs['compute_axis_order']} \
           inference_metadata_file=MaxText/metadata.json""",
       "cat inference_microbenchmark_sweep_results.jsonl",
       "mv inference_microbenchmark_sweep_results.jsonl metric_report.jsonl",
