@@ -63,16 +63,13 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
   two_axis_order_product_id_list = []
   prefill_cache_axis_order_str_list = []
   ar_cache_axis_order_str_list = []
-  for two_axis_order_product_id in range(
-      len(two_cache_idx_product_idx_values)
-  ):
-    (
-        prefill_cache_axis_order_idx,
-        ar_cache_axis_order_idx,
-    ) = two_cache_idx_product_idx_values[
-        int(two_axis_order_product_id)
+  for two_axis_order_product_id in range(len(two_cache_idx_product_idx_values)):
+    (prefill_cache_axis_order_idx, ar_cache_axis_order_idx,) = (
+        two_cache_idx_product_idx_values[int(two_axis_order_product_id)]
+    )
+    prefill_cache_axis_order_str = cache_permu_idx_strs[
+        prefill_cache_axis_order_idx
     ]
-    prefill_cache_axis_order_str = cache_permu_idx_strs[prefill_cache_axis_order_idx]
     ar_cache_axis_order_str = cache_permu_idx_strs[ar_cache_axis_order_idx]
     two_axis_order_product_id_list.append(two_axis_order_product_id)
     prefill_cache_axis_order_str_list.append(prefill_cache_axis_order_str)
@@ -87,8 +84,7 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
       ar_cache_axis_order_str_list, sweep_vm_count
   )
   two_axis_order_product_id_concat_list = [
-      ":".join(list(str(y) for y in x))
-      for x in two_axis_order_product_id_split
+      ":".join(list(str(y) for y in x)) for x in two_axis_order_product_id_split
   ]
   prefill_cache_axis_order_concat_list = [
       ":".join(list(x)) for x in prefill_cache_axis_order_str_split
@@ -137,7 +133,9 @@ def generate_model_configs(
   ]
   model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
   model_configs["attention"] = sweep_model_configs["attention"]
-  model_configs["per_device_batch_size"] = sweep_model_configs["per_device_batch_size"]
+  model_configs["per_device_batch_size"] = sweep_model_configs[
+      "per_device_batch_size"
+  ]
   model_configs["quantization"] = sweep_model_configs["quantization"]
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
   model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
@@ -146,9 +144,9 @@ def generate_model_configs(
       "base_output_directory"
   ]
 
-  model_configs[
-      "inference_microbenchmark_prefill_lengths"
-  ] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
+  model_configs["inference_microbenchmark_prefill_lengths"] = (
+      sweep_model_configs["inference_microbenchmark_prefill_lengths"]
+  )
   model_configs["inference_microbenchmark_stages"] = sweep_model_configs[
       "inference_microbenchmark_stages"
   ]
@@ -161,17 +159,17 @@ def generate_model_configs(
   ]
   model_configs["reshape_q"] = sweep_model_configs["reshape_q"]
 
-  model_configs[
-      "two_axis_order_product_id_list"
-  ] = two_axis_order_product_id_concat_list[vm_number]
-  model_configs[
-      "prefill_cache_axis_order_list"
-  ] = prefill_cache_axis_order_concat_list[vm_number]
+  model_configs["two_axis_order_product_id_list"] = (
+      two_axis_order_product_id_concat_list[vm_number]
+  )
+  model_configs["prefill_cache_axis_order_list"] = (
+      prefill_cache_axis_order_concat_list[vm_number]
+  )
   model_configs["ar_cache_axis_order_list"] = ar_cache_axis_order_concat_list[
       vm_number
   ]
 
-  compute_axis_order_tag = model_configs["compute_axis_order"].replace(",","")
+  compute_axis_order_tag = model_configs["compute_axis_order"].replace(",", "")
   test_run_tag = f"{model_config_name}-bs{per_device_batch_size}-{attention[:3]}-{compute_axis_order_tag}-vm{vm_number}"
   test_name = f"{test_name_prefix}-{test_run_tag}"
   model_configs["run_name"] = test_run_tag
@@ -204,12 +202,17 @@ def generate_model_configs(
 
   return maxtext_kv_cache_layout_optimization
 
-dag_id = "maxtext-inference-microbenchmark" if not USER_PREFIX else f"{USER_PREFIX}-maxtext-inference-microbenchmark",
-tags = ["inference_team", "maxtext", "microbenchmark"],
+
+dag_id = (
+    "maxtext-inference-microbenchmark"
+    if not USER_PREFIX
+    else f"{USER_PREFIX}-maxtext-inference-microbenchmark",
+)
+tags = (["inference_team", "maxtext", "microbenchmark"],)
 
 if USER_PREFIX:
-  dag_id=f"{USER_PREFIX}-maxtext-inference-microbenchmark"
-  tags=tags.append(USER_PREFIX)
+  dag_id = f"{USER_PREFIX}-maxtext-inference-microbenchmark"
+  tags = tags.append(USER_PREFIX)
 
 with models.DAG(
     dag_id=dag_id,
@@ -218,7 +221,9 @@ with models.DAG(
     schedule=None,
     catchup=False,
 ) as dag:
-  test_name_prefix = "max-micro" if not USER_PREFIX else f"{USER_PREFIX}-max-micro"
+  test_name_prefix = (
+      "max-micro" if not USER_PREFIX else f"{USER_PREFIX}-max-micro"
+  )
 
   sweep_vm_count = 8
   (
@@ -229,7 +234,9 @@ with models.DAG(
 
   test_templates = {
       LLAMA2_7B: {
-          "maxtext_branch": "" if not MAXTEXT_BRANCH else f"-b {MAXTEXT_BRANCH}",
+          "maxtext_branch": ""
+          if not MAXTEXT_BRANCH
+          else f"-b {MAXTEXT_BRANCH}",
           "sleep_time": 60,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
           "model_name": LLAMA2_7B,
