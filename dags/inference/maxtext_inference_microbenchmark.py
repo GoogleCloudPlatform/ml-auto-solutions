@@ -23,6 +23,9 @@ from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETW
 from dags.inference.configs import maxtext_inference_microbenchmark_gce_config
 from dags.multipod.configs.common import SetupMode
 
+USER_PREFIX = ""
+MAXTEXT_BRANCH = ""
+
 LLAMA2_7B = "llama2-7b"
 LLAMA2_13B = "llama2-13b"
 
@@ -48,63 +51,55 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
       for cache_permu_idx, cache_permu_str in enumerate(cache_permu_strs)
   }
   num_cache_permu = len(cache_permu_strs)
-  key_value_cache_idx_product_values = list(
+  two_cache_idx_product_values = list(
       itertools.product(range(num_cache_permu), range(num_cache_permu))
   )
-  key_value_cache_idx_product_idx_values = {
-      key_value_cache_idx_product_idx: key_value_cache_idx_product_value
-      for key_value_cache_idx_product_idx, key_value_cache_idx_product_value in enumerate(
-          key_value_cache_idx_product_values
+  two_cache_idx_product_idx_values = {
+      two_cache_idx_product_idx: two_cache_idx_product_value
+      for two_cache_idx_product_idx, two_cache_idx_product_value in enumerate(
+          two_cache_idx_product_values
       )
   }
-  key_value_axis_order_product_id_list = []
-  ar_key_axis_order_str_list = []
-  ar_value_axis_order_str_list = []
-  for key_value_axis_order_product_id in range(
-      len(key_value_cache_idx_product_idx_values)
+  two_axis_order_product_id_list = []
+  prefill_cache_axis_order_str_list = []
+  ar_cache_axis_order_str_list = []
+  for two_axis_order_product_id in range(
+      len(two_cache_idx_product_idx_values)
   ):
     (
-        key_axis_order_idx,
-        value_axis_order_idx,
-    ) = key_value_cache_idx_product_idx_values[
-        int(key_value_axis_order_product_id)
+        prefill_cache_axis_order_idx,
+        ar_cache_axis_order_idx,
+    ) = two_cache_idx_product_idx_values[
+        int(two_axis_order_product_id)
     ]
-    ar_key_axis_order_str = cache_permu_idx_strs[key_axis_order_idx]
-    ar_value_axis_order_str = cache_permu_idx_strs[value_axis_order_idx]
-    key_value_axis_order_product_id_list.append(key_value_axis_order_product_id)
-    ar_key_axis_order_str_list.append(ar_key_axis_order_str)
-    ar_value_axis_order_str_list.append(ar_value_axis_order_str)
-  key_value_axis_order_product_id_split = numpy.array_split(
-      key_value_axis_order_product_id_list, sweep_vm_count
+    prefill_cache_axis_order_str = cache_permu_idx_strs[prefill_cache_axis_order_idx]
+    ar_cache_axis_order_str = cache_permu_idx_strs[ar_cache_axis_order_idx]
+    two_axis_order_product_id_list.append(two_axis_order_product_id)
+    prefill_cache_axis_order_str_list.append(prefill_cache_axis_order_str)
+    ar_cache_axis_order_str_list.append(ar_cache_axis_order_str)
+  two_axis_order_product_id_split = numpy.array_split(
+      two_axis_order_product_id_list, sweep_vm_count
   )
-  ar_key_axis_order_str_split = numpy.array_split(
-      ar_key_axis_order_str_list, sweep_vm_count
+  prefill_cache_axis_order_str_split = numpy.array_split(
+      prefill_cache_axis_order_str_list, sweep_vm_count
   )
-  ar_value_axis_order_str_split = numpy.array_split(
-      ar_value_axis_order_str_list, sweep_vm_count
+  ar_cache_axis_order_str_split = numpy.array_split(
+      ar_cache_axis_order_str_list, sweep_vm_count
   )
-  key_value_axis_order_product_id_concat_list = [
+  two_axis_order_product_id_concat_list = [
       ":".join(list(str(y) for y in x))
-      for x in key_value_axis_order_product_id_split
+      for x in two_axis_order_product_id_split
   ]
-  prefill_key_axis_order_concat_list = [
-      ":".join(list(x)) for x in ar_key_axis_order_str_split
+  prefill_cache_axis_order_concat_list = [
+      ":".join(list(x)) for x in prefill_cache_axis_order_str_split
   ]
-  prefill_value_axis_order_concat_list = [
-      ":".join(list(x)) for x in ar_key_axis_order_str_split
-  ]
-  ar_key_axis_order_concat_list = [
-      ":".join(list(x)) for x in ar_value_axis_order_str_split
-  ]
-  ar_value_axis_order_concat_list = [
-      ":".join(list(x)) for x in ar_value_axis_order_str_split
+  ar_cache_axis_order_concat_list = [
+      ":".join(list(x)) for x in ar_cache_axis_order_str_split
   ]
   return (
-      key_value_axis_order_product_id_concat_list,
-      prefill_key_axis_order_concat_list,
-      prefill_value_axis_order_concat_list,
-      ar_key_axis_order_concat_list,
-      ar_value_axis_order_concat_list,
+      two_axis_order_product_id_concat_list,
+      prefill_cache_axis_order_concat_list,
+      ar_cache_axis_order_concat_list,
   )
 
 
@@ -112,9 +107,8 @@ def generate_model_configs(
     test_name_prefix,
     model_config_name,
     sweep_model_configs,
-    attention,
+    compute_axis_order,
     ici_parallelism,
-    per_device_batch_size,
     vm_number,
     tpu_version,
     tpu_cores,
@@ -122,14 +116,12 @@ def generate_model_configs(
   model_configs = {}
   model_configs["model_config_name"] = model_config_name
 
-  model_configs["attention"] = attention
+  model_configs["compute_axis_order"] = compute_axis_order
   (
       model_configs["ici_fsdp_parallelism"],
       model_configs["ici_autoregressive_parallelism"],
       model_configs["ici_tensor_parallelism"],
   ) = ici_parallelism
-
-  model_configs["per_device_batch_size"] = per_device_batch_size
 
   model_configs["maxtext_branch"] = sweep_model_configs["maxtext_branch"]
 
@@ -144,8 +136,12 @@ def generate_model_configs(
       "max_prefill_predict_length"
   ]
   model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
+  model_configs["attention"] = sweep_model_configs["attention"]
+  model_configs["per_device_batch_size"] = sweep_model_configs["per_device_batch_size"]
   model_configs["quantization"] = sweep_model_configs["quantization"]
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
+  model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
+
   model_configs["base_output_directory"] = sweep_model_configs[
       "base_output_directory"
   ]
@@ -163,23 +159,20 @@ def generate_model_configs(
   model_configs["save_config_to_gcs"] = sweep_model_configs[
       "save_config_to_gcs"
   ]
+  model_configs["reshape_q"] = sweep_model_configs["reshape_q"]
+
   model_configs[
-      "key_value_axis_order_product_id_list"
-  ] = key_value_axis_order_product_id_concat_list[vm_number]
+      "two_axis_order_product_id_list"
+  ] = two_axis_order_product_id_concat_list[vm_number]
   model_configs[
-      "prefill_key_axis_order_list"
-  ] = prefill_key_axis_order_concat_list[vm_number]
-  model_configs[
-      "prefill_value_axis_order_list"
-  ] = prefill_value_axis_order_concat_list[vm_number]
-  model_configs["ar_key_axis_order_list"] = ar_key_axis_order_concat_list[
-      vm_number
-  ]
-  model_configs["ar_value_axis_order_list"] = ar_value_axis_order_concat_list[
+      "prefill_cache_axis_order_list"
+  ] = prefill_cache_axis_order_concat_list[vm_number]
+  model_configs["ar_cache_axis_order_list"] = ar_cache_axis_order_concat_list[
       vm_number
   ]
 
-  test_run_tag = f"{model_config_name}-bs{per_device_batch_size}-{attention[:4]}-vm{vm_number}"
+  compute_axis_order_tag = model_configs["compute_axis_order"].replace(",","")
+  test_run_tag = f"{model_config_name}-bs{per_device_batch_size}-{attention[:3]}-{compute_axis_order_tag}-vm{vm_number}"
   test_name = f"{test_name_prefix}-{test_run_tag}"
   model_configs["run_name"] = test_run_tag
 
@@ -211,45 +204,51 @@ def generate_model_configs(
 
   return maxtext_kv_cache_layout_optimization
 
+dag_id = "maxtext-inference-microbenchmark" if not USER_PREFIX else f"{USER_PREFIX}-maxtext-inference-microbenchmark",
+tags = ["inference_team", "maxtext", "microbenchmark"],
+
+if USER_PREFIX:
+  dag_id=f"{USER_PREFIX}-maxtext-inference-microbenchmark"
+  tags=tags.append(USER_PREFIX)
 
 with models.DAG(
-    dag_id="maxtext_inference_microbenchmark",
-    tags=["inference_team", "maxtext", "microbenchmark"],
+    dag_id=dag_id,
+    tags=tags,
     start_date=datetime.datetime(2024, 1, 19),
     schedule=None,
     catchup=False,
 ) as dag:
-  test_name_prefix = "max-micro"
+  test_name_prefix = "max-micro" if not USER_PREFIX else f"{USER_PREFIX}-max-micro"
 
-  sweep_vm_count = 12
+  sweep_vm_count = 8
   (
-      key_value_axis_order_product_id_concat_list,
-      prefill_key_axis_order_concat_list,
-      prefill_value_axis_order_concat_list,
-      ar_key_axis_order_concat_list,
-      ar_value_axis_order_concat_list,
+      two_axis_order_product_id_concat_list,
+      prefill_cache_axis_order_concat_list,
+      ar_cache_axis_order_concat_list,
   ) = get_concatenated_list_of_params(sweep_vm_count=sweep_vm_count)
 
   test_templates = {
       LLAMA2_7B: {
-          "maxtext_branch": "",
+          "maxtext_branch": "" if not MAXTEXT_BRANCH else f"-b {MAXTEXT_BRANCH}",
           "sleep_time": 60,
-          "tpu_version_cores": [(TpuVersion.V5E, 4)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8)],
           "model_name": LLAMA2_7B,
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
           "scan_layers": "false",
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
-          "attention": ["autoselected"],
+          "attention": "dot_product",
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "inference_microbenchmark_prefill_lengths": "64,128,256,512,1024",
-          "inference_microbenchmark_stages": "prefill,generate",
+          "inference_microbenchmark_stages": "prefill, generate",
           "inference_microbenchmark_loop_iters": 10,
           "base_output_directory": f"{BASE_OUTPUT_DIRECTORY}/{test_name_prefix}/kv_cache_layout_optimization/{test_run_datetime}",
           "profiler": "xplane",
           "save_config_to_gcs": "true",
+          "reshape_q": "true",
+          "compute_axis_order": ["0,2,1,3"],
       },
   }
 
@@ -259,7 +258,8 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": [10],
+          "per_device_batch_size": 10,
+          "kv_quant_axis": "",
           "time_out_in_min": 330,
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
@@ -267,7 +267,8 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": [24],
+          "per_device_batch_size": 24,
+          "kv_quant_axis": "kd",
           "time_out_in_min": 360,
       },
   }
@@ -287,20 +288,16 @@ with models.DAG(
       continue
 
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
-      for attention in sweep_model_configs["attention"]:
+      for compute_axis_order in sweep_model_configs["compute_axis_order"]:
         for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
-          for per_device_batch_size in sweep_model_configs[
-              "per_device_batch_sizes"
-          ]:
-            for vm_number in range(sweep_vm_count):
-              maxtext_kv_cache_layout_optimization = generate_model_configs(
-                  test_name_prefix=test_name_prefix,
-                  model_config_name=model_config_name,
-                  sweep_model_configs=sweep_model_configs,
-                  attention=attention,
-                  ici_parallelism=ici_parallelism,
-                  per_device_batch_size=per_device_batch_size,
-                  vm_number=vm_number,
-                  tpu_version=tpu_version,
-                  tpu_cores=tpu_cores,
-              )
+          for vm_number in range(sweep_vm_count):
+            maxtext_kv_cache_layout_optimization = generate_model_configs(
+                test_name_prefix=test_name_prefix,
+                model_config_name=model_config_name,
+                sweep_model_configs=sweep_model_configs,
+                compute_axis_order=compute_axis_order,
+                ici_parallelism=ici_parallelism,
+                vm_number=vm_number,
+                tpu_version=tpu_version,
+                tpu_cores=tpu_cores,
+            )
