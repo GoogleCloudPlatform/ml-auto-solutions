@@ -63,7 +63,16 @@ CMD_INSTALL_KERAS_NIGHTLY = (
 def set_up_se_nightly() -> tuple[str]:
   """Adjust grpc_tpu_worker for SE tests"""
   return (
-      "sudo sed -i 's/TF_DOCKER_URL=.*/TF_DOCKER_URL=gcr.io\/cloud-tpu-v2-images-dev\/grpc_tpu_worker:nightly\"/' /etc/systemd/system/tpu-runtime.service",
+      "sudo sed -i 's/TF_DOCKER_URL=.*/TF_DOCKER_URL=gcr.io\/cloud-tpu-v2-images-dev\/grpc_tpu_worker:tf-2.17.0-se\"/' /etc/systemd/system/tpu-runtime.service",
+      "sudo systemctl daemon-reload && sudo systemctl restart tpu-runtime",
+      "cat /etc/systemd/system/tpu-runtime.service",
+  )
+
+
+def set_up_pjrt_nightly() -> tuple[str]:
+  """Adjust grpc_tpu_worker for SE tests"""
+  return (
+      "sudo sed -i 's/TF_DOCKER_URL=.*/TF_DOCKER_URL=gcr.io\/cloud-tpu-v2-images-dev\/grpc_tpu_worker:tf-2.17.0-pjrt\"/' /etc/systemd/system/tpu-runtime.service",
       "sudo systemctl daemon-reload && sudo systemctl restart tpu-runtime",
       "cat /etc/systemd/system/tpu-runtime.service",
   )
@@ -98,48 +107,13 @@ def install_tf(
 
   # TODO(ericlefort): Use these commands instead once the build is fixed or
   # remove them if we want to keep using the existing nightly whl indefinitely
-  cmds_install_solutions_team_tf_whl = (
-      f"sudo gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/tensorflow/{gs_version_str}/latest/t*.whl /tmp/ && pip install /tmp/t*.whl --force",
-      f"sudo gsutil -m cp gs://cloud-tpu-v2-images-dev-artifacts/libtpu/{libtpu_version_str}/libtpu.so /lib/",
-  )
-
-  # Not sure if today's whl will be built by the time this test runs, so use yesterday's
-  # Fail explicitly if the whl isn't available
-  cmds_install_tf_team_tf_whl = (
-      "export DATE=$(date -d '1 day ago' '+%Y%m%d')",
-      "export WHL_URL=$(gsutil ls gs://tensorflow-public-build-artifacts/prod/tensorflow/official/release/nightly/linux_x86_tpu/wheel_py310/*/${DATE}*/github/tensorflow/build_output/*.whl | grep whl | tail -n 1)",
-      'if [ -z "${WHL_URL}" ]; then echo "No .whl found for ${DATE}"; exit 1; fi',
-      'export WHL_URL=$(sed "s/gs:\/\//https:\/\/storage.googleapis.com\//g" <<< "$WHL_URL")',
-      "pip install ${WHL_URL} -f https://storage.googleapis.com/libtpu-tf-releases/index.html --force",
-      "sudo cp /home/ml-auto-solutions/.local/lib/python3.10/site-packages/libtpu/libtpu.so /lib/libtpu.so",
+  cmds_install_tf_whl = (
+      f"pip install tensorflow-tpu==2.17.0rc0 -f https://storage.googleapis.com/libtpu-releases/index.html --force",
   )
 
   return (
-      "pip install tensorflow-text-nightly",
-      *cmds_install_tf_team_tf_whl,
+      *cmds_install_tf_whl,
       CMD_PRINT_TF_VERSION,
-  )
-
-
-def set_up_keras(version: Optional[str] = None) -> tuple[str]:
-  """Common set up for tensorflow Keras tests.
-
-  If a version is not set, defaults to nightly.
-
-  Args:
-    version(Optional[str]): The keras version to install
-  """
-  cmd_install_keras = CMD_INSTALL_KERAS_NIGHTLY
-  if version is not None:
-    cmd_install_keras = (
-        f"pip install --upgrade --force-reinstall --no-deps tf-keras=={version}"
-    )
-
-  return (
-      cmd_install_keras,
-      "export PATH=$PATH:/root/google-cloud-sdk/bin && cd /tmp",
-      "gcloud source repos clone tf2-api-tests --project=cloud-ml-auto-solutions || (cd tf2-api-tests && git pull)",
-      "cd /tmp/tf2-api-tests && pip install behave matplotlib",
   )
 
 
@@ -215,7 +189,8 @@ def export_env_variables(
     stmts.append("export PYTHONPATH='.'")
     if is_pod:
       stmts.append("export TPU_LOAD_LIBRARY=0")
-    elif is_pjrt:
+
+    if not is_pod and is_pjrt:
       stmts.append("export NEXT_PLUGGABLE_DEVICE_USE_C_API=true")
       stmts.append("export TF_PLUGGABLE_DEVICE_LIBRARY_PATH=/lib/libtpu.so")
 
