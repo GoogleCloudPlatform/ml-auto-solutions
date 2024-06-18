@@ -55,11 +55,11 @@ with models.DAG(
           project_name=config.project_names[accelerator].value,
           time_out_in_min=60,
           run_model_cmds=(
-              f"python MaxText/train.py MaxText/configs/base.yml run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxtext-jax-ss-{config.get_current_datetime()} "
+              f"python MaxText/train.py MaxText/configs/base.yml run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxtext-jax-ss-{current_datetime} "
               "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
               "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
               "dataset_type=synthetic async_checkpointing=false "
-              f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-ss/automated/{config.get_current_datetime()}",
+              f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-ss/automated/{current_datetime}",
           ),
           test_name=f"maxtext-jax-ss-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXTEXT_TPU_JAX_SS.value,
@@ -79,8 +79,8 @@ with models.DAG(
           time_out_in_min=60,
           run_model_cmds=(
               f"python -m src.maxdiffusion.models.train src/maxdiffusion/configs/base_2_base.yml "
-              f"run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-ss-{config.get_current_datetime()} "
-              f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{config.get_current_datetime()}",
+              f"run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-ss-{current_datetime} "
+              f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{current_datetime}",
           ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_SS.value,
