@@ -37,9 +37,13 @@ def get_authenticated_client(
   creds.refresh(auth_req)
   configuration = kubernetes.client.Configuration()
   configuration.host = f'https://{response.endpoint}'
+
+  ca_cert_content = base64.b64decode(
+      response.master_auth.cluster_ca_certificate
+  )
   with tempfile.NamedTemporaryFile(delete=False) as ca_cert:
-    ca_cert.write(base64.b64decode(response.master_auth.cluster_ca_certificate))
-  configuration.ssl_ca_cert = ca_cert.name
+    ca_cert.write(ca_cert_content)
+    configuration.ssl_ca_cert = ca_cert.name
   configuration.api_key_prefix['authorization'] = 'Bearer'
   configuration.api_key['authorization'] = creds.token
 
@@ -106,7 +110,7 @@ def run_job(
 
     return True
 
-  @task(retries=5)
+  @task(retries=6)
   def stream_logs(name: str):
     def _watch_pod(name, namespace) -> Optional[int]:
       logs_watcher = kubernetes.watch.Watch()
