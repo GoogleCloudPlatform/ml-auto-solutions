@@ -106,14 +106,15 @@ def generate_model_configs(
   model_configs["attention"] = sweep_model_configs["attention"]
   model_configs["reshape_q"] = sweep_model_configs["reshape_q"]
   model_configs["per_device_batch_size"] = sweep_model_configs["per_device_batch_size"]
-  model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
-  model_configs["warmup_mode"] = sweep_model_configs["warmup_mode"]
-  model_configs["max_output_length"] = sweep_model_configs["max_output_length"]
   model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
   model_configs["quantization"] = sweep_model_configs["quantization"]
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
+  model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
+
   model_configs["dataset"] = sweep_model_configs["dataset"]
   model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
+  model_configs["max_output_length"] = sweep_model_configs["max_output_length"]
+  model_configs["warmup_mode"] = sweep_model_configs["warmup_mode"]
   model_configs["run_eval"] = sweep_model_configs["run_eval"]
 
   per_device_batch_size = model_configs["per_device_batch_size"]
@@ -188,7 +189,7 @@ with models.DAG(
           "jetstream_branch": jetstream_branch,
           "sleep_time": 360,
           "time_out_in_min": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "tpu_version_cores": [(TpuVersion.V5E, 4), (TpuVersion.V5E, 8)],
           "model_name": LLAMA2_7B,
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
@@ -205,13 +206,20 @@ with models.DAG(
       },
       f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product": {
           "attention": "dot_product",
-          "axis-order": ["0123-2013-2013", "0213-0213-0213", "0213-0213-0132",],
           "request_rate": [0.0],
+          "axis-order": [
+            "0123-2013-2013",
+            "0213-0213-0213",
+            "0213-0213-0132",
+          ],
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
-          "axis-order": ["0213-0213-0213", "0213-0231-0213",],
           "request_rate": [0.0],
+          "axis-order": [
+            "0213-0213-0213",
+            "0213-0231-0213",
+          ],
       },
       # LLAMA2_13B
       LLAMA2_13B: {
@@ -219,7 +227,7 @@ with models.DAG(
           "jetstream_branch": jetstream_branch,
           "sleep_time": 360,
           "time_out_in_min": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "tpu_version_cores": [(TpuVersion.V5E, 4), (TpuVersion.V5E, 8)],
           "model_name": LLAMA2_13B,
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
@@ -237,16 +245,18 @@ with models.DAG(
       },
       f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product": {
           "attention": "dot_product",
-          "axis-order": ["0213-0213-0213",],
           "request_rate": [0.0],
+          "axis-order": [
+            "0213-0213-0213",
+          ],
       },
       f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
+          "request_rate": [0.0],
           "axis-order": [
             "0123-1203-1203", # baseline
             "0213-0213-0213", # default
           ],
-          "request_rate": [0.0],
       },
       # LLAMA2_70B
       LLAMA2_70B: {
@@ -270,6 +280,7 @@ with models.DAG(
           "warmup_mode": "full",
       },
       f"{LLAMA2_70B}-{W_BF16_KV_BF16}-dot-product": {
+          "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
             "0123-1203-1203", # baseline
@@ -277,6 +288,7 @@ with models.DAG(
           ],
       },
       f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product": {
+          "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
             "0123-1203-1203", # baseline
@@ -305,12 +317,16 @@ with models.DAG(
           "warmup_mode": ["full"],
       },
       f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect": {
+          "attention": "autoselected",
+          "request_rate": [0.0],
           "axis-order": [
             "0123-1203-1203", # baseline
             "0213-0213-0213", # default
           ],
       },
       f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect": {
+          "attention": "autoselected",
+          "request_rate": [0.0],
           "axis-order": [
             "0123-1203-1203", # baseline
             "0213-0213-0213", # default
@@ -320,29 +336,6 @@ with models.DAG(
 
   tests = {
       # LLAMA2_7B
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
-      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
-      | {
-          "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_BF16_KV_BF16,
-          "quantization": "",
-          "quantize_kvcache": "false",
-          "per_device_batch_sizes": 10,
-          "kv_quant_axis": "",
-          "run_eval": False,
-      },
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
-      | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"] | {
-          "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "per_device_batch_sizes": 24,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": False,
-      },
       f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
       | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
       | {
@@ -367,30 +360,6 @@ with models.DAG(
           "run_eval": True,
       },
       # LLAMA2_13B
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B]
-      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
-      | {
-          "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_BF16_KV_BF16,
-          "quantization": "",
-          "quantize_kvcache": "false",
-          "per_device_batch_sizes": 12,
-          "kv_quant_axis": "",
-          "run_eval": False,
-      },
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_13B]
-      | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"]
-      | {
-          "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "per_device_batch_sizes": 24,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": False,
-      },
       f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B]
       | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
       | {
@@ -468,12 +437,8 @@ with models.DAG(
   }
 
   run_configs = [
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
       f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
       f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
       f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
       f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
       f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
