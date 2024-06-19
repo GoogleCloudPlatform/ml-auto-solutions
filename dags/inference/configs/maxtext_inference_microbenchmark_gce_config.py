@@ -110,7 +110,6 @@ def config(
           profiler={model_configs['profiler']} \
           save_config_to_gcs={model_configs['save_config_to_gcs']} \
           reshape_q={model_configs['reshape_q']} \
-          kv_quant_axis={model_configs['kv_quant_axis']} \
           compute_axis_order={model_configs['compute_axis_order']} \
           inference_metadata_file=MaxText/metadata.json""",
       "cat inference_microbenchmark_sweep_results.jsonl",

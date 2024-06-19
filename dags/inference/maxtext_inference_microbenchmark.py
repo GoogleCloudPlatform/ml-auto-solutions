@@ -23,8 +23,8 @@ from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETW
 from dags.inference.configs import maxtext_inference_microbenchmark_gce_config
 from dags.multipod.configs.common import SetupMode
 
-USER_PREFIX = ""
-MAXTEXT_BRANCH = ""
+USER_PREFIX = "mor"
+MAXTEXT_BRANCH = "mor--patemotter-ragged-merge"
 
 LLAMA2_7B = "llama2-7b"
 LLAMA2_13B = "llama2-13b"
@@ -139,7 +139,6 @@ def generate_model_configs(
   ]
   model_configs["quantization"] = sweep_model_configs["quantization"]
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
-  model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
 
   model_configs["base_output_directory"] = sweep_model_configs[
       "base_output_directory"
@@ -228,7 +227,7 @@ with models.DAG(
       "max-micro" if not USER_PREFIX else f"{USER_PREFIX}-max-micro"
   )
 
-  sweep_vm_count = 8
+  sweep_vm_count = 192
   (
       two_axis_order_product_id_concat_list,
       prefill_cache_axis_order_concat_list,
@@ -269,7 +268,6 @@ with models.DAG(
           "quantization": "",
           "quantize_kvcache": "false",
           "per_device_batch_size": 10,
-          "kv_quant_axis": "",
           "time_out_in_min": 330,
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
@@ -284,11 +282,11 @@ with models.DAG(
   }
 
   run_configs = [
-      f"{LLAMA2_7B}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
   ]
 
   skip_configs = [
-      f"{LLAMA2_7B}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_7B}-{W_INT8_KV_INT8}",
   ]
 
   for model_config_name, sweep_model_configs in tests.items():
@@ -301,6 +299,8 @@ with models.DAG(
       for compute_axis_order in sweep_model_configs["compute_axis_order"]:
         for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
           for vm_number in range(sweep_vm_count):
+            if vm_number > 1:
+              break
             maxtext_kv_cache_layout_optimization = generate_model_configs(
                 test_name_prefix=test_name_prefix,
                 model_config_name=model_config_name,
