@@ -1,4 +1,4 @@
-"""A DAG to run MaxText inference benchmarks with nightly version."""
+"""A DAG to run jetstream-pytorch inference benchmarks with nightly version."""
 
 import datetime
 from airflow import models
@@ -16,7 +16,7 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="jetstream_pytorch_inference",
     schedule=None,
-    tags=["inference_team", "jetstream_pytorch", "maxtext", "nightly"],
+    tags=["inference_team", "jetstream_pytorch", "nightly"],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
@@ -24,7 +24,7 @@ with models.DAG(
   test_models = {
       "llama3-8b": {
           "model_name": "llama-3",
-          "size": "8b", 
+          "size": "8b",
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama3-8b",
@@ -34,37 +34,37 @@ with models.DAG(
           "request_rate": 5,
           "num_prompts": 200,
           "max_output_length": 1024,
-          "max_cache_length": 2048, 
+          "max_cache_length": 2048,
           "sharding_config": "default_shardings/llama.yaml",
       },
       "llama2-7b": {
           "model_name": "llama-2",
-          "size": "7b", 
+          "size": "7b",
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-7b/pytorch/llama-2-7b/",
+          "checkpoint": "gs://inference-benchmarks/models/llama2-7b/pytorch/llama-2-7b-merged",
           "dataset": "openorca",
           "tokenizer": "tokenizer.llama2",
-          "batch_sizes": [128],
+          "batch_sizes": [96],
           "request_rate": 5,
           "num_prompts": 200,
           "max_output_length": 1024,
-          "max_cache_length": 2048, 
+          "max_cache_length": 2048,
           "sharding_config": "default_shardings/llama.yaml",
       },
       "llama2-13b": {
           "model_name": "llama-2",
-          "size": "13b", 
+          "size": "13b",
           "sleep_time": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-13b/pytorch/llama-2-13b/",
+          "checkpoint": "gs://inference-benchmarks/models/llama2-13b/pytorch/llama-2-13b-merged",
           "dataset": "openorca",
           "tokenizer": "tokenizer.llama2",
-          "batch_sizes": [64],
-          "request_rate": 5,
+          "batch_sizes": [96],
+          "request_rate": 4,
           "num_prompts": 200,
           "max_output_length": 1024,
-          "max_cache_length": 2048, 
+          "max_cache_length": 1280,
           "sharding_config": "default_shardings/llama.yaml",
       },
   }
@@ -75,7 +75,7 @@ with models.DAG(
         # Set batch_size to a single value, not a list
         model_configs = {}
         model_configs["model_name"] = sweep_model_configs["model_name"]
-        model_configs['size']=sweep_model_configs["size"]
+        model_configs["size"] = sweep_model_configs["size"]
         model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
         model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
         model_configs["dataset"] = sweep_model_configs["dataset"]

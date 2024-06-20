@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to construct configs for maxtext inference DAG."""
+"""Utilities to construct configs for jetstream-pytorch inference DAG."""
 
 import datetime
 import json
@@ -50,7 +50,6 @@ def get_jetstream_pytorch_inference_nightly_config(
 
   set_up_cmds = (
       "pip install --upgrade pip",
-      # Download jetstream and maxtext
       "git clone https://github.com/google/jetstream-pytorch.git",
       # Create a python virtual environment
       "sudo apt-get -y update",
@@ -58,21 +57,17 @@ def get_jetstream_pytorch_inference_nightly_config(
       "sudo apt-get -y install jq",
       "python -m venv .env",
       "source .env/bin/activate",
-      # Setup MaxText & JetStream
+      # Setup jetstream-pytorch
       "cd jetstream-pytorch && source install_everything.sh",
   )
 
-  additional_metadata_dict = {
-      "checkpoint": f"{model_configs['checkpoint']}",
-      "dataset": f"{model_configs['dataset']}",
-      "max_output_length": f"{model_configs['max_output_length']}",
-      "batch_size": f"{model_configs['batch_size']}",
-  }
+  additional_metadata_dict = model_configs.copy()
+  additional_metadata_dict.pop("sleep_time")
 
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
-      # Get commit hash of the maxtext and jetstream repos
+      # Get commit hash of the jetstream-pytorch and jetstream repos
       f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
       'cd jetstream-pytorch && export JETSTREAM_PYTORCH_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
       'cd jetstream-pytorch/deps/JetStream && export JETSTREAM_COMMIT_HASH=$(git log -1 --format="%H") && cd ../../..',
@@ -88,27 +83,21 @@ def get_jetstream_pytorch_inference_nightly_config(
       f"export CKPT_PATH={model_configs['checkpoint']}",
       f"export TOKENIZER_PATH=$(pwd)/ckpt_dir/{model_configs['tokenizer']}",
       f"export SHARDING_CONFIG={model_configs['sharding_config']}",
-      "mkdir ckpt_dir", 
+      "mkdir ckpt_dir",
       "gsutil cp -r ${CKPT_PATH}/* ckpt_dir/",
-      "mkdir output_ckpt_dir",
-      """python -m convert_checkpoints \
-        --model_name=${MODEL_NAME} \
-        --input_checkpoint_dir=ckpt_dir \
-        --output_checkpoint_dir=output_ckpt_dir""", 
-      "ls -l ${TOKENIZER_PATH}", 
-      # Start JetStream MaxText server in the background
+      # Start jetstream-pytorch server in the background
       """python run_server.py \
         --model_name=${MODEL_NAME} \
         --size=${SIZE} \
         --batch_size=${BATCH_SIZE} \
         --max_cache_length=${MAX_CACHE_LEN} \
-        --checkpoint_path=output_ckpt_dir \
+        --checkpoint_path=ckpt_dir \
         --tokenizer_path=${TOKENIZER_PATH} \
-        --sharding_config=${SHARDING_CONFIG} > /dev/null 2>&1 &""",
+        --sharding_config=${SHARDING_CONFIG} &""",
       """pip install -r deps/JetStream/benchmarks/requirements.in \
                      -r deps/JetStream/requirements.in \
                      -r deps/JetStream/requirements.txt """,
-      #redo the install everything script to keep jax library versions in accord
+      # redo the install everything script to keep jax library versions in accord
       "source ./install_everything.sh",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",
@@ -149,7 +138,7 @@ def get_jetstream_pytorch_inference_nightly_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.XIANG_S,
       num_slices=num_slices,
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxtext",
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jetstream_pytorch",
   )
 
   job_metric_config = metric_config.MetricConfig(
