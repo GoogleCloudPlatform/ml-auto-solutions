@@ -91,10 +91,11 @@ def get_config(
       "num_prompts": f"{model_configs['num_prompts']}",
       "max_output_length": f"{model_configs['max_output_length']}",
       "warmup_mode": f"{model_configs['warmup_mode']}",
-      "prefill_key_axis_order": f"{model_configs['prefill_key_axis_order']}",
-      "prefill_value_axis_order": f"{model_configs['prefill_value_axis_order']}",
-      "ar_key_axis_order": f"{model_configs['ar_key_axis_order']}",
-      "ar_value_axis_order": f"{model_configs['ar_value_axis_order']}",
+      "prefill_cache_axis_order": f"{model_configs['prefill_cache_axis_order']}",
+      "ar_cache_axis_order": f"{model_configs['ar_cache_axis_order']}",
+      "compute_axis_order": f"{model_configs['compute_axis_order']}",
+      "reshape_q": f"{model_configs['reshape_q']}",
+      "kv_quant_axis": f"{model_configs['kv_quant_axis']}",
   }
 
   run_model_cmds = (
@@ -124,10 +125,11 @@ def get_config(
       f"export QUANTIZATION={model_configs['quantization']}",
       f"export QUANTIZE_KVCACHE={model_configs['quantize_kvcache']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
-      f"export PREFILL_KEY_AXIS_ORDER={model_configs['prefill_key_axis_order']}",
-      f"export PREFILL_VALUE_AXIS_ORDER={model_configs['prefill_value_axis_order']}",
-      f"export AR_KEY_AXIS_ORDER={model_configs['ar_key_axis_order']}",
-      f"export AR_VALUE_AXIS_ORDER={model_configs['ar_value_axis_order']}",
+      f"export PREFILL_CACHE_AXIS_ORDER={model_configs['prefill_cache_axis_order']}",
+      f"export AR_CACHE_AXIS_ORDER={model_configs['ar_cache_axis_order']}",
+      f"export COMPUTE_AXIS_ORDER={model_configs['compute_axis_order']}",
+      f"export RESHAPE_Q={model_configs['reshape_q']}",
+      f"export KV_QUANT_AXIS={model_configs['kv_quant_axis']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
         MaxText/configs/inference_jetstream.yml \
@@ -145,10 +147,11 @@ def get_config(
         quantization=${QUANTIZATION} \
         quantize_kvcache=${QUANTIZE_KVCACHE} \
         per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
-        prefill_key_axis_order=${PREFILL_KEY_AXIS_ORDER} \
-        prefill_value_axis_order=${PREFILL_VALUE_AXIS_ORDER} \
-        ar_key_axis_order=${AR_KEY_AXIS_ORDER} \
-        ar_value_axis_order=${AR_VALUE_AXIS_ORDER} &""",
+        prefill_cache_axis_order=${PREFILL_CACHE_AXIS_ORDER} \
+        ar_cache_axis_order=${AR_CACHE_AXIS_ORDER} \
+        compute_axis_order=${COMPUTE_AXIS_ORDER} \
+        reshape_q=${RESHAPE_Q} \
+        kv_quant_axis=${KV_QUANT_AXIS} &""",
       "cd ..",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",
