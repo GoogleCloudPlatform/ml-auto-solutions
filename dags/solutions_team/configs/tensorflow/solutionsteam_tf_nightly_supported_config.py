@@ -114,6 +114,8 @@ def get_tf_resnet_config(
   if not is_pjrt and is_pod:
     set_up_cmds += common.set_up_se_nightly()
 
+  # adjust global batch size based on num_cores
+  global_batch_size = 128 * tpu_cores
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
