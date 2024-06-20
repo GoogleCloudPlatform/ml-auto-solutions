@@ -101,6 +101,8 @@ class Gpu(Accelerator):
     count: Number of the GPU devices.
     accelerator_type: Type of the accelerator. E.g., `nvidia-test-v100`.
     runtime_version: Runtime image version.
+    network: The network that a GPU will be a part of.
+    subnetwork: The subnetwork that a GPU will be a part of.
   """
 
   machine_type: str
@@ -108,6 +110,8 @@ class Gpu(Accelerator):
   count: int
   accelerator_type: str
   runtime_version: Optional[str] = None
+  network: str = 'global/networks/default'
+  subnetwork: Optional[str] = None
 
   @property
   def name(self):
@@ -457,11 +461,13 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
   # TODO(wcromar): replace configmaps
   @property
   def test_script(self) -> str:
-    return '\n'.join([
-        'set -xue',
-        self.exports,
-        ' '.join(shlex.quote(s) for s in self.test_command),
-    ])
+    return '\n'.join(
+        [
+            'set -xue',
+            self.exports,
+            ' '.join(shlex.quote(s) for s in self.test_command),
+        ]
+    )
 
 
 @attrs.define

@@ -169,11 +169,13 @@ def create_resource(
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
     disks = [disk_from_image(disk_type, 100, True, image.self_link)]
-    metadata = create_metadata({
-        "install-nvidia-driver": "False",
-        "proxy-mode": "project_editors",
-        "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
-    })
+    metadata = create_metadata(
+        {
+            "install-nvidia-driver": "False",
+            "proxy-mode": "project_editors",
+            "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
+        }
+    )
 
     accelerators = [
         compute_v1.AcceleratorConfig(
@@ -189,10 +191,11 @@ def create_resource(
     )
 
     instance_client = compute_v1.InstancesClient()
-    network_link = "global/networks/default"
     # Use the network interface provided in the network_link argument.
     network_interface = compute_v1.NetworkInterface()
-    network_interface.network = network_link
+    network_interface.network = accelerator.network
+    if accelerator.subnetwork:
+      network_interface.subnetwork = accelerator.subnetwork
 
     if external_access:
       access = compute_v1.AccessConfig()
@@ -274,6 +277,10 @@ def create_resource(
                 "Error during resource creation: [Code:"
                 f" {operation.http_error_status_code}]:"
                 f" {operation.http_error_message}"
+                f" {operation.error}"
+                f" {operation.self_link}",
+                f" {operation.user}",
+                f" {operation}",
             ),
         )
         raise operation.exception() or RuntimeError(

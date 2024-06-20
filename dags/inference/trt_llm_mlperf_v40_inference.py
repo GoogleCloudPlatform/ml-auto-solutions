@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion
+from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS
 from dags.inference.configs import trt_llm_mlperf_v40_config
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -34,7 +34,7 @@ with models.DAG(
         "nightly",
         "benchmark",
     ],
-    start_date=datetime.datetime(2024, 6, 14),
+    start_date=datetime.datetime(2024, 6, 17),
     catchup=False,
 ) as dag:
   test_name_prefix = "tensorrt-llm-mlperf-v40-inference"
@@ -51,5 +51,8 @@ with models.DAG(
       gpu_zone=Zone.US_CENTRAL1_A,
       time_out_in_min=1600,
       test_name=f"{test_name_prefix}-nightly-{model_name}-h100-8",
+      project=Project.CLOUD_TPU_INFERENCE_TEST,
+      network=INFERENCE_NETWORKS,
+      subnetwork=H100_INFERENCE_SUBNETWORKS,
       model_configs=model_configs,
   ).run()
