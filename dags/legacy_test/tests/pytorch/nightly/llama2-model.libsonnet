@@ -126,6 +126,7 @@ local utils = import 'templates/utils.libsonnet';
         mkdir 7B
         cd 7B/
         wget https://storage.googleapis.com/manfei_public_experimental/2B.json
+        sed -i -e 's/\"use_cache\"\: true/\"use_cache\"\: false/g' 2B.json
       |||,
     },
   },
