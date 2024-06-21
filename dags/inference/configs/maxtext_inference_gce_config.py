@@ -93,7 +93,7 @@ def get_maxtext_inference_nightly_config(
       "cd maxtext",
       # Configure flags
       f"export UNSCANNED_CKPT_PATH={model_configs['checkpoint']}",
-      f"export TOKENIZER_PATH=assets/{model_configs['tokenizer']}",
+      f"export TOKENIZER_PATH={model_configs['tokenizer']}",
       "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
       f"export MAX_PREFILL_PREDICT_LENGTH={model_configs['max_prefill_predict_length']}",
       f"export MAX_TARGET_LENGTH={model_configs['max_target_length']}",
@@ -104,6 +104,7 @@ def get_maxtext_inference_nightly_config(
       f"export SCAN_LAYERS={model_configs['scan_layers']}",
       f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
+      f"export MOE_MATMUL={model_configs['moe_matmul']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
         MaxText/configs/base.yml \
@@ -117,7 +118,8 @@ def get_maxtext_inference_nightly_config(
         ici_tensor_parallelism=${ICI_TENSOR_PARALLELISM} \
         scan_layers=${SCAN_LAYERS} \
         weight_dtype=${WEIGHT_DTYPE} \
-        per_device_batch_size=${PER_DEVICE_BATCH_SIZE} > /dev/null 2>&1 &""",
+        per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
+        moe_matmul=${MOE_MATMUL} &""",
       "cd ..",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",

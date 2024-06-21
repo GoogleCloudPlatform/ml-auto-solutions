@@ -94,7 +94,12 @@ with models.DAG(
           model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
           model_configs["dataset"] = sweep_model_configs["dataset"]
           model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
-          model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
+          tokenizer = sweep_model_configs["tokenizer"]
+          # Let gcs path be directly used, else use maxtext/assets dir
+          if not tokenizer.startswith("gs://"):
+            model_configs["tokenizer"] = f"assets/{tokenizer}"
+          else:
+            model_configs["tokenizer"] = tokenizer
           model_configs["per_device_batch_size"] = per_device_batch_size
           ici_fsdp = ici_parallelism[0]
           ici_ar = ici_parallelism[1]
@@ -113,7 +118,7 @@ with models.DAG(
           model_configs["max_output_length"] = sweep_model_configs[
               "max_output_length"
           ]
-
+          model_configs["moe_matmul"] = sweep_model_configs.get("moe_matmul", "false")
           # v5e e2e test with benchmarks
           project_name = Project.TPU_PROD_ENV_AUTOMATED.value
           zone = Zone.US_EAST1_C.value
