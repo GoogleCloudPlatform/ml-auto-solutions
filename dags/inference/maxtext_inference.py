@@ -138,8 +138,6 @@ with models.DAG(
   }
 
   for model, sweep_model_configs in test_models.items():
-    if model != "mixtral-8x7b":
-      continue
     # tasks_per_model = []
     for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
       for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
