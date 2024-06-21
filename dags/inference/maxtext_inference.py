@@ -127,7 +127,7 @@ with models.DAG(
           "tokenizer": "gs://maxtext-external/mixtral-8x7B-v0.1-Instruct/tokenizer.mistral",
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-          "request_rate": [5, 12],
+          "request_rate": 6,
           "num_prompts": 1000,
           "max_prefill_predict_length": 2048,
           "max_target_length": 3072,
