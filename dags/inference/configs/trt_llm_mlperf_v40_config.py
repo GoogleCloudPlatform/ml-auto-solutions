@@ -38,7 +38,6 @@ def get_trt_llm_mlperf_v40_gpu_config(
     subnetwork: str,
     model_configs: Dict = {},
 ) -> task.GpuCreateResourceTask:
-
   docker_container_name = "mlperf-inference"
   set_up_cmds = (
       # Install Nvidia driver
