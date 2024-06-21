@@ -275,10 +275,6 @@ def create_resource(
                 "Error during resource creation: [Code:"
                 f" {operation.http_error_status_code}]:"
                 f" {operation.http_error_message}"
-                f" {operation.error}"
-                f" {operation.self_link}",
-                f" {operation.user}",
-                f" {operation}",
             ),
         )
         raise operation.exception() or RuntimeError(
