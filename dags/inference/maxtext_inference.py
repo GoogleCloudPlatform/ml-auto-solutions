@@ -127,7 +127,7 @@ with models.DAG(
           "tokenizer": "gs://maxtext-external/mixtral-8x7B-v0.1-Instruct/tokenizer.mistral",
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-          "request_rate": 4,
+          "request_rate": 5,
           "num_prompts": 1000,
           "max_prefill_predict_length": 2048,
           "max_target_length": 3072,
@@ -154,12 +154,7 @@ with models.DAG(
           model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
           model_configs["dataset"] = sweep_model_configs["dataset"]
           model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
-          tokenizer = sweep_model_configs["tokenizer"]
-          # Let gcs path be directly used, else use maxtext/assets dir
-          if not tokenizer.startswith("gs://"):
-            model_configs["tokenizer"] = f"assets/{tokenizer}"
-          else:
-            model_configs["tokenizer"] = tokenizer 
+          model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
           model_configs["per_device_batch_size"] = per_device_batch_size
           ici_fsdp = ici_parallelism[0]
           ici_ar = ici_parallelism[1]
@@ -178,7 +173,9 @@ with models.DAG(
           model_configs["max_output_length"] = sweep_model_configs[
               "max_output_length"
           ]
-          model_configs["moe_matmul"] = sweep_model_configs.get("moe_matmul", "false")
+          model_configs["moe_matmul"] = sweep_model_configs.get(
+              "moe_matmul", "false"
+          )
           if tpu_version == TpuVersion.V5E:
             # v5e benchmarks
             project_name = Project.TPU_PROD_ENV_AUTOMATED.value
