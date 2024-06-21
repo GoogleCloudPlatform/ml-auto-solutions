@@ -493,6 +493,7 @@ def get_torchbench_gpu_gke_config(
   )
   run_script_cmds_xla2 = (
       "export PJRT_DEVICE=CUDA",
+      "export JAX_PLATFORMS=CUDA",
       f"export GPU_NUM_DEVICES={count}",
       "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
       "cd /tmp/xla/benchmarks",
