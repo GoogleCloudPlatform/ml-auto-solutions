@@ -87,6 +87,8 @@ class Zone(enum.Enum):
   US_WEST4_B = "us-west4-b"
   # reserved v5e in cloud-tpu-inference-test
   US_WEST1_C = "us-west1-c"
+  # reserved a3+ cluster in supercomputer-testing
+  AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
 
 
 class MachineVersion(enum.Enum):
