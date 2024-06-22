@@ -93,6 +93,8 @@ class Zone(enum.Enum):
   US_WEST4_B = "us-west4-b"
   # reserved v5e in cloud-tpu-inference-test
   US_WEST1_C = "us-west1-c"
+  # reserved a3+ cluster in supercomputer-testing
+  AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
 
 
 class MachineVersion(enum.Enum):
@@ -187,6 +189,9 @@ class DockerImage(enum.Enum):
   )
   MAXTEXT_TPU_JAX_SS = (
       "gcr.io/tpu-prod-env-multipod/jax-ss-maxtext-unpinned:06032024"
+  )
+  MAXDIFFUSION_TPU_JAX_SS = (
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_ss:06112024"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
