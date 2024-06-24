@@ -5,9 +5,6 @@
 dags/solutions_team/configs/flax @sshahrokhi
 dags/solutions_team/solutionsteam_flax* @sshahrokhi
 
-dags/solutions_team/configs/pax @gkroiz
-dags/solutions_team/solutionsteam_pax* @gkroiz
-
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
 

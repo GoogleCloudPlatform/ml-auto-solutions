@@ -81,6 +81,8 @@ def run_workload(
         "set -xue",
         f"git clone https://github.com/google/xpk {tmpdir}/xpk",
     ]
+    if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
+      workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
     if use_vertex_tensorboard:
       workload_create_cmd += " --use-vertex-tensorboard"
       vertex_ai_dependency = (
