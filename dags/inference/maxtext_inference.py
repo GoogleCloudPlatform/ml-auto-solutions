@@ -176,7 +176,7 @@ def generate_model_configs(
 dag_id = (
     "jetstream-benchmark-serving"
     if not USER_PREFIX
-    else f"{USER_PREFIX}-jetstream-benchmark-serving",
+    else f"{USER_PREFIX}-jetstream-benchmark-serving"
 )
 tags = ["inference_team", "jetstream", "maxtext", "benchmark"]
 if USER_PREFIX:
