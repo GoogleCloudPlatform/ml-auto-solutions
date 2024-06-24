@@ -126,14 +126,14 @@ def generate_model_configs(
   per_device_batch_size = model_configs["per_device_batch_size"]
   attention = model_configs["attention"][:3]
   kv_quant_axis = "".join(
-      [axis[0] for axis in model_configs["kv_quant_axis"].split("_")]
+      [axis for axis in model_configs["kv_quant_axis"].split("_")]
   )
   test_run_tag = (
       model_config_name
       if not kv_quant_axis
       else f"{model_config_name}-{kv_quant_axis}"
   )
-  test_run_tag = f"{test_run_tag}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order}-{prefill_cache_axis_order}-{ar_cache_axis_order}"
+  test_run_tag = f"{test_run_tag}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order.replace(',', '')}-{prefill_cache_axis_order.replace(',', '')}-{ar_cache_axis_order.replace(',', '')}"
 
   test_name = f"{test_name_prefix}-{test_run_tag}"
 
@@ -217,7 +217,7 @@ with models.DAG(
       f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0123-2013-2013",
               "0213-0213-0213",
               "0213-0213-0132",
@@ -226,7 +226,7 @@ with models.DAG(
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0213-0213-0213",
               "0213-0231-0213",
           ],
@@ -256,14 +256,14 @@ with models.DAG(
       f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0213-0213-0213",
           ],
       },
       f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0123-1203-1203",  # baseline
               "0213-0213-0213",  # default
           ],
@@ -292,7 +292,7 @@ with models.DAG(
       f"{LLAMA2_70B}-{W_BF16_KV_BF16}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0123-1203-1203",  # baseline
               "0213-0213-0213",  # default
           ],
@@ -300,15 +300,15 @@ with models.DAG(
       f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0123-1203-1203",  # baseline
               "0213-0213-0213",  # default
           ],
       },
       # GEMMA_7B
       GEMMA_7B: {
-          "maxtext_branch": "",
-          "jetstream_branch": "",
+          "maxtext_branch": maxtext_branch,
+          "jetstream_branch": jetstream_branch,
           "sleep_time": 360,
           "time_out_in_min": 120,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
@@ -318,18 +318,19 @@ with models.DAG(
           "scan_layers": "false",
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
-          "attention": ["autoselected"],
+          "reshape_q": True,
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
           "request_rate": [0.0],
           "num_prompts": 1000,
-          "warmup_mode": ["full"],
+          "max_output_length": 1024,
+          "warmup_mode": "full",
       },
       f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect": {
           "attention": "autoselected",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0123-1203-1203",  # baseline
               "0213-0213-0213",  # default
           ],
@@ -337,7 +338,7 @@ with models.DAG(
       f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect": {
           "attention": "autoselected",
           "request_rate": [0.0],
-          "axis-order": [
+          "axis_order": [
               "0123-1203-1203",  # baseline
               "0213-0213-0213",  # default
           ],
@@ -354,7 +355,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": 10,
+          "per_device_batch_size": 10,
           "kv_quant_axis": "",
           "run_eval": True,
       },
@@ -366,7 +367,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": 24,
+          "per_device_batch_size": 24,
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": True,
       },
@@ -379,7 +380,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": 12,
+          "per_device_batch_size": 12,
           "kv_quant_axis": "",
           "run_eval": True,
       },
@@ -391,7 +392,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": 24,
+          "per_device_batch_size": 24,
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": True,
       },
@@ -404,7 +405,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": 12,
+          "per_device_batch_size": 12,
           "kv_quant_axis": "",
           "run_eval": True,
       },
@@ -416,34 +417,34 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": 24,
+          "per_device_batch_size": 24,
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": True,
       },
       # GEMMA_7B
       f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[GEMMA_7B]
-      | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-dot-product"]
+      | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect"]
       | {
           "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_sizes": 12,
+          "per_device_batch_size": 12,
           "kv_quant_axis": "",
-          "run_eval": False,
+          "run_eval": True,
       },
       f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[GEMMA_7B]
-      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-dot-product"]
+      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
       | {
           "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
           "model_mode": BASE_MODE,
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_sizes": 24,
+          "per_device_batch_size": 24,
           "kv_quant_axis": "heads_and_dkv",
-          "run_eval": False,
+          "run_eval": True,
       },
   }
 
