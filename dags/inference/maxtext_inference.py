@@ -74,7 +74,9 @@ def generate_model_configs(
   model_configs = {}
   model_configs["model_config_name"] = model_config_name
 
-  compute_axis_order, prefill_cache_axis_order, ar_cache_axis_order = axis_order.split("-")
+  compute_axis_order, prefill_cache_axis_order, ar_cache_axis_order = (
+      axis_order.split("-")
+  )
   compute_axis_order = ",".join(compute_axis_order)
   prefill_cache_axis_order = ",".join(prefill_cache_axis_order)
   ar_cache_axis_order = ",".join(ar_cache_axis_order)
@@ -105,7 +107,9 @@ def generate_model_configs(
   model_configs["max_target_length"] = sweep_model_configs["max_target_length"]
   model_configs["attention"] = sweep_model_configs["attention"]
   model_configs["reshape_q"] = sweep_model_configs["reshape_q"]
-  model_configs["per_device_batch_size"] = sweep_model_configs["per_device_batch_size"]
+  model_configs["per_device_batch_size"] = sweep_model_configs[
+      "per_device_batch_size"
+  ]
   model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
   model_configs["quantization"] = sweep_model_configs["quantization"]
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
@@ -119,9 +123,15 @@ def generate_model_configs(
 
   per_device_batch_size = model_configs["per_device_batch_size"]
   attention = model_configs["attention"][:3]
-  kv_quant_axis = "".join([axis[0] for axis in model_configs["kv_quant_axis"].split("_")])
-  test_run_tag = model_config_name if not kv_quant_axis else f"{model_config_name}-{kv_quant_axis}"
-  test_run_tag=f"{test_run_tag}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order}-{prefill_cache_axis_order}-{ar_cache_axis_order}"
+  kv_quant_axis = "".join(
+      [axis[0] for axis in model_configs["kv_quant_axis"].split("_")]
+  )
+  test_run_tag = (
+      model_config_name
+      if not kv_quant_axis
+      else f"{model_config_name}-{kv_quant_axis}"
+  )
+  test_run_tag = f"{test_run_tag}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order}-{prefill_cache_axis_order}-{ar_cache_axis_order}"
 
   test_name = f"{test_name_prefix}-{test_run_tag}"
 
@@ -178,9 +188,7 @@ with models.DAG(
     schedule=SCHEDULED_TIME,
     catchup=False,
 ) as dag:
-  test_name_prefix = (
-      "max-js" if not USER_PREFIX else f"{USER_PREFIX}-max-js"
-  )
+  test_name_prefix = "max-js" if not USER_PREFIX else f"{USER_PREFIX}-max-js"
 
   test_templates = {
       # LLAMA2_7B
@@ -208,17 +216,17 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
-            "0123-2013-2013",
-            "0213-0213-0213",
-            "0213-0213-0132",
+              "0123-2013-2013",
+              "0213-0213-0213",
+              "0213-0213-0132",
           ],
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
-            "0213-0213-0213",
-            "0213-0231-0213",
+              "0213-0213-0213",
+              "0213-0231-0213",
           ],
       },
       # LLAMA2_13B
@@ -247,15 +255,15 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
-            "0213-0213-0213",
+              "0213-0213-0213",
           ],
       },
       f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
-            "0123-1203-1203", # baseline
-            "0213-0213-0213", # default
+              "0123-1203-1203",  # baseline
+              "0213-0213-0213",  # default
           ],
       },
       # LLAMA2_70B
@@ -283,16 +291,16 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
-            "0123-1203-1203", # baseline
-            "0213-0213-0213", # default
+              "0123-1203-1203",  # baseline
+              "0213-0213-0213",  # default
           ],
       },
       f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis-order": [
-            "0123-1203-1203", # baseline
-            "0213-0213-0213", # default
+              "0123-1203-1203",  # baseline
+              "0213-0213-0213",  # default
           ],
       },
       # GEMMA_7B
@@ -320,16 +328,16 @@ with models.DAG(
           "attention": "autoselected",
           "request_rate": [0.0],
           "axis-order": [
-            "0123-1203-1203", # baseline
-            "0213-0213-0213", # default
+              "0123-1203-1203",  # baseline
+              "0213-0213-0213",  # default
           ],
       },
       f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect": {
           "attention": "autoselected",
           "request_rate": [0.0],
           "axis-order": [
-            "0123-1203-1203", # baseline
-            "0213-0213-0213", # default
+              "0123-1203-1203",  # baseline
+              "0213-0213-0213",  # default
           ],
       },
   }
@@ -349,7 +357,8 @@ with models.DAG(
           "run_eval": True,
       },
       f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
-      | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"] | {
+      | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"]
+      | {
           "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
           "model_mode": CHAT_MODE,
           "quant_mode": W_INT8_KV_INT8,
