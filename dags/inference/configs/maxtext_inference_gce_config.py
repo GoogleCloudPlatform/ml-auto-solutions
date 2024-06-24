@@ -80,6 +80,14 @@ def get_maxtext_inference_nightly_config(
       "weight_dtype": f"{model_configs['weight_dtype']}",
   }
 
+  # Let gcs path be directly used, else use maxtext/assets dir
+  if not model_configs["tokenizer"].startswith("gs://"):
+    tokenizer_path = f"assets/{model_configs['tokenizer']}"
+    full_tokenizer_path = f"maxtext/assets/{model_configs['tokenizer']}"
+  else:
+    tokenizer_path = model_configs["tokenizer"]
+    full_tokenizer_path = model_configs["tokenizer"]
+
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
@@ -93,7 +101,7 @@ def get_maxtext_inference_nightly_config(
       "cd maxtext",
       # Configure flags
       f"export UNSCANNED_CKPT_PATH={model_configs['checkpoint']}",
-      f"export TOKENIZER_PATH=assets/{model_configs['tokenizer']}",
+      f"export TOKENIZER_PATH={tokenizer_path}",
       "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
       f"export MAX_PREFILL_PREDICT_LENGTH={model_configs['max_prefill_predict_length']}",
       f"export MAX_TARGET_LENGTH={model_configs['max_target_length']}",
@@ -104,6 +112,7 @@ def get_maxtext_inference_nightly_config(
       f"export SCAN_LAYERS={model_configs['scan_layers']}",
       f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
+      f"export MOE_MATMUL={model_configs['moe_matmul']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
         MaxText/configs/inference_jetstream.yml \
@@ -117,13 +126,14 @@ def get_maxtext_inference_nightly_config(
         ici_tensor_parallelism=${ICI_TENSOR_PARALLELISM} \
         scan_layers=${SCAN_LAYERS} \
         weight_dtype=${WEIGHT_DTYPE} \
-        per_device_batch_size=${PER_DEVICE_BATCH_SIZE} > /dev/null 2>&1 &""",
+        per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
+        moe_matmul=${MOE_MATMUL} &""",
       "cd ..",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",
       # Run benchmark, run eval, save benchmark and eval results, and save predictions to /tmp/request-outputs.json
       f"""python JetStream/benchmarks/benchmark_serving.py \
-      --tokenizer maxtext/assets/{model_configs['tokenizer']} \
+      --tokenizer {full_tokenizer_path} \
       --model {model_configs['model_name']} \
       --num-prompts {model_configs['num_prompts']}  \
       --dataset {model_configs['dataset']} \

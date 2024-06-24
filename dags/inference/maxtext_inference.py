@@ -112,6 +112,29 @@ with models.DAG(
           "max_target_length": 2048,
           "max_output_length": 1024,
       },
+      "mixtral-8x7b": {
+          "sleep_time": 240,
+          # Unquantized checkpoint only loads on v5p
+          "tpu_version_cores": [(TpuVersion.V5P, 8)],
+          "per_device_batch_sizes": [80, 128],
+          # checkpoint created using these instructions - go/mixtral-inference-testing
+          "checkpoint": "gs://vipannalla_mixtral_ckpt/moe_matmul/moe_matmul_06_15_24/checkpoints/0/items/",
+          "model_mode": "instruct",
+          "maxtext_logs": "gs://inference-benchmarks/models/mixtral-8x7b-instruct/2024-06-18/",
+          "scan_layers": "false",
+          "dataset": "openorca",
+          "weight_dtype": "bfloat16",
+          "tokenizer": "gs://maxtext-external/mixtral-8x7B-v0.1-Instruct/tokenizer.mistral",
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
+          "request_rate": 5,
+          "num_prompts": 1000,
+          "max_prefill_predict_length": 2048,
+          "max_target_length": 3072,
+          "max_output_length": 1024,
+          # Only used for MoE models
+          "moe_matmul": "true",
+      },
   }
 
   for model, sweep_model_configs in test_models.items():
@@ -148,7 +171,9 @@ with models.DAG(
           model_configs["max_output_length"] = sweep_model_configs[
               "max_output_length"
           ]
-
+          model_configs["moe_matmul"] = sweep_model_configs.get(
+              "moe_matmul", "false"
+          )
           if tpu_version == TpuVersion.V5E:
             # v5e benchmarks
             project_name = Project.TPU_PROD_ENV_AUTOMATED.value
