@@ -39,8 +39,14 @@ with models.DAG(
 ) as dag:
   test_name_prefix = "tensorrt-llm-mlperf-v40-inference"
 
-  model_name = "llama2-70b"
-  model_configs = {"model_name": model_name}
+  model_name = "llama2-70b,gptj,dlrm-v2,bert,resnet50,retinanet,rnnt,3d-unet,stable-diffusion-xl"
+  scenario = "Offline,Server"
+  config_ver = "default,high_accuracy"
+  model_configs = {
+      "model_name": model_name,
+      "scenario": scenario,
+      "config_ver": config_ver,
+  }
   # Running on H100 GPU
   trt_llm_mlperf_v40_config.get_trt_llm_mlperf_v40_gpu_config(
       machine_type=MachineVersion.A3_HIGHGPU_8G,
@@ -50,7 +56,7 @@ with models.DAG(
       count=8,
       gpu_zone=Zone.US_CENTRAL1_A,
       time_out_in_min=1600,
-      test_name=f"{test_name_prefix}-nightly-{model_name}-h100-8",
+      test_name=f"{test_name_prefix}-nightly-multi-models-h100-8",
       project=Project.CLOUD_TPU_INFERENCE_TEST,
       network=INFERENCE_NETWORKS,
       subnetwork=H100_INFERENCE_SUBNETWORKS,

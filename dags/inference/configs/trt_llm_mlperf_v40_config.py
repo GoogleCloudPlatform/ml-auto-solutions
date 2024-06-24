@@ -56,10 +56,9 @@ def get_trt_llm_mlperf_v40_gpu_config(
       "sudo chmod a+w /scratch",
       "cd /scratch",
       # Prepare data
-      "mkdir -p models",
-      "mkdir -p preprocessed_data",
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/models/Llama2 models/",
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/preprocessed_data/open_orca preprocessed_data/",
+      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/mlperf_inf_dlrmv2 .",
+      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/models .",
+      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/preprocessed_data .",
       "mv models/Llama2/fp8-quantized-ammo/llama2-70b-chat-hf-tp2pp1-fp8/ models/Llama2/fp8-quantized-ammo/llama2-70b-tp2pp1-fp8/",
       "git clone https://github.com/mlcommons/inference_results_v4.0",
       "cd /scratch/inference_results_v4.0/closed/Google",
@@ -71,17 +70,17 @@ def get_trt_llm_mlperf_v40_gpu_config(
       # Build and launch a docker container
       "make prebuild DOCKER_DETACH=1",
       "make docker_add_user",
-      f"make launch_docker DOCKER_NAME={docker_container_name} DOCKER_ARGS='-d'",
+      f"make launch_docker DOCKER_NAME={docker_container_name} DOCKER_ARGS='-v /scratch/mlperf_inf_dlrmv2:/home/mlperf_inf_dlrmv2 -d'",
   )
 
   jsonl_output_path = "metric_report.jsonl"
   jsonl_converter_py_lines = (
       "import sys, json, glob, jsonlines",
       "metadata_log_pattern = '/scratch/inference_results_v4.0/closed/Google/build/logs/*/*/*/*/metadata.json'",
-      "metadata_log_path = glob.glob(metadata_log_pattern)[0]",
+      "metadata_log_paths = glob.glob(metadata_log_pattern)",
       "def convert_to_jsonl(json_path, jsonl_path):",
       "  data = dict()",
-      "  data['dimensions'] = {'framework':'TensorRT-LLM'}",
+      "  data['dimensions'] = dict()",
       "  data['metrics'] = dict()",
       "  with open(json_path, 'r') as file:",
       "      metadatadata = json.load(file)",
@@ -91,10 +90,11 @@ def get_trt_llm_mlperf_v40_gpu_config(
       "              data['metrics'][key] = float(metadatadata[key])",
       "          except:",
       "              data['dimensions'][key] = metadatadata[key]",
-      "  with jsonlines.open(jsonl_path, 'w') as writter:",
+      "  with jsonlines.open(jsonl_path, 'a') as writter:",
       "      writter.write(data)",
       "if __name__ == '__main__':",
-      "  convert_to_jsonl(metadata_log_path, sys.argv[1])",
+      "  for metadata_log_path in metadata_log_paths:",
+      "    convert_to_jsonl(metadata_log_path, sys.argv[1])",
   )
   py_script = "\n".join(jsonl_converter_py_lines)
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
@@ -102,7 +102,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
   docker_cmds = (
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
-      f'make run RUN_ARGS="--benchmarks={model_configs["model_name"]} --scenarios=Offline"',
+      f'make run RUN_ARGS="--benchmarks={model_configs["model_name"]} --scenarios={model_configs["scenario"]} --config_ver={model_configs["config_ver"]} --test_mode=PerformanceOnly"',
   )
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
