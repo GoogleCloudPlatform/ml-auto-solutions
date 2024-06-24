@@ -74,9 +74,11 @@ def generate_model_configs(
   model_configs = {}
   model_configs["model_config_name"] = model_config_name
 
-  compute_axis_order, prefill_cache_axis_order, ar_cache_axis_order = (
-      axis_order.split("-")
-  )
+  (
+      compute_axis_order,
+      prefill_cache_axis_order,
+      ar_cache_axis_order,
+  ) = axis_order.split("-")
   compute_axis_order = ",".join(compute_axis_order)
   prefill_cache_axis_order = ",".join(prefill_cache_axis_order)
   ar_cache_axis_order = ",".join(ar_cache_axis_order)
