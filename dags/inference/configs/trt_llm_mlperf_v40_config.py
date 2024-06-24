@@ -91,8 +91,8 @@ def get_trt_llm_mlperf_v40_gpu_config(
       "              data['metrics'][key] = float(metadatadata[key])",
       "          except:",
       "              data['dimensions'][key] = metadatadata[key]",
-      "  with jsonlines.open(jsonl_path, 'w') as writter:",
-      "      writter.write(data)",
+      "  with jsonlines.open(jsonl_path, 'w') as writer:",
+      "      writer.write(data)",
       "if __name__ == '__main__':",
       "  convert_to_jsonl(metadata_log_path, sys.argv[1])",
   )
