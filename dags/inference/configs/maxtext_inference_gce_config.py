@@ -115,7 +115,7 @@ def get_maxtext_inference_nightly_config(
       f"export MOE_MATMUL={model_configs['moe_matmul']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
-        MaxText/configs/base.yml \
+        MaxText/configs/inference_jetstream.yml \
         tokenizer_path=${TOKENIZER_PATH} \
         load_parameters_path=${LOAD_PARAMETERS_PATH} \
         max_prefill_predict_length=${MAX_PREFILL_PREDICT_LENGTH} \
