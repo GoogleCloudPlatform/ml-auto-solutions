@@ -110,7 +110,7 @@ class Gpu(Accelerator):
   count: int
   accelerator_type: str
   runtime_version: Optional[str] = None
-  network: str = 'global/networks/default'
+  network: Optional[str] = None
   subnetwork: Optional[str] = None
 
   @property
