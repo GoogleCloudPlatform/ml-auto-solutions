@@ -191,7 +191,8 @@ def create_resource(
     instance_client = compute_v1.InstancesClient()
     # Use the network interface provided in the network_link argument.
     network_interface = compute_v1.NetworkInterface()
-    network_interface.network = accelerator.network
+    if accelerator.subnetwork:
+      network_interface.network = accelerator.network
     if accelerator.subnetwork:
       network_interface.subnetwork = accelerator.subnetwork
 

@@ -113,7 +113,9 @@ with models.DAG(
           model_configs["max_output_length"] = sweep_model_configs[
               "max_output_length"
           ]
-
+          model_configs["moe_matmul"] = sweep_model_configs.get(
+              "moe_matmul", "false"
+          )
           # v5e e2e test with benchmarks
           project_name = Project.TPU_PROD_ENV_AUTOMATED.value
           zone = Zone.US_EAST1_C.value
