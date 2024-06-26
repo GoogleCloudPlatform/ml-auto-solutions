@@ -14,12 +14,13 @@
 
 """Utilities to construct configs for simple DAG."""
 
+import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner
 from dags.vm_resource import TpuVersion, Zone, Project, RuntimeVersion
 
 
-def get_simple_config() -> task.TpuQueuedResourceTask:
+def get_simple_config():
   set_up_cmds = (
       "set +x",
       "echo {{params.commit_sha}}",
@@ -46,7 +47,7 @@ def get_simple_config() -> task.TpuQueuedResourceTask:
       test_name="simple-jax-code",
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=60,
+      timeout=datetime.timedelta(minutes=60),
       task_owner=test_owner.ORTI_B,
       num_slices=1,
   )
@@ -60,7 +61,7 @@ def get_simple_config() -> task.TpuQueuedResourceTask:
       composer_project=project_name,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

@@ -15,22 +15,32 @@
 """Utilities to construct configs for solutionsteam_jax_bite DAG."""
 
 
-from typing import Tuple
+import datetime
+from typing import Tuple, Optional
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
 from dags.imagegen_devx.configs import common
 from dags.vm_resource import TpuVersion, Project
+from airflow.models.taskmixin import DAGNode
 
 
 GCS_SUBFOLDER_PREFIX = test_owner.Team.IMAGEGEN_DEVX.value
 
 
-def set_up_axlearn() -> Tuple[str]:
+def set_up_axlearn(pinned_version) -> Tuple[str]:
+  reset_version = ""
+  if pinned_version:
+    reset_version = f"cd axlearn && git reset --hard {pinned_version} && cd .."
+
   return (
       common.UPGRADE_PIP,
       "git clone https://github.com/apple/axlearn.git",
+      reset_version,
       "python -m pip install ./axlearn",
       *common.set_up_nightly_jax(),
+      "pip install tensorflow_text==2.16.1",
+      "pip install tensorflow==2.16.1",
+      "pip install ml-dtypes==0.4.0",
   )
 
 
@@ -42,14 +52,15 @@ def get_bite_tpu_config(
     model_config: str,
     time_out_in_min: int,
     is_tpu_reserved: bool = False,
-) -> task.TpuQueuedResourceTask:
+    pinned_version: Optional[str] = None,
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = set_up_axlearn()
+  set_up_cmds = set_up_axlearn(pinned_version)
   run_model_cmds = (
       (
           "cd axlearn && python -m axlearn.common.launch_trainer_main"
@@ -59,6 +70,7 @@ def get_bite_tpu_config(
       ),
   )
 
+  test_name = f"bite_{'pinned_' if pinned_version else ''}{model_config}"
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
@@ -66,15 +78,15 @@ def get_bite_tpu_config(
           runtime_version=runtime_version,
           reserved=is_tpu_reserved,
       ),
-      test_name=f"jax_{model_config}",
+      test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RAN_R,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jax",
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )

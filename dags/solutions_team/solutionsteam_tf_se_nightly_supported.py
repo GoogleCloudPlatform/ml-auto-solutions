@@ -32,23 +32,6 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 4),
     catchup=False,
 ) as dag:
-  # Keras - tests run in sequence order
-  tf_keras_v2_8 = []
-  for feature, name in common.FEATURE_NAME.items():
-    test = tf_config.get_tf_keras_config(
-        tpu_version=TpuVersion.V2,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL1_C.value,
-        time_out_in_min=common.FEATURE_TIMEOUT.get(feature),
-        test_feature=feature,
-        test_name=name,
-        is_pjrt=False,
-        runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY.value,
-    ).run()
-    if tf_keras_v2_8:
-      tf_keras_v2_8[-1] >> test
-    tf_keras_v2_8.append(test)
-
   # ResNet
   tf_resnet_v2_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V2,
@@ -58,7 +41,7 @@ with models.DAG(
       global_batch_size=1024,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY.value,
-  ).run()
+  )
 
   tf_resnet_v2_32 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V2,
@@ -69,7 +52,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
+  )
 
   tf_resnet_v3_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V3,
@@ -78,7 +61,7 @@ with models.DAG(
       time_out_in_min=60,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY.value,
-  ).run()
+  )
 
   tf_resnet_v3_32 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V3,
@@ -88,7 +71,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
+  )
 
   tf_resnet_v4_8 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V4,
@@ -97,7 +80,7 @@ with models.DAG(
       time_out_in_min=60,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY.value,
-  ).run()
+  )
   tf_resnet_v4_32 = tf_config.get_tf_resnet_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=32,
@@ -106,7 +89,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
+  )
 
   # DLRM
   embedding_dim = 16
@@ -121,7 +104,7 @@ with models.DAG(
       extraFlags="--mode=train",
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY.value,
-  ).run()
+  )
 
   embedding_dim = 64
   tf_dlrm_v2_32 = tf_config.get_tf_dlrm_config(
@@ -136,7 +119,7 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
+  )
 
   embedding_dim = 64
   tf_dlrm_v4_8 = tf_config.get_tf_dlrm_config(
@@ -150,7 +133,7 @@ with models.DAG(
       extraFlags="--mode=train",
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY.value,
-  ).run()
+  )
 
   embedding_dim = 128
   tf_dlrm_v4_32 = tf_config.get_tf_dlrm_config(
@@ -165,31 +148,11 @@ with models.DAG(
       is_pod=True,
       is_pjrt=False,
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
-  ).run()
-
-  embedding_dim = 32
-  tf_dlrm_v5p_8 = tf_config.get_tf_dlrm_config(
-      project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
-      tpu_zone=Zone.US_EAST5_A.value,
-      time_out_in_min=60,
-      bottom_mlp=[512, 256, embedding_dim],
-      embedding_dim=embedding_dim,
-      train_steps=10000,
-      extraFlags="--mode=train",
-      is_pod=False,
-      is_pjrt=False,
-      network=V5_NETWORKS,
-      subnetwork=V5P_SUBNETWORKS,
-      runtime_version=RuntimeVersion.TPU_VM_TF_V5P_ALPHA.value,
-  ).run()
+  )
 
   # Test dependencies
-  tf_keras_v2_8
   tf_resnet_v2_8 >> tf_resnet_v2_32
   tf_resnet_v3_8 >> tf_resnet_v3_32
   tf_resnet_v4_8 >> tf_resnet_v4_32
   tf_dlrm_v2_8 >> tf_dlrm_v2_32
   tf_dlrm_v4_8 >> tf_dlrm_v4_32
-  tf_dlrm_v5p_8

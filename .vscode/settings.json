@@ -13,7 +13,8 @@
   "black-formatter.path": ["pyink"],
   "black-formatter.args": [
     "--pyink-indentation=2",
-    "--pyink-use-majority-quotes"
+    "--pyink-use-majority-quotes",
+    "--line-length=80"
   ],
 
   // Linting

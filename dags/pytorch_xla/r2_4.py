@@ -43,7 +43,7 @@ US_CENTRAL1 = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     # HACK: use region in place of zone, since clusters are regional
     zone="us-central1",
-    dataset_name=...,
+    dataset_name=metric_config.DatasetOption.XLML_DATASET,
 )
 
 US_EAST1_C = gcp_config.GCPConfig(
@@ -55,71 +55,69 @@ US_EAST1_C = gcp_config.GCPConfig(
 
 @task_group(prefix_group_id=False)
 def torchvision():
-  mnist_v2_8 = task.TpuQueuedResourceTask(
+  mnist_v2_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-mnist-pjrt-func-v2-8-1vm"
+          "pt-2-4-mnist-pjrt-func-v2-8-1vm"
       ),
       US_CENTRAL1_C,
-  ).run()
-  resnet_v2_8 = task.TpuQueuedResourceTask(
+  )
+  resnet_v2_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-resnet50-pjrt-fake-v2-8-1vm",
+          "pt-2-4-resnet50-pjrt-fake-v2-8-1vm",
           reserved=True,
       ),
       US_CENTRAL1_C,
-  ).run()
+  )
   resnet_v3_8_tests = [
-      task.TpuQueuedResourceTask(
+      task.run_queued_resource_test(
           test_config.JSonnetTpuVmTest.from_pytorch(test, reserved=True),
           US_EAST1_D,
-      ).run()
+      )
       for test in (
-          "pt-2-3-resnet50-pjrt-fake-v3-8-1vm",
-          "pt-2-3-resnet50-pjrt-ddp-fake-v3-8-1vm",
+          "pt-2-4-resnet50-pjrt-fake-v3-8-1vm",
+          "pt-2-4-resnet50-pjrt-ddp-fake-v3-8-1vm",
       )
   ]
   resnet_v4_8_tests = [
-      task.TpuQueuedResourceTask(
+      task.run_queued_resource_test(
           test_config.JSonnetTpuVmTest.from_pytorch(test),
           US_CENTRAL2_B,
-      ).run()
+      )
       for test in (
-          "pt-2-3-resnet50-pjrt-fake-v4-8-1vm",
-          "pt-2-3-resnet50-pjrt-ddp-fake-v4-8-1vm",
-          "pt-2-3-resnet50-spmd-batch-fake-v4-8-1vm",
-          "pt-2-3-resnet50-spmd-spatial-fake-v4-8-1vm",
+          "pt-2-4-resnet50-pjrt-fake-v4-8-1vm",
+          "pt-2-4-resnet50-pjrt-ddp-fake-v4-8-1vm",
+          "pt-2-4-resnet50-spmd-batch-fake-v4-8-1vm",
+          "pt-2-4-resnet50-spmd-spatial-fake-v4-8-1vm",
       )
   ]
-  resnet_v4_32 = task.TpuQueuedResourceTask(
+  resnet_v4_32 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-resnet50-pjrt-fake-v4-32-1vm"
+          "pt-2-4-resnet50-pjrt-fake-v4-32-1vm"
       ),
       US_CENTRAL2_B,
-  ).run()
-  resnet_v5lp_4 = task.TpuQueuedResourceTask(
+  )
+  resnet_v5lp_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-resnet50-pjrt-fake-v5litepod-4-1vm",
+          "pt-2-4-resnet50-pjrt-fake-v5litepod-4-1vm",
           network=V5_NETWORKS,
           subnetwork=V5E_SUBNETWORKS,
           reserved=True,
       ),
       US_EAST1_C,
-  ).run()
+  )
 
   mnist_v2_8 >> (resnet_v2_8, *resnet_v4_8_tests, resnet_v4_32, resnet_v5lp_4)
   resnet_v2_8 >> resnet_v3_8_tests
 
   resnet_v100_2x2 = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
-          "pt-2-3-resnet50-mp-fake-v100-x2x2"
-      ),
+      test_config.GpuGkeTest.from_pytorch("pt-2-4-resnet50-mp-fake-v100-x2x2"),
       US_CENTRAL1,
       "gpu-uc1",
   ).run()
 
   resnet_v100_2x2_spmd = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
-          "pt-2-3-resnet50-spmd-batch-fake-v100-x2x2"
+      test_config.GpuGkeTest.from_pytorch(
+          "pt-2-4-resnet50-spmd-batch-fake-v100-x2x2"
       ),
       US_CENTRAL1,
       "gpu-uc1",
@@ -128,16 +126,16 @@ def torchvision():
   resnet_v100_2x2 >> resnet_v100_2x2_spmd
 
   resnet_v100_2x1_plugin = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
-          "pt-2-3-resnet50-mp-plugin-fake-v100-x2x1"
+      test_config.GpuGkeTest.from_pytorch(
+          "pt-2-4-resnet50-mp-plugin-fake-v100-x2x1"
       ),
       US_CENTRAL1,
       "gpu-uc1",
   ).run()
 
   resnet_v100_2x2_plugin = task.GpuGkeTask(
-      test_config.JSonnetGpuTest.from_pytorch(
-          "pt-2-3-resnet50-mp-plugin-fake-v100-x2x2"
+      test_config.GpuGkeTest.from_pytorch(
+          "pt-2-4-resnet50-mp-plugin-fake-v100-x2x2"
       ),
       US_CENTRAL1,
       "gpu-uc1",
@@ -148,56 +146,56 @@ def torchvision():
 
 @task_group(prefix_group_id=False)
 def huggingface():
-  accelerate_v2_8 = task.TpuQueuedResourceTask(
+  accelerate_v2_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-accelerate-smoke-v2-8-1vm", reserved=True
+          "pt-2-4-accelerate-smoke-v2-8-1vm", reserved=True
       ),
       US_CENTRAL1_C,
-  ).run()
-  accelerate_v4_8 = task.TpuQueuedResourceTask(
+  )
+  accelerate_v4_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-accelerate-smoke-v4-8-1vm"
+          "pt-2-4-accelerate-smoke-v4-8-1vm"
       ),
       US_CENTRAL2_B,
-  ).run()
-  diffusers_v4_8 = task.TpuQueuedResourceTask(
+  )
+  diffusers_v4_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-hf-diffusers-func-v4-8-1vm"
+          "pt-2-4-hf-diffusers-func-v4-8-1vm"
       ),
       US_CENTRAL2_B,
-  ).run()
+  )
 
   accelerate_v4_8 >> accelerate_v2_8
   accelerate_v4_8 >> diffusers_v4_8
 
-  task.TpuQueuedResourceTask(
+  task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-hf-bert-pjrt-func-v4-8-1vm"
+          "pt-2-4-hf-bert-pjrt-func-v4-8-1vm"
       ),
       US_CENTRAL2_B,
-  ).run()
+  )
 
 
 @task_group(prefix_group_id=False)
 def llama():
-  llama_inference_v4_8 = task.TpuQueuedResourceTask(
+  llama_inference_v4_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-llama2-infer-func-v4-8-1vm"
+          "pt-2-4-llama2-infer-func-v4-8-1vm"
       ),
       US_CENTRAL2_B,
-  ).run()
-  llama_train_v4_8 = task.TpuQueuedResourceTask(
+  )
+  llama_train_v4_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-llama2-train-spmd-func-v4-8-1vm"
+          "pt-2-4-llama2-train-spmd-func-v4-8-1vm"
       ),
       US_CENTRAL2_B,
-  ).run()
+  )
 
 
 with models.DAG(
-    dag_id="pytorchxla-r2-3",
+    dag_id="pytorchxla-r2-4",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "r2-3", "supported", "xlml"],
+    tags=["pytorchxla", "r2-4", "supported", "xlml"],
     start_date=datetime.datetime(2023, 7, 12),
     catchup=False,
 ):
@@ -205,12 +203,12 @@ with models.DAG(
   huggingface()
   llama()
 
-  resnet_v5lp_4 = task.TpuQueuedResourceTask(
+  resnet_v5lp_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-3-ci-func-v5litepod-4-1vm",
+          "pt-2-4-ci-func-v5litepod-4-1vm",
           network=V5_NETWORKS,
           subnetwork=V5E_SUBNETWORKS,
           reserved=True,
       ),
       US_EAST1_C,
-  ).run()
+  )

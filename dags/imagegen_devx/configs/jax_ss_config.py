@@ -12,55 +12,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to run legacy tests from the old infrastructure."""
+"""Utilities to construct configs for solutionsteam_jax_bite DAG."""
 
-import datetime
-import os
 from xlml.apis import gcp_config, metric_config, task, test_config
-from base64 import b64encode
-from collections.abc import Iterable
-from dags import test_owner
-from dags.multipod.configs import common
-from dags.vm_resource import TpuVersion, Project, RuntimeVersion, ClusterName
+from dags import test_owner, gcs_bucket
+from dags.vm_resource import TpuVersion, Project, ClusterName, GpuVersion, CpuVersion, Zone
+from typing import Iterable
+import datetime
+
+tpu_versions = {
+    # accelerator: tpu versions
+    "v4-8": TpuVersion.V4,
+    "v4-16": TpuVersion.V4,
+    "v5-8": TpuVersion.V5P,
+}
+cluster_names = {
+    # accelerator: cluster names
+    "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
+    "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
+    "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
+}
+tpu_zones = {
+    # accelerator: cluster name
+    "v4-8": Zone.US_CENTRAL2_B,
+    "v4-16": Zone.US_CENTRAL2_B,
+    "v5-8": Zone.US_EAST5_A,
+}
+project_names = {
+    # accelerator: project names
+    "v4-8": Project.TPU_PROD_ENV_MULTIPOD,
+    "v4-16": Project.TPU_PROD_ENV_MULTIPOD,
+    "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
+}
 
 
-def get_legacy_unit_test_config(
-    script_to_copy: str,
-    test_cmd: Iterable,
+def get_current_datetime() -> str:
+  current_time = datetime.datetime.now()
+  current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
+  return current_datetime
+
+
+def get_gke_jax_ss_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
     test_name: str,
-    test_owner: str,
     docker_image: str,
-    num_slices: int = 1,
+    run_model_cmds: Iterable[str],
+    test_owner: str,
     cluster_name: str = ClusterName.V4_8_MULTISLICE_CLUSTER.value,
     project_name: str = Project.TPU_PROD_ENV_MULTIPOD.value,
+    num_slices: int = 1,
+    dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
+    dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ) -> task.XpkTask:
-  """
-  Run a legacy unit test script.
-  `script_to_copy` is a script in the `dags/multipod/legacy_tests` folder to be
-  copied into the workload container, and `test_cmd` will run with the script
-  in the working directory.
-  """
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
-      dataset_name=metric_config.DatasetOption.XLML_DATASET,
-  )
-
-  unit_test_folder = os.environ.get(
-      'XLMLTEST_MULTIPOD_LEGACY_TEST_DIR',
-      '/home/airflow/gcs/dags/dags/multipod/legacy_tests',
-  )
-  with open(os.path.join(unit_test_folder, script_to_copy), 'rb') as f:
-    encoded_script = b64encode(f.read()).decode()
-
-  run_model_cmds = (
-      f'echo {encoded_script} | base64 -d > {script_to_copy}',
-      'export TPU_STDERR_LOG_LEVEL=0 TPU_MIN_LOG_LEVEL=0 JAX_USE_PJRT_C_API_ON_TPU=1 TF_CPP_MIN_LOG_LEVEL=0',
-      *test_cmd,
+      dataset_name=dataset_name,
+      dataset_project=dataset_project,
+      composer_project=composer_project,
   )
 
   job_test_config = test_config.TpuGkeTest(

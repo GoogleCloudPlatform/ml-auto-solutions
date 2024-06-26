@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for solutionsteam_tf_nightly_supported DAG."""
 
+import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
 from dags.solutions_team.configs.tensorflow import common
@@ -35,7 +36,7 @@ def get_tf_keras_config(
     is_pjrt: bool = True,
     network: str = "default",
     subnetwork: str = "default",
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -74,11 +75,11 @@ def get_tf_keras_config(
       test_name=keras_test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.ERIC_L,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
@@ -99,10 +100,10 @@ def get_tf_resnet_config(
     is_pjrt: bool = True,
     imagenet_dir: str = gcs_bucket.IMAGENET_DIR,
     tfds_data_dir: str = gcs_bucket.TFDS_DATA_DIR,
-    global_batch_size: int = 4096,
+    global_batch_size: int = 2048,
     train_steps: int = 320,
     validation_interval: int = 320,
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -113,6 +114,8 @@ def get_tf_resnet_config(
   if not is_pjrt and is_pod:
     set_up_cmds += common.set_up_se_nightly()
 
+  # adjust global batch size based on num_cores
+  global_batch_size = 128 * tpu_cores
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
@@ -162,11 +165,11 @@ def get_tf_resnet_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.CHANDRA_D,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
@@ -190,7 +193,7 @@ def get_tf_dlrm_config(
     criteo_dir: str = gcs_bucket.CRITEO_DIR,
     network: str = "default",
     subnetwork: str = "default",
-) -> task.TpuQueuedResourceTask:
+):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
@@ -311,11 +314,11 @@ def get_tf_dlrm_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.CHANDRA_D,
   )
 
-  return task.TpuQueuedResourceTask(
+  return task.run_queued_resource_test(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,

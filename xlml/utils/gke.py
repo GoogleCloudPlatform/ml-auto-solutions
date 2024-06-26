@@ -3,6 +3,7 @@ import concurrent.futures
 import datetime
 import logging
 import tempfile
+import time
 from typing import Any, Dict, Optional
 
 from airflow.decorators import task, task_group
@@ -14,6 +15,13 @@ import kubernetes
 from xlml.apis import gcp_config
 
 """Utilities for GKE."""
+
+
+class PodsNotReadyError(Exception):
+  """Exception raised when pods are not ready within the expected timeout."""
+
+  def __init__(self, message):
+    super().__init__(message)
 
 
 def get_authenticated_client(
@@ -29,9 +37,13 @@ def get_authenticated_client(
   creds.refresh(auth_req)
   configuration = kubernetes.client.Configuration()
   configuration.host = f'https://{response.endpoint}'
+
+  ca_cert_content = base64.b64decode(
+      response.master_auth.cluster_ca_certificate
+  )
   with tempfile.NamedTemporaryFile(delete=False) as ca_cert:
-    ca_cert.write(base64.b64decode(response.master_auth.cluster_ca_certificate))
-  configuration.ssl_ca_cert = ca_cert.name
+    ca_cert.write(ca_cert_content)
+    configuration.ssl_ca_cert = ca_cert.name
   configuration.api_key_prefix['authorization'] = 'Bearer'
   configuration.api_key['authorization'] = creds.token
 
@@ -44,6 +56,7 @@ def run_job(
     gcp: gcp_config.GCPConfig,
     cluster_name: str,
     job_create_timeout: datetime.timedelta,
+    gcs_location: str = '',
 ):
   """Run a batch job directly on a GKE cluster.
 
@@ -55,10 +68,14 @@ def run_job(
   """
 
   @task
-  def deploy_job():
+  def deploy_job(gcs_location):
+    body['spec']['template']['spec']['containers'][0]['env'].append(
+        {'name': 'GCS_OUTPUT', 'value': gcs_location}
+    )
     client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
 
     jobs_client = kubernetes.client.BatchV1Api(client)
+
     resp = jobs_client.create_namespaced_job(namespace='default', body=body)
 
     logging.info(f'response: {resp}')
@@ -70,7 +87,7 @@ def run_job(
       timeout=job_create_timeout.total_seconds(),
       mode='reschedule',
   )
-  def stream_logs(name: str):
+  def wait_all_pods_ready(name: str):
     client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
 
     batch_api = kubernetes.client.BatchV1Api(client)
@@ -91,6 +108,10 @@ def run_job(
       logging.info('Waiting for all pods to be created...')
       return False
 
+    return True
+
+  @task(retries=6)
+  def stream_logs(name: str):
     def _watch_pod(name, namespace) -> Optional[int]:
       logs_watcher = kubernetes.watch.Watch()
 
@@ -132,6 +153,24 @@ def run_job(
       logging.warning(f'Unknown status for pod {name}')
       return None
 
+    # We need to re-authenticate if the stream_logs fail. This can happen when
+    # the job runs for too long and the credential expire.
+    client = get_authenticated_client(gcp.project_name, gcp.zone, cluster_name)
+
+    batch_api = kubernetes.client.BatchV1Api(client)
+    core_api = kubernetes.client.CoreV1Api(client)
+    pod_label_selector = f'batch.kubernetes.io/job-name={name}'
+    pods = core_api.list_namespaced_pod(
+        namespace='default', label_selector=pod_label_selector
+    )
+    # TODO(piz): Use time.sleep may not be a good solution here. However, I expect
+    # resources are all ready in wait_all_pods_ready stage. This just in case
+    # authentication takes time. Check with Will for better solutions.
+    time.sleep(30)
+    if len(pods.items) != body['spec']['parallelism']:
+      logging.info('Waiting for all pods to be re-connected...')
+      raise PodsNotReadyError('pods are not ready after refreshing credential.')
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
       futures = []
       for pod in pods.items:
@@ -142,11 +181,19 @@ def run_job(
 
       # Wait for pods to complete, and exit with the first non-zero exit code.
       for f in concurrent.futures.as_completed(futures):
-        exit_code = f.result()
+        try:
+          # TODO(piz/wcromar): it looks like there is a delay between as_completed
+          # and update of f.result(). exit_code can be None even task is complete.
+          exit_code = f.result()
+        except kubernetes.client.ApiException as e:
+          logging.error('Kubernetes error. Retrying...', exc_info=e)
+          exit_code = None
+
+        # Retry if status is unknown
+        if exit_code is None:
+          raise RuntimeError('unknown exit code')
         if exit_code:
           raise RuntimeError('Non-zero exit code')
 
-    return True
-
-  name = deploy_job()
-  stream_logs(name)
+  name = deploy_job(gcs_location)
+  wait_all_pods_ready(name) >> stream_logs(name)

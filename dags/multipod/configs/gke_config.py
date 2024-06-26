@@ -56,7 +56,7 @@ def get_gke_config(
       test_name=test_name,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       num_slices=num_slices,
       cluster_name=cluster_name,
@@ -123,7 +123,7 @@ def get_gke_maxtext_nightly_config(
           f" base_output_directory={base_output_directory}"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
           " per_device_batch_size=12 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
-          " steps=50 enable_checkpointing=false enable_profiler=true upload_all_profiler_results=true skip_first_n_steps_for_profiler=10 profiler_steps=10 gcs_metrics=true"
+          " steps=50 enable_checkpointing=false profiler=xplane upload_all_profiler_results=true skip_first_n_steps_for_profiler=10 profiler_steps=10 gcs_metrics=true"
       ),
   )
 
@@ -135,7 +135,7 @@ def get_gke_maxtext_nightly_config(
       test_name=test_name,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       num_slices=num_slices,
       cluster_name=cluster_name,
@@ -153,7 +153,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     gpu_zone: str,
     time_out_in_min: int,
     test_name: str,
-    test_script: str,
+    run_model_cmds: str,
     cluster_name: str,
     test_owner: str,
     docker_image: str,
@@ -165,7 +165,6 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       zone=gpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
-  run_model_cmds = (f"bash {test_script}",)
 
   job_test_config = test_config.GpuXpkTest(
       test_config.Gpu(
@@ -178,7 +177,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       test_name=test_name,
       set_up_cmds=None,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       cluster_name=cluster_name,
       docker_image=docker_image,
@@ -231,7 +230,7 @@ def get_gke_gpt3_6b_nightly_config(
           f" base_output_directory={base_output_directory}"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
           " per_device_batch_size=12 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
-          " steps=50 enable_checkpointing=false enable_profiler=true upload_all_profiler_results=true skip_first_n_steps_for_profiler=10 profiler_steps=10 gcs_metrics=true"
+          " steps=50 enable_checkpointing=false profiler=xplane upload_all_profiler_results=true skip_first_n_steps_for_profiler=10 profiler_steps=10 gcs_metrics=true"
       ),
   )
 
@@ -243,7 +242,7 @@ def get_gke_gpt3_6b_nightly_config(
       test_name=test_name,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       num_slices=num_slices,
       cluster_name=cluster_name,
@@ -290,7 +289,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
       test_name=test_name,
       run_model_cmds=run_model_cmds,
       set_up_cmds=None,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       num_slices=num_slices,
       cluster_name=cluster_name,

@@ -55,27 +55,41 @@ def run_workload(
     accelerator_type: str,
     run_cmds: str,
     num_slices: int = 1,
+    use_vertex_tensorboard: bool = False,
 ):
   """Run workload through xpk tool."""
 
   with tempfile.TemporaryDirectory() as tmpdir:
-    if accelerator_type == GpuVersion.XPK_H100.value:
+    if accelerator_type in [
+        GpuVersion.XPK_H100.value,
+        GpuVersion.XPK_H100_MEGA.value,
+    ]:
       multi_keyword = "num-nodes"
     else:
       multi_keyword = "num-slices"
-    cmds = (
+
+    workload_create_cmd = (
+        f"python {tmpdir}/xpk/xpk.py workload create"
+        f" --cluster={cluster_name} --workload={workload_id}"
+        f" --command='{run_cmds}' --device-type={accelerator_type}"
+        f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
+        f" --project={cluster_project} --zone={zone}"
+        f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
+        " --restart-on-user-code-failure"
+    )
+    cmds = [
         "set -xue",
         f"git clone https://github.com/google/xpk {tmpdir}/xpk",
-        (
-            f"python {tmpdir}/xpk/xpk.py workload create"
-            f" --cluster={cluster_name} --workload={workload_id}"
-            f" --command='{run_cmds}' --device-type={accelerator_type}"
-            f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
-            f" --project={cluster_project} --zone={zone}"
-            f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
-            " --restart-on-user-code-failure"
-        ),
-    )
+    ]
+    if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
+      workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
+    if use_vertex_tensorboard:
+      workload_create_cmd += " --use-vertex-tensorboard"
+      vertex_ai_dependency = (
+          "pip install -U google-cloud-aiplatform cloud-accelerator-diagnostics"
+      )
+      cmds.append(vertex_ai_dependency)
+    cmds.append(workload_create_cmd)
     hook = SubprocessHook()
     result = hook.run_command(
         ["bash", "-c", ";".join(cmds)],

@@ -25,27 +25,24 @@ SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="pytorchxla-torchbench",
+    dag_id="pytorchxla2-torchbench",
     schedule=SCHEDULED_TIME,
     tags=["pytorchxla", "nightly", "torchbench"],
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
-  model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
+  model = "all" if composer_env.is_prod_env() else "Background_Matting"
   torchbench_extra_flags = [f"--filter={model}"]
-
   # Running on V4-8:
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V4,
       tpu_cores=8,
-      project=resource.Project.CLOUD_ML_BENCHMARKING,
+      project=resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
       tpu_zone=resource.Zone.US_CENTRAL2_B,
       runtime_version=resource.RuntimeVersion.TPU_UBUNTU2204_BASE,
-      network=resource.BM_NETWORKS,
-      subnetwork=resource.V4_BM_SUBNETWORKS,
       model_name=model,
+      use_xla2=True,
       time_out_in_min=1600,
-      reserved=False,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
@@ -53,14 +50,14 @@ with models.DAG(
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V5P,
       tpu_cores=8,
-      project=resource.Project.CLOUD_ML_BENCHMARKING,
+      project=resource.Project.TPU_PROD_ENV_AUTOMATED,
       tpu_zone=resource.Zone.US_EAST5_A,
       runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5,
-      network=resource.BM_NETWORKS,
-      subnetwork=resource.V5P_BM_SUBNETWORKS,
+      network=resource.V5_NETWORKS,
+      subnetwork=resource.V5P_SUBNETWORKS,
       time_out_in_min=700,
+      use_xla2=True,
       model_name=model,
-      reserved=False,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
@@ -68,14 +65,14 @@ with models.DAG(
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V5E,
       tpu_cores=4,
-      project=resource.Project.CLOUD_ML_BENCHMARKING,
-      tpu_zone=resource.Zone.US_WEST1_C,
+      project=resource.Project.TPU_PROD_ENV_AUTOMATED,
+      tpu_zone=resource.Zone.US_EAST1_C,
       runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE,
-      network=resource.BM_NETWORKS,
-      subnetwork=resource.V5E_BM_SUBNETWORKS,
+      network=resource.V5_NETWORKS,
+      subnetwork=resource.V5E_SUBNETWORKS,
       time_out_in_min=1600,
+      use_xla2=True,
       model_name=model,
-      reserved=False,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
@@ -85,6 +82,7 @@ with models.DAG(
       image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=resource.GpuVersion.V100,
       count=2,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
@@ -99,6 +97,7 @@ with models.DAG(
       image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=resource.GpuVersion.A100,
       count=1,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
@@ -113,6 +112,7 @@ with models.DAG(
       image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=resource.GpuVersion.H100,
       count=8,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
@@ -127,6 +127,7 @@ with models.DAG(
       image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=resource.GpuVersion.L4,
       count=1,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
