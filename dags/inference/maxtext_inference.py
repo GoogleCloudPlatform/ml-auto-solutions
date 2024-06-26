@@ -182,9 +182,9 @@ CKPT = {
 
 
 dag_id = (
-    "jetstream-benchmark-serving"
+    "jetstream_benchmark_serving"
     if not USER_PREFIX
-    else f"{USER_PREFIX}-jetstream-benchmark-serving"
+    else f"{USER_PREFIX}_jetstream_benchmark_serving"
 )
 tags = ["inference_team", "jetstream", "maxtext", "benchmark"]
 if USER_PREFIX:
