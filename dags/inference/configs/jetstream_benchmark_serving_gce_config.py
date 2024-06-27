@@ -169,7 +169,6 @@ def get_config(
       f"""python JetStream/benchmarks/benchmark_serving.py \
       --tokenizer {full_tokenizer_path} \
       --model {model_configs['model_name']} \
-      --tokenizer maxtext/assets/{model_configs['tokenizer']} \
       --dataset {model_configs['dataset']} \
       --request-rate {model_configs['request_rate']} \
       --num-prompts {model_configs['num_prompts']}  \
