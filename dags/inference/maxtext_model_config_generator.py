@@ -18,6 +18,7 @@ from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETW
 from dags.inference.configs import jetstream_benchmark_serving_gce_config
 from dags.multipod.configs.common import SetupMode
 
+
 def generate_model_configs(
     test_name_prefix,
     model_config_name,
