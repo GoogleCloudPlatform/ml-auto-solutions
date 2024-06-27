@@ -92,7 +92,7 @@ with models.DAG(
           "jetstream_branch": jetstream_branch,
           "sleep_time": 360,
           "time_out_in_min": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5E, 4)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8)],#, (TpuVersion.V5E, 4)],
           "model_name": LLAMA2_7B,
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
@@ -130,7 +130,7 @@ with models.DAG(
           "jetstream_branch": jetstream_branch,
           "sleep_time": 360,
           "time_out_in_min": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5E, 4)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8)],#, (TpuVersion.V5E, 4)],
           "model_name": LLAMA2_13B,
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",
@@ -150,7 +150,8 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0213-0213-0213",
+              "0123-1203-1203",  # baseline
+              "0213-0213-0213",  # default
           ],
       },
       f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product": {
@@ -279,6 +280,30 @@ with models.DAG(
 
   tests = {
       # LLAMA2_7B
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+      | {
+          "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_BF16_KV_BF16,
+          "quantization": "",
+          "quantize_kvcache": "false",
+          "per_device_batch_size": 12,
+          "kv_quant_axis": "",
+          "run_eval": True,
+      },
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"]
+      | {
+          "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_INT8_KV_INT8,
+          "quantization": "int8",
+          "quantize_kvcache": "true",
+          "per_device_batch_size": 24,
+          "kv_quant_axis": "heads_and_dkv",
+          "run_eval": True,
+      },
       f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
       | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
       | {
@@ -304,6 +329,30 @@ with models.DAG(
           "run_eval": True,
       },
       # LLAMA2_13B
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
+      | {
+          "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_BF16_KV_BF16,
+          "quantization": "",
+          "quantize_kvcache": "false",
+          "per_device_batch_size": 6,
+          "kv_quant_axis": "",
+          "run_eval": True,
+      },
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_13B]
+      | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"]
+      | {
+          "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_INT8_KV_INT8,
+          "quantization": "int8",
+          "quantize_kvcache": "true",
+          "per_device_batch_size": 12,
+          "kv_quant_axis": "heads_and_dkv",
+          "run_eval": True,
+      },
       f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B]
       | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
       | {
@@ -410,8 +459,12 @@ with models.DAG(
   }
 
   run_configs = [
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
       f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
       # f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
       f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
       f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
       # f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
@@ -429,7 +482,7 @@ with models.DAG(
       continue
     if skip_configs and model_config_name in skip_configs:
       continue
-    # dags = []
+    dags = []
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for axis_order in sweep_model_configs["axis_order"]:
         for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
@@ -446,7 +499,7 @@ with models.DAG(
                     tpu_cores=tpu_cores,
                 )
             )
-            # dags.append(jetstream_benchmark_serving_kv_cache_layout)
+            dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
-    # for i in range(1, len(dags)):
-      # dags[i - 1] >> dags[i]
+    for i in range(1, len(dags)):
+      dags[i - 1] >> dags[i]
