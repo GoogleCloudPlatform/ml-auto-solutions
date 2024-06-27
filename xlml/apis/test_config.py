@@ -101,6 +101,8 @@ class Gpu(Accelerator):
     count: Number of the GPU devices.
     accelerator_type: Type of the accelerator. E.g., `nvidia-test-v100`.
     runtime_version: Runtime image version.
+    network: The network that a GPU will be a part of.
+    subnetwork: The subnetwork that a GPU will be a part of.
   """
 
   machine_type: str
@@ -108,6 +110,8 @@ class Gpu(Accelerator):
   count: int
   accelerator_type: str
   runtime_version: Optional[str] = None
+  network: Optional[str] = None
+  subnetwork: Optional[str] = None
 
   @property
   def name(self):

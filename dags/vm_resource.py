@@ -29,6 +29,12 @@ V4_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-central2/subnetworks/mas-test"
 V5E_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-west1/subnetworks/mas-test"
 V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
 
+INFERENCE_NETWORK_PREFIX = "projects/cloud-tpu-inference-test"
+INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
+H100_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
+
 
 class Project(enum.Enum):
   """Common GCP projects."""
