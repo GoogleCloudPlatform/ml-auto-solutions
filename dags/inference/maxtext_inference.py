@@ -114,17 +114,17 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-2013-2013", # optimized layout for 0123
-              "0213-0213-0213", # default layout
-              "0213-0213-0132", # optimized layout for 0213
+              "0123-2013-2013",  # optimized layout for 0123
+              "0213-0213-0213",  # default layout
+              "0213-0213-0132",  # optimized layout for 0213
           ],
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0213-0213-0213", # default layout
-              "0213-0231-0213", # optimized layout for 0213
+              "0213-0213-0213",  # default layout
+              "0213-0231-0213",  # optimized layout for 0213
           ],
       },
       # LLAMA2_13B
@@ -389,7 +389,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_size": 12,
+          "per_device_batch_size": 24,
           "kv_quant_axis": "",
           "run_eval": True,
       },
@@ -401,7 +401,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_size": 24,
+          "per_device_batch_size": 48,
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": True,
       },
@@ -441,7 +441,7 @@ with models.DAG(
           "quant_mode": W_BF16_KV_BF16,
           "quantization": "",
           "quantize_kvcache": "false",
-          "per_device_batch_size": 64,
+          "per_device_batch_size": 128,
           "kv_quant_axis": "",
           "run_eval": True,
       },
@@ -455,7 +455,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_size": 128,
+          "per_device_batch_size": 258,
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": True,
       },
