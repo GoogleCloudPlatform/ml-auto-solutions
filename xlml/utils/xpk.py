@@ -56,6 +56,7 @@ def run_workload(
     run_cmds: str,
     num_slices: int = 1,
     use_vertex_tensorboard: bool = False,
+    use_pathways: bool = False,
 ):
   """Run workload through xpk tool."""
 
@@ -68,10 +69,13 @@ def run_workload(
     else:
       multi_keyword = "num-slices"
 
+    create_field = "create-pathways" if use_pathways else "create"
+    type_field = "tpu-type" if use_pathways else "device-type"
+
     workload_create_cmd = (
-        f"python {tmpdir}/xpk/xpk.py workload create"
+        f"python {tmpdir}/xpk/xpk.py workload {create_field}"
         f" --cluster={cluster_name} --workload={workload_id}"
-        f" --command='{run_cmds}' --device-type={accelerator_type}"
+        f" --command='{run_cmds}' --{type_field}={accelerator_type}"
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
