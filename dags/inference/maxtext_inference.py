@@ -85,6 +85,9 @@ with models.DAG(
 ) as dag:
   test_name_prefix = "max-js" if not USER_PREFIX else f"{USER_PREFIX}-max-js"
 
+  # TODO: baseline layout can be deleted if meeting one of the below conditions:
+  #   - default cache layout performs better
+  #   - run layout tuning to get optimized cache layout for 0213
   test_templates = {
       # LLAMA2_7B
       LLAMA2_7B: {
@@ -111,17 +114,17 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-2013-2013",
-              "0213-0213-0213",
-              "0213-0213-0132",
+              "0123-2013-2013", # optimized layout for 0123
+              "0213-0213-0213", # default layout
+              "0213-0213-0132", # optimized layout for 0213
           ],
       },
       f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0213-0213-0213",
-              "0213-0231-0213",
+              "0213-0213-0213", # default layout
+              "0213-0231-0213", # optimized layout for 0213
           ],
       },
       # LLAMA2_13B
@@ -150,16 +153,16 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
       f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
       # LLAMA2_70B
@@ -187,16 +190,16 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
       f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
       # GEMMA_7B
@@ -225,16 +228,16 @@ with models.DAG(
           "attention": "autoselected",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
       f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect": {
           "attention": "autoselected",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
       # MIXTRAL_8_7B
@@ -264,16 +267,16 @@ with models.DAG(
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
       f"{MIXTRAL_8_7B}-{W_INT8_KV_INT8}-dot-product": {
           "attention": "dot_product",
           "request_rate": [0.0],
           "axis_order": [
-              "0123-1203-1203",  # baseline
-              "0213-0213-0213",  # default
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
           ],
       },
   }
@@ -290,7 +293,7 @@ with models.DAG(
           "quantize_kvcache": "false",
           "per_device_batch_size": 12,
           "kv_quant_axis": "",
-          "run_eval": True,
+          "run_eval": False,
       },
       f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_7B]
       | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"]
@@ -302,7 +305,7 @@ with models.DAG(
           "quantize_kvcache": "true",
           "per_device_batch_size": 24,
           "kv_quant_axis": "heads_and_dkv",
-          "run_eval": True,
+          "run_eval": False,
       },
       f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
       | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
@@ -339,7 +342,7 @@ with models.DAG(
           "quantize_kvcache": "false",
           "per_device_batch_size": 6,
           "kv_quant_axis": "",
-          "run_eval": True,
+          "run_eval": False,
       },
       f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_13B]
       | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"]
@@ -351,7 +354,7 @@ with models.DAG(
           "quantize_kvcache": "true",
           "per_device_batch_size": 12,
           "kv_quant_axis": "heads_and_dkv",
-          "run_eval": True,
+          "run_eval": False,
       },
       f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_13B]
       | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
@@ -413,7 +416,7 @@ with models.DAG(
           "quantize_kvcache": "false",
           "per_device_batch_size": 12,
           "kv_quant_axis": "",
-          "run_eval": True,
+          "run_eval": False,
       },
       f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}": test_templates[GEMMA_7B]
       | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
@@ -425,7 +428,7 @@ with models.DAG(
           "quantize_kvcache": "true",
           "per_device_batch_size": 24,
           "kv_quant_axis": "heads_and_dkv",
-          "run_eval": True,
+          "run_eval": False,
       },
       # MIXTRAL_8_7B
       f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}": test_templates[
