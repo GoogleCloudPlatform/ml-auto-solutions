@@ -25,81 +25,13 @@ from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
 MAJOR_VERSION = "2"
-MINOR_VERSION = "15"
-PATCH_VERSION = "1"
-LIBTPU_VERSION = "1.9.0"
-KERAS_VERSION = "2.15.1"
-MODELS_BRANCH = "r2.15.0"
+MINOR_VERSION = "17"
+PATCH_VERSION = "0"
+LIBTPU_VERSION = "1.11.0"
+KERAS_VERSION = "2.17.0rc0"
+MODELS_BRANCH = "r2.17.0"
 
 GS_VERSION_STR = f"tf-{MAJOR_VERSION}-{MINOR_VERSION}-{PATCH_VERSION}"
-
-
-def get_tf_keras_config(
-    tpu_version: TpuVersion,
-    tpu_cores: int,
-    tpu_zone: str,
-    time_out_in_min: int,
-    test_feature: str,
-    test_name: str,
-    runtime_version: str,
-    project_name: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-    is_pod: bool = False,
-    is_pjrt: bool = True,
-    network: str = "default",
-    subnetwork: str = "default",
-):
-  job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
-      dataset_name=metric_config.DatasetOption.XLML_DATASET,
-  )
-
-  set_up_cmds = common.set_up_keras(KERAS_VERSION)
-  set_up_cmds += common.install_tf(
-      MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
-  )
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
-  keras_test_name = f"tf_{MAJOR_VERSION}_{MINOR_VERSION}_keras_api_{test_name}"
-  benchmark_id = f"{keras_test_name}-v{tpu_version.value}-{tpu_cores}"
-  # Add default_var to pass DAG check
-  # TODO(ranran): replace Variable.get() to XCOM when it applies
-  tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
-  env_variable = common.export_env_variables(tpu_name, is_pod, is_pjrt)
-  skipped_tag = "--tags=-failspod" if is_pod else ""
-  run_model_cmds = (
-      "sudo chmod -R 777 /tmp/",
-      (
-          "export PATH=$PATH:/home/ml-auto-solutions/.local/bin &&"
-          f" {env_variable} &&"
-          " cd /tmp/tf2-api-tests &&"
-          " behave -e ipynb_checkpoints"
-          f" --tags=-fails {skipped_tag} -i {test_feature}"
-      ),
-  )
-
-  job_test_config = test_config.TpuVmTest(
-      test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
-          runtime_version=runtime_version,
-          reserved=True,
-          network=network,
-          subnetwork=subnetwork,
-      ),
-      test_name=keras_test_name,
-      set_up_cmds=set_up_cmds,
-      run_model_cmds=run_model_cmds,
-      timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.ERIC_L,
-  )
-
-  return task.run_queued_resource_test(
-      task_test_config=job_test_config,
-      task_gcp_config=job_gcp_config,
-      tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
-  )
 
 
 def get_tf_resnet_config(
@@ -129,8 +61,11 @@ def get_tf_resnet_config(
   set_up_cmds += common.install_tf(
       MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
   )
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
+  if is_pod:
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se_nightly()
+    else:
+      set_up_cmds += common.set_up_pjrt_nightly()
 
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
