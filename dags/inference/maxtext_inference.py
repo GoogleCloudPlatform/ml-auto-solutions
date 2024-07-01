@@ -15,6 +15,7 @@
 """A DAG to run MaxText inference benchmarks with nightly version."""
 
 import datetime
+import numpy as np
 from airflow import models
 from dags import composer_env
 from dags.vm_resource import TpuVersion
@@ -432,43 +433,6 @@ with models.DAG(
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": False,
       },
-      # Gemma-7b Ad-hoc latency v throughput
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs12": test_templates[GEMMA_7B]
-      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
-      | {
-          "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "per_device_batch_size": 12,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": False,
-      },
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs16": test_templates[GEMMA_7B]
-      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
-      | {
-          "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "per_device_batch_size": 16,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": False,
-      },
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs24": test_templates[GEMMA_7B]
-      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
-      | {
-          "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "per_device_batch_size": 24,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": False,
-      },
       # MIXTRAL_8_7B
       f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}": test_templates[
           MIXTRAL_8_7B
@@ -501,23 +465,20 @@ with models.DAG(
   }
 
   run_configs = [
-      # f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      # f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      # f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      # f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      # f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      # f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      # f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      # f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      # f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      # f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      # f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      # f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs12",
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs16",
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs24",
-      # f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}",
-      # f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}",
+      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}",
   ]
 
   skip_configs = []
@@ -528,7 +489,6 @@ with models.DAG(
       continue
     if skip_configs and model_config_name in skip_configs:
       continue
-    # dags = []
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for axis_order in sweep_model_configs["axis_order"]:
         for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
@@ -547,11 +507,9 @@ with models.DAG(
             )
             dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
-    # for i in range(1, len(dags)):
-    #   dags[i - 1] >> dags[i]
-
-  import numpy as np
-  chunks = np.array_split(dags, 10)
+  # Cap the number of simultaneously requested v5e-8 due to resource contraints
+  n_parallel_jobs = 10
+  chunks = np.array_split(dags, n_parallel_jobs)
   for chunk in chunks:
     for i in range(1, len(chunk)):
       chunk[i - 1] >> chunk[i]
