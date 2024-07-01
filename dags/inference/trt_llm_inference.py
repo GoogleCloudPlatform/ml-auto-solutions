@@ -17,8 +17,8 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion
-from dags.inference.configs import tensorrt_llm_inference_config
+from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project
+from dags.inference.configs import trt_llm_inference_config
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
@@ -33,32 +33,21 @@ with models.DAG(
 ) as dag:
   test_name_prefix = "tensorrt-llm-inference"
 
-  # Running on H100 GPU
-  tensorrt_llm_inference_config.get_tensorrt_llm_gpu_config(
-      machine_type=MachineVersion.A3_HIGHGPU_8G,
+  # Running on L4 GPU
+  trt_llm_inference_config.get_trt_llm_gpu_config(
+      machine_type=MachineVersion.G2_STAND_4,
       image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.H100,
-      count=8,
-      gpu_zone=Zone.US_CENTRAL1_A,
+      accelerator_type=GpuVersion.L4,
+      count=1,
+      gpu_zone=Zone.US_CENTRAL1_C,
       time_out_in_min=1600,
-      test_name=f"{test_name_prefix}-nightly-llama-7b-h100-8",
+      test_name=f"{test_name_prefix}-nightly-llama-7b-l4-1",
+      project=Project.CLOUD_TPU_INFERENCE_TEST,
   ).run()
 
-  # # Running on L4 GPU
-  # tensorrt_llm_inference_config.get_tensorrt_llm_gpu_config(
-  #     machine_type=MachineVersion.G2_STAND_4,
-  #     image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-  #     image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-  #     accelerator_type=GpuVersion.L4,
-  #     count=1,
-  #     gpu_zone=Zone.US_CENTRAL1_C,
-  #     time_out_in_min=1600,
-  #     test_name=f"{test_name_prefix}-nightly-llama-7b-l4-1",
-  # ).run()
-
   # Running on A100 GPU
-  tensorrt_llm_inference_config.get_tensorrt_llm_gpu_config(
+  trt_llm_inference_config.get_trt_llm_gpu_config(
       machine_type=MachineVersion.A2_HIGHGPU_1G,
       image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
@@ -67,10 +56,11 @@ with models.DAG(
       gpu_zone=Zone.US_CENTRAL1_F,
       time_out_in_min=1600,
       test_name=f"{test_name_prefix}-nightly-llama-7b-a100-1",
+      project=Project.CLOUD_TPU_INFERENCE_TEST,
   ).run()
 
   # Running on V100 GPU
-  tensorrt_llm_inference_config.get_tensorrt_llm_gpu_config(
+  trt_llm_inference_config.get_trt_llm_gpu_config(
       machine_type=MachineVersion.N1_STANDARD_8,
       image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
@@ -79,4 +69,5 @@ with models.DAG(
       gpu_zone=Zone.US_CENTRAL1_C,
       time_out_in_min=1600,
       test_name=f"{test_name_prefix}-nightly-llama-7b-v100-1",
+      project=Project.CLOUD_TPU_INFERENCE_TEST,
   ).run()

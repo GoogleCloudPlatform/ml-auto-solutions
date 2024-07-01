@@ -18,13 +18,11 @@ from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, vm_resource
 from dags.vm_resource import Project, RuntimeVersion
 
-PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
-# TODO is this default ?
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
 
 
-def get_tensorrt_llm_gpu_config(
+def get_trt_llm_gpu_config(
     machine_type: vm_resource.MachineVersion,
     image_project: vm_resource.ImageProject,
     image_family: vm_resource.ImageFamily,
@@ -33,15 +31,15 @@ def get_tensorrt_llm_gpu_config(
     gpu_zone: vm_resource.Zone,
     time_out_in_min: int,
     test_name: str,
+    project: Project,
 ) -> task.GpuCreateResourceTask:
-
   set_up_cmds = (
       "pip install --upgrade pip",
       # Install Nvidia driver.
       "wget -c https://us.download.nvidia.com/tesla/550.54.15/NVIDIA-Linux-x86_64-550.54.15.run",
-      # TODO: always same version ?
       "chmod u+x NVIDIA-Linux-x86_64-550.54.15.run",
       "sudo ./NVIDIA-Linux-x86_64-550.54.15.run -x-module-path=/usr/lib/xorg/modules --ui=none -x-library-path=/usr/lib -q",
+      "sudo nvidia-smi -pm 1",
       # Install TensorRT-LLM.
       "sudo apt-get update",
       "sudo apt-get -y install git git-lfs",
@@ -50,7 +48,6 @@ def get_tensorrt_llm_gpu_config(
       "git submodule update --init --recursive",
       "git lfs install",
       "git lfs pull",
-      "sudo nvidia-smi -pm 1",
       "make -C docker release_build",
       "make -C docker release_run DOCKER_RUN_ARGS='--detach' RUN_CMD='sleep infinity'",
   )
@@ -90,7 +87,7 @@ def get_tensorrt_llm_gpu_config(
   )
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
-      f"docker exec -i {docker_container_name} /bin/bash -c \"{docker_cmd}\"",
+      f'docker exec -i {docker_container_name} /bin/bash -c "{docker_cmd}"',
       f"docker cp {docker_container_name}:/app/tensorrt_llm/benchmarks/python/{jsonl_output_path} {jsonl_output_path}",
       f"cat {jsonl_output_path}",
       f"gsutil cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
@@ -109,12 +106,11 @@ def get_tensorrt_llm_gpu_config(
       run_model_cmds=run_model_cmds,
       time_out_in_min=time_out_in_min,
       task_owner=test_owner.YIJIA_J,
-      # TODO: Do we need to create this ?
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/tensorrt_llm",
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm",
   )
 
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=PROJECT_NAME,
+      project_name=project.value,
       zone=gpu_zone.value,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
