@@ -32,11 +32,20 @@ with models.DAG(
     tags=["multipod_team", "maxtext", "stable", "nightly"],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
-    concurrency=10,
+    concurrency=25,
 ) as dag:
   # MaxText set up
   quantization_sweep = {"M_QUANTIZATION": ["", "int8"]}
-  model_configs = ["16b", "32b", "64b", "128b", "gpt3_175b"]
+  model_configs = [
+      "16b",
+      "32b",
+      "64b",
+      "128b",
+      "gpt3_175b",
+      "llama2_7b",
+      "llama2_13b",
+      "llama2_70b",
+  ]
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
@@ -56,7 +65,7 @@ with models.DAG(
           dataset_name=metric_config.DatasetOption.XLML_DATASET,
           cluster_name=ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
           tpu_zone=Zone.US_WEST4_B.value,
-          time_out_in_min=240,
+          time_out_in_min=360,
           base_output_directory=base_output_directory,
           tpu_version=TpuVersion.V5E,
           tpu_cores=256,
