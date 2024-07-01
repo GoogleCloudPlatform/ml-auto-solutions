@@ -76,7 +76,7 @@ def generate_model_configs(
   model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
 
   model_configs["dataset"] = sweep_model_configs["dataset"]
-  model_configs["dataset_path"] = sweep_model_configs.get('dataset_path', '')
+  model_configs["dataset_path"] = sweep_model_configs.get("dataset_path", "")
   model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
   model_configs["max_output_length"] = sweep_model_configs["max_output_length"]
   model_configs["warmup_mode"] = sweep_model_configs["warmup_mode"]

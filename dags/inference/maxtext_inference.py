@@ -236,8 +236,7 @@ with models.DAG(
       },
       f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect": {
           "attention": "autoselected",
-          "request_rate": [0.0, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0],
-          # "request_rate": [0.0],
+          "request_rate": [0.0],
           "axis_order": [
               "0123-1203-1203",  # baseline layout
               "0213-0213-0213",  # default layout
