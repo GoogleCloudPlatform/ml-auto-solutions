@@ -155,6 +155,7 @@ class XpkTask(BaseTask):
       *,
       gcs_location: Optional[airflow.XComArg] = None,
       use_vertex_tensorboard: bool = False,
+      use_pathways: bool = False,
   ) -> DAGNode:
     """Run a test job within a docker image.
 
@@ -167,12 +168,14 @@ class XpkTask(BaseTask):
       post_process.
     """
     with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
-      run_model, gcs_path = self.run_model(gcs_location, use_vertex_tensorboard)
+      run_model, gcs_path = self.run_model(
+          gcs_location, use_vertex_tensorboard, use_pathways
+      )
       run_model >> self.post_process(gcs_path)
 
     return group
 
-  def run_with_run_name_generation(self) -> DAGNode:
+  def run_with_run_name_generation(self, use_pathways: bool = False) -> DAGNode:
     """Generate a unique run name and tensorboard file location,
     then run a test job within a docker image.
 
@@ -201,7 +204,12 @@ class XpkTask(BaseTask):
           tb_file_location
       )
 
-      run_name >> tb_file_location >> self.run_model() >> self.post_process()
+      (
+          run_name
+          >> tb_file_location
+          >> self.run_model(use_pathways=use_pathways)
+          >> self.post_process()
+      )
 
     return group
 
@@ -209,6 +217,7 @@ class XpkTask(BaseTask):
       self,
       gcs_location: Optional[airflow.XComArg] = None,
       use_vertex_tensorboard: bool = False,
+      use_pathways: bool = False,
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
 
@@ -229,7 +238,7 @@ class XpkTask(BaseTask):
             self.task_test_config.benchmark_id,
         )
       launch_workload = self.launch_workload(
-          workload_id, gcs_path, use_vertex_tensorboard
+          workload_id, gcs_path, use_vertex_tensorboard, use_pathways
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=int(self.task_test_config.timeout.total_seconds()),
@@ -244,7 +253,11 @@ class XpkTask(BaseTask):
       return group, gcs_path
 
   def launch_workload(
-      self, workload_id: str, gcs_path: str, use_vertex_tensorboard: bool
+      self,
+      workload_id: str,
+      gcs_path: str,
+      use_vertex_tensorboard: bool,
+      use_pathways: bool = False,
   ) -> DAGNode:
     """Create the workload and wait for it to provision."""
     with TaskGroup(group_id="launch_workload") as group:
@@ -263,6 +276,7 @@ class XpkTask(BaseTask):
           run_cmds=self.task_test_config.test_script,
           num_slices=self.task_test_config.num_slices,
           use_vertex_tensorboard=use_vertex_tensorboard,
+          use_pathways=use_pathways,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
