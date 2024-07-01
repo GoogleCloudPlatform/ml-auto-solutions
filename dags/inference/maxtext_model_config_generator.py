@@ -76,6 +76,7 @@ def generate_model_configs(
   model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
 
   model_configs["dataset"] = sweep_model_configs["dataset"]
+  model_configs["dataset_path"] = sweep_model_configs.get('dataset_path', '')
   model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
   model_configs["max_output_length"] = sweep_model_configs["max_output_length"]
   model_configs["warmup_mode"] = sweep_model_configs["warmup_mode"]
@@ -92,7 +93,7 @@ def generate_model_configs(
       if not kv_quant_axis
       else f"{model_config_name}-{kv_quant_axis}"
   )
-  test_run_tag = f"{test_run_tag}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order.replace(',', '')}-{prefill_cache_axis_order.replace(',', '')}-{ar_cache_axis_order.replace(',', '')}"
+  test_run_tag = f"{test_run_tag}-rate{str(request_rate).replace('.', '_')}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order.replace(',', '')}-{prefill_cache_axis_order.replace(',', '')}-{ar_cache_axis_order.replace(',', '')}"
 
   test_name = f"{test_name_prefix}-{test_run_tag}"
 

@@ -101,7 +101,8 @@ with models.DAG(
           "reshape_q": True,
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
-          "dataset": "openorca",
+          "dataset": "sharegpt",
+          "dataset_path": "~/ShareGPT_V3_unfiltered_cleaned_split.json",
           "request_rate": [0.0],
           "num_prompts": 200,
           "max_output_length": 1024,

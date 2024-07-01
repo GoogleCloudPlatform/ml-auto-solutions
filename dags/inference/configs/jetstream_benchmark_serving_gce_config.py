@@ -87,6 +87,7 @@ def get_config(
       "kvcache_quant_dtype": f"{'int8' if model_configs['quantize_kvcache'] else 'bf16'}",
       "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
       "dataset": f"{model_configs['dataset']}",
+      "dataset_path": f"{model_configs['dataset_path']}",
       "request_rate": f"{model_configs['request_rate']}",
       "num_prompts": f"{model_configs['num_prompts']}",
       "max_output_length": f"{model_configs['max_output_length']}",
@@ -109,6 +110,7 @@ def get_config(
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
+      "wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json > /dev/null 2>&1",
       # Get commit hash of the maxtext and jetstream repos
       f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
       'cd maxtext && export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
@@ -170,6 +172,7 @@ def get_config(
       --tokenizer {full_tokenizer_path} \
       --model {model_configs['model_name']} \
       --dataset {model_configs['dataset']} \
+      --dataset-path {model_configs['dataset_path']} \
       --request-rate {model_configs['request_rate']} \
       --num-prompts {model_configs['num_prompts']}  \
       --max-output-length {model_configs['max_output_length']} \

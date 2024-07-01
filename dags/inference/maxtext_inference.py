@@ -218,7 +218,8 @@ with models.DAG(
           "reshape_q": True,
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
           "ici_parallelisms": [(1, 1, -1)],
-          "dataset": "openorca",
+          "dataset": "sharegpt",
+          "dataset_path": "~/ShareGPT_V3_unfiltered_cleaned_split.json",
           "request_rate": [0.0],
           "num_prompts": 1000,
           "max_output_length": 1024,
@@ -234,7 +235,8 @@ with models.DAG(
       },
       f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect": {
           "attention": "autoselected",
-          "request_rate": [0.0],
+          "request_rate": [0.0, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0],
+          # "request_rate": [0.0],
           "axis_order": [
               "0123-1203-1203",  # baseline layout
               "0213-0213-0213",  # default layout
@@ -430,6 +432,43 @@ with models.DAG(
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": False,
       },
+      # Gemma-7b Ad-hoc latency v throughput
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs12": test_templates[GEMMA_7B]
+      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
+      | {
+          "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_INT8_KV_INT8,
+          "quantization": "int8",
+          "quantize_kvcache": "true",
+          "per_device_batch_size": 12,
+          "kv_quant_axis": "heads_and_dkv",
+          "run_eval": False,
+      },
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs16": test_templates[GEMMA_7B]
+      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
+      | {
+          "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_INT8_KV_INT8,
+          "quantization": "int8",
+          "quantize_kvcache": "true",
+          "per_device_batch_size": 16,
+          "kv_quant_axis": "heads_and_dkv",
+          "run_eval": False,
+      },
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs24": test_templates[GEMMA_7B]
+      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
+      | {
+          "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_INT8_KV_INT8,
+          "quantization": "int8",
+          "quantize_kvcache": "true",
+          "per_device_batch_size": 24,
+          "kv_quant_axis": "heads_and_dkv",
+          "run_eval": False,
+      },
       # MIXTRAL_8_7B
       f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}": test_templates[
           MIXTRAL_8_7B
@@ -462,30 +501,34 @@ with models.DAG(
   }
 
   run_configs = [
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}",
-      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}",
+      # f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      # f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      # f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      # f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      # f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      # f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      # f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      # f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      # f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+      # f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+      # f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      # f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs12",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs16",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-pdbs24",
+      # f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}",
+      # f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}",
   ]
 
   skip_configs = []
 
+  dags = []
   for model_config_name, sweep_model_configs in tests.items():
     if run_configs and model_config_name not in run_configs:
       continue
     if skip_configs and model_config_name in skip_configs:
       continue
-    dags = []
+    # dags = []
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for axis_order in sweep_model_configs["axis_order"]:
         for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
@@ -504,5 +547,11 @@ with models.DAG(
             )
             dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
-    for i in range(1, len(dags)):
-      dags[i - 1] >> dags[i]
+    # for i in range(1, len(dags)):
+    #   dags[i - 1] >> dags[i]
+
+  import numpy as np
+  chunks = np.array_split(dags, 10)
+  for chunk in chunks:
+    for i in range(1, len(chunk)):
+      chunk[i - 1] >> chunk[i]
