@@ -27,7 +27,7 @@ RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
 
 
-def get_maxtext_inference_nightly_config(
+def get_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
@@ -41,6 +41,8 @@ def get_maxtext_inference_nightly_config(
     is_tpu_reserved: bool = True,
     num_slices: int = 1,
     model_configs: Dict = {},
+    maxtext_branch: str = "",
+    jetstream_branch: str = "",
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -51,8 +53,8 @@ def get_maxtext_inference_nightly_config(
   set_up_cmds = (
       "pip install --upgrade pip",
       # Download jetstream and maxtext
-      "git clone https://github.com/google/maxtext.git",
-      "git clone https://github.com/google/JetStream.git",
+      f"if [ ! -d maxtext ]; then git clone {maxtext_branch} https://github.com/google/maxtext.git; fi",
+      f"if [ ! -d JetStream ]; then git clone {jetstream_branch} https://github.com/google/JetStream.git; fi",
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
@@ -66,18 +68,35 @@ def get_maxtext_inference_nightly_config(
   )
 
   additional_metadata_dict = {
+      "model_name": f"{model_configs['model_name']}",
       "model_mode": f"{model_configs['model_mode']}",
-      "checkpoint": f"{model_configs['checkpoint']}",
+      "quant_mode": f"{model_configs['quant_mode']}",
+      "tokenizer": f"{model_configs['tokenizer']}",
+      "weight_dtype": f"{model_configs['weight_dtype']}",
       "scan_layers": f"{model_configs['scan_layers']}",
-      "dataset": f"{model_configs['dataset']}",
       "max_prefill_predict_length": f"{model_configs['max_prefill_predict_length']}",
       "max_target_length": f"{model_configs['max_target_length']}",
-      "max_output_length": f"{model_configs['max_output_length']}",
+      "attention": f"{model_configs['attention']}",
       "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
       "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
       "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
+      "checkpoint": f"{model_configs['checkpoint']}",
+      "quantization": f"{model_configs['quantization']}",
+      "quantize_kvcache": f"{model_configs['quantize_kvcache']}",
+      "weight_quant_dtype": f"{model_configs['quantization'] if model_configs['quantization'] else 'bf16'}",
+      "kvcache_quant_dtype": f"{'int8' if model_configs['quantize_kvcache'] else 'bf16'}",
       "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
-      "weight_dtype": f"{model_configs['weight_dtype']}",
+      "dataset": f"{model_configs['dataset']}",
+      "dataset_path": f"{model_configs['dataset_path']}",
+      "request_rate": f"{model_configs['request_rate']}",
+      "num_prompts": f"{model_configs['num_prompts']}",
+      "max_output_length": f"{model_configs['max_output_length']}",
+      "warmup_mode": f"{model_configs['warmup_mode']}",
+      "prefill_cache_axis_order": f"{model_configs['prefill_cache_axis_order']}",
+      "ar_cache_axis_order": f"{model_configs['ar_cache_axis_order']}",
+      "compute_axis_order": f"{model_configs['compute_axis_order']}",
+      "reshape_q": f"{model_configs['reshape_q']}",
+      "kv_quant_axis": f"{model_configs['kv_quant_axis']}",
   }
 
   # Let gcs path be directly used, else use maxtext/assets dir
@@ -91,6 +110,7 @@ def get_maxtext_inference_nightly_config(
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
+      "wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json > /dev/null 2>&1",
       # Get commit hash of the maxtext and jetstream repos
       f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
       'cd maxtext && export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
@@ -100,33 +120,49 @@ def get_maxtext_inference_nightly_config(
       ### Benchmark
       "cd maxtext",
       # Configure flags
-      f"export UNSCANNED_CKPT_PATH={model_configs['checkpoint']}",
+      f"export MODEL_NAME={model_configs['model_name']}",
       f"export TOKENIZER_PATH={tokenizer_path}",
-      "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
+      f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
+      f"export SCAN_LAYERS={model_configs['scan_layers']}",
       f"export MAX_PREFILL_PREDICT_LENGTH={model_configs['max_prefill_predict_length']}",
       f"export MAX_TARGET_LENGTH={model_configs['max_target_length']}",
-      f"export MODEL_NAME={model_configs['model_name']}",
+      f"export ATTENTION={model_configs['attention']}",
       f"export ICI_FSDP_PARALLELISM={model_configs['ici_fsdp_parallelism']}",
       f"export ICI_AUTOREGRESSIVE_PARALLELISM={model_configs['ici_autoregressive_parallelism']}",
       f"export ICI_TENSOR_PARALLELISM={model_configs['ici_tensor_parallelism']}",
-      f"export SCAN_LAYERS={model_configs['scan_layers']}",
-      f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
+      f"export UNSCANNED_CKPT_PATH={model_configs['checkpoint']}",
+      "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
+      f"export QUANTIZATION={model_configs['quantization']}",
+      f"export QUANTIZE_KVCACHE={model_configs['quantize_kvcache']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
+      f"export PREFILL_CACHE_AXIS_ORDER={model_configs['prefill_cache_axis_order']}",
+      f"export AR_CACHE_AXIS_ORDER={model_configs['ar_cache_axis_order']}",
+      f"export COMPUTE_AXIS_ORDER={model_configs['compute_axis_order']}",
+      f"export RESHAPE_Q={model_configs['reshape_q']}",
+      f"export KV_QUANT_AXIS={model_configs['kv_quant_axis']}",
       f"export MOE_MATMUL={model_configs['moe_matmul']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
         MaxText/configs/inference_jetstream.yml \
+        model_name=${MODEL_NAME} \
         tokenizer_path=${TOKENIZER_PATH} \
-        load_parameters_path=${LOAD_PARAMETERS_PATH} \
+        weight_dtype=${WEIGHT_DTYPE} \
+        scan_layers=${SCAN_LAYERS} \
         max_prefill_predict_length=${MAX_PREFILL_PREDICT_LENGTH} \
         max_target_length=${MAX_TARGET_LENGTH} \
-        model_name=${MODEL_NAME} \
+        attention=${ATTENTION} \
         ici_fsdp_parallelism=${ICI_FSDP_PARALLELISM} \
         ici_autoregressive_parallelism=${ICI_AUTOREGRESSIVE_PARALLELISM} \
         ici_tensor_parallelism=${ICI_TENSOR_PARALLELISM} \
-        scan_layers=${SCAN_LAYERS} \
-        weight_dtype=${WEIGHT_DTYPE} \
+        load_parameters_path=${LOAD_PARAMETERS_PATH} \
+        quantization=${QUANTIZATION} \
+        quantize_kvcache=${QUANTIZE_KVCACHE} \
         per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
+        prefill_cache_axis_order=${PREFILL_CACHE_AXIS_ORDER} \
+        ar_cache_axis_order=${AR_CACHE_AXIS_ORDER} \
+        compute_axis_order=${COMPUTE_AXIS_ORDER} \
+        reshape_q=${RESHAPE_Q} \
+        kv_quant_axis=${KV_QUANT_AXIS} \
         moe_matmul=${MOE_MATMUL} &""",
       "cd ..",
       # Give server time to start
@@ -135,15 +171,20 @@ def get_maxtext_inference_nightly_config(
       f"""python JetStream/benchmarks/benchmark_serving.py \
       --tokenizer {full_tokenizer_path} \
       --model {model_configs['model_name']} \
+      --dataset {model_configs['dataset']} \\"""
+      + (
+          f"""--dataset-path {model_configs['dataset_path']} \\"""
+          if model_configs["dataset_path"] != ""
+          else ""
+      )
+      + f"""--request-rate {model_configs['request_rate']} \
       --num-prompts {model_configs['num_prompts']}  \
-      --dataset {model_configs['dataset']} \
       --max-output-length {model_configs['max_output_length']} \
-      --request-rate {model_configs['request_rate']} \
-      --warmup-mode sampled \
+      --warmup-mode {model_configs['warmup_mode']} \
       --save-result \
       --additional-metadata-metrics-to-save ${{METADATA_DICT}} \
       --save-request-outputs \
-      --run-eval true""",
+      --run-eval {model_configs['run_eval']}""",
       'export BENCHMARK_OUTPUT=$(find . -name "*JetStream*" -type f -printf "%T@ %Tc %p\n" | sort -n | head -1 | awk \'NF>1{print $NF}\')',
       # Stop JetStream server
       "kill -9 %%",
@@ -151,6 +192,7 @@ def get_maxtext_inference_nightly_config(
       # our BigQuery table
       "mv ${BENCHMARK_OUTPUT} metric_report.jsonl",
       f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gsutil cp /tmp/request-outputs.json {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.TpuVmTest(
