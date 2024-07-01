@@ -171,9 +171,13 @@ def get_config(
       f"""python JetStream/benchmarks/benchmark_serving.py \
       --tokenizer {full_tokenizer_path} \
       --model {model_configs['model_name']} \
-      --dataset {model_configs['dataset']} \
-      --dataset-path {model_configs['dataset_path']} \
-      --request-rate {model_configs['request_rate']} \
+      --dataset {model_configs['dataset']} \\"""
+      + (
+          f"""--dataset-path {model_configs['dataset_path']} \\"""
+          if model_configs["dataset_path"] != ""
+          else ""
+      )
+      + f"""--request-rate {model_configs['request_rate']} \
       --num-prompts {model_configs['num_prompts']}  \
       --max-output-length {model_configs['max_output_length']} \
       --warmup-mode {model_configs['warmup_mode']} \
