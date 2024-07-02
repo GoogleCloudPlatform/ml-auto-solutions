@@ -32,7 +32,6 @@ with models.DAG(
     tags=["multipod_team", "maxtext", "stable", "nightly"],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
-    concurrency=25,
 ) as dag:
   # MaxText set up
   quantization_sweep = {"M_QUANTIZATION": ["", "int8"]}
@@ -76,5 +75,11 @@ with models.DAG(
           sweep_params=quantization_sweep,
       )
 
-      for test in maxtext_sweep_gke_test:
-        test.run_with_run_name_generation()
+      num_tests = len(maxtext_sweep_gke_test)
+      for i in range(num_tests // 2):
+        (
+            maxtext_sweep_gke_test[i].run_with_run_name_generation()
+            >> maxtext_sweep_gke_test[
+                num_tests - 1 - i
+            ].run_with_run_name_generation()
+        )
