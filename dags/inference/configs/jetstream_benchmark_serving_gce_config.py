@@ -84,7 +84,7 @@ def get_config(
       "quantization": f"{model_configs['quantization']}",
       "quantize_kvcache": f"{model_configs['quantize_kvcache']}",
       "weight_quant_dtype": f"{model_configs['quantization'] if model_configs['quantization'] else 'bf16'}",
-      "kvcache_quant_dtype": f"{'int8' if model_configs['quantize_kvcache'] else 'bf16'}",
+      "kvcache_quant_dtype": f"{'int8' if model_configs['quantize_kvcache'].lower() == 'true' else 'bf16'}",
       "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
       "dataset": f"{model_configs['dataset']}",
       "dataset_path": f"{model_configs['dataset_path']}",
