@@ -159,9 +159,9 @@ def get_config(
         quantization=${QUANTIZATION} \
         quantize_kvcache=${QUANTIZE_KVCACHE} \\"""
       + (
-        """kv_quant_dtype=${KV_QUANT_DTYPE} \\"""
-        if model_configs['kv_quant_dtype']
-        else ""
+          """kv_quant_dtype=${KV_QUANT_DTYPE} \\"""
+          if model_configs["kv_quant_dtype"]
+          else ""
       )
       + """per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
         prefill_cache_axis_order=${PREFILL_CACHE_AXIS_ORDER} \
