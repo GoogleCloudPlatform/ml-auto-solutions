@@ -73,6 +73,9 @@ def generate_model_configs(
   model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
   model_configs["quantization"] = sweep_model_configs["quantization"]
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
+  model_configs["kv_quant_dtype"] = sweep_model_configs.get(
+      "kv_quant_dtype", ""
+  )
   model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
 
   model_configs["dataset"] = sweep_model_configs["dataset"]

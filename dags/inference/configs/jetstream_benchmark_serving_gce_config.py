@@ -84,7 +84,7 @@ def get_config(
       "quantization": f"{model_configs['quantization']}",
       "quantize_kvcache": f"{model_configs['quantize_kvcache']}",
       "weight_quant_dtype": f"{model_configs['quantization'] if model_configs['quantization'] else 'bf16'}",
-      "kvcache_quant_dtype": f"{'int8' if model_configs['quantize_kvcache'] else 'bf16'}",
+      "kv_quant_dtype": f"{model_configs['kv_quant_dtype']}",
       "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
       "dataset": f"{model_configs['dataset']}",
       "dataset_path": f"{model_configs['dataset_path']}",
@@ -134,6 +134,7 @@ def get_config(
       "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
       f"export QUANTIZATION={model_configs['quantization']}",
       f"export QUANTIZE_KVCACHE={model_configs['quantize_kvcache']}",
+      f"export KV_QUANT_DTYPE={model_configs['kv_quant_dtype']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
       f"export PREFILL_CACHE_AXIS_ORDER={model_configs['prefill_cache_axis_order']}",
       f"export AR_CACHE_AXIS_ORDER={model_configs['ar_cache_axis_order']}",
@@ -156,8 +157,13 @@ def get_config(
         ici_tensor_parallelism=${ICI_TENSOR_PARALLELISM} \
         load_parameters_path=${LOAD_PARAMETERS_PATH} \
         quantization=${QUANTIZATION} \
-        quantize_kvcache=${QUANTIZE_KVCACHE} \
-        per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
+        quantize_kvcache=${QUANTIZE_KVCACHE} \\"""
+      + (
+          """kv_quant_dtype=${KV_QUANT_DTYPE} \\"""
+          if model_configs["kv_quant_dtype"]
+          else ""
+      )
+      + """per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
         prefill_cache_axis_order=${PREFILL_CACHE_AXIS_ORDER} \
         ar_cache_axis_order=${AR_CACHE_AXIS_ORDER} \
         compute_axis_order=${COMPUTE_AXIS_ORDER} \
