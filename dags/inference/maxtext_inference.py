@@ -457,7 +457,7 @@ with models.DAG(
           "quant_mode": W_INT8_KV_INT8,
           "quantization": "int8",
           "quantize_kvcache": "true",
-          "per_device_batch_size": 258,
+          "per_device_batch_size": 128,
           "kv_quant_axis": "heads_and_dkv",
           "run_eval": True,
       },
