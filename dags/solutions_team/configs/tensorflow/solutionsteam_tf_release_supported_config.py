@@ -29,6 +29,7 @@ from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 MAJOR_VERSION = "2"
 MINOR_VERSION = "17"
 PATCH_VERSION = "0"
+RELEASE_CANDIDATE = "rc1"
 LIBTPU_VERSION = "1.11.0"
 KERAS_VERSION = "2.17.0rc0"
 MODELS_BRANCH = "r2.17.0"
@@ -61,7 +62,11 @@ def get_tf_resnet_config(
 
   set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
   set_up_cmds += common.install_tf(
-      MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
+      MAJOR_VERSION,
+      MINOR_VERSION,
+      PATCH_VERSION,
+      RELEASE_CANDIDATE,
+      LIBTPU_VERSION,
   )
   if is_pod:
     if not is_pjrt:
@@ -170,7 +175,11 @@ def get_tf_dlrm_config(
 
   set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
   set_up_cmds += common.install_tf(
-      MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
+      MAJOR_VERSION,
+      MINOR_VERSION,
+      PATCH_VERSION,
+      RELEASE_CANDIDATE,
+      LIBTPU_VERSION,
   )
   if is_pod:
     if not is_pjrt:
@@ -198,6 +207,7 @@ def get_tf_dlrm_config(
               "num_dense_features": 13,
               "bottom_mlp": bottom_mlp,
               "embedding_dim": embedding_dim,
+              "size_threshold": 0,
               "top_mlp": [1024, 1024, 512, 256, 1],
               "vocab_sizes": [
                   39884406,
@@ -254,7 +264,8 @@ def get_tf_dlrm_config(
   tpu_id = Variable.get(benchmark_id, default_var=None)
   # TODO (ericlefort): Replace the model_dir with this line when the var is available
   # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
-  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}"
+  epoch = time.time()
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}/{epoch}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (

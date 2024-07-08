@@ -59,6 +59,7 @@ def install_tf(
     major: Optional[int] = None,
     minor: Optional[int] = None,
     patch: Optional[int] = None,
+    release_candidate: Optional[int] = None,
     libtpu_version: Optional[str] = None,
 ) -> tuple[str]:
   """Install tf + libtpu.
@@ -73,12 +74,14 @@ def install_tf(
       libtpu_version (Optional[str]): The libtpu version to install
   """
   tf_installation_command = f"pip install tf-nightly-tpu -f https://storage.googleapis.com/libtpu-tf-releases/index.html --force"
+  if release_candidate is None:
+    release_candidate = ""
   if major is not None:
-    tf_installation_command = f"pip install tensorflow-tpu=={major}.{minor}.{patch} -f https://storage.googleapis.com/libtpu-tf-releases/index.html --force"
+    tf_installation_command = f"pip install tensorflow-tpu=={major}.{minor}.{patch}{release_candidate} -f https://storage.googleapis.com/libtpu-tf-releases/index.html --force"
   cmds_install_tf_whl = tf_installation_command
 
   return (
-      *cmds_install_tf_whl,
+      cmds_install_tf_whl,
       CMD_PRINT_TF_VERSION,
   )
 
@@ -123,7 +126,9 @@ def export_env_variables(
   ]
 
   stmts.append(f"export TPU_NAME={tpu_name}")
-  # stmts.append("export TF_XLA_FLAGS='--tf_mlir_enable_mlir_bridge=true --tf_xla_sparse_core_disable_table_stacking=true --tf_mlir_enable_convert_control_to_data_outputs_pass=true --tf_mlir_enable_merge_control_flow_pass=true'")
+  stmts.append(
+      "export TF_XLA_FLAGS='--tf_mlir_enable_mlir_bridge=true --tf_xla_sparse_core_disable_table_stacking=true --tf_mlir_enable_convert_control_to_data_outputs_pass=true --tf_mlir_enable_merge_control_flow_pass=true'"
+  )
   stmts.append(
       "export PYTHONPATH='/usr/share/tpu/recommenders:/usr/share/tpu/models'"
   )

@@ -236,6 +236,7 @@ def get_tf_dlrm_config(
               "bottom_mlp": bottom_mlp,
               "embedding_dim": embedding_dim,
               "top_mlp": [1024, 1024, 512, 256, 1],
+              "size_threshold": 0,
               "vocab_sizes": [
                   39884406,
                   39043,
