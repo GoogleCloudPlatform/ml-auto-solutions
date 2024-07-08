@@ -111,8 +111,11 @@ def get_tf_resnet_config(
   )
 
   set_up_cmds = common.set_up_tensorflow_models() + common.install_tf()
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
+  if is_pod:
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se()
+    else:
+      set_up_cmds += common.set_up_pjrt()
 
   # adjust global batch size based on num_cores
   global_batch_size = 128 * tpu_cores
@@ -211,10 +214,10 @@ def get_tf_dlrm_config(
   )
 
   set_up_cmds = common.set_up_tensorflow_models() + common.install_tf()
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
-  if is_v5p:
-    set_up_cmds += common.set_up_dlrm_v5p()
+  if is_pod:
+    set_up_cmds += common.set_up_se()
+  else:
+    set_up_cmds += common.set_up_pjrt()
 
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},

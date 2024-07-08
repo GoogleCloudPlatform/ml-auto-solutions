@@ -28,7 +28,7 @@ VERSION = f"{tf_config.MAJOR_VERSION}.{tf_config.MINOR_VERSION}"
 
 
 with models.DAG(
-    dag_id=f"tf_{tf_config.MAJOR_VERSION}_{tf_config.MINOR_VERSION}_nightly_supported",
+    dag_id=f"tf_{tf_config.MAJOR_VERSION}_{tf_config.MINOR_VERSION}_supported",
     schedule=SCHEDULED_TIME,
     tags=["solutions_team", "tf", VERSION, "supported", "xlml"],
     start_date=datetime.datetime(2023, 8, 16),

@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import datetime
+from datetime import date
+import time
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
 from dags.solutions_team.configs.tensorflow import common
@@ -28,7 +30,7 @@ MAJOR_VERSION = "2"
 MINOR_VERSION = "17"
 PATCH_VERSION = "0"
 LIBTPU_VERSION = "1.11.0"
-KERAS_VERSION = "2.17.0rc0"
+KERAS_VERSION = "2.17.0"
 MODELS_BRANCH = "r2.17.0"
 
 GS_VERSION_STR = f"tf-{MAJOR_VERSION}-{MINOR_VERSION}-{PATCH_VERSION}"
@@ -63,10 +65,15 @@ def get_tf_resnet_config(
   )
   if is_pod:
     if not is_pjrt:
-      set_up_cmds += common.set_up_se_nightly()
+      set_up_cmds += common.set_up_se(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
     else:
-      set_up_cmds += common.set_up_pjrt_nightly()
+      set_up_cmds += common.set_up_pjrt(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
 
+  global_batch_size = 128 * tpu_cores
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
@@ -99,7 +106,7 @@ def get_tf_resnet_config(
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/vision/train.py"
           f" --experiment=resnet_imagenet"
-          " --mode=train_and_eval --model_dir=/tmp/"
+          f" --mode=train_and_eval --model_dir=gs://tensorflow_test_outputs/{str(tpu_version) + '-' + str(tpu_cores)}/{date.today()}/{int(time.time())}"
           f" --params_override='{params_override}'"
       ),
   )
@@ -161,15 +168,19 @@ def get_tf_dlrm_config(
       tpu_name, is_pod, is_pjrt, is_v5p_sc=is_v5p
   )
 
-  if is_v5p:
-    set_up_cmds = common.set_up_dlrm_v5p()
-  else:
-    set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
-    set_up_cmds += common.install_tf(
-        MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
-    )
-    if not is_pjrt and is_pod:
-      set_up_cmds += common.set_up_se_nightly()
+  set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
+  set_up_cmds += common.install_tf(
+      MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
+  )
+  if is_pod:
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
+    else:
+      set_up_cmds += common.set_up_pjrt(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
 
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
@@ -237,18 +248,16 @@ def get_tf_dlrm_config(
       },
   }
 
-  model_dir = "/tmp/"
-  if is_v5p:
-    params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
-    tpu_id = Variable.get(benchmark_id, default_var=None)
-    # TODO (ericlefort): Replace the model_dir with this line when the var is available
-    # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
-    model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}"
+  model_dir = "/tmp"
+
+  params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
+  tpu_id = Variable.get(benchmark_id, default_var=None)
+  # TODO (ericlefort): Replace the model_dir with this line when the var is available
+  # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
-      "sudo chmod -R 777 /tmp/",
-      f"gsutil rm {model_dir}/* 2> /dev/null || true" if is_v5p else "echo",
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/recommendation/ranking/train.py"
