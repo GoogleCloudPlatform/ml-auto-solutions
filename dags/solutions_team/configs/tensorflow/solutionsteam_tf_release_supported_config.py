@@ -106,7 +106,7 @@ def get_tf_resnet_config(
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/vision/train.py"
           f" --experiment=resnet_imagenet"
-          f" --mode=train_and_eval --model_dir=gs://tensorflow_test_outputs/{str(tpu_version) + '-' + str(tpu_cores)}/{date.today()}/{int(time.time())}"
+          f" --mode=train_and_eval --model_dir=/tmp"
           f" --params_override='{params_override}'"
       ),
   )
