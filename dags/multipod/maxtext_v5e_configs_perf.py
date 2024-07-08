@@ -75,11 +75,10 @@ with models.DAG(
           sweep_params=quantization_sweep,
       )
 
-      num_tests = len(maxtext_sweep_gke_test)
-      for i in range(num_tests // 2):
-        (
-            maxtext_sweep_gke_test[i].run_with_run_name_generation()
-            >> maxtext_sweep_gke_test[
-                num_tests - 1 - i
-            ].run_with_run_name_generation()
-        )
+      chain_num = 4
+      prev = maxtext_sweep_gke_test[0].run_with_run_name_generation()
+      for i in range(1, len(maxtext_sweep_gke_test)):
+        curr = maxtext_sweep_gke_test[i].run_with_run_name_generation()
+        if i % chain_num != 0:
+          prev >> curr
+        prev = curr
