@@ -141,7 +141,6 @@ def get_config(
       f"export COMPUTE_AXIS_ORDER={model_configs['compute_axis_order']}",
       f"export RESHAPE_Q={model_configs['reshape_q']}",
       f"export KV_QUANT_AXIS={model_configs['kv_quant_axis']}",
-      f"export MOE_MATMUL={model_configs['moe_matmul']}",
       # Start JetStream MaxText server in the background
       """python MaxText/maxengine_server.py \
         MaxText/configs/inference_jetstream.yml \
@@ -168,8 +167,7 @@ def get_config(
         ar_cache_axis_order=${AR_CACHE_AXIS_ORDER} \
         compute_axis_order=${COMPUTE_AXIS_ORDER} \
         reshape_q=${RESHAPE_Q} \
-        kv_quant_axis=${KV_QUANT_AXIS} \
-        moe_matmul=${MOE_MATMUL} &""",
+        kv_quant_axis=${KV_QUANT_AXIS} &""",
       "cd ..",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",

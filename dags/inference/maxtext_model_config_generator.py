@@ -84,7 +84,6 @@ def generate_model_configs(
   model_configs["max_output_length"] = sweep_model_configs["max_output_length"]
   model_configs["warmup_mode"] = sweep_model_configs["warmup_mode"]
   model_configs["run_eval"] = sweep_model_configs["run_eval"]
-  model_configs["moe_matmul"] = sweep_model_configs.get("moe_matmul", "false")
 
   per_device_batch_size = model_configs["per_device_batch_size"]
   attention = model_configs["attention"][:3]
