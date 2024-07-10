@@ -262,8 +262,6 @@ with models.DAG(
           "num_prompts": 1000,
           "max_output_length": 1024,
           "warmup_mode": "full",
-          # Only used for MoE models
-          "moe_matmul": "true",
       },
       f"{MIXTRAL_8_7B}-{W_BF16_KV_BF16}-dot-product": {
           "attention": "dot_product",
