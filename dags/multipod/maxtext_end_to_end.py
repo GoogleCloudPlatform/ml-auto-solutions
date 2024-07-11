@@ -160,7 +160,7 @@ with models.DAG(
     ).run()
     pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         accelerator_type=GpuVersion.XPK_H100_MEGA,
-        gpu_zone=Zone.US_CENTRAL1_C.value,
+        gpu_zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-pinned-{model}",
         run_model_cmds=(test_script,),
@@ -171,7 +171,7 @@ with models.DAG(
     ).run()
     stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         accelerator_type=GpuVersion.XPK_H100_MEGA,
-        gpu_zone=Zone.US_CENTRAL1_C.value,
+        gpu_zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(test_script,),

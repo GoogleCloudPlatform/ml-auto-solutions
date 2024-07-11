@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to construct configs for maxtext inference DAG."""
+"""Utilities to construct configs for jetstream-pytorch inference DAG."""
 
 import datetime
 import json
@@ -27,7 +27,7 @@ RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
 
 
-def get_maxtext_inference_nightly_config(
+def get_jetstream_pytorch_inference_nightly_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
@@ -50,80 +50,60 @@ def get_maxtext_inference_nightly_config(
 
   set_up_cmds = (
       "pip install --upgrade pip",
-      # Download jetstream and maxtext
-      "git clone https://github.com/google/maxtext.git",
-      "git clone https://github.com/google/JetStream.git",
+      "git clone https://github.com/google/jetstream-pytorch.git",
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
       "sudo apt-get -y install jq",
       "python -m venv .env",
       "source .env/bin/activate",
-      # Setup MaxText & JetStream
-      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
-      "cd JetStream && pip install -e . && cd benchmarks && pip install -r requirements.in",
-      "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+      # Setup jetstream-pytorch
+      "cd jetstream-pytorch && source install_everything.sh",
   )
 
-  additional_metadata_dict = {
-      "model_mode": f"{model_configs['model_mode']}",
-      "checkpoint": f"{model_configs['checkpoint']}",
-      "scan_layers": f"{model_configs['scan_layers']}",
-      "dataset": f"{model_configs['dataset']}",
-      "max_prefill_predict_length": f"{model_configs['max_prefill_predict_length']}",
-      "max_target_length": f"{model_configs['max_target_length']}",
-      "max_output_length": f"{model_configs['max_output_length']}",
-      "ici_fsdp_parallelism": f"{model_configs['ici_fsdp_parallelism']}",
-      "ici_autoregressive_parallelism": f"{model_configs['ici_autoregressive_parallelism']}",
-      "ici_tensor_parallelism": f"{model_configs['ici_tensor_parallelism']}",
-      "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
-      "weight_dtype": f"{model_configs['weight_dtype']}",
-  }
+  additional_metadata_dict = model_configs.copy()
+  additional_metadata_dict.pop("sleep_time")
 
   run_model_cmds = (
       # Start virtual environment
       "source .env/bin/activate",
-      # Get commit hash of the maxtext and jetstream repos
+      # Get commit hash of the jetstream-pytorch and jetstream repos
       f"export METADATA_DICT='{json.dumps(additional_metadata_dict)}'",
-      'cd maxtext && export MAXTEXT_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
-      'cd JetStream && export JETSTREAM_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
-      'export METADATA_DICT=$(jq -c \'. + { "maxtext_commit_hash": $newVal}\' --arg newVal ${MAXTEXT_COMMIT_HASH} <<<"$METADATA_DICT")',
+      'cd jetstream-pytorch && export JETSTREAM_PYTORCH_COMMIT_HASH=$(git log -1 --format="%H") && cd ..',
+      'cd jetstream-pytorch/deps/JetStream && export JETSTREAM_COMMIT_HASH=$(git log -1 --format="%H") && cd ../../..',
+      'export METADATA_DICT=$(jq -c \'. + { "jetstream_pytorch_commit_hash": $newVal}\' --arg newVal ${JETSTREAM_PYTORCH_COMMIT_HASH} <<<"$METADATA_DICT")',
       'export METADATA_DICT=$(jq -c \'. + { "jetstream_commit_hash": $newVal}\' --arg newVal ${JETSTREAM_COMMIT_HASH} <<<"$METADATA_DICT")',
       ### Benchmark
-      "cd maxtext",
+      "cd jetstream-pytorch",
       # Configure flags
-      f"export UNSCANNED_CKPT_PATH={model_configs['checkpoint']}",
-      f"export TOKENIZER_PATH=assets/{model_configs['tokenizer']}",
-      "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
-      f"export MAX_PREFILL_PREDICT_LENGTH={model_configs['max_prefill_predict_length']}",
-      f"export MAX_TARGET_LENGTH={model_configs['max_target_length']}",
       f"export MODEL_NAME={model_configs['model_name']}",
-      f"export ICI_FSDP_PARALLELISM={model_configs['ici_fsdp_parallelism']}",
-      f"export ICI_AUTOREGRESSIVE_PARALLELISM={model_configs['ici_autoregressive_parallelism']}",
-      f"export ICI_TENSOR_PARALLELISM={model_configs['ici_tensor_parallelism']}",
-      f"export SCAN_LAYERS={model_configs['scan_layers']}",
-      f"export WEIGHT_DTYPE={model_configs['weight_dtype']}",
-      f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
-      # Start JetStream MaxText server in the background
-      """python MaxText/maxengine_server.py \
-        MaxText/configs/inference_jetstream.yml \
-        tokenizer_path=${TOKENIZER_PATH} \
-        load_parameters_path=${LOAD_PARAMETERS_PATH} \
-        max_prefill_predict_length=${MAX_PREFILL_PREDICT_LENGTH} \
-        max_target_length=${MAX_TARGET_LENGTH} \
-        model_name=${MODEL_NAME} \
-        ici_fsdp_parallelism=${ICI_FSDP_PARALLELISM} \
-        ici_autoregressive_parallelism=${ICI_AUTOREGRESSIVE_PARALLELISM} \
-        ici_tensor_parallelism=${ICI_TENSOR_PARALLELISM} \
-        scan_layers=${SCAN_LAYERS} \
-        weight_dtype=${WEIGHT_DTYPE} \
-        per_device_batch_size=${PER_DEVICE_BATCH_SIZE} > /dev/null 2>&1 &""",
-      "cd ..",
+      f"export SIZE={model_configs['size']}",
+      f"export BATCH_SIZE={model_configs['batch_size']}",
+      f"export MAX_CACHE_LEN={model_configs['max_cache_length']}",
+      f"export CKPT_PATH={model_configs['checkpoint']}",
+      f"export TOKENIZER_PATH=$(pwd)/ckpt_dir/{model_configs['tokenizer']}",
+      f"export SHARDING_CONFIG={model_configs['sharding_config']}",
+      "mkdir ckpt_dir",
+      "gsutil cp -r ${CKPT_PATH}/* ckpt_dir/",
+      # Start jetstream-pytorch server in the background
+      """python run_server.py \
+        --model_name=${MODEL_NAME} \
+        --size=${SIZE} \
+        --batch_size=${BATCH_SIZE} \
+        --max_cache_length=${MAX_CACHE_LEN} \
+        --checkpoint_path=ckpt_dir \
+        --tokenizer_path=${TOKENIZER_PATH} \
+        --sharding_config=${SHARDING_CONFIG} &""",
+      """pip install -r deps/JetStream/benchmarks/requirements.in \
+                     -r deps/JetStream/requirements.in \
+                     -r deps/JetStream/requirements.txt """,
+      # redo the install everything script to keep jax library versions in accord
+      "source ./install_everything.sh",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",
       # Run benchmark, run eval, save benchmark and eval results, and save predictions to /tmp/request-outputs.json
-      f"""python JetStream/benchmarks/benchmark_serving.py \
-      --tokenizer maxtext/assets/{model_configs['tokenizer']} \
+      f"""python deps/JetStream/benchmarks/benchmark_serving.py \
+      --tokenizer ckpt_dir/{model_configs['tokenizer']} \
       --model {model_configs['model_name']} \
       --num-prompts {model_configs['num_prompts']}  \
       --dataset {model_configs['dataset']} \
@@ -156,9 +136,9 @@ def get_maxtext_inference_nightly_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.ANDY_Y,
+      task_owner=test_owner.XIANG_S,
       num_slices=num_slices,
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxtext",
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jetstream_pytorch",
   )
 
   job_metric_config = metric_config.MetricConfig(

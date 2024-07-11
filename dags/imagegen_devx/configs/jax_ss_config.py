@@ -16,18 +16,50 @@
 
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Project, ClusterName, GpuVersion, CpuVersion
+from dags.vm_resource import TpuVersion, Project, ClusterName, GpuVersion, CpuVersion, Zone
 from typing import Iterable
 import datetime
 
+tpu_versions = {
+    # accelerator: tpu versions
+    "v4-8": TpuVersion.V4,
+    "v4-16": TpuVersion.V4,
+    "v5-8": TpuVersion.V5P,
+}
+cluster_names = {
+    # accelerator: cluster names
+    "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
+    "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
+    "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
+}
+tpu_zones = {
+    # accelerator: cluster name
+    "v4-8": Zone.US_CENTRAL2_B,
+    "v4-16": Zone.US_CENTRAL2_B,
+    "v5-8": Zone.US_EAST5_A,
+}
+project_names = {
+    # accelerator: project names
+    "v4-8": Project.TPU_PROD_ENV_MULTIPOD,
+    "v4-16": Project.TPU_PROD_ENV_MULTIPOD,
+    "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
+}
 
-def get_gke_maxtext_jax_ss_config(
+
+def get_current_datetime() -> str:
+  current_time = datetime.datetime.now()
+  current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
+  return current_datetime
+
+
+def get_gke_jax_ss_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
     test_name: str,
     docker_image: str,
+    run_model_cmds: Iterable[str],
     test_owner: str,
     cluster_name: str = ClusterName.V4_8_MULTISLICE_CLUSTER.value,
     project_name: str = Project.TPU_PROD_ENV_MULTIPOD.value,
@@ -42,22 +74,6 @@ def get_gke_maxtext_jax_ss_config(
       dataset_name=dataset_name,
       dataset_project=dataset_project,
       composer_project=composer_project,
-  )
-
-  current_time = datetime.datetime.now()
-  current_date = current_time.strftime("%Y-%m-%d")
-  current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
-  base_output_directory = (
-      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-ss/automated/{current_date}"
-  )
-  run_name = f"{num_slices}slice-V{tpu_version.value}_{tpu_cores}-maxtext-jax-ss-{current_datetime}"
-
-  run_model_cmds = (
-      f"python MaxText/train.py MaxText/configs/base.yml run_name={run_name} "
-      "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
-      "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
-      "dataset_type=synthetic async_checkpointing=false "
-      f"base_output_directory={base_output_directory}",
   )
 
   job_test_config = test_config.TpuGkeTest(

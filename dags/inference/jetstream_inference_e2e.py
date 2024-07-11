@@ -16,9 +16,8 @@
 
 import datetime
 from airflow import models
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, RuntimeVersion
-from dags.inference.configs import maxtext_inference_gce_config
-from dags.multipod.configs.common import SetupMode
+from dags.vm_resource import TpuVersion
+from dags.inference.maxtext_model_config_generator import generate_model_configs
 
 """A JetStream inference E2E test (JAX nightly, no schedule) DAG.
 
@@ -31,6 +30,23 @@ gcloud composer environments run ml-automation-solutions \
 
 """
 
+LLAMA2_7B = "llama2-7b"
+GEMMA_7B = "gemma-7b"
+
+BASE_MODE = "base"
+
+W_BF16_KV_BF16 = "w-b16-kv-b16"
+
+CKPT = {
+    LLAMA2_7B: {
+        BASE_MODE: "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+    },
+    GEMMA_7B: {
+        BASE_MODE: "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items"
+    },
+}
+
+
 with models.DAG(
     dag_id="jetstream_e2e_inference",
     schedule=None,
@@ -39,100 +55,121 @@ with models.DAG(
     catchup=False,
 ) as dag:
   test_name_prefix = "jetstream-e2e-inference"
-  test_models = {
-      "llama2-7b": {
-          "sleep_time": 120,
+
+  test_templates = {
+      # LLAMA2_7B
+      LLAMA2_7B: {
+          "maxtext_branch": "",
+          "jetstream_branch": "",
+          "sleep_time": 360,
+          "time_out_in_min": 60,
           "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "model_mode": "base",
-          "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
-          "scan_layers": "false",
-          "dataset": "openorca",
-          "weight_dtype": "bfloat16",
+          "model_name": LLAMA2_7B,
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [11],
-          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1)],
-          "request_rate": 5,
-          "num_prompts": 200,
-          "max_prefill_predict_length": 1024,
-          "max_target_length": 2048,
-          "max_output_length": 1024,
-      },
-      "gemma-7b": {
-          "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "model_mode": "base",
-          "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
-          "scan_layers": "false",
-          "dataset": "openorca",
           "weight_dtype": "bfloat16",
-          "tokenizer": "tokenizer.gemma",
-          "per_device_batch_sizes": [11],
-          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1)],
-          "request_rate": 5,
-          "num_prompts": 200,
+          "scan_layers": "false",
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
+          "reshape_q": True,
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          "ici_parallelisms": [(1, 1, -1)],
+          "dataset": "openorca",
+          "num_prompts": 200,
           "max_output_length": 1024,
+          "warmup_mode": "full",
+      },
+      f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-2013-2013",
+          ],
+      },
+      # GEMMA_7B
+      GEMMA_7B: {
+          "maxtext_branch": "",
+          "jetstream_branch": "",
+          "sleep_time": 360,
+          "time_out_in_min": 60,
+          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "model_name": GEMMA_7B,
+          "tokenizer": "tokenizer.gemma",
+          "weight_dtype": "bfloat16",
+          "scan_layers": "false",
+          "max_prefill_predict_length": 1024,
+          "max_target_length": 2048,
+          "reshape_q": True,
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          "ici_parallelisms": [(1, 1, -1)],
+          "dataset": "sharegpt",
+          "dataset_path": "~/ShareGPT_V3_unfiltered_cleaned_split.json",
+          "request_rate": [0.0],
+          "num_prompts": 200,
+          "max_output_length": 1024,
+          "warmup_mode": "full",
+      },
+      f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect": {
+          "attention": "autoselected",
+          "request_rate": [0.0],
+          "axis_order": ["0123-1203-1203"],
       },
   }
 
-  for model, sweep_model_configs in test_models.items():
-    for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
-      for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
-        for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
-          # Set per_device_batch_size to a single value, not a list
-          model_configs = {}
-          model_configs["model_name"] = model
-          model_configs["model_mode"] = sweep_model_configs["model_mode"]
-          model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
-          model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
-          model_configs["maxtext_logs"] = sweep_model_configs["maxtext_logs"]
-          model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
-          model_configs["dataset"] = sweep_model_configs["dataset"]
-          model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
-          model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
-          model_configs["per_device_batch_size"] = per_device_batch_size
-          ici_fsdp = ici_parallelism[0]
-          ici_ar = ici_parallelism[1]
-          ici_tensor = ici_parallelism[2]
-          model_configs["ici_fsdp_parallelism"] = ici_fsdp
-          model_configs["ici_autoregressive_parallelism"] = ici_ar
-          model_configs["ici_tensor_parallelism"] = ici_tensor
-          model_configs["request_rate"] = sweep_model_configs["request_rate"]
-          model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
-          model_configs["max_target_length"] = sweep_model_configs[
-              "max_target_length"
-          ]
-          model_configs["max_prefill_predict_length"] = sweep_model_configs[
-              "max_prefill_predict_length"
-          ]
-          model_configs["max_output_length"] = sweep_model_configs[
-              "max_output_length"
-          ]
+  tests = {
+      # LLAMA2_7B
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_7B]
+      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+      | {
+          "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_BF16_KV_BF16,
+          "quantization": "",
+          "quantize_kvcache": "false",
+          "per_device_batch_size": 12,
+          "kv_quant_axis": "",
+          "run_eval": True,
+      },
+      # GEMMA_7B
+      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}": test_templates[GEMMA_7B]
+      | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect"]
+      | {
+          "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+          "model_mode": BASE_MODE,
+          "quant_mode": W_BF16_KV_BF16,
+          "quantization": "",
+          "quantize_kvcache": "false",
+          "per_device_batch_size": 12,
+          "kv_quant_axis": "",
+          "run_eval": True,
+      },
+  }
 
-          # v5e e2e test with benchmarks
-          project_name = Project.TPU_PROD_ENV_AUTOMATED.value
-          zone = Zone.US_EAST1_C.value
-          network = V5_NETWORKS
-          subnetwork = V5E_SUBNETWORKS
-          runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+  run_configs = [
+      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+  ]
 
-          maxtext_nightly_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
-              tpu_version=tpu_version,
-              tpu_cores=tpu_cores,
-              tpu_zone=zone,
-              runtime_version=runtime_version,
-              project_name=project_name,
-              time_out_in_min=60,
-              is_tpu_reserved=True,
-              test_name=f"{test_name_prefix}-nightly-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
-              test_mode=SetupMode.NIGHTLY,
-              network=network,
-              subnetwork=subnetwork,
-              model_configs=model_configs,
-          )
-          maxtext_nightly_1slice
+  skip_configs = []
+
+  for model_config_name, sweep_model_configs in tests.items():
+    if run_configs and model_config_name not in run_configs:
+      continue
+    if skip_configs and model_config_name in skip_configs:
+      continue
+    dags = []
+    for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
+      for axis_order in sweep_model_configs["axis_order"]:
+        for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
+          for request_rate in sweep_model_configs["request_rate"]:
+            jetstream_benchmark_serving_kv_cache_layout = (
+                generate_model_configs(
+                    test_name_prefix=test_name_prefix,
+                    model_config_name=model_config_name,
+                    sweep_model_configs=sweep_model_configs,
+                    axis_order=axis_order,
+                    ici_parallelism=ici_parallelism,
+                    request_rate=request_rate,
+                    tpu_version=tpu_version,
+                    tpu_cores=tpu_cores,
+                )
+            )

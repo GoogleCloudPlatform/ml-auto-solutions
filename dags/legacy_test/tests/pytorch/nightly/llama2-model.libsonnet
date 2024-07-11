@@ -41,7 +41,7 @@ local utils = import 'templates/utils.libsonnet';
     tpuSettings+: {
       tpuVmExtraSetup: |||
         # install tokenizer model
-        wget https://storage.googleapis.com/tpu-pytorch/lsiyuan-experiment/llama/spiece.model
+        gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
         # git clone and build llama
         git clone --branch llama2-google-next-inference https://github.com/pytorch-tpu/llama.git
@@ -109,7 +109,7 @@ local utils = import 'templates/utils.libsonnet';
       |||,
       tpuVmExtraSetup: |||
         # install tokenizer model
-        wget https://storage.googleapis.com/tpu-pytorch/lsiyuan-experiment/llama/spiece.model
+        gsutil cp gs://tpu-pytorch/lsiyuain-experiment/llama/spiece.model .
 
         # git clone and build transformers ### llama/transformers/
         git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.git
@@ -125,7 +125,7 @@ local utils = import 'templates/utils.libsonnet';
         # 7B config
         mkdir 7B
         cd 7B/
-        wget https://storage.googleapis.com/manfei_public_experimental/2B.json
+        gsutil cp gs://manfei_public_experimental/2B.json .
       |||,
     },
   },
