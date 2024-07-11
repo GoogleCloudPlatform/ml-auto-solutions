@@ -29,6 +29,12 @@ V4_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-central2/subnetworks/mas-test"
 V5E_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-west1/subnetworks/mas-test"
 V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
 
+INFERENCE_NETWORK_PREFIX = "projects/cloud-tpu-inference-test"
+INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
+H100_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
+
 
 class Project(enum.Enum):
   """Common GCP projects."""
@@ -87,6 +93,8 @@ class Zone(enum.Enum):
   US_WEST4_B = "us-west4-b"
   # reserved v5e in cloud-tpu-inference-test
   US_WEST1_C = "us-west1-c"
+  # reserved a3+ cluster in supercomputer-testing
+  AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
 
 
 class MachineVersion(enum.Enum):
@@ -181,6 +189,9 @@ class DockerImage(enum.Enum):
   )
   MAXTEXT_TPU_JAX_SS = (
       "gcr.io/tpu-prod-env-multipod/jax-ss-maxtext-unpinned:06032024"
+  )
+  MAXDIFFUSION_TPU_JAX_SS = (
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_ss:06112024"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"

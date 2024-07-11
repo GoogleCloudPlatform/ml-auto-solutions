@@ -189,10 +189,12 @@ def create_resource(
     )
 
     instance_client = compute_v1.InstancesClient()
-    network_link = "global/networks/default"
     # Use the network interface provided in the network_link argument.
     network_interface = compute_v1.NetworkInterface()
-    network_interface.network = network_link
+    if accelerator.subnetwork:
+      network_interface.network = accelerator.network
+    if accelerator.subnetwork:
+      network_interface.subnetwork = accelerator.subnetwork
 
     if external_access:
       access = compute_v1.AccessConfig()

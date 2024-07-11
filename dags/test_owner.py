@@ -29,9 +29,6 @@ class Team(enum.Enum):
 # XLML - JAX/FLAX
 SHIVA_S = "Shiva S."
 
-# XLML - PAX
-GERSON_K = "Gerson K."
-
 # XLML - TensorFlow
 ERIC_L = "Eric L."
 CHANDRA_D = "Chandra D."
@@ -61,3 +58,6 @@ PARAM_B = "Param B."
 
 # Inference
 ANDY_Y = "Andy Y."
+XIANG_S = "Xiang S."
+MORGAN_D = "Morgan D."
+YIJIA_J = "Yijia J."
