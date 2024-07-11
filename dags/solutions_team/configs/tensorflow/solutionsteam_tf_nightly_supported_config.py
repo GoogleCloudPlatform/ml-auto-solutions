@@ -231,45 +231,77 @@ def get_tf_dlrm_config(
               "global_batch_size": 16384,
           },
           "model": {
-              "interaction": "dot",
+              "interaction": "multi_layer_dcn",
+              "dcn_num_layers": 3,
+              "dcn_low_rank_dim": 512,
               "num_dense_features": 13,
               "bottom_mlp": bottom_mlp,
               "embedding_dim": embedding_dim,
               "top_mlp": [1024, 1024, 512, 256, 1],
-              "size_threshold": 0,
               "vocab_sizes": [
-                  39884406,
-                  39043,
-                  17289,
-                  7420,
-                  20263,
+                  40000000,
+                  39060,
+                  17295,
+                  7424,
+                  20265,
                   3,
-                  7120,
+                  7122,
                   1543,
                   63,
-                  38532951,
-                  2953546,
-                  403346,
+                  40000000,
+                  3067956,
+                  405282,
                   10,
-                  2208,
+                  2209,
                   11938,
                   155,
                   4,
                   976,
                   14,
-                  39979771,
-                  25641295,
-                  39664984,
-                  585935,
-                  12972,
+                  40000000,
+                  40000000,
+                  40000000,
+                  590152,
+                  12973,
                   108,
                   36,
               ],
-              "max_ids_per_chip_per_sample": 64,
+              "multi_hot_sizes": [
+                  3,
+                  2,
+                  1,
+                  2,
+                  6,
+                  1,
+                  1,
+                  1,
+                  1,
+                  7,
+                  3,
+                  8,
+                  1,
+                  6,
+                  9,
+                  5,
+                  1,
+                  1,
+                  1,
+                  12,
+                  100,
+                  27,
+                  10,
+                  3,
+                  1,
+                  1,
+              ],
+              "use_multi_hot": "true",
+              "concat_dense": "false",
+              "dcn_use_bias": "true",
+              "max_ids_per_chip_per_sample": 128,
               "max_ids_per_table": 2048,
               "max_unique_ids_per_table": 512,
               "use_partial_tpu_embedding": "false",
-              "size_threshold": 10000,
+              "size_threshold": 0,
           },
       },
       "trainer": {
@@ -291,18 +323,17 @@ def get_tf_dlrm_config(
       },
   }
 
-  model_dir = "/tmp/"
-  if is_v5p:
-    params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
-    tpu_id = Variable.get(benchmark_id, default_var=None)
-    # TODO (ericlefort): Replace the model_dir with this line when the var is available
-    # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
-    model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}"
+  model_dir = "/tmp"
+
+  params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
+  tpu_id = Variable.get(benchmark_id, default_var=None)
+  # TODO (ericlefort): Replace the model_dir with this line when the var is available
+  # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
+  epoch = time.time()
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}/{epoch}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
-      "sudo chmod -R 777 /tmp/",
-      f"gsutil rm {model_dir}/* 2> /dev/null || true" if is_v5p else "echo",
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/recommendation/ranking/train.py"
