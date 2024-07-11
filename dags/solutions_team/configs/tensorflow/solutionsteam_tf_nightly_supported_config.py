@@ -223,11 +223,11 @@ def get_tf_dlrm_config(
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
           "train_data": {
-              "input_path": criteo_dir + "/train/*",
+              "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
               "global_batch_size": 16384,
           },
           "validation_data": {
-              "input_path": criteo_dir + "/eval/*",
+              "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/eval/day_*/*",
               "global_batch_size": 16384,
           },
           "model": {
