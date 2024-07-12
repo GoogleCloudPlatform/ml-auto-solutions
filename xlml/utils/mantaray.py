@@ -57,4 +57,4 @@ def run_workload(
     )
     assert (
         result.exit_code == 0
-    ), f"XPK command failed with code {result.exit_code}"
+    ), f"Mantaray command failed with code {result.exit_code}"
