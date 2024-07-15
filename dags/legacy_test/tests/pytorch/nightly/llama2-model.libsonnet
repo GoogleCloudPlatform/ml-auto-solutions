@@ -109,7 +109,7 @@ local utils = import 'templates/utils.libsonnet';
       |||,
       tpuVmExtraSetup: |||
         # install tokenizer model
-        gsutil cp gs://tpu-pytorch/lsiyuain-experiment/llama/spiece.model .
+        gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
         # git clone and build transformers ### llama/transformers/
         git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.git
