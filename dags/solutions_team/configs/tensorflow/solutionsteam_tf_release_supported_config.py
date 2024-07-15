@@ -15,8 +15,9 @@
 """Utilities to construct configs for solutionsteam_tf_nightly_supported DAG."""
 
 from __future__ import annotations
-
 import datetime
+import time
+from datetime import date
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
 from dags.solutions_team.configs.tensorflow import common
@@ -25,81 +26,14 @@ from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
 MAJOR_VERSION = "2"
-MINOR_VERSION = "15"
-PATCH_VERSION = "1"
-LIBTPU_VERSION = "1.9.0"
-KERAS_VERSION = "2.15.1"
-MODELS_BRANCH = "r2.15.0"
+MINOR_VERSION = "17"
+PATCH_VERSION = "0"
+RELEASE_CANDIDATE = "rc1"
+LIBTPU_VERSION = "1.11.0"
+KERAS_VERSION = "2.17.0rc0"
+MODELS_BRANCH = None  # "r2.17.0"
 
 GS_VERSION_STR = f"tf-{MAJOR_VERSION}-{MINOR_VERSION}-{PATCH_VERSION}"
-
-
-def get_tf_keras_config(
-    tpu_version: TpuVersion,
-    tpu_cores: int,
-    tpu_zone: str,
-    time_out_in_min: int,
-    test_feature: str,
-    test_name: str,
-    runtime_version: str,
-    project_name: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-    is_pod: bool = False,
-    is_pjrt: bool = True,
-    network: str = "default",
-    subnetwork: str = "default",
-):
-  job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
-      dataset_name=metric_config.DatasetOption.XLML_DATASET,
-  )
-
-  set_up_cmds = common.set_up_keras(KERAS_VERSION)
-  set_up_cmds += common.install_tf(
-      MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
-  )
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
-  keras_test_name = f"tf_{MAJOR_VERSION}_{MINOR_VERSION}_keras_api_{test_name}"
-  benchmark_id = f"{keras_test_name}-v{tpu_version.value}-{tpu_cores}"
-  # Add default_var to pass DAG check
-  # TODO(ranran): replace Variable.get() to XCOM when it applies
-  tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
-  env_variable = common.export_env_variables(tpu_name, is_pod, is_pjrt)
-  skipped_tag = "--tags=-failspod" if is_pod else ""
-  run_model_cmds = (
-      "sudo chmod -R 777 /tmp/",
-      (
-          "export PATH=$PATH:/home/ml-auto-solutions/.local/bin &&"
-          f" {env_variable} &&"
-          " cd /tmp/tf2-api-tests &&"
-          " behave -e ipynb_checkpoints"
-          f" --tags=-fails {skipped_tag} -i {test_feature}"
-      ),
-  )
-
-  job_test_config = test_config.TpuVmTest(
-      test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
-          runtime_version=runtime_version,
-          reserved=True,
-          network=network,
-          subnetwork=subnetwork,
-      ),
-      test_name=keras_test_name,
-      set_up_cmds=set_up_cmds,
-      run_model_cmds=run_model_cmds,
-      timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.ERIC_L,
-  )
-
-  return task.run_queued_resource_test(
-      task_test_config=job_test_config,
-      task_gcp_config=job_gcp_config,
-      tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
-  )
 
 
 def get_tf_resnet_config(
@@ -127,11 +61,23 @@ def get_tf_resnet_config(
 
   set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
   set_up_cmds += common.install_tf(
-      MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
+      MAJOR_VERSION,
+      MINOR_VERSION,
+      PATCH_VERSION,
+      RELEASE_CANDIDATE,
+      LIBTPU_VERSION,
   )
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
+  if is_pod:
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
+    else:
+      set_up_cmds += common.set_up_pjrt(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
 
+  global_batch_size = 128 * tpu_cores
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
@@ -164,7 +110,7 @@ def get_tf_resnet_config(
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/vision/train.py"
           f" --experiment=resnet_imagenet"
-          " --mode=train_and_eval --model_dir=/tmp/"
+          f" --mode=train_and_eval --model_dir=/tmp"
           f" --params_override='{params_override}'"
       ),
   )
@@ -226,61 +172,109 @@ def get_tf_dlrm_config(
       tpu_name, is_pod, is_pjrt, is_v5p_sc=is_v5p
   )
 
-  if is_v5p:
-    set_up_cmds = common.set_up_dlrm_v5p()
-  else:
-    set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
-    set_up_cmds += common.install_tf(
-        MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, LIBTPU_VERSION
-    )
-    if not is_pjrt and is_pod:
-      set_up_cmds += common.set_up_se_nightly()
-
+  set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
+  set_up_cmds += common.install_tf(
+      MAJOR_VERSION,
+      MINOR_VERSION,
+      PATCH_VERSION,
+      RELEASE_CANDIDATE,
+      LIBTPU_VERSION,
+  )
+  if is_pod:
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
+    else:
+      set_up_cmds += common.set_up_pjrt(
+          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
+      )
+  global_batch_size = 16384 * (tpu_cores // 8)
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
+          "use_synthetic_data": "false",
+          "use_tf_record_reader": "true",
           "train_data": {
-              "input_path": criteo_dir + "/train/*",
-              "global_batch_size": 16384,
+              "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
+              "global_batch_size": global_batch_size,
           },
           "validation_data": {
-              "input_path": criteo_dir + "/eval/*",
-              "global_batch_size": 16384,
+              "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/eval/day_*/*",
+              "global_batch_size": global_batch_size,
           },
           "model": {
-              "interaction": "dot",
+              "interaction": "multi_layer_dcn",
+              "dcn_num_layers": 3,
+              "dcn_low_rank_dim": 512,
               "num_dense_features": 13,
               "bottom_mlp": bottom_mlp,
               "embedding_dim": embedding_dim,
               "top_mlp": [1024, 1024, 512, 256, 1],
               "vocab_sizes": [
-                  39884406,
-                  39043,
-                  17289,
-                  7420,
-                  20263,
+                  40000000,
+                  39060,
+                  17295,
+                  7424,
+                  20265,
                   3,
-                  7120,
+                  7122,
                   1543,
                   63,
-                  38532951,
-                  2953546,
-                  403346,
+                  40000000,
+                  3067956,
+                  405282,
                   10,
-                  2208,
+                  2209,
                   11938,
                   155,
                   4,
                   976,
                   14,
-                  39979771,
-                  25641295,
-                  39664984,
-                  585935,
-                  12972,
+                  40000000,
+                  40000000,
+                  40000000,
+                  590152,
+                  12973,
                   108,
                   36,
               ],
+              "multi_hot_sizes": [
+                  3,
+                  2,
+                  1,
+                  2,
+                  6,
+                  1,
+                  1,
+                  1,
+                  1,
+                  7,
+                  3,
+                  8,
+                  1,
+                  6,
+                  9,
+                  5,
+                  1,
+                  1,
+                  1,
+                  12,
+                  100,
+                  27,
+                  10,
+                  3,
+                  1,
+                  1,
+              ],
+              "use_multi_hot": "true",
+              "concat_dense": "false",
+              "dcn_use_bias": "true",
+              "max_ids_per_chip_per_sample": 128,
+              "max_ids_per_table": 2048,
+              "max_unique_ids_per_table": 512,
+              "use_partial_tpu_embedding": "false",
+              "size_threshold": 0,
           },
       },
       "trainer": {
@@ -302,18 +296,17 @@ def get_tf_dlrm_config(
       },
   }
 
-  model_dir = "/tmp/"
-  if is_v5p:
-    params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
-    tpu_id = Variable.get(benchmark_id, default_var=None)
-    # TODO (ericlefort): Replace the model_dir with this line when the var is available
-    # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
-    model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}"
+  model_dir = "/tmp"
+
+  params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
+  tpu_id = Variable.get(benchmark_id, default_var=None)
+  # TODO (ericlefort): Replace the model_dir with this line when the var is available
+  # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
+  epoch = time.time()
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}/{epoch}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
-      "sudo chmod -R 777 /tmp/",
-      f"gsutil rm {model_dir}/* 2> /dev/null || true" if is_v5p else "echo",
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/recommendation/ranking/train.py"
