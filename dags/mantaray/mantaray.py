@@ -20,7 +20,9 @@ from airflow import models
 from xlml.utils import mantaray
 import yaml
 
-# Download xlml_jobs.yaml from GCS
+# Download xlml_jobs.yaml from the ml-auto-solutions GCS bucket. Any update
+# to this file in the bucket will automatically trigger the execution of
+# this script, which recreates the Mantaray DAGs to reflect the changes.
 xlml_jobs_yaml = mantaray.load_file_from_gcs(
     "gs://us-central1-ml-automation-s-bc954647-bucket/mantaray/xlml_jobs/xlml_jobs.yaml"
 )
