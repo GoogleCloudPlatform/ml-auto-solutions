@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for solutionsteam_tf_nightly_supported DAG."""
 
+import time
 import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner

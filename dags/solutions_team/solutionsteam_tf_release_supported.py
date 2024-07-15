@@ -15,6 +15,7 @@
 """A DAG to run all supported ML models with the nightly TensorFlow version."""
 
 import datetime
+import time
 from airflow import models
 from dags import composer_env
 from dags.vm_resource import TpuVersion, Project, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS

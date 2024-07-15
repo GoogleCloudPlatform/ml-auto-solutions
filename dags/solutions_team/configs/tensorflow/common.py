@@ -15,6 +15,7 @@
 """Utilities to construct common configs."""
 
 from __future__ import annotations
+import time
 
 
 CMD_PRINT_TF_VERSION = "python3 -c \"import tensorflow; print('Running using TensorFlow Version: ' + tensorflow.__version__)\""

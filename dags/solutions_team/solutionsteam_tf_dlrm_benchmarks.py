@@ -14,6 +14,7 @@
 
 """A DAG to run all supported ML models with the nightly TensorFlow version."""
 
+import time
 import datetime
 from airflow import models
 from dags import composer_env
