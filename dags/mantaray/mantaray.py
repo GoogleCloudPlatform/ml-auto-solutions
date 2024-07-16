@@ -19,12 +19,14 @@ import datetime
 from airflow import models
 from xlml.utils import mantaray
 import yaml
+from dags import composer_env
 
 # Download xlml_jobs.yaml from the ml-auto-solutions GCS bucket. Any update
 # to this file in the bucket will automatically trigger the execution of
 # this script, which recreates the Mantaray DAGs to reflect the changes.
+gs_bucket = composer_env.get_gs_bucket()
 xlml_jobs_yaml = mantaray.load_file_from_gcs(
-    "gs://us-central1-ml-automation-s-bc954647-bucket/mantaray/xlml_jobs/xlml_jobs.yaml"
+    f"{gs_bucket}/mantaray/xlml_jobs/xlml_jobs.yaml"
 )
 xlml_jobs = yaml.safe_load(xlml_jobs_yaml)
 # Create a DAG for each job

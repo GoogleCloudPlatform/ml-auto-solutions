@@ -26,7 +26,15 @@ DEV_COMPOSER_ENV_NAME = "ml-automation-solutions-dev"
 COMPOSER_ENVIRONMENT = "COMPOSER_ENVIRONMENT"
 COMPOSER_LOCATION = "COMPOSER_LOCATION"
 
+DEV_COMPOSER_ENV_GS_BUCKET = "gs://us-central1-ml-automation-s-bc6c8818-bucket"
+PROD_COMPOSER_ENV_GS_BUCKET = "gs://us-central1-ml-automation-s-bc954647-bucket"
+
 
 def is_prod_env() -> bool:
   """Indicate if the composer environment is Prod."""
   return os.environ.get(COMPOSER_ENVIRONMENT) == PROD_COMPOSER_ENV_NAME
+
+def get_gs_bucket() -> str:
+  if is_prod_env():
+    return PROD_COMPOSER_ENV_GS_BUCKET
+  return DEV_COMPOSER_ENV_GS_BUCKET

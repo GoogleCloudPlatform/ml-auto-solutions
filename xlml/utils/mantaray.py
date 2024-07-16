@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
+from dags import composer_env
 
 
 def load_file_from_gcs(gs_file_path):
@@ -35,6 +36,7 @@ def load_file_from_gcs(gs_file_path):
 def run_workload(
     workload_file_name: str,
 ):
+  gs_bucket = composer_env.get_gs_bucket()
   with tempfile.TemporaryDirectory() as tmpdir:
     cmds = (
         f"cd {tmpdir}",
@@ -42,11 +44,11 @@ def run_workload(
         "pip uninstall -y -q mantaray",  # Download and install mantaray
         (
             "gsutil cp"
-            " gs://us-central1-ml-automation-s-bc954647-bucket/mantaray/mantaray-0.1-py2.py3-none-any.whl ."
+            f" {gs_bucket}/mantaray/mantaray-0.1-py2.py3-none-any.whl ."
         ),
         (
             "gsutil cp -r"
-            " gs://us-central1-ml-automation-s-bc954647-bucket/mantaray/xlml_jobs ."
+            f" {gs_bucket}/mantaray/xlml_jobs ."
         ),
         f"pip install mantaray-0.1-py2.py3-none-any.whl",
         f"python xlml_jobs/{workload_file_name}",  # Run the workload
