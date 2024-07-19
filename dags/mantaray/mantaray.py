@@ -45,3 +45,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       )
 
     run_workload
+else:
+  print(
+      "Skipping creating Mantaray DAGs since not running in Prod or Dev composer environment."
+  )
