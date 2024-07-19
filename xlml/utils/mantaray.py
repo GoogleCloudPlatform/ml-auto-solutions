@@ -46,10 +46,7 @@ def run_workload(
             "gsutil cp"
             f" {gs_bucket}/mantaray/mantaray-0.1-py2.py3-none-any.whl ."
         ),
-        (
-            "gsutil cp -r"
-            f" {gs_bucket}/mantaray/xlml_jobs ."
-        ),
+        ("gsutil cp -r" f" {gs_bucket}/mantaray/xlml_jobs ."),
         f"pip install mantaray-0.1-py2.py3-none-any.whl",
         f"python xlml_jobs/{workload_file_name}",  # Run the workload
     )
