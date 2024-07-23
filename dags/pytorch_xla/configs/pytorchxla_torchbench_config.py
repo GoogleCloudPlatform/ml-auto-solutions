@@ -29,6 +29,7 @@ class VERSION(enum.Enum):
   NIGHTLY = enum.auto()
   R2_2 = enum.auto()
   R2_3 = enum.auto()
+  R2_4 = enum.auto()
 
 
 class VERSION_MAPPING:
@@ -69,6 +70,18 @@ class VERSION_MAPPING:
     TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
     TORCH_REPO_BRANCH = "-b v2.3.0-rc12"
     TORCH_XLA_REPO_BRANCH = "-b v2.3.0-rc12"
+
+  class R2_4(enum.Enum):
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.4.0rc8-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.4.0rc8-cp310-cp310-linux_x86_64.whl"
+    TORCH = "torch==2.4.0"
+    TORCHVISION = "torchvision==0.19.0"
+    TORCHAUDIO = "torchaudio==2.4.0"
+    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.4.0-rc2_3.10_cuda_12.1"
+    TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
+    TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
+    TORCH_REPO_BRANCH = "-b v2.4.0-rc8"
+    TORCH_XLA_REPO_BRANCH = "-b v2.4.0-rc8"
 
 
 def get_version_mapping(test_version):
@@ -130,7 +143,7 @@ def set_up_torchbench_tpu(
   )
 
   return (
-      "pip3 install -U setuptools",
+      "pip3 install -U 'setuptools>=70.0.0,<71.0.0'",
       "sudo systemctl stop unattended-upgrades",
       "sudo apt-get -y update",
       "sudo apt install -y libopenblas-base",
