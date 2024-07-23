@@ -89,7 +89,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
       tpuVmPytorchSetup: |||
-        pip3 install -U setuptools
+        pip3 install -U 'setuptools>=70.0.0,<71.0.0'
         # `unattended-upgr` blocks us from installing apt dependencies
         sudo systemctl stop unattended-upgrades
         sudo apt-get -y update
