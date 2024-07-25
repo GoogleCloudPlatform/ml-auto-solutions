@@ -154,7 +154,7 @@ def set_up_torchbench_tpu(
           f"pip3 install --user --pre {version_mapping.TORCH.value} {version_mapping.TORCHVISION.value} {version_mapping.TORCHAUDIO.value} --index-url {version_mapping.TORCH_INDEX_CPU_URL.value}"
       ),
       (
-          f"pip3 install --user 'torch_xla[tpuvm] @{version_mapping.TORCH_XLA_TPU_WHEEL.value}'"
+          f"pip3 install --user 'torch_xla[tpu] @{version_mapping.TORCH_XLA_TPU_WHEEL.value}' -f https://storage.googleapis.com/libtpu-releases/index.html"
       ),
       "pip3 install --user psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
