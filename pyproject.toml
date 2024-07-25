@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "xlml"
+dependencies = [
+    # TODO: Add explicit dependencies. See .github/requirements.txt
+]
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dynamic = ["version"]
+
+[tool.hatch.version]
+source = "vcs"

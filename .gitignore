@@ -21,3 +21,6 @@ logs
 
 # Misc
 tmp
+
+# Build artifacts
+*.whl
