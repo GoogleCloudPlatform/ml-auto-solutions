@@ -101,6 +101,8 @@ def get_version_mapping(test_version):
     version_mapping = VERSION_MAPPING.R2_2
   elif test_version == VERSION.R2_3:
     version_mapping = VERSION_MAPPING.R2_3
+  elif test_version == VERSION.R2_4:
+    version_mapping = VERSION_MAPPING.R2_4
   else:
     raise ValueError("version number does not exist in VERSION enum")
   return version_mapping
@@ -497,6 +499,7 @@ def get_torchbench_gpu_gke_config(
   run_script_cmds_xla1 = (
       "export PJRT_DEVICE=CUDA",
       f"export GPU_NUM_DEVICES={count}",
+      "export XLA_FALLBACK_CUDA=true",
       "export HUGGING_FACE_HUB_TOKEN=hf_AbCdEfGhIjKlMnOpQ",  # Use a fake token to bypass torchbench hf init.
       "cd /tmp/xla/benchmarks",
       f"python experiment_runner.py --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None --dynamo=None --dynamo=openxla --dynamo=inductor {run_filter}",
