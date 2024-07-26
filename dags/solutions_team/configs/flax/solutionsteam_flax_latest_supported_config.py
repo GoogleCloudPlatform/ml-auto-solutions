@@ -57,7 +57,7 @@ def get_flax_resnet_config(
           f"export TFDS_DATA_DIR={data_dir} &&"
           " JAX_PLATFORM_NAME=TPU python3 /tmp/flax/examples/imagenet/main.py"
           " --config=/tmp/flax/examples/imagenet/configs/tpu.py"
-          f" --workdir={work_dir} --config.num_epochs=1 {extraFlags}"
+          f" --workdir={work_dir} --config.num_epochs=1 --config.profile=False {extraFlags}"
       ),
   )
 
