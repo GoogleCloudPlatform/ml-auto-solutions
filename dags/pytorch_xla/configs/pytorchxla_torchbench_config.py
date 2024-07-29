@@ -77,7 +77,7 @@ class VERSION_MAPPING:
     TORCH = "torch==2.4.0"
     TORCHVISION = "torchvision==0.19.0"
     TORCHAUDIO = "torchaudio==2.4.0"
-    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.4.0-rc2_3.10_cuda_12.1"
+    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.4.0-rc8_3.10_cuda_12.1"
     TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
     TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
     TORCH_REPO_BRANCH = "-b v2.4.0-rc8"
