@@ -37,7 +37,7 @@ def is_prod_env() -> bool:
 
 def is_dev_env() -> bool:
   """Indicate if the composer environment is Dev."""
-  return os.environ.get(COMPOSER_ENVIRONMENT) == DEV_COMPOSER_ENV_GS_BUCKET
+  return os.environ.get(COMPOSER_ENVIRONMENT) == DEV_COMPOSER_ENV_NAME
 
 
 def get_gs_bucket() -> str:
