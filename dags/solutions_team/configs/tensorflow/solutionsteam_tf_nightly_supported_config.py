@@ -216,10 +216,10 @@ def get_tf_dlrm_config(
 
   set_up_cmds = common.set_up_tensorflow_models() + common.install_tf()
   if is_pod:
-    set_up_cmds += common.set_up_se()
-  else:
-    set_up_cmds += common.set_up_pjrt()
-
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se()
+    else:
+      set_up_cmds += common.set_up_pjrt()
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
