@@ -221,7 +221,10 @@ def get_tf_dlrm_config(
     else:
       set_up_cmds += common.set_up_pjrt()
   params_override = {
-      "runtime": {"distribution_strategy": "tpu"},
+      "runtime": {
+          "distribution_strategy": "tpu",
+          "mixed_precision_dtype": "mixed_bfloat16",
+      },
       "task": {
           "train_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
@@ -307,9 +310,9 @@ def get_tf_dlrm_config(
       },
       "trainer": {
           "use_orbit": "true",
-          "validation_interval": 90000,
-          "checkpoint_interval": 270000,
-          "validation_steps": 5440,
+          "validation_interval": 1000,
+          "checkpoint_interval": 0,
+          "validation_steps": 1000,
           "train_steps": train_steps,
           "optimizer_config": {
               "embedding_optimizer": "SGD",
@@ -338,7 +341,7 @@ def get_tf_dlrm_config(
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/recommendation/ranking/train.py"
-          f" --model_dir=/tmp/output {extraFlags}"
+          f" --model_dir={model_dir} {extraFlags}"
           f" --params_override='{params_override}'"
       ),
   )
