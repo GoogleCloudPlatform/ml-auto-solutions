@@ -217,6 +217,23 @@ with models.DAG(
               "time_out_in_min": 60,
           },
       ],
+      "mixtral-8x22b": [
+          {
+              "script_name": "tpu/mixtral/8x22b/1_test_mixtral",
+              "cpu_device_type": CpuVersion.M1_MEGAMEM,
+              "cpu_zone": Zone.US_CENTRAL1_B.value,
+              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "time_out_in_min": 240,
+          },
+          {
+              "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
+              "tpu_version": TpuVersion.V4,
+              "tpu_cores": 128,
+              "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+              "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "time_out_in_min": 60,
+          },
+      ],
       "llama2-70b": [
           {
               "script_name": "tpu/llama2/70b/1_test_llama2_70b",
