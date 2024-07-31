@@ -52,7 +52,7 @@ def get_current_datetime() -> str:
   return current_datetime
 
 
-def get_gke_jax_ss_config(
+def get_gke_jax_stable_stack_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
