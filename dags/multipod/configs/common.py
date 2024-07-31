@@ -23,6 +23,7 @@ UPGRADE_PIP = "pip install --upgrade pip"
 class SetupMode(enum.Enum):
   STABLE = "stable"
   NIGHTLY = "nightly"
+  JAX_STABLE_STACK = "jax_stable_stack"
 
 
 class Platform(enum.Enum):

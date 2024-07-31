@@ -38,6 +38,7 @@ with models.DAG(
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+      (SetupMode.JAX_STABLE_STACK, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
   ]
 
   for mode, image in docker_images:
