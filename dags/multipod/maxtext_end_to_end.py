@@ -133,7 +133,17 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         test_owner=test_owner.JON_B,
     ).run()
-    stable_tpu >> nightly_tpu
+    jax_stable_stack_tpu = gke_config.get_gke_config(
+        tpu_version=TpuVersion.V4,
+        tpu_cores=8,
+        tpu_zone=Zone.US_CENTRAL2_B.value,
+        time_out_in_min=60,
+        test_name=f"jax-stable-stack-{test_name_prefix}-nightly-{model}",
+        run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+        test_owner=test_owner.JON_B,
+    ).run()
+    stable_tpu >> nightly_tpu >> jax_stable_stack_tpu
 
   for model, (test_script, nnodes) in test_models_gpu.items():
     pinned_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
@@ -308,4 +318,33 @@ with models.DAG(
           test_owner=test_owner.ANISHA_M,
           cluster_name=test_scripts_details[1]["cluster_name"],
       ).run(gcs_location=shared_gcs_location)
-      stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
+
+    test_group_id = "chained_tests" + "_" + model + "_" + "jax_stable_stack"
+
+    with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
+      shared_gcs_location = name_format.generate_gcs_folder_location.override(
+          task_id=f"{test_group_id}_generate_gcs_folder_location"
+      )(
+          gcs_subfolder,
+          test_group_id,
+      )
+      jax_stable_stack_tpu = gke_config.get_gke_config(
+          tpu_version=test_scripts_details[1]["tpu_version"],
+          tpu_cores=test_scripts_details[1]["tpu_cores"],
+          tpu_zone=test_scripts_details[1]["tpu_zone"],
+          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
+          test_name=f"{test_name_prefix}-jax-stable-stack-{model}",
+          run_model_cmds=(
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
+          ),
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+          test_owner=test_owner.ANISHA_M,
+          cluster_name=test_scripts_details[1]["cluster_name"],
+      ).run(gcs_location=shared_gcs_location)
+      (
+          stable_cpu
+          >> stable_tpu
+          >> nightly_cpu
+          >> nightly_tpu
+          >> jax_stable_stack_tpu
+      )

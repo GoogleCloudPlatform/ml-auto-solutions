@@ -23,6 +23,7 @@ UPGRADE_PIP = "pip install --upgrade pip"
 class SetupMode(enum.Enum):
   STABLE = "stable"
   NIGHTLY = "nightly"
+  JAX_STABLE_STACK = "jax_stable_stack"
 
 
 class Platform(enum.Enum):
@@ -34,6 +35,7 @@ def download_maxtext() -> Tuple[str]:
   """Download MaxText repo."""
   return (
       UPGRADE_PIP,
+      "rm -rf /tmp/maxtext; "
       "git clone https://github.com/google/maxtext.git /tmp/maxtext",
   )
 

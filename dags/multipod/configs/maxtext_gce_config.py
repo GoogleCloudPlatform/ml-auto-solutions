@@ -38,6 +38,7 @@ def get_maxtext_nightly_config(
     is_tpu_reserved: bool = True,
     automated_test: bool = True,
     num_slices: int = 1,
+    base_output_dir: str = gcs_bucket.BASE_OUTPUT_DIR,
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -50,7 +51,9 @@ def get_maxtext_nightly_config(
   current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
 
   trigger = "automated" if automated_test else "manual"
-  base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext/{test_mode.value}/{trigger}/{current_date}"
+  base_output_directory = (
+      f"{base_output_dir}/maxtext/{test_mode.value}/{trigger}/{current_date}"
+  )
 
   run_name = f"{num_slices}slice-V{tpu_version.value}_{tpu_cores}-maxtext-{test_mode.value}-{current_datetime}"
 
