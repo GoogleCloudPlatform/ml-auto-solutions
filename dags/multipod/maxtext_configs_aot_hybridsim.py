@@ -94,6 +94,17 @@ with models.DAG(
               test_owner=test_owner.RAYMOND_Z,
           ).run(gcs_location=shared_gcs_location)
 
+          jax_stable_stack_maxtext_aot = gke_config.get_gke_config(
+              tpu_version=TpuVersion.V4,
+              tpu_cores=8,
+              tpu_zone=Zone.US_CENTRAL2_B.value,
+              time_out_in_min=240,
+              test_name=f"jax-stable-stack-maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-aot",
+              run_model_cmds=aot_cmd,
+              docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+              test_owner=test_owner.RAYMOND_Z,
+          ).run(gcs_location=shared_gcs_location)
+
           # Run HybridSim workload: read HLO from GCS, generate estimated step time
           cluster_name, zone, project_name, cores = clusters[tpu]
           chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
