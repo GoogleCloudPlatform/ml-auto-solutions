@@ -30,7 +30,7 @@ def set_up_se(
     patch: Optional[int] = None,
 ) -> tuple[str]:
   """Adjust grpc_tpu_worker for SE tests"""
-  grpc_version = "tf-nightly"
+  grpc_version = "se-nightly"
   if major is not None:
     grpc_version = f"tf-{major}.{minor}.{patch}-se"
   return (
@@ -46,7 +46,7 @@ def set_up_pjrt(
     patch: Optional[int] = None,
 ) -> tuple[str]:
   """Adjust grpc_tpu_worker for PjRt tests"""
-  grpc_version = "tf-nightly-se"
+  grpc_version = "nightly"
   if major is not None:
     grpc_version = f"tf-{major}.{minor}.{patch}-pjrt"
   return (
