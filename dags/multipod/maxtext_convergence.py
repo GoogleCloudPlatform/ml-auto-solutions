@@ -71,3 +71,19 @@ with models.DAG(
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
     ).run_with_run_name_generation()
+    jax_stable_stack_maxtext_v4_configs_test = gke_config.get_gke_config(
+        tpu_version=TpuVersion.V4,
+        tpu_cores=128,
+        tpu_zone=Zone.US_CENTRAL2_B.value,
+        cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+        time_out_in_min=300,
+        test_name="jax-stable-stack" + "-" + test_name,
+        run_model_cmds=run_command,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+        test_owner=test_owner.MATT_D,
+        base_output_directory=base_output_directory,
+        metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
+    ).run_with_run_name_generation()
+    jax_stable_stack_maxtext_v4_configs_test.set_upstream(
+        maxtext_v4_configs_test
+    )
