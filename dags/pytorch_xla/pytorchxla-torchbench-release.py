@@ -44,8 +44,9 @@ with models.DAG(
       subnetwork=resource.V4_BM_SUBNETWORKS,
       test_version=test_version,
       model_name=model,
-      time_out_in_min=1600,
+      time_out_in_min=1800,
       reserved=False,
+      preemptible=True,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
@@ -59,9 +60,10 @@ with models.DAG(
       network=resource.BM_NETWORKS,
       subnetwork=resource.V5P_BM_SUBNETWORKS,
       test_version=test_version,
-      time_out_in_min=700,
+      time_out_in_min=1800,
       model_name=model,
       reserved=False,
+      preemptible=True,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
@@ -78,6 +80,7 @@ with models.DAG(
       test_version=test_version,
       model_name=model,
       reserved=False,
+      preemptible=False,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
