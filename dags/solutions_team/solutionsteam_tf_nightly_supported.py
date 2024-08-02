@@ -124,7 +124,7 @@ with models.DAG(
       train_steps=10000,
       extraFlags="--mode=train",
       is_pod=False,
-      is_pjrt=False,
+      is_pjrt=True,
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
