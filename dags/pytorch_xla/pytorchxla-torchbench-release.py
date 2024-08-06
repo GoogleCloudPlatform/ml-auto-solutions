@@ -54,16 +54,15 @@ with models.DAG(
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V5P,
       tpu_cores=8,
-      project=resource.Project.CLOUD_ML_BENCHMARKING,
+      project=resource.Project.TPU_PROD_ENV_AUTOMATED,
       tpu_zone=resource.Zone.US_EAST5_A,
       runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5,
-      network=resource.BM_NETWORKS,
-      subnetwork=resource.V5P_BM_SUBNETWORKS,
-      test_version=test_version,
+      network=resource.V5_NETWORKS,
+      subnetwork=resource.V5P_SUBNETWORKS,
       time_out_in_min=1800,
       model_name=model,
       reserved=False,
-      preemptible=True,
+      preemptible=False,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
