@@ -84,6 +84,7 @@ class Tpu(Accelerator):
   network: str = 'default'
   subnetwork: str = 'default'
   reserved: bool = False
+  preemptible: bool = False
 
   @property
   def name(self):
