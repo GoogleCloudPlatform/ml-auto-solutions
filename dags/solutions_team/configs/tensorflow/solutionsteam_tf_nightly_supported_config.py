@@ -226,6 +226,8 @@ def get_tf_dlrm_config(
           "mixed_precision_dtype": "mixed_bfloat16",
       },
       "task": {
+          "use_synthetic_data": "false",
+          "use_tf_record_reader": "true",
           "train_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
               "global_batch_size": 16384,

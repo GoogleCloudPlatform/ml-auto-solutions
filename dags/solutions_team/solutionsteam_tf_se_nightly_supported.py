@@ -143,7 +143,7 @@ with models.DAG(
       time_out_in_min=60,
       bottom_mlp=[512, 256, embedding_dim],
       embedding_dim=embedding_dim,
-      train_steps=256054,
+      train_steps=128000,
       extraFlags="--mode=train_and_eval",
       is_pod=True,
       is_pjrt=False,

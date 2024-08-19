@@ -19,6 +19,7 @@ import time
 
 
 CMD_PRINT_TF_VERSION = "python3 -c \"import tensorflow; print('Running using TensorFlow Version: ' + tensorflow.__version__)\""
+CMD_REMOVE_LIBTPU_LOCKFILE = "sudo rm /tmp/libtpu_lockfile"
 CMD_INSTALL_KERAS_NIGHTLY = (
     "pip install --upgrade --no-deps --force-reinstall tf-keras-nightly"
 )
@@ -34,6 +35,7 @@ def set_up_se(
   if major is not None:
     grpc_version = f"tf-{major}.{minor}.{patch}-se"
   return (
+      CMD_REMOVE_LIBTPU_LOCKFILE,
       f"sudo sed -i 's/TF_DOCKER_URL=.*/TF_DOCKER_URL=gcr.io\/cloud-tpu-v2-images\/grpc_tpu_worker:{grpc_version}\"/' /etc/systemd/system/tpu-runtime.service",
       "sudo systemctl daemon-reload && sudo systemctl restart tpu-runtime",
       "cat /etc/systemd/system/tpu-runtime.service",
