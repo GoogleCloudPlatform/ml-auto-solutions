@@ -306,6 +306,7 @@ def get_tf_dlrm_config(
               "max_ids_per_chip_per_sample": 128,
               "max_ids_per_table": 2048,
               "max_unique_ids_per_table": 512,
+              "initialize_tables_on_host": "false",
               "use_partial_tpu_embedding": "false",
               "size_threshold": 0,
           },
