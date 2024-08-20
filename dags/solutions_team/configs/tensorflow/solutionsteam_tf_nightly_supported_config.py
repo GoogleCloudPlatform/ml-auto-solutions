@@ -337,7 +337,7 @@ def get_tf_dlrm_config(
   # TODO (ericlefort): Replace the model_dir with this line when the var is available
   # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
   epoch = time.time()
-  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}/{epoch}"
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/{benchmark_id}/{epoch}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
