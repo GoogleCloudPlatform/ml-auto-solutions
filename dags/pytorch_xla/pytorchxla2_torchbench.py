@@ -58,6 +58,8 @@ with models.DAG(
       time_out_in_min=700,
       use_xla2=True,
       model_name=model,
+      reserved=True,
+      preemptible=False,
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
