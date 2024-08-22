@@ -61,7 +61,7 @@ with models.DAG(
       subnetwork=resource.V5P_SUBNETWORKS,
       time_out_in_min=1800,
       model_name=model,
-      reserved=False,
+      reserved=True,
       preemptible=False,
       extraFlags=" ".join(torchbench_extra_flags),
   )
