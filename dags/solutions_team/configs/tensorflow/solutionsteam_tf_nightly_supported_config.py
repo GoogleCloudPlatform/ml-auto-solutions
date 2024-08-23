@@ -226,6 +226,8 @@ def get_tf_dlrm_config(
           "mixed_precision_dtype": "mixed_bfloat16",
       },
       "task": {
+          "use_synthetic_data": "false",
+          "use_tf_record_reader": "true",
           "train_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
               "global_batch_size": 16384,
@@ -304,6 +306,7 @@ def get_tf_dlrm_config(
               "max_ids_per_chip_per_sample": 128,
               "max_ids_per_table": 2048,
               "max_unique_ids_per_table": 512,
+              "initialize_tables_on_host": "false",
               "use_partial_tpu_embedding": "false",
               "size_threshold": 0,
           },
@@ -334,7 +337,7 @@ def get_tf_dlrm_config(
   # TODO (ericlefort): Replace the model_dir with this line when the var is available
   # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
   epoch = time.time()
-  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}/{epoch}"
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/{benchmark_id}/{epoch}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
