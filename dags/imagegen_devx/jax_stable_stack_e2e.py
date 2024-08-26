@@ -36,7 +36,6 @@ with models.DAG(
   maxtext_test_configs = {
       # accelerator: list of slices to test
       "v4-16": [1, 2],
-      "v5-8": [1, 2],
   }
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
