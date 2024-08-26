@@ -36,7 +36,6 @@ with models.DAG(
   maxtext_test_configs = {
       # accelerator: list of slices to test
       "v4-16": [1, 2],
-      "v5-8": [1, 2],
   }
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
@@ -78,7 +77,7 @@ with models.DAG(
           project_name=config.project_names[accelerator].value,
           time_out_in_min=60,
           run_model_cmds=(
-              f"python -m src.maxdiffusion.models.train src/maxdiffusion/configs/base_2_base.yml "
+              f"python -m src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
               f"run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
               f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{current_datetime}",
           ),
