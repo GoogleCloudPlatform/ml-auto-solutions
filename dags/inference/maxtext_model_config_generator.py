@@ -25,9 +25,9 @@ def generate_model_configs(
     sweep_model_configs,
     axis_order,
     ici_parallelism,
-    request_rate,
     tpu_version,
     tpu_cores,
+    request_rate=0.0,
 ):
   model_configs = {}
   model_configs["model_config_name"] = model_config_name
@@ -72,9 +72,15 @@ def generate_model_configs(
   ]
   model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
   model_configs["quantization"] = sweep_model_configs["quantization"]
+  model_configs["quant_cfg_path"] = sweep_model_configs.get(
+      "quant_cfg_path", ""
+  )
   model_configs["quantize_kvcache"] = sweep_model_configs["quantize_kvcache"]
   model_configs["kv_quant_dtype"] = sweep_model_configs.get(
       "kv_quant_dtype", ""
+  )
+  model_configs["checkpoint_is_quantized"] = sweep_model_configs.get(
+      "checkpoint_is_quantized", ""
   )
   model_configs["kv_quant_axis"] = sweep_model_configs["kv_quant_axis"]
 
@@ -93,9 +99,10 @@ def generate_model_configs(
   test_run_tag = (
       model_config_name
       if not kv_quant_axis
-      else f"{model_config_name}-{kv_quant_axis}"
+      else f"{model_config_name}-{kv_quant_axis[:2]}"
   )
-  test_run_tag = f"{test_run_tag}-rate{str(request_rate).replace('.', '_')}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order.replace(',', '')}-{prefill_cache_axis_order.replace(',', '')}-{ar_cache_axis_order.replace(',', '')}"
+  rate_str = f"rate{str(request_rate).replace('.', '_')}"
+  test_run_tag = f"{test_run_tag}-{rate_str}-pdbs{per_device_batch_size}-{attention}-{compute_axis_order.replace(',', '')}-{prefill_cache_axis_order.replace(',', '')}-{ar_cache_axis_order.replace(',', '')}"
 
   test_name = f"{test_name_prefix}-{test_run_tag}"
 

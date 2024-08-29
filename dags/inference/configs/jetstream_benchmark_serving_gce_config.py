@@ -83,8 +83,10 @@ def get_config(
       "checkpoint": f"{model_configs['checkpoint']}",
       "quantization": f"{model_configs['quantization']}",
       "quantize_kvcache": f"{model_configs['quantize_kvcache']}",
+      "quant_cfg_path": f"{model_configs['quant_cfg_path']}",
       "weight_quant_dtype": f"{model_configs['quantization'] if model_configs['quantization'] else 'bf16'}",
       "kv_quant_dtype": f"{model_configs['kv_quant_dtype']}",
+      "checkpoint_is_quantized": f"{model_configs['checkpoint_is_quantized']}",
       "per_device_batch_size": f"{model_configs['per_device_batch_size']}",
       "dataset": f"{model_configs['dataset']}",
       "dataset_path": f"{model_configs['dataset_path']}",
@@ -134,7 +136,9 @@ def get_config(
       "export LOAD_PARAMETERS_PATH=${UNSCANNED_CKPT_PATH}",
       f"export QUANTIZATION={model_configs['quantization']}",
       f"export QUANTIZE_KVCACHE={model_configs['quantize_kvcache']}",
+      f"export QUANT_CFG_PATH={model_configs['quant_cfg_path']}",
       f"export KV_QUANT_DTYPE={model_configs['kv_quant_dtype']}",
+      f"export CHECKPOINT_IS_QUANTIZED={model_configs['checkpoint_is_quantized']}",
       f"export PER_DEVICE_BATCH_SIZE={model_configs['per_device_batch_size']}",
       f"export PREFILL_CACHE_AXIS_ORDER={model_configs['prefill_cache_axis_order']}",
       f"export AR_CACHE_AXIS_ORDER={model_configs['ar_cache_axis_order']}",
@@ -158,8 +162,18 @@ def get_config(
         quantization=${QUANTIZATION} \
         quantize_kvcache=${QUANTIZE_KVCACHE} \\"""
       + (
+          """quant_cfg_path=${QUANT_CFG_PATH} \\"""
+          if model_configs["quant_cfg_path"]
+          else ""
+      )
+      + (
           """kv_quant_dtype=${KV_QUANT_DTYPE} \\"""
           if model_configs["kv_quant_dtype"]
+          else ""
+      )
+      + (
+          """checkpoint_is_quantized=${CHECKPOINT_IS_QUANTIZED} \\"""
+          if model_configs["checkpoint_is_quantized"]
           else ""
       )
       + """per_device_batch_size=${PER_DEVICE_BATCH_SIZE} \
