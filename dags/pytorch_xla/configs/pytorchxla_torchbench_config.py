@@ -36,8 +36,8 @@ class VERSION(enum.Enum):
 class VERSION_MAPPING:
 
   class NIGHTLY(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0.dev-cp310-cp310-linux_x86_64.whl"
-    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.5.0.dev-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0.dev-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.6.0.dev-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch"
     TORCHVISION = "torchvision"
     TORCHAUDIO = "torchaudio"
@@ -85,8 +85,8 @@ class VERSION_MAPPING:
     TORCH_XLA_REPO_BRANCH = "-b v2.4.0-rc8"
 
   class R2_5(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0-cp310-cp310-linux_x86_64.whl"
-    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.5.0-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch==2.5.0"
     TORCHVISION = "torchvision==0.19.0"
     TORCHAUDIO = "torchaudio==2.5.0"
