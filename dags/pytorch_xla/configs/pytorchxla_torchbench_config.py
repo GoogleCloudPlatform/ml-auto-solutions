@@ -96,6 +96,7 @@ class VERSION_MAPPING:
     TORCH_REPO_BRANCH = "-b v2.5.0-rc1"
     TORCH_XLA_REPO_BRANCH = "-b v2.5.0-rc1"
 
+
 def get_version_mapping(test_version):
   """Get version dependecies based on version type.
   Args:
