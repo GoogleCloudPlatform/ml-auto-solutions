@@ -25,10 +25,6 @@ class Team(enum.Enum):
   IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
 
-
-# XLML - JAX/FLAX
-SHIVA_S = "Shiva S."
-
 # XLML - TensorFlow
 ERIC_L = "Eric L."
 CHANDRA_D = "Chandra D."
