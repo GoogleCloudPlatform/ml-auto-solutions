@@ -145,9 +145,9 @@ def generate_model_configs(
       "base_output_directory"
   ]
 
-  model_configs["inference_microbenchmark_prefill_lengths"] = (
-      sweep_model_configs["inference_microbenchmark_prefill_lengths"]
-  )
+  model_configs[
+      "inference_microbenchmark_prefill_lengths"
+  ] = sweep_model_configs["inference_microbenchmark_prefill_lengths"]
   model_configs["inference_microbenchmark_stages"] = sweep_model_configs[
       "inference_microbenchmark_stages"
   ]
@@ -160,12 +160,12 @@ def generate_model_configs(
   ]
   model_configs["reshape_q"] = sweep_model_configs["reshape_q"]
 
-  model_configs["two_axis_order_product_id_list"] = (
-      two_axis_order_product_id_concat_list[vm_number]
-  )
-  model_configs["prefill_cache_axis_order_list"] = (
-      prefill_cache_axis_order_concat_list[vm_number]
-  )
+  model_configs[
+      "two_axis_order_product_id_list"
+  ] = two_axis_order_product_id_concat_list[vm_number]
+  model_configs[
+      "prefill_cache_axis_order_list"
+  ] = prefill_cache_axis_order_concat_list[vm_number]
   model_configs["ar_cache_axis_order_list"] = ar_cache_axis_order_concat_list[
       vm_number
   ]
