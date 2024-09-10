@@ -57,3 +57,29 @@ def run_workload(
     assert (
         result.exit_code == 0
     ), f"Mantaray command failed with code {result.exit_code}"
+
+
+
+@task
+def run_workload_temp(workload_file_name: str):
+  gs_bucket = "gs://borgcron_mantaray/cmcs-benchmark-automation"
+  with tempfile.TemporaryDirectory() as tmpdir:
+    cmds = (
+        f"cd {tmpdir}",
+        "gsutil -m cp -r {gs_bucket} .",
+        "cd cmcs-benchmark-automation/mantaray",
+        "gcloud builds submit --config docker/cloudbuild.yaml --substitutions _DATE=$(date +%Y%m%d)", # Create nightly docker image
+        "sudo apt-get update && sudo apt-get install -y rsync",  # Install rsync
+        "pip uninstall -y -q mantaray",  # Download and install mantaray
+        f"cd mantaray && pip install -e .",
+        f"python {workload_file_name}",  # Run the workload
+    )
+    hook = SubprocessHook()
+    result = hook.run_command(
+        ["bash", "-c", ";".join(cmds)],
+    )
+    assert (
+        result.exit_code == 0
+    ), f"Mantaray command failed with code {result.exit_code}"
+
+
