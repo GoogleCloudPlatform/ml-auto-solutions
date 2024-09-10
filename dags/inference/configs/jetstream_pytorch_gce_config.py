@@ -84,6 +84,7 @@ def get_jetstream_pytorch_inference_nightly_config(
       f"export TOKENIZER_PATH=$(pwd)/ckpt_dir/{model_configs['tokenizer']}",
       f"export SHARDING_CONFIG={model_configs['sharding_config']}",
       f"export QUANTIZE={str(model_configs['quantize'])}",
+      f"export QUANTIZE_KV_CACHE={str(model_configs['quantize'])}",
       "mkdir /dev/shm/ckpt_dir",
       "gsutil cp -r ${CKPT_PATH}/* /dev/shm/ckpt_dir/",
       # Start jetstream-pytorch server in the background
@@ -95,7 +96,7 @@ def get_jetstream_pytorch_inference_nightly_config(
         --checkpoint_path=/dev/shm/ckpt_dir \
         --tokenizer_path=${TOKENIZER_PATH} \
         --quantize_weights=${QUANTIZE} \
-        --quantize_kv_cache=${QUANTIZE} \
+        --quantize_kv_cache=${QUANTIZE_KV_CACHE} \
         --sharding_config=${SHARDING_CONFIG} &""",
       """pip install -r deps/JetStream/benchmarks/requirements.in \
                      -r deps/JetStream/requirements.in \
