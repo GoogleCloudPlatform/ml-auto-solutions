@@ -2,9 +2,6 @@
 # the repo, unless a later match takes precedence.
 * @RissyRan @will-cromar @allenwang28
 
-dags/solutions_team/configs/flax @sshahrokhi
-dags/solutions_team/solutionsteam_flax* @sshahrokhi
-
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
 
@@ -21,4 +18,4 @@ dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang
 dags/imagegen_devx/configs/jax_ss_config* @parambole @RissyRan
 dags/imagegen_devx/maxtext_jax_ss_e2e* @parambole @RissyRan
 
-dags/inference @yeandy @vipannalla @morgandu @mailvijayasingh @sixiang-google @joezijunzhou @singh-mitali 
+dags/inference @yeandy @vipannalla @morgandu @mailvijayasingh @sixiang-google @joezijunzhou @singh-mitali
