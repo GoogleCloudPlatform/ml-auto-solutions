@@ -57,10 +57,10 @@ with models.DAG(
               f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
               f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=5000 attention=flash run_name=sdxl-fsdp-v5p-64-ddp enable_profiler=True "
               f"run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
-              f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-stable-stack/automated/{current_datetime}",
+              f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/{current_datetime}",
           ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
-          docker_image="us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-nightly/tpu:nightly-2024-09-13",
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY,
           test_owner=test_owner.PARAM_B,
       ).run()
 

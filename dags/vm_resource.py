@@ -196,6 +196,10 @@ class DockerImage(enum.Enum):
       "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-stable-stack/tpu:"
       f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
+  MAXDIFFUSION_TPU_JAX_NIGHTLY = (
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-nightly/tpu:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
