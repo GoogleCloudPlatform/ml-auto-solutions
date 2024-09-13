@@ -63,4 +63,3 @@ with models.DAG(
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY,
           test_owner=test_owner.PARAM_B,
       ).run()
-

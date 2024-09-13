@@ -25,7 +25,7 @@ tpu_versions = {
     "v4-8": TpuVersion.V4,
     "v4-16": TpuVersion.V4,
     "v5-8": TpuVersion.V5P,
-    "v6e-256": TpuVersion.TRILLIUM
+    "v6e-256": TpuVersion.TRILLIUM,
 }
 cluster_names = {
     # accelerator: cluster names
