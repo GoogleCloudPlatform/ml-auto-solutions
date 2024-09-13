@@ -198,7 +198,7 @@ class DockerImage(enum.Enum):
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (
       "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-nightly/tpu:"
-      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+      f"auto-{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
