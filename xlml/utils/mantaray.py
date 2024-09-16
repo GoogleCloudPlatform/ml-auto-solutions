@@ -20,7 +20,6 @@ from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
 
 
-CMCS_BENCHMARK_AUTOMATION_G3_GS_BUCKET = "gs://borgcron/cmcs-benchmark-automation"
 MANTARAY_G3_GS_BUCKET = "gs://borgcron/cmcs-benchmark-automation/mantaray"
 
 def load_file_from_gcs(gs_file_path):
@@ -34,7 +33,6 @@ def load_file_from_gcs(gs_file_path):
     with open(f"{tmpdir}/file", "r") as f:
       return f.read()
 
-# TODO: modify this to run the workload in the docker image instead.
 @task
 def run_workload(workload_file_name: str):
   with tempfile.TemporaryDirectory() as tmpdir:
