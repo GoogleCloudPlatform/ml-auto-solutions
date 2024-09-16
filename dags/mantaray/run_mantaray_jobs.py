@@ -26,7 +26,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
   # Download xlml_jobs.yaml from the borgcron GCS bucket, which
   # is pulled nightly from google3.
   xlml_jobs_yaml = mantaray.load_file_from_gcs(
-      f"{mantaray.MANTARAY_G3_GS_BUCKET}/mantaray/xlml_jobs/xlml_jobs.yaml"
+      f"{mantaray.MANTARAY_G3_GS_BUCKET}/xlml_jobs/xlml_jobs.yaml"
   )
   xlml_jobs = yaml.safe_load(xlml_jobs_yaml)
   # Create a DAG for each job
