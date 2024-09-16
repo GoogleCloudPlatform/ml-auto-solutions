@@ -32,14 +32,14 @@ cluster_names = {
     "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
     "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
     "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
-    "v6e-256": ClusterName.BODABORG_V6E_256_EUROPE_WEST4_A,
+    "v6e-256": ClusterName.BODABORG_V6E_256,
 }
 tpu_zones = {
     # accelerator: cluster name
     "v4-8": Zone.US_CENTRAL2_B,
     "v4-16": Zone.US_CENTRAL2_B,
     "v5-8": Zone.US_EAST5_A,
-    "v6e-256": Zone.EUROPE_WEST4_A,
+    "v6e-256": Zone.US_CENTRAL2_B,
 }
 project_names = {
     # accelerator: project names

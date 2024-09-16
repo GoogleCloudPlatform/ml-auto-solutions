@@ -50,7 +50,7 @@ with models.DAG(
           project_name=config.project_names[accelerator].value,
           time_out_in_min=60,
           run_model_cmds=(
-              "export JAX_FORCE_TPU_INIT=true ",
+              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               f"python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
               f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
               f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
@@ -60,6 +60,6 @@ with models.DAG(
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/{current_datetime}",
           ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY.value,
           test_owner=test_owner.PARAM_B,
       ).run()
