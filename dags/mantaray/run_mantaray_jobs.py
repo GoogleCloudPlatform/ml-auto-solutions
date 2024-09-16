@@ -23,12 +23,10 @@ from dags import composer_env
 
 # Skip running this script in unit test because gcs loading will fail.
 if composer_env.is_prod_env() or composer_env.is_dev_env():
-  # Download xlml_jobs.yaml from the ml-auto-solutions GCS bucket. Any update
-  # to this file in the bucket will automatically trigger the execution of
-  # this script, which recreates the Mantaray DAGs to reflect the changes.
-  gs_bucket = composer_env.get_gs_bucket()
+  # Download xlml_jobs.yaml from the borgcron GCS bucket, which
+  # is pulled nightly from google3.
   xlml_jobs_yaml = mantaray.load_file_from_gcs(
-      f"{gs_bucket}/mantaray/xlml_jobs/xlml_jobs.yaml"
+      f"{mantaray.MANTARAY_G3_GS_BUCKET}/xlml_jobs/xlml_jobs.yaml"
   )
   xlml_jobs = yaml.safe_load(xlml_jobs_yaml)
   # Create a DAG for each job
@@ -36,14 +34,13 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     with models.DAG(
         dag_id=job["task_name"],
         schedule=job["schedule"],
-        tags=["ray"],
+        tags=["mantaray"],
         start_date=datetime.datetime(2024, 4, 22),
         catchup=False,
     ) as dag:
       run_workload = mantaray.run_workload(
           workload_file_name=job["file_name"],
       )
-
     run_workload
 else:
   print(
