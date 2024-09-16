@@ -23,11 +23,10 @@ from dags import composer_env
 if composer_env.is_prod_env():
   with models.DAG(
       dag_id="mantaray_nightly_docker",
-      schedule="0 1 * * *", #everyday at 1am (UTC). Borg job is scheduled at midnight to upload source code to GCS.
+      schedule="0 1 * * *",  # everyday at 1am (UTC). Borg job is scheduled at midnight to upload source code to GCS.
       tags=["mantaray"],
       start_date=datetime.datetime(2024, 9, 4),
       catchup=False,
   ) as dag:
-    run_workload = mantaray.build_docker_image(
-    )
+    run_workload = mantaray.build_docker_image()
     run_workload
