@@ -25,24 +25,28 @@ tpu_versions = {
     "v4-8": TpuVersion.V4,
     "v4-16": TpuVersion.V4,
     "v5-8": TpuVersion.V5P,
+    "v6e-256": TpuVersion.TRILLIUM,
 }
 cluster_names = {
     # accelerator: cluster names
     "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
     "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
     "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
+    "v6e-256": ClusterName.BODABORG_V6E_256,
 }
 tpu_zones = {
     # accelerator: cluster name
     "v4-8": Zone.US_CENTRAL2_B,
     "v4-16": Zone.US_CENTRAL2_B,
     "v5-8": Zone.US_EAST5_A,
+    "v6e-256": Zone.US_CENTRAL2_B,
 }
 project_names = {
     # accelerator: project names
     "v4-8": Project.TPU_PROD_ENV_MULTIPOD,
     "v4-16": Project.TPU_PROD_ENV_MULTIPOD,
     "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
+    "v6e-256": Project.TPU_PROD_ENV_LARGE_ADHOC,
 }
 
 
@@ -52,7 +56,7 @@ def get_current_datetime() -> str:
   return current_datetime
 
 
-def get_gke_jax_stable_stack_config(
+def get_gke_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,

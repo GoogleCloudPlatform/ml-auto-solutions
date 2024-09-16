@@ -19,11 +19,11 @@ import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, ClusterName
-from dags.imagegen_devx.configs import jax_ss_config as config
+from dags.imagegen_devx.configs import gke_config as config
 from xlml.utils import name_format
 
-# Run once a day at 4 am UTC (8 pm PST)
-SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 3 am UTC (7 pm PST)
+SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
@@ -45,7 +45,7 @@ with models.DAG(
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      maxtext_jax_ss_test = config.get_gke_jax_stable_stack_config(
+      maxtext_jax_ss_test = config.get_gke_config(
           tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
@@ -68,7 +68,7 @@ with models.DAG(
   for accelerator, slices in maxdiffusion_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      maxdiffusion_jax_ss_test = config.get_gke_jax_stable_stack_config(
+      maxdiffusion_jax_ss_test = config.get_gke_config(
           tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
