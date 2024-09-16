@@ -19,14 +19,14 @@ local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
 {
-  local r2_4 = {
-    frameworkPrefix: 'pt-2-4',
+  local r2_5 = {
+    frameworkPrefix: 'pt-2-5',
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.4.0-rc8_3.10',
+    imageTag: 'r2.5.0-rc1_3.10',
   },
-  PyTorchTest:: common.PyTorchTest + r2_4 {
+  PyTorchTest:: common.PyTorchTest + r2_5 {
     local config = self,
 
     podTemplate+:: {
@@ -67,7 +67,7 @@ local volumes = import 'templates/volumes.libsonnet';
 
                 ctc = cloud_tpu_client.Client(tpu=os.path.basename('$(TPU_NAME)'), zone=os.path.dirname('$(TPU_NAME)'))
                 ctc.wait_for_healthy()
-                ctc.configure_tpu_version(f'pytorch-2.4-dev{libtpu_date}', restart_type='always')
+                ctc.configure_tpu_version(f'pytorch-2.5-dev{libtpu_date}', restart_type='always')
                 ctc.wait_for_healthy()
               |||,
             ],
@@ -96,15 +96,15 @@ local volumes = import 'templates/volumes.libsonnet';
         sudo apt install -y libopenblas-base
         # for huggingface tests
         sudo apt install -y libsndfile-dev
-        # Install torchvision by pinned commit in PyTorch 2.4 release branch.
-        pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/test/cpu
+        # Install torchvision by pinned commit in PyTorch 2.5 release branch.
+        pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.4.0rc8-cp310-cp310-linux_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
         cd pytorch
-        git clone -b v2.4.0-rc8 https://github.com/pytorch/xla.git
+        git clone -b v2.5.0-rc1 https://github.com/pytorch/xla.git
       |||,
     },
     podTemplate+:: {
@@ -140,12 +140,12 @@ local volumes = import 'templates/volumes.libsonnet';
 
         nvidia-smi
         pip uninstall -y torch torchvision
-        pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/test/cpu
+        pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.4.0rc8-cp310-cp310-linux_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl
 
         mkdir -p pytorch/xla
-        git clone -b v2.4.0-rc8 https://github.com/pytorch/xla.git pytorch/xla
+        git clone -b v2.5.0-rc1 https://github.com/pytorch/xla.git pytorch/xla
 
         %s
 
@@ -217,5 +217,5 @@ local volumes = import 'templates/volumes.libsonnet';
   },
 
   // DEPRECATED: Use PyTorchTpuVmMixin instead
-  tpu_vm_r2_4_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
+  tpu_vm_r2_5_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
 }

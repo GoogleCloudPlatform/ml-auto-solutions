@@ -46,6 +46,7 @@ class Project(enum.Enum):
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
+  TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
 
 
 class ImageProject(enum.Enum):
@@ -95,6 +96,8 @@ class Zone(enum.Enum):
   US_WEST1_C = "us-west1-c"
   # reserved a3+ cluster in supercomputer-testing
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
+  # reserved trillium in tpu-prod-env-large-adhoc
+  EUROPE_WEST4_A = "europe-west4-a"
 
 
 class MachineVersion(enum.Enum):
@@ -119,6 +122,7 @@ class TpuVersion(enum.Enum):
   V4 = "4"
   V5E = "5litepod"
   V5P = "5p"
+  TRILLIUM = "6e"
 
 
 class GpuVersion(enum.Enum):
@@ -169,6 +173,7 @@ class ClusterName(enum.Enum):
   V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
   V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
   V5E_256_US_WEST_4_MULTISLICE_CLUSTER = "v5e-256-bodaborg-us-west4"
+  BODABORG_V6E_256_EUROPE_WEST4_A = "bodaborg-v6e-256-europe-west4-a"
   A3_CLUSTER = "maxtext-a3-20n"
   A3PLUS_CLUSTER = "a3plus-benchmark"
   CPU_M1_MEGAMEM_96 = "m1-megamem-96-shared"
