@@ -53,12 +53,10 @@ with models.DAG(
   g2_model_parameters = {
       "retinanet": {
           "Offline": {
-              "gpu_batch_size": ["", [896, 1024]],
-              "offline_expected_qps": ["", [19, 19 * 2]],
+              "offline_expected_qps": (27200, 27500),
           },
           "Server": {
-              "gpu_batch_size": ["", [896, 1024]],
-              "offline_expected_qps": ["", [19, 19 * 2]],
+              "server_target_qps": (10700, 10900),
           },
       },
   }
@@ -74,12 +72,20 @@ with models.DAG(
   a2_model_parameters = {
       "bert": {
           "Offline": {
-              "gpu_batch_size": ["", [896, 1024]],
-              "offline_expected_qps": ["", [19, 19 * 2]],
+              "offline_expected_qps": (27200, 27500),
           },
           "Server": {
-              "gpu_batch_size": ["", [896, 1024]],
-              "offline_expected_qps": ["", [19, 19 * 2]],
+              "server_target_qps": (25400, 25600),
+          },
+      },
+  }
+  a2_parameter_position= {
+    "bert": {
+          "Offline": {
+              "offline_expected_qps": 411,
+          },
+          "Server": {
+              "server_target_qps": 560,
           },
       },
   }
@@ -99,6 +105,8 @@ with models.DAG(
       subnetwork=A100_INFERENCE_SUBNETWORKS,
       general_configs=a2_configs,
       model_parameters=a2_model_parameters,
+      parameter_positions=a2_parameter_position,
+      binary_search_steps=2,
   ).run()
 
   # # Running on L4 GPU

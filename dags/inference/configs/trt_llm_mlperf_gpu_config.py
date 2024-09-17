@@ -38,6 +38,7 @@ def get_trt_llm_mlperf_gpu_config(
     subnetwork: str,
     general_configs: Dict = {},
     model_parameters: Dict = {},
+    parameter_positions: Dict = {},
     binary_search_steps: int = 1,
 ) -> task.GpuCreateResourceTask:
   docker_container_name = "mlperf-inference"
@@ -104,21 +105,27 @@ def get_trt_llm_mlperf_gpu_config(
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
 
   model_parameters_sweep_cmds = []
-  for model_name in general_configs["models"].split(","):
-    model_parameters_sweep_cmds.append(
-        f'make generate_engines RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"'
-    )
-    model_parameters_sweep_cmds.append(
-        f'make run_harness RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"'
-    )
-  while binary_search_steps > 0:
+  for model_name in general_configs['models'].split(','):
+    model_parameters_sweep_cmds.append(f'make generate_engines RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"')
 
-    binary_search_steps = binary_search_steps - 1
+  for model_name in general_configs['models'].split(','):
+      for scenario in model_parameters[model_name]:
+          for parameter in model_parameters[model_name][scenario]:
+            steps = 2 ** (binary_search_steps - 1) + 1
+            step_interval = round((model_parameters[model_name][scenario][parameter][1] - model_parameters[model_name][scenario][parameter][0]) / (steps - 1), 2)
+            parameter_current_value = model_parameters[model_name][scenario][parameter][0]
+            while steps > 0:
+              model_parameters_sweep_cmds.append(f'make run_harness RUN_ARGS="--benchmarks={model_name} --scenarios={scenario}"')
+              current_value_str = str(parameter_current_value)
+              parameter_current_value = parameter_current_value + step_interval
+              next_value_str = str(parameter_current_value)
+              model_parameters_sweep_cmds.append(f'sed -i "{parameter_positions[model_name][scenario][parameter]}s/{current_value_str}/{next_value_str}/" __init__.py')
+              steps = steps - 1
 
   docker_cmds = [
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
-      # f'make run RUN_ARGS="--benchmarks={general_configs["model_name"]} --scenarios={general_configs["scenario"]} --config_ver={general_configs["config_ver"]} --test_mode={general_configs["test_mode"]}"',
+      #f'make run RUN_ARGS="--benchmarks={general_configs["model_name"]} --scenarios={general_configs["scenario"]} --config_ver={general_configs["config_ver"]} --test_mode={general_configs["test_mode"]}"',
   ]
 
   docker_cmd = " && ".join(docker_cmds)

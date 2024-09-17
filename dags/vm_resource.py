@@ -37,7 +37,7 @@ H100_INFERENCE_SUBNETWORKS = (
 A100_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
-L4_INFERENCE_SUBNETWORKS = "regions/asia-east1/subnetworks/mas-test-asia-east1"
+L4_INFERENCE_SUBNETWORKS = "regions/asia-east1/subnetworks/mas-test-us-west1"
 
 
 class Project(enum.Enum):
@@ -50,7 +50,6 @@ class Project(enum.Enum):
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
-  TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
 
 
 class ImageProject(enum.Enum):
@@ -112,7 +111,7 @@ class MachineVersion(enum.Enum):
   N1_STANDARD_32 = "n1-standard-32"
   A2_HIGHGPU_1G = "a2-highgpu-1g"
   A2_HIGHGPU_4G = "a2-highgpu-4g"
-  A2_ULTRAGPU_4G = "a2-ultragpu-2g"
+  A2_ULTRAGPU_8G = "a2-ultragpu-8g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
@@ -128,7 +127,6 @@ class TpuVersion(enum.Enum):
   V4 = "4"
   V5E = "5litepod"
   V5P = "5p"
-  TRILLIUM = "6e"
 
 
 class GpuVersion(enum.Enum):
@@ -175,12 +173,11 @@ class ClusterName(enum.Enum):
   V5E_16_CLUSTER = "mas-v5e-16"
   V4_8_MULTISLICE_CLUSTER = "v4-8-maxtext"
   V4_16_MULTISLICE_CLUSTER = "v4-16-maxtext"
-  V4_128_MULTISLICE_CLUSTER = "v4-128-bodaborg-us-central2-b"
+  V4_128_MULTISLICE_CLUSTER = "v4-bodaborg"
   V5P_8_MULTISLICE_CLUSTER = "v5p-8-bodaborg-us-east5-a"
   V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
   V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
   V5E_256_US_WEST_4_MULTISLICE_CLUSTER = "v5e-256-bodaborg-us-west4"
-  BODABORG_V6E_256 = "bodaborg-v6e-256"
   A3_CLUSTER = "maxtext-a3-20n"
   A3PLUS_CLUSTER = "a3plus-benchmark"
   CPU_M1_MEGAMEM_96 = "m1-megamem-96-shared"
@@ -196,16 +193,16 @@ class DockerImage(enum.Enum):
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
   MAXTEXT_TPU_JAX_STABLE = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
+  MAXTEXT_TPU_JAX_STABLE_STACK = (
       "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-jax-stable-stack/tpu:"
       f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXDIFFUSION_TPU_STABLE = (
+  MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
       "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-stable-stack/tpu:"
       f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  )
-  MAXDIFFUSION_TPU_JAX_NIGHTLY = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-nightly/tpu:"
-      f"auto-{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
