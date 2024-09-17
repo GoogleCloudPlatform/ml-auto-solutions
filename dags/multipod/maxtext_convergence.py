@@ -55,6 +55,12 @@ with models.DAG(
               f"export M_EXPANSION_FACTOR_REAL_DATA=2; {base_convergence_command}"
           ),
       ),
+      "maxtext-convergence-grain": (
+          (f"export M_DATASET_TYPE=grain; {base_convergence_command}"),
+      ),
+      "maxtext-convergence-hf": (
+          (f"export M_DATASET_TYPE=hf; {base_convergence_command}"),
+      ),
   }
 
   for test_name, run_command in convergence_tests.items():
