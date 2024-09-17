@@ -64,6 +64,7 @@ def get_trt_llm_mlperf_gpu_config(
       f"gsutil -m cp -n -r {general_configs['preprocessed_data']} .",
       f"gsutil -m cp -n -r {general_configs['docker_config']} .",
       "curl -sSL https://get.docker.com/ | sh",
+      "sudo chmod u+w /",
       "sudo mkdir -p /home/cloud-ml-auto-solutions/.docker",
       "sudo touch ~/.docker/config.json",
       "sudo cp config.json ~/.docker/config.json",
