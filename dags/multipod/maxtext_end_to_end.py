@@ -327,14 +327,4 @@ with models.DAG(
           test_owner=test_owner.ANISHA_M,
           cluster_name=test_scripts_details[1]["cluster_name"],
       ).run(gcs_location=shared_gcs_location)
-
-    test_group_id = "chained_tests" + "_" + model + "_" + "jax_stable_stack"
-
-    with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
-      shared_gcs_location = name_format.generate_gcs_folder_location.override(
-          task_id=f"{test_group_id}_generate_gcs_folder_location"
-      )(
-          gcs_subfolder,
-          test_group_id,
-      )
-      (stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu)
+      stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
