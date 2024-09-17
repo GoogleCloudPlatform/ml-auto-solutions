@@ -18,14 +18,14 @@ import datetime
 from airflow import models
 from dags import composer_env
 from dags.vm_resource import A100_INFERENCE_SUBNETWORKS, GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project, INFERENCE_NETWORKS, L4_INFERENCE_SUBNETWORKS
-from dags.inference.configs import trt_llm_mlperf_gpu_config
+from dags.inference.configs import trt_llm_mlperf_v41_config
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="trt_llm_mlperf_gpu",
+    dag_id="trt_llm_mlperf_v41",
     schedule=SCHEDULED_TIME,
     tags=[
         "inference_team",
@@ -101,7 +101,7 @@ with models.DAG(
   }
 
   # Running on A100 GPU
-  trt_llm_mlperf_gpu_config.get_trt_llm_mlperf_gpu_config(
+  trt_llm_mlperf_v41_config.get_trt_llm_mlperf_gpu_config(
       machine_type=MachineVersion.A2_ULTRAGPU_8G,
       image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
@@ -120,7 +120,7 @@ with models.DAG(
   ).run()
 
   # Running on L4 GPU
-  trt_llm_mlperf_gpu_config.get_trt_llm_mlperf_gpu_config(
+  trt_llm_mlperf_v41_config.get_trt_llm_mlperf_gpu_config(
       machine_type=MachineVersion.G2_CUSTOME_96,
       image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
