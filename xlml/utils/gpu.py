@@ -168,7 +168,7 @@ def create_resource(
     machine_type = accelerator.machine_type
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
-    disks = [disk_from_image(disk_type, 100, True, image.self_link)]
+    disks = [disk_from_image(disk_type, 1000, True, image.self_link)]
     metadata = create_metadata({
         "install-nvidia-driver": "False",
         "proxy-mode": "project_editors",

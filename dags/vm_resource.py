@@ -37,7 +37,7 @@ H100_INFERENCE_SUBNETWORKS = (
 A100_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
-L4_INFERENCE_SUBNETWORKS = "regions/asia-east1/subnetworks/mas-test-us-west1"
+L4_INFERENCE_SUBNETWORKS = "regions/us-west1/subnetworks/mas-test-us-west1"
 
 
 class Project(enum.Enum):
