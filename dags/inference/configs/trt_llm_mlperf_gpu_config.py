@@ -104,9 +104,13 @@ def get_trt_llm_mlperf_gpu_config(
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
 
   model_parameters_sweep_cmds = []
-  for model_name in general_configs['models'].split(','):
-    model_parameters_sweep_cmds.append(f'make generate_engines RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"')
-    model_parameters_sweep_cmds.append(f'make run_harness RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"')
+  for model_name in general_configs["models"].split(","):
+    model_parameters_sweep_cmds.append(
+        f'make generate_engines RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"'
+    )
+    model_parameters_sweep_cmds.append(
+        f'make run_harness RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"'
+    )
   while binary_search_steps > 0:
 
     binary_search_steps = binary_search_steps - 1
@@ -114,7 +118,7 @@ def get_trt_llm_mlperf_gpu_config(
   docker_cmds = [
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
-      #f'make run RUN_ARGS="--benchmarks={general_configs["model_name"]} --scenarios={general_configs["scenario"]} --config_ver={general_configs["config_ver"]} --test_mode={general_configs["test_mode"]}"',
+      # f'make run RUN_ARGS="--benchmarks={general_configs["model_name"]} --scenarios={general_configs["scenario"]} --config_ver={general_configs["config_ver"]} --test_mode={general_configs["test_mode"]}"',
   ]
 
   docker_cmd = " && ".join(docker_cmds)

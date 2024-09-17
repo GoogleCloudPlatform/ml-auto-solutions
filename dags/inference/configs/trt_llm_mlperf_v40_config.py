@@ -48,8 +48,8 @@ def get_trt_llm_mlperf_v40_gpu_config(
       # Format and mount multiple Local SSD
       "sudo apt update && sudo apt install mdadm --no-install-recommends",
       "find /dev/ | grep google-local-nvme-ssd",
-            'sudo mdadm --create /dev/md0 --level=0 --raid-devices=$(find /dev/ -name "google-local-nvme-ssd*" | wc -l) $(find /dev/ -name "google-local-nvme-ssd*")',
-                        "sudo mdadm --detail --prefer=by-id /dev/md0",
+      'sudo mdadm --create /dev/md0 --level=0 --raid-devices=$(find /dev/ -name "google-local-nvme-ssd*" | wc -l) $(find /dev/ -name "google-local-nvme-ssd*")',
+      "sudo mdadm --detail --prefer=by-id /dev/md0",
       "sudo mkfs.ext4 -F /dev/md0",
       "sudo mkdir -p /scratch",
       "sudo mount /dev/md0 /scratch",
