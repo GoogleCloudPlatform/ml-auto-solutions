@@ -59,7 +59,27 @@ with models.DAG(
               f"run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/{current_datetime}",
           ),
-          test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
+          test_name=f"maxd-sdxl-{accelerator}-{slice_num}x",
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY.value,
+          test_owner=test_owner.PARAM_B,
+      ).run()
+      maxdiffusion_sdxl_nan_test = config.get_gke_config(
+          tpu_version=config.tpu_versions[accelerator],
+          tpu_cores=cores,
+          num_slices=slice_num,
+          cluster_name=config.cluster_names[accelerator].value,
+          tpu_zone=config.tpu_zones[accelerator].value,
+          project_name=config.project_names[accelerator].value,
+          time_out_in_min=60,
+          run_model_cmds=(
+              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
+              f"bash end_to_end/tpu/test_sdxl_training_loss.sh "
+              f"OUTPUT_DIR={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/{current_datetime} "
+              f"RUN_NAME={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+              f"STEPS=20 "
+              f"LOSS_THRESHOLD=100",
+          ),
+          test_name=f"maxd-sdxl-nan-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY.value,
           test_owner=test_owner.PARAM_B,
       ).run()
