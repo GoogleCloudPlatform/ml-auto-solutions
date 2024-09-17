@@ -51,7 +51,7 @@ with models.DAG(
       "preprocessed_data": "gs://yijiaj/mlperf/g2/preprocessed_data",
   }
   g2_model_parameters = {
-      "retinanet": {
+      "bert": {
           "Offline": {
               "offline_expected_qps": (27200, 27500),
           },
