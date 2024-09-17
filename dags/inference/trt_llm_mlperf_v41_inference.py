@@ -42,7 +42,7 @@ with models.DAG(
   config_ver = "default,high_accuracy"
   test_mode = "PerformanceOnly"
   g2_configs = {
-      "model_name": "retinanet",
+      "model_name": "bert",
       "scenario": "Offline",
       "config_ver": config_ver,
       "test_mode": test_mode,
@@ -57,6 +57,16 @@ with models.DAG(
           },
           "Server": {
               "server_target_qps": (10700, 10900),
+          },
+      },
+  }
+  g2_parameter_position= {
+    "bert": {
+          "Offline": {
+              "offline_expected_qps": 411,
+          },
+          "Server": {
+              "server_target_qps": 560,
           },
       },
   }
@@ -109,19 +119,21 @@ with models.DAG(
       binary_search_steps=2,
   ).run()
 
-  # # Running on L4 GPU
-  # trt_llm_mlperf_gpu_config.get_trt_llm_mlperf_gpu_config(
-  #     machine_type=MachineVersion.G2_CUSTOME_96,
-  #     image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-  #     image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-  #     accelerator_type=GpuVersion.L4,
-  #     count=8,
-  #     gpu_zone=Zone.ASIA_EAST1_A,
-  #     time_out_in_min=1600,
-  #     test_name=f"{test_name_prefix}-nightly-test-l4-8",
-  #     project=Project.CLOUD_TPU_INFERENCE_TEST,
-  #     network=INFERENCE_NETWORKS,
-  #     subnetwork=L4_INFERENCE_SUBNETWORKS,
-  #     general_configs=g2_configs,
-  #     model_parameters=g2_model_parameters,
-  # ).run()
+  # Running on L4 GPU
+  trt_llm_mlperf_gpu_config.get_trt_llm_mlperf_gpu_config(
+      machine_type=MachineVersion.G2_CUSTOME_96,
+      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
+      accelerator_type=GpuVersion.L4,
+      count=8,
+      gpu_zone=Zone.ASIA_EAST1_A,
+      time_out_in_min=1600,
+      test_name=f"{test_name_prefix}-nightly-test-l4-8",
+      project=Project.CLOUD_TPU_INFERENCE_TEST,
+      network=INFERENCE_NETWORKS,
+      subnetwork=L4_INFERENCE_SUBNETWORKS,
+      general_configs=g2_configs,
+      model_parameters=g2_model_parameters,
+      parameter_positions=g2_parameter_position,
+      binary_search_steps=2,
+  ).run()
