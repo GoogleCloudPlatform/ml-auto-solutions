@@ -52,7 +52,7 @@ with models.DAG(
   for mode, image in DOCKER_IMAGES:
     for model in MODEL_CONFIGS:
       base_run_model_cmds = [
-          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue PLATFORM=gke",
+          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue",
       ]
       maxtext_sweep_gke_test = maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
           test_owner=test_owner.RAYMOND_Z,
@@ -95,7 +95,7 @@ with models.DAG(
   for mode, image in DOCKER_IMAGES:
     for model in MODEL_CONFIGS:
       base_run_model_cmds = [
-          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue PLATFORM=gke RUN_PREFLIGHT=false",
+          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue RUN_PREFLIGHT=false",
       ]
       maxtext_sweep_gke_test = maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
           test_owner=test_owner.RAYMOND_Z,

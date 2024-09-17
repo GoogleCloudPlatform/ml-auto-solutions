@@ -18,7 +18,7 @@
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, ClusterName
+from dags.vm_resource import ClusterName, CpuVersion, DockerImage, GpuVersion, Project, TpuVersion, Zone
 from dags.multipod.configs import gke_config
 from airflow.utils.task_group import TaskGroup
 from xlml.utils import name_format
@@ -133,17 +133,7 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         test_owner=test_owner.JON_B,
     ).run()
-    jax_stable_stack_tpu = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
-        time_out_in_min=60,
-        test_name=f"jax-stable-stack-{test_name_prefix}-nightly-{model}",
-        run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
-        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.JON_B,
-    ).run()
-    stable_tpu >> nightly_tpu >> jax_stable_stack_tpu
+    stable_tpu >> nightly_tpu
 
   for model, (test_script, nnodes) in test_models_gpu.items():
     pinned_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
@@ -223,7 +213,25 @@ with models.DAG(
               "tpu_version": TpuVersion.V4,
               "tpu_cores": 128,
               "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+              "project_name": Project.CLOUD_TPU_MULTIPOD_DEV.value,
               "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "time_out_in_min": 60,
+          },
+      ],
+      "mixtral-8x22b": [
+          {
+              "script_name": "tpu/mixtral/8x22b/1_test_mixtral",
+              "cpu_device_type": CpuVersion.M1_MEGAMEM,
+              "cpu_zone": Zone.US_CENTRAL1_B.value,
+              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "time_out_in_min": 360,
+          },
+          {
+              "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
+              "tpu_version": TpuVersion.V5E,
+              "tpu_cores": 256,
+              "cluster_name": ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
+              "tpu_zone": Zone.US_WEST4_B.value,
               "time_out_in_min": 60,
           },
       ],
@@ -240,6 +248,7 @@ with models.DAG(
               "tpu_version": TpuVersion.V4,
               "tpu_cores": 128,
               "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+              "project_name": Project.CLOUD_TPU_MULTIPOD_DEV.value,
               "tpu_zone": Zone.US_CENTRAL2_B.value,
               "time_out_in_min": 60,
           },
@@ -328,23 +337,4 @@ with models.DAG(
           gcs_subfolder,
           test_group_id,
       )
-      jax_stable_stack_tpu = gke_config.get_gke_config(
-          tpu_version=test_scripts_details[1]["tpu_version"],
-          tpu_cores=test_scripts_details[1]["tpu_cores"],
-          tpu_zone=test_scripts_details[1]["tpu_zone"],
-          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
-          test_name=f"{test_name_prefix}-jax-stable-stack-{model}",
-          run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
-          ),
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.ANISHA_M,
-          cluster_name=test_scripts_details[1]["cluster_name"],
-      ).run(gcs_location=shared_gcs_location)
-      (
-          stable_cpu
-          >> stable_tpu
-          >> nightly_cpu
-          >> nightly_tpu
-          >> jax_stable_stack_tpu
-      )
+      (stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu)

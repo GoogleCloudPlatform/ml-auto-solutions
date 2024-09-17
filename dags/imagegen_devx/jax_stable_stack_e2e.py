@@ -19,11 +19,11 @@ import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, ClusterName
-from dags.imagegen_devx.configs import jax_ss_config as config
+from dags.imagegen_devx.configs import gke_config as config
 from xlml.utils import name_format
 
-# Run once a day at 4 am UTC (8 pm PST)
-SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 3 am UTC (7 pm PST)
+SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
@@ -45,7 +45,7 @@ with models.DAG(
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      maxtext_jax_ss_test = config.get_gke_jax_stable_stack_config(
+      maxtext_jax_ss_test = config.get_gke_config(
           tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
@@ -61,14 +61,14 @@ with models.DAG(
               f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-ss/automated/{current_datetime}",
           ),
           test_name=f"maxtext-jax-ss-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
           test_owner=test_owner.PARAM_B,
       ).run()
 
   for accelerator, slices in maxdiffusion_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     for slice_num in slices:
-      maxdiffusion_jax_ss_test = config.get_gke_jax_stable_stack_config(
+      maxdiffusion_jax_ss_test = config.get_gke_config(
           tpu_version=config.tpu_versions[accelerator],
           tpu_cores=cores,
           num_slices=slice_num,
@@ -82,6 +82,6 @@ with models.DAG(
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{current_datetime}",
           ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_STABLE.value,
           test_owner=test_owner.PARAM_B,
       ).run()

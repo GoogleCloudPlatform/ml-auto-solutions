@@ -36,14 +36,18 @@ def generate_run_name(benchmark_id: str) -> str:
 def generate_tb_file_location(run_name: str, base_output_directory: str) -> str:
   """Generates a path to the tensorboard file to be used as a regex. Assumes
   the file is located in:
-  <base_output_directory>/<run_name>/tensorboard/events.out.tfevents.*
+  <base_output_directory>/<run_name>/tensorboard/<run_name>/events.out.tfevents.*
 
   Args:
     run_name: run name for the tensorboard file location
     base_output_directory: GCS bucket path
   """
   return os.path.join(
-      base_output_directory, run_name, "tensorboard", "events.out.tfevents.*"
+      base_output_directory,
+      run_name,
+      "tensorboard",
+      run_name,
+      "events.out.tfevents.*",
   )
 
 

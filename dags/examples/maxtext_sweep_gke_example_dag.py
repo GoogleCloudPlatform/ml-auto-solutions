@@ -44,7 +44,7 @@ with models.DAG(
   maxtext_sweep_gke_test = (
       maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
           test_owner=test_owner.RAYMOND_Z,
-          project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
+          project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
           cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
           tpu_zone=Zone.US_CENTRAL2_B.value,
           time_out_in_min=60,

@@ -20,6 +20,9 @@ from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
 
 
+MANTARAY_G3_GS_BUCKET = "gs://borgcron/cmcs-benchmark-automation/mantaray"
+
+
 def load_file_from_gcs(gs_file_path):
   """Loads a file from a Google Cloud Storage bucket."""
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -33,22 +36,32 @@ def load_file_from_gcs(gs_file_path):
 
 
 @task
-def run_workload(
-    workload_file_name: str,
-):
-  gs_bucket = composer_env.get_gs_bucket()
+def run_workload(workload_file_name: str):
   with tempfile.TemporaryDirectory() as tmpdir:
     cmds = (
         f"cd {tmpdir}",
+        f"gsutil -m cp -r {MANTARAY_G3_GS_BUCKET} .",
         "sudo apt-get update && sudo apt-get install -y rsync",  # Install rsync
-        "pip uninstall -y -q mantaray",  # Download and install mantaray
-        (
-            "gsutil cp"
-            f" {gs_bucket}/mantaray/mantaray-0.1-py2.py3-none-any.whl ."
-        ),
-        ("gsutil cp -r" f" {gs_bucket}/mantaray/xlml_jobs ."),
-        f"pip install mantaray-0.1-py2.py3-none-any.whl",
+        f"cd mantaray && pip install -e .",
         f"python xlml_jobs/{workload_file_name}",  # Run the workload
+    )
+    hook = SubprocessHook()
+    result = hook.run_command(
+        ["bash", "-c", ";".join(cmds)],
+    )
+    assert (
+        result.exit_code == 0
+    ), f"Mantaray command failed with code {result.exit_code}"
+
+
+@task
+def build_docker_image():
+  with tempfile.TemporaryDirectory() as tmpdir:
+    cmds = (
+        f"cd {tmpdir}",
+        f"gsutil -m cp -r {MANTARAY_G3_GS_BUCKET} .",
+        "cd mantaray",
+        "gcloud builds submit --config docker/cloudbuild.yaml --substitutions _DATE=$(date +%Y%m%d)",  # Create nightly docker image
     )
     hook = SubprocessHook()
     result = hook.run_command(

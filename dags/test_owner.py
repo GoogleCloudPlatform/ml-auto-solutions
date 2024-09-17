@@ -26,9 +26,6 @@ class Team(enum.Enum):
   INFERENCE = "inference"
 
 
-# XLML - JAX/FLAX
-SHIVA_S = "Shiva S."
-
 # XLML - TensorFlow
 ERIC_L = "Eric L."
 CHANDRA_D = "Chandra D."
