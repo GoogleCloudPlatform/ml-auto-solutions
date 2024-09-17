@@ -105,10 +105,10 @@ def get_trt_llm_mlperf_gpu_config(
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
 
   model_parameters_sweep_cmds = []
-  for model_name in general_configs['models'].split(','):
+  for model_name in general_configs['model_name'].split(','):
     model_parameters_sweep_cmds.append(f'make generate_engines RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"')
 
-  for model_name in general_configs['models'].split(','):
+  for model_name in general_configs['model_name'].split(','):
       for scenario in model_parameters[model_name]:
           for parameter in model_parameters[model_name][scenario]:
             steps = 2 ** (binary_search_steps - 1) + 1
