@@ -15,7 +15,7 @@
 """Utilities to construct configs for MLPerf4.0 Reproduce DAG."""
 
 import datetime
-from typing import Dict
+from typing import Dict, List
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, vm_resource
 from dags.vm_resource import Project, RuntimeVersion
@@ -24,7 +24,7 @@ RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
 
 
-def get_trt_llm_mlperf_v40_gpu_config(
+def get_trt_llm_mlperf_gpu_config(
     machine_type: vm_resource.MachineVersion,
     image_project: vm_resource.ImageProject,
     image_family: vm_resource.ImageFamily,
@@ -36,7 +36,9 @@ def get_trt_llm_mlperf_v40_gpu_config(
     project: Project,
     network: str,
     subnetwork: str,
-    model_configs: Dict = {},
+    general_configs: Dict = {},
+    model_parameters: Dict = {},
+    binary_search_steps: int = 1,
 ) -> task.GpuCreateResourceTask:
   docker_container_name = "mlperf-inference"
   set_up_cmds = (
@@ -48,35 +50,37 @@ def get_trt_llm_mlperf_v40_gpu_config(
       # Format and mount multiple Local SSD
       "sudo apt update && sudo apt install mdadm --no-install-recommends",
       "find /dev/ | grep google-local-nvme-ssd",
-            'sudo mdadm --create /dev/md0 --level=0 --raid-devices=$(find /dev/ -name "google-local-nvme-ssd*" | wc -l) $(find /dev/ -name "google-local-nvme-ssd*")',
-                        "sudo mdadm --detail --prefer=by-id /dev/md0",
+      'sudo mdadm --create /dev/md0 --level=0 --raid-devices=$(find /dev/ -name "google-local-nvme-ssd*" | wc -l) $(find /dev/ -name "google-local-nvme-ssd*")',
+      "sudo mdadm --detail --prefer=by-id /dev/md0",
       "sudo mkfs.ext4 -F /dev/md0",
       "sudo mkdir -p /scratch",
       "sudo mount /dev/md0 /scratch",
       "sudo chmod a+w /scratch",
       "cd /scratch",
       # Prepare data
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/mlperf_inf_dlrmv2 .",
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/models .",
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/preprocessed_data .",
-      "mv models/Llama2/fp8-quantized-ammo/llama2-70b-chat-hf-tp2pp1-fp8/ models/Llama2/fp8-quantized-ammo/llama2-70b-tp2pp1-fp8/",
-      "git clone https://github.com/mlcommons/inference_results_v4.0",
-      "cd /scratch/inference_results_v4.0/closed/Google",
+      f"gsutil -m cp -n -r gs://tohaowu/mlpinf-v41/submission/closed/Google_GPU .",
+      f"gsutil -m cp -n -r {general_configs['models']} .",
+      f"gsutil -m cp -n -r {general_configs['preprocessed_data']} .",
+      f"gsutil -m cp -n -r {general_configs['docker_config']} .",
+      "curl -sSL https://get.docker.com/ | sh",
+      "touch ~/.docker/config.json",
+      "sudo cp config.json ~/.docker/config.json",
+      "cd Google_GPU",
       "export MLPERF_SCRATCH_PATH=/scratch",
-      "cp /scratch/inference_results_v4.0/closed/{NVIDIA,Google}/Makefile.docker",
       "sed -i '27i\ARCH=x86_64' Makefile",
       "sed -i '29i\ARCH=x86_64' Makefile.docker",
+      "sed -i '29i\ARCH=x86_64' Makefile.const",
       "sudo usermod -a -G docker $USER",
       # Build and launch a docker container
-      "make prebuild DOCKER_DETACH=1",
+      "PARTNER_DROP=1 make prebuild DOCKER_DETACH=1",
       "make docker_add_user",
-      f"make launch_docker DOCKER_NAME={docker_container_name} DOCKER_ARGS='-v /scratch/mlperf_inf_dlrmv2:/home/mlperf_inf_dlrmv2 -d'",
+      f"make launch_docker DOCKER_NAME={docker_container_name} DOCKER_ARGS='-d'",
   )
 
   jsonl_output_path = "metric_report.jsonl"
   jsonl_converter_py_lines = (
       "import sys, json, glob, jsonlines",
-      "metadata_log_pattern = '/scratch/inference_results_v4.0/closed/Google/build/logs/*/*/*/*/metadata.json'",
+      "metadata_log_pattern = '/scratch/Google_GPU/build/logs/*/*/*/*/metadata.json'",
       "metadata_log_paths = glob.glob(metadata_log_pattern)",
       "def convert_to_jsonl(json_path, jsonl_path):",
       "  data = dict()",
@@ -99,14 +103,24 @@ def get_trt_llm_mlperf_v40_gpu_config(
   py_script = "\n".join(jsonl_converter_py_lines)
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
 
-  docker_cmds = (
+  model_parameters_sweep_cmds = []
+  for model_name in general_configs['models'].split(','):
+    model_parameters_sweep_cmds.append(f'make generate_engines RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"')
+    model_parameters_sweep_cmds.append(f'make run_harness RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"')
+  while binary_search_steps > 0:
+
+    binary_search_steps = binary_search_steps - 1
+
+  docker_cmds = [
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
-      f'make run RUN_ARGS="--benchmarks={model_configs["model_name"]} --scenarios={model_configs["scenario"]} --config_ver={model_configs["config_ver"]} --test_mode=PerformanceOnly"',
-  )
+      #f'make run RUN_ARGS="--benchmarks={general_configs["model_name"]} --scenarios={general_configs["scenario"]} --config_ver={general_configs["config_ver"]} --test_mode={general_configs["test_mode"]}"',
+  ]
+
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
       "pip install jsonlines",
+      f"docker restart {docker_container_name}",
       f'docker exec -i {docker_container_name} /bin/bash -c "{docker_cmd}"',
       make_jsonl_converter_cmd,
       "cat jsonl_converter.py",
@@ -130,7 +144,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.YIJIA_J,
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm_mlperf_v40",
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm_mlperf_v41",
   )
 
   job_gcp_config = gcp_config.GCPConfig(

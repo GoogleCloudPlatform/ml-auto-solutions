@@ -34,6 +34,10 @@ INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
 H100_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
+A100_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
+L4_INFERENCE_SUBNETWORKS = "regions/asia-east1/subnetworks/mas-test-asia-east1"
 
 
 class Project(enum.Enum):
@@ -95,6 +99,8 @@ class Zone(enum.Enum):
   US_WEST1_C = "us-west1-c"
   # reserved a3+ cluster in supercomputer-testing
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
+  # reserved l4 in cloud-tpu-inference-test
+  ASIA_EAST1_A = "asia-east1-a"
 
 
 class MachineVersion(enum.Enum):
@@ -105,10 +111,12 @@ class MachineVersion(enum.Enum):
   N1_STANDARD_32 = "n1-standard-32"
   A2_HIGHGPU_1G = "a2-highgpu-1g"
   A2_HIGHGPU_4G = "a2-highgpu-4g"
+  A2_ULTRAGPU_4G = "a2-ultragpu-2g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
   G2_STAND_32 = "g2-standard-32"  # 128GB memroy
+  G2_CUSTOME_96 = "g2-custom-96-442368"
 
 
 class TpuVersion(enum.Enum):
@@ -126,6 +134,7 @@ class GpuVersion(enum.Enum):
 
   L4 = "nvidia-l4"
   A100 = "nvidia-tesla-a100"
+  A100_80G = "nvidia-a100-80gb"
   H100 = "nvidia-h100-80gb"
   XPK_H100 = "h100-80gb-8"
   XPK_H100_MEGA = "h100-mega-80gb-8"
