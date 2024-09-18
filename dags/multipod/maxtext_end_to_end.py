@@ -18,7 +18,7 @@
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, ClusterName
+from dags.vm_resource import ClusterName, CpuVersion, DockerImage, GpuVersion, Project, TpuVersion, Zone
 from dags.multipod.configs import gke_config
 from airflow.utils.task_group import TaskGroup
 from xlml.utils import name_format
@@ -213,7 +213,25 @@ with models.DAG(
               "tpu_version": TpuVersion.V4,
               "tpu_cores": 128,
               "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+              "project_name": Project.CLOUD_TPU_MULTIPOD_DEV.value,
               "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "time_out_in_min": 60,
+          },
+      ],
+      "mixtral-8x22b": [
+          {
+              "script_name": "tpu/mixtral/8x22b/1_test_mixtral",
+              "cpu_device_type": CpuVersion.M1_MEGAMEM,
+              "cpu_zone": Zone.US_CENTRAL1_B.value,
+              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "time_out_in_min": 360,
+          },
+          {
+              "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
+              "tpu_version": TpuVersion.V5E,
+              "tpu_cores": 256,
+              "cluster_name": ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
+              "tpu_zone": Zone.US_WEST4_B.value,
               "time_out_in_min": 60,
           },
       ],
@@ -230,6 +248,7 @@ with models.DAG(
               "tpu_version": TpuVersion.V4,
               "tpu_cores": 128,
               "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+              "project_name": Project.CLOUD_TPU_MULTIPOD_DEV.value,
               "tpu_zone": Zone.US_CENTRAL2_B.value,
               "time_out_in_min": 60,
           },
