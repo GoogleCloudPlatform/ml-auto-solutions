@@ -18,7 +18,7 @@ A DAG to run PyTorch multislice tests
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName
+from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import pytorch_config
 from xlml.apis import metric_config
 
@@ -33,8 +33,8 @@ with models.DAG(
     catchup=False,
     concurrency=2,
 ) as dag:
-  v4_8 = ClusterName.V4_8_MULTISLICE_CLUSTER
-  v4_16 = ClusterName.V4_16_MULTISLICE_CLUSTER
+  v4_8 = XpkClusters.V4_8_MULTISLICE_CLUSTER
+  v4_16 = XpkClusters.V4_16_MULTISLICE_CLUSTER
 
   for num_slices, cluster in [(1, v4_8), (2, v4_8), (1, v4_16)]:
     ici_chips = 4 if cluster == v4_8 else 8

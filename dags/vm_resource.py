@@ -16,6 +16,7 @@
 
 import datetime
 import enum
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 
 
 V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
@@ -157,25 +158,86 @@ class RuntimeVersion(enum.Enum):
   V2_ALPHA_TPUV5 = "v2-alpha-tpuv5"
 
 
-class ClusterName(enum.Enum):
-  """Common XPK cluster names."""
+class XpkClusters:
+  """Common XPK cluster configs."""
 
-  V4_8_CLUSTER = "mas-v4-8"
-  V4_32_CLUSTER = "mas-v4-32"
-  V5E_4_CLUSTER = "mas-v5e-4"
-  V5E_16_CLUSTER = "mas-v5e-16"
-  V4_8_MULTISLICE_CLUSTER = "v4-8-maxtext"
-  V4_16_MULTISLICE_CLUSTER = "v4-16-maxtext"
-  V4_128_MULTISLICE_CLUSTER = "v4-128-bodaborg-us-central2-b"
-  V5P_8_MULTISLICE_CLUSTER = "v5p-8-bodaborg-us-east5-a"
-  V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
-  V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
-  V5E_256_US_WEST_4_MULTISLICE_CLUSTER = "v5e-256-bodaborg-us-west4"
-  BODABORG_V6E_256 = "bodaborg-v6e-256"
-  A3_CLUSTER = "maxtext-a3-20n"
-  A3PLUS_CLUSTER = "a3plus-benchmark"
-  CPU_M1_MEGAMEM_96 = "m1-megamem-96-shared"
-  CPU_N2_STANDARD_64 = "shared-n2-standard-64"
+  V4_8_CLUSTER = XpkClusterConfig(
+      name="mas-v4-8",
+      device_version=TpuVersion.V4,
+      core_count=8,
+      project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  V4_8_MULTISLICE_CLUSTER = XpkClusterConfig(
+      name="v4-8-maxtext",
+      device_version=TpuVersion.V4,
+      core_count=8,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  V4_16_MULTISLICE_CLUSTER = XpkClusterConfig(
+      name="v4-16-maxtext",
+      device_version=TpuVersion.V4,
+      core_count=16,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  V4_128_MULTISLICE_CLUSTER = XpkClusterConfig(
+      name="v4-128-bodaborg-us-central2-b",
+      device_version=TpuVersion.V4,
+      core_count=128,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  V5P_8_MULTISLICE_CLUSTER = XpkClusterConfig(
+      name="v5p-8-bodaborg-us-east5-a",
+      device_version=TpuVersion.V5P,
+      core_count=8,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.US_EAST5_A.value,
+  )
+  V5E_256_US_WEST_4_MULTISLICE_CLUSTER = XpkClusterConfig(
+      name="v5e-256-bodaborg-us-west4",
+      device_version=TpuVersion.V5P,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_WEST4_B.value,
+  )
+  BODABORG_V6E_256 = XpkClusterConfig(
+      name="bodaborg-v6e-256",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  A3_CLUSTER = XpkClusterConfig(
+      name="maxtext-a3-20n",
+      device_version=GpuVersion.XPK_H100,
+      core_count=8,
+      project=Project.SUPERCOMPUTER_TESTING.value,
+      zone=Zone.US_CENTRAL1_C.value,
+  )
+  A3PLUS_CLUSTER = XpkClusterConfig(
+      name="a3plus-benchmark",
+      device_version=GpuVersion.XPK_H100_MEGA,
+      core_count=8,
+      project=Project.SUPERCOMPUTER_TESTING.value,
+      zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
+  )
+  CPU_M1_MEGAMEM_96 = XpkClusterConfig(
+      name="m1-megamem-96-shared",
+      device_version=CpuVersion.M1_MEGAMEM,
+      core_count=96,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL1_B.value,
+  )
+  CPU_N2_STANDARD_64 = XpkClusterConfig(
+      name="shared-n2-standard-64",
+      device_version=CpuVersion.N2_STANDARD,
+      core_count=64,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL1_B.value,
+  )
 
 
 class DockerImage(enum.Enum):

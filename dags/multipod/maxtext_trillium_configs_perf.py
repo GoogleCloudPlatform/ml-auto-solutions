@@ -18,7 +18,7 @@ A DAG to run perf tests for MaxText model configs on v5e.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, ClusterName, DockerImage
+from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config
@@ -50,16 +50,12 @@ with models.DAG(
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               test_owner=test_owner.RAYMOND_Z,
-              project_name=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
               dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               dataset_name=metric_config.DatasetOption.XLML_DATASET,
-              cluster_name=ClusterName.BODABORG_V6E_256.value,
-              tpu_zone=Zone.US_CENTRAL2_B.value,
+              cluster=XpkClusters.BODABORG_V6E_256,
               time_out_in_min=360,
               base_output_directory=BASE_OUTPUT_DIRECTORY,
-              tpu_version=TpuVersion.TRILLIUM,
-              tpu_cores=256,
               num_slices=[1, 2],
               docker_image=image.value,
               run_name_prefix=f"maxtext-{model}-{mode.value}",

@@ -18,7 +18,7 @@ A DAG to run perf tests for MaxText model configs on v5e.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, ClusterName, DockerImage
+from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config
@@ -54,23 +54,21 @@ with models.DAG(
       base_run_model_cmds = [
           f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue",
       ]
-      maxtext_sweep_gke_test = maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
-          test_owner=test_owner.RAYMOND_Z,
-          project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
-          dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-          composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-          dataset_name=metric_config.DatasetOption.XLML_DATASET,
-          cluster_name=ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
-          tpu_zone=Zone.US_WEST4_B.value,
-          time_out_in_min=360,
-          base_output_directory=BASE_OUTPUT_DIRECTORY,
-          tpu_version=TpuVersion.V5E,
-          tpu_cores=256,
-          num_slices=[1, 2],
-          docker_image=image.value,
-          run_name_prefix=f"maxtext-{model}-{mode.value}",
-          base_run_model_cmds=base_run_model_cmds,
-          sweep_params=QUANTIZATION_SWEEP,
+      maxtext_sweep_gke_test = (
+          maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
+              test_owner=test_owner.RAYMOND_Z,
+              dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+              composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+              dataset_name=metric_config.DatasetOption.XLML_DATASET,
+              cluster=XpkClusters.V5E_256_US_WEST_4_MULTISLICE_CLUSTER,
+              time_out_in_min=360,
+              base_output_directory=BASE_OUTPUT_DIRECTORY,
+              num_slices=[1, 2],
+              docker_image=image.value,
+              run_name_prefix=f"maxtext-{model}-{mode.value}",
+              base_run_model_cmds=base_run_model_cmds,
+              sweep_params=QUANTIZATION_SWEEP,
+          )
       )
 
       chain_num = 4
@@ -97,23 +95,21 @@ with models.DAG(
       base_run_model_cmds = [
           f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue RUN_PREFLIGHT=false",
       ]
-      maxtext_sweep_gke_test = maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
-          test_owner=test_owner.RAYMOND_Z,
-          project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
-          dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-          composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-          dataset_name=metric_config.DatasetOption.XLML_DATASET,
-          cluster_name=ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
-          tpu_zone=Zone.US_WEST4_B.value,
-          time_out_in_min=360,
-          base_output_directory=BASE_OUTPUT_DIRECTORY,
-          tpu_version=TpuVersion.V5E,
-          tpu_cores=256,
-          num_slices=[1, 2],
-          docker_image=image.value,
-          run_name_prefix=f"p-maxtext-{model}-{mode.value}",
-          base_run_model_cmds=base_run_model_cmds,
-          sweep_params=QUANTIZATION_SWEEP,
+      maxtext_sweep_gke_test = (
+          maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
+              test_owner=test_owner.RAYMOND_Z,
+              dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+              composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+              dataset_name=metric_config.DatasetOption.XLML_DATASET,
+              cluster=XpkClusters.V5E_256_US_WEST_4_MULTISLICE_CLUSTER,
+              time_out_in_min=360,
+              base_output_directory=BASE_OUTPUT_DIRECTORY,
+              num_slices=[1, 2],
+              docker_image=image.value,
+              run_name_prefix=f"p-maxtext-{model}-{mode.value}",
+              base_run_model_cmds=base_run_model_cmds,
+              sweep_params=QUANTIZATION_SWEEP,
+          )
       )
 
       chain_num = 4

@@ -16,7 +16,7 @@
 
 import datetime
 from airflow import models
-from dags.vm_resource import TpuVersion, Project, Zone, ClusterName, DockerImage
+from dags.vm_resource import TpuVersion, Project, Zone, XpkClusters, DockerImage
 from dags.examples.configs import xpk_example_config as config
 from dags import test_owner
 from xlml.utils import name_format
@@ -34,23 +34,15 @@ with models.DAG(
     catchup=False,
 ) as dag:
   flax_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
       test_name="resnet-single-slice",
-      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-      cluster_name=ClusterName.V4_8_CLUSTER.value,
+      cluster=XpkClusters.V4_8_CLUSTER,
       docker_image=DockerImage.XPK_JAX_TEST.value,
       time_out_in_min=60,
   ).run()
 
   flax_resnet_tpu_multislice_v4_128 = config.get_flax_resnet_xpk_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=128,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
       test_name="resnet-multi-slice",
-      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
-      cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+      cluster=XpkClusters.V4_128_MULTISLICE_CLUSTER,
       docker_image=DockerImage.XPK_JAX_TEST.value,
       time_out_in_min=60,
       num_slices=2,
@@ -75,23 +67,15 @@ with models.DAG(
         test_group_id,
     )
     chained_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         test_name="chained-resnet-single-slice",
-        project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-        cluster_name=ClusterName.V4_8_CLUSTER.value,
+        cluster=XpkClusters.V4_8_CLUSTER,
         docker_image=DockerImage.XPK_JAX_TEST.value,
         time_out_in_min=60,
     ).run(gcs_location=shared_gcs_location)
 
     chained_resnet_tpu_multislice_v4_128 = config.get_flax_resnet_xpk_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=128,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         test_name="chained-resnet-multi-slice",
-        project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
-        cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+        cluster=XpkClusters.V4_128_MULTISLICE_CLUSTER,
         docker_image=DockerImage.XPK_JAX_TEST.value,
         time_out_in_min=60,
         num_slices=2,
