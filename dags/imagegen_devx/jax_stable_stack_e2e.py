@@ -18,7 +18,7 @@
 import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, ClusterName
+from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
 from dags.imagegen_devx.configs import gke_config as config
 from xlml.utils import name_format
 
@@ -44,17 +44,14 @@ with models.DAG(
   current_datetime = config.get_current_datetime()
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
+    cluster = config.clusters[accelerator]
     for slice_num in slices:
       maxtext_jax_ss_test = config.get_gke_config(
-          tpu_version=config.tpu_versions[accelerator],
-          tpu_cores=cores,
           num_slices=slice_num,
-          cluster_name=config.cluster_names[accelerator].value,
-          tpu_zone=config.tpu_zones[accelerator].value,
-          project_name=config.project_names[accelerator].value,
+          cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
-              f"python MaxText/train.py MaxText/configs/base.yml run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxtext-jax-stable-stack-{current_datetime} "
+              f"python MaxText/train.py MaxText/configs/base.yml run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxtext-jax-stable-stack-{current_datetime} "
               "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
               "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
               "dataset_type=synthetic async_checkpointing=false "
@@ -67,18 +64,15 @@ with models.DAG(
 
   for accelerator, slices in maxdiffusion_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
+    cluster = config.clusters[accelerator]
     for slice_num in slices:
       maxdiffusion_jax_ss_test = config.get_gke_config(
-          tpu_version=config.tpu_versions[accelerator],
-          tpu_cores=cores,
           num_slices=slice_num,
-          cluster_name=config.cluster_names[accelerator].value,
-          tpu_zone=config.tpu_zones[accelerator].value,
-          project_name=config.project_names[accelerator].value,
+          cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
               f"python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
-              f"run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+              f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{current_datetime}",
           ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",

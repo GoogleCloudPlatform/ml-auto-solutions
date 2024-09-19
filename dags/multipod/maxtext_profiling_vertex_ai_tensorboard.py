@@ -18,7 +18,7 @@ A DAG to test MaxText Automatic Profile Upload to Vertex AI Tensorboard.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName
+from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -46,15 +46,14 @@ with models.DAG(
       "v4-8": [1],
       "v4-16": [1, 2],
   }
-  cluster_names = {
+  clusters = {
       # accelerator: cluster name
-      "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
-      "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
+      "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+      "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
   }
 
   for mode, image in docker_images:
     for accelerator, slices in test_configs.items():
-      cores = accelerator.rsplit("-", maxsplit=1)[-1]
       for slice_num in slices:
         current_time = datetime.datetime.now()
         current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
@@ -66,11 +65,8 @@ with models.DAG(
             "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
         )
         profiling_in_vertex_ai_tb_test = gke_config.get_gke_config(
-            tpu_version=TpuVersion.V4,
-            tpu_cores=cores,
             num_slices=slice_num,
-            cluster_name=cluster_names[accelerator].value,
-            tpu_zone=Zone.US_CENTRAL2_B.value,
+            cluster=clusters[accelerator],
             time_out_in_min=240,
             test_name=f"profiling-vertex-ai-tensorboard-{mode.value}",
             run_model_cmds=profiling_in_vertex_ai_tb_cmds,

@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, DockerImage, ClusterName
+from dags.vm_resource import TpuVersion, Zone, Project, DockerImage, XpkClusters
 from dags.multipod.configs import legacy_unit_test, gke_config
 from dags.multipod.configs.common import SetupMode, Platform
 
@@ -63,22 +63,16 @@ with models.DAG(
       legacy_unit_test.get_legacy_unit_test_config(
           script_to_copy="gpt1-like.py",
           test_cmd=("python3 gpt1-like.py",),
-          tpu_version=TpuVersion.V4,
-          tpu_cores=16,
-          tpu_zone=Zone.US_CENTRAL2_B.value,
           time_out_in_min=60,
           test_name=f"gpt1-like-{test_mode.value}",
           docker_image=DOCKER_IMAGE[test_mode].value,
           test_owner=test_owner.JON_B,
           num_slices=n_slice,
-          cluster_name=ClusterName.V4_16_MULTISLICE_CLUSTER.value,
+          cluster=XpkClusters.TPU_V4_16_CLUSTER,
       ).run()
 
     # Tests that run MaxText end_to_end tests should follow this pattern.
     gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-decode-{test_mode.value}",
         run_model_cmds=(
@@ -90,9 +84,6 @@ with models.DAG(
 
     # v4-8 1 slice TFLOPS test
     gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-perf-{test_mode.value}",
         run_model_cmds=(
@@ -105,16 +96,13 @@ with models.DAG(
     # v4-16 1 and 2 slice TFLOPS test
     for n_slice in [1, 2]:
       gke_config.get_gke_config(
-          tpu_version=TpuVersion.V4,
-          tpu_cores=16,
           num_slices=n_slice,
-          tpu_zone=Zone.US_CENTRAL2_B.value,
           time_out_in_min=60,
           test_name=f"maxtext-perf-{test_mode.value}",
           run_model_cmds=(
               f"bash end_to_end/tpu/test_tflops.sh xlml {tflop_thresholds['v4-16'][str(n_slice)]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-16-{n_slice}slice-{test_mode.value}",
           ),
-          cluster_name=ClusterName.V4_16_MULTISLICE_CLUSTER.value,
+          cluster=XpkClusters.TPU_V4_16_CLUSTER,
           docker_image=DOCKER_IMAGE[test_mode].value,
           test_owner=test_owner.PRIYANKA_G,
       ).run()
@@ -125,11 +113,8 @@ with models.DAG(
     base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_determinism"
     dataset_path = gcs_bucket.MAXTEXT_DIR
     maxtext_v4_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=16,
         num_slices=slice_num,
-        cluster_name=ClusterName.V4_16_MULTISLICE_CLUSTER.value,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
+        cluster=XpkClusters.TPU_V4_16_CLUSTER,
         time_out_in_min=60,
         test_name=f"maxtext-determinism-{test_mode.value}",
         run_model_cmds=(
@@ -144,33 +129,27 @@ with models.DAG(
     # v4-16 1 slice, v4-8 1 and 2 slices shardings.py test
     for cores in [8, 16]:
       if cores == 8:
-        cluster_name = ClusterName.V4_8_MULTISLICE_CLUSTER.value
+        cluster = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER
       elif cores == 16:
-        cluster_name = ClusterName.V4_16_MULTISLICE_CLUSTER.value
+        cluster = XpkClusters.TPU_V4_16_CLUSTER
       for n_slice in [1, 2]:
         if cores == 16 and n_slice == 2:  # Skip test for 2 slice v4-16
           break
         gke_config.get_gke_config(
-            tpu_version=TpuVersion.V4,
-            tpu_cores=cores,
             num_slices=n_slice,
-            tpu_zone=Zone.US_CENTRAL2_B.value,
             time_out_in_min=60,
             test_name=f"maxtext-shardings-{test_mode.value}",
             run_model_cmds=(
                 f"python pedagogical_examples/shardings.py --dcn_data_parallelism {n_slice} --ici_fsdp_parallelism {cores//2}",
             ),
-            cluster_name=cluster_name,
+            cluster=cluster,
             docker_image=DOCKER_IMAGE[test_mode].value,
             test_owner=test_owner.MOHIT_K,
         ).run()
 
   # v4-8 2 slices checkpoint resharding test
   gke_config.get_gke_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
       num_slices=2,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       test_name=f"maxtext-checkpoint-reshard-{SetupMode.STABLE.value}",
       run_model_cmds=(
