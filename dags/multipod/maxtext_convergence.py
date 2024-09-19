@@ -59,7 +59,7 @@ with models.DAG(
 
   for test_name, run_command in convergence_tests.items():
     maxtext_v4_configs_test = gke_config.get_gke_config(
-        cluster=XpkClusters.V4_128_MULTISLICE_CLUSTER,
+        cluster=XpkClusters.TPU_V4_128_CLUSTER,
         time_out_in_min=300,
         test_name=test_name,
         run_model_cmds=run_command,

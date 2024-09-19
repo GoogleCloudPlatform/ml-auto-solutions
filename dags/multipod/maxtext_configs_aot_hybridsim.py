@@ -44,8 +44,8 @@ with models.DAG(
   }
   num_slices = [1, 2, 4, 8]
   clusters = {
-      TpuVersion.V4: XpkClusters.V4_8_MULTISLICE_CLUSTER,
-      TpuVersion.V5E: XpkClusters.V5E_256_US_WEST_4_MULTISLICE_CLUSTER,
+      TpuVersion.V4: XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+      TpuVersion.V5E: XpkClusters.TPU_V5E_256_CLUSTER,
   }
   v5e_alt = "5e"
 

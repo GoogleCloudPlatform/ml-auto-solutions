@@ -42,7 +42,7 @@ with models.DAG(
 
   shared_task_config = {
       "test_owner": test_owner.ZHIYU_L,
-      "cluster": XpkClusters.V5E_256_US_WEST_4_MULTISLICE_CLUSTER,
+      "cluster": XpkClusters.TPU_V5E_256_CLUSTER,
       "time_out_in_min": 60,
       "base_output_directory": base_output_directory,
       "num_slices": [1, 2],

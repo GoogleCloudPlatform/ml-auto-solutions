@@ -48,8 +48,8 @@ with models.DAG(
   }
   clusters = {
       # accelerator: cluster name
-      "v4-8": XpkClusters.V4_8_MULTISLICE_CLUSTER,
-      "v4-16": XpkClusters.V4_16_MULTISLICE_CLUSTER,
+      "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+      "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
   }
 
   for mode, image in docker_images:

@@ -33,7 +33,7 @@ def get_legacy_unit_test_config(
     test_owner: str,
     docker_image: str,
     num_slices: int = 1,
-    cluster: XpkClusterConfig = XpkClusters.V4_8_MULTISLICE_CLUSTER,
+    cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
 ) -> task.XpkTask:
   """
   Run a legacy unit test script.

@@ -53,7 +53,7 @@ with models.DAG(
               dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               dataset_name=metric_config.DatasetOption.XLML_DATASET,
-              cluster=XpkClusters.BODABORG_V6E_256,
+              cluster=XpkClusters.TPU_V6E_256_CLUSTER,
               time_out_in_min=360,
               base_output_directory=BASE_OUTPUT_DIRECTORY,
               num_slices=[1, 2],

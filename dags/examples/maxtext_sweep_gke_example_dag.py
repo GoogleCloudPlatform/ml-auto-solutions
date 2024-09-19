@@ -44,7 +44,7 @@ with models.DAG(
   maxtext_sweep_gke_test = (
       maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
           test_owner=test_owner.RAYMOND_Z,
-          cluster=XpkClusters.V4_128_MULTISLICE_CLUSTER,
+          cluster=XpkClusters.TPU_V4_128_CLUSTER,
           time_out_in_min=60,
           base_output_directory=base_output_directory,
           num_slices=[1],

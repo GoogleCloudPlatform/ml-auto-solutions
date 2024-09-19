@@ -135,7 +135,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-pinned-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster=XpkClusters.A3_CLUSTER,
+        cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
         test_owner=test_owner.NINA_C,
     ).run()
@@ -144,7 +144,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster=XpkClusters.A3_CLUSTER,
+        cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
     ).run()
@@ -153,7 +153,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-pinned-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster=XpkClusters.A3PLUS_CLUSTER,
+        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
         test_owner=test_owner.NINA_C,
     ).run()
@@ -162,7 +162,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster=XpkClusters.A3PLUS_CLUSTER,
+        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
     ).run()
@@ -172,48 +172,48 @@ with models.DAG(
       "gemma-7b": [
           {
               "script_name": "tpu/gemma/7b/1_test_gemma",
-              "cluster": XpkClusters.CPU_N2_STANDARD_64,
+              "cluster": XpkClusters.CPU_N2_STANDARD_64_CLUSTER,
               "time_out_in_min": 60,
           },
           {
               "script_name": "tpu/gemma/7b/2_test_gemma",
-              "cluster": XpkClusters.V4_16_MULTISLICE_CLUSTER,
+              "cluster": XpkClusters.TPU_V4_16_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
       "mixtral-8x7b": [
           {
               "script_name": "tpu/mixtral/8x7b/1_test_mixtral",
-              "cluster": XpkClusters.CPU_M1_MEGAMEM_96,
+              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 240,
           },
           {
               "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
-              "cluster": XpkClusters.V4_128_MULTISLICE_CLUSTER,
+              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
       "mixtral-8x22b": [
           {
               "script_name": "tpu/mixtral/8x22b/1_test_mixtral",
-              "cluster": XpkClusters.CPU_M1_MEGAMEM_96,
+              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 360,
           },
           {
               "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
-              "cluster": XpkClusters.V5E_256_US_WEST_4_MULTISLICE_CLUSTER,
+              "cluster": XpkClusters.TPU_V5E_256_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
       "llama2-70b": [
           {
               "script_name": "tpu/llama2/70b/1_test_llama2_70b",
-              "cluster": XpkClusters.CPU_M1_MEGAMEM_96,
+              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 360,
           },
           {
               "script_name": "tpu/llama2/70b/2_test_llama2_70b",
-              "cluster": XpkClusters.V4_128_MULTISLICE_CLUSTER,
+              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
               "time_out_in_min": 60,
           },
       ],

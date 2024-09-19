@@ -68,7 +68,7 @@ with models.DAG(
           docker_image=DOCKER_IMAGE[test_mode].value,
           test_owner=test_owner.JON_B,
           num_slices=n_slice,
-          cluster=XpkClusters.V4_16_MULTISLICE_CLUSTER,
+          cluster=XpkClusters.TPU_V4_16_CLUSTER,
       ).run()
 
     # Tests that run MaxText end_to_end tests should follow this pattern.
@@ -102,7 +102,7 @@ with models.DAG(
           run_model_cmds=(
               f"bash end_to_end/tpu/test_tflops.sh xlml {tflop_thresholds['v4-16'][str(n_slice)]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-16-{n_slice}slice-{test_mode.value}",
           ),
-          cluster=XpkClusters.V4_16_MULTISLICE_CLUSTER,
+          cluster=XpkClusters.TPU_V4_16_CLUSTER,
           docker_image=DOCKER_IMAGE[test_mode].value,
           test_owner=test_owner.PRIYANKA_G,
       ).run()
@@ -114,7 +114,7 @@ with models.DAG(
     dataset_path = gcs_bucket.MAXTEXT_DIR
     maxtext_v4_configs_test = gke_config.get_gke_config(
         num_slices=slice_num,
-        cluster=XpkClusters.V4_16_MULTISLICE_CLUSTER,
+        cluster=XpkClusters.TPU_V4_16_CLUSTER,
         time_out_in_min=60,
         test_name=f"maxtext-determinism-{test_mode.value}",
         run_model_cmds=(
@@ -129,9 +129,9 @@ with models.DAG(
     # v4-16 1 slice, v4-8 1 and 2 slices shardings.py test
     for cores in [8, 16]:
       if cores == 8:
-        cluster = XpkClusters.V4_8_MULTISLICE_CLUSTER
+        cluster = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER
       elif cores == 16:
-        cluster = XpkClusters.V4_16_MULTISLICE_CLUSTER
+        cluster = XpkClusters.TPU_V4_16_CLUSTER
       for n_slice in [1, 2]:
         if cores == 16 and n_slice == 2:  # Skip test for 2 slice v4-16
           break

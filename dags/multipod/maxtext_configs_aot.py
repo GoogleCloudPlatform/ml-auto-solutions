@@ -102,7 +102,7 @@ with models.DAG(
       test_name=f"maxtext-aot-a3-stable",
       run_model_cmds=(cmd,),
       num_slices=1,
-      cluster=XpkClusters.A3_CLUSTER,
+      cluster=XpkClusters.GPU_A3_CLUSTER,
       docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
       test_owner=test_owner.JON_B,
   ).run()

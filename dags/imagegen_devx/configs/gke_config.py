@@ -23,10 +23,10 @@ import datetime
 
 clusters = {
     # accelerator: cluster names
-    "v4-8": XpkClusters.V4_8_MULTISLICE_CLUSTER,
-    "v4-16": XpkClusters.V4_16_MULTISLICE_CLUSTER,
-    "v5-8": XpkClusters.V5P_8_MULTISLICE_CLUSTER,
-    "v6e-256": XpkClusters.BODABORG_V6E_256,
+    "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+    "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
+    "v5-8": XpkClusters.TPU_V5P_8_CLUSTER,
+    "v6e-256": XpkClusters.TPU_V6E_256_CLUSTER,
 }
 
 
@@ -42,7 +42,7 @@ def get_gke_config(
     docker_image: str,
     run_model_cmds: Iterable[str],
     test_owner: str,
-    cluster: XpkClusterConfig = XpkClusters.V4_8_MULTISLICE_CLUSTER,
+    cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
     num_slices: int = 1,
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,

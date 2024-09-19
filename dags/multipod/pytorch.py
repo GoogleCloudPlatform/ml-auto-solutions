@@ -33,8 +33,8 @@ with models.DAG(
     catchup=False,
     concurrency=2,
 ) as dag:
-  v4_8 = XpkClusters.V4_8_MULTISLICE_CLUSTER
-  v4_16 = XpkClusters.V4_16_MULTISLICE_CLUSTER
+  v4_8 = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER
+  v4_16 = XpkClusters.TPU_V4_16_CLUSTER
 
   for num_slices, cluster in [(1, v4_8), (2, v4_8), (1, v4_16)]:
     ici_chips = 4 if cluster == v4_8 else 8

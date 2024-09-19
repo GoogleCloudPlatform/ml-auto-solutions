@@ -35,14 +35,14 @@ with models.DAG(
 ) as dag:
   flax_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
       test_name="resnet-single-slice",
-      cluster=XpkClusters.V4_8_CLUSTER,
+      cluster=XpkClusters.TPU_V4_8_MAS_CLUSTER,
       docker_image=DockerImage.XPK_JAX_TEST.value,
       time_out_in_min=60,
   ).run()
 
   flax_resnet_tpu_multislice_v4_128 = config.get_flax_resnet_xpk_config(
       test_name="resnet-multi-slice",
-      cluster=XpkClusters.V4_128_MULTISLICE_CLUSTER,
+      cluster=XpkClusters.TPU_V4_128_CLUSTER,
       docker_image=DockerImage.XPK_JAX_TEST.value,
       time_out_in_min=60,
       num_slices=2,
@@ -68,14 +68,14 @@ with models.DAG(
     )
     chained_resnet_tpu_singleslice_v4_8 = config.get_flax_resnet_xpk_config(
         test_name="chained-resnet-single-slice",
-        cluster=XpkClusters.V4_8_CLUSTER,
+        cluster=XpkClusters.TPU_V4_8_MAS_CLUSTER,
         docker_image=DockerImage.XPK_JAX_TEST.value,
         time_out_in_min=60,
     ).run(gcs_location=shared_gcs_location)
 
     chained_resnet_tpu_multislice_v4_128 = config.get_flax_resnet_xpk_config(
         test_name="chained-resnet-multi-slice",
-        cluster=XpkClusters.V4_128_MULTISLICE_CLUSTER,
+        cluster=XpkClusters.TPU_V4_128_CLUSTER,
         docker_image=DockerImage.XPK_JAX_TEST.value,
         time_out_in_min=60,
         num_slices=2,
