@@ -84,7 +84,7 @@ def get_tf_keras_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
+      all_workers=False,
   )
 
 
@@ -146,13 +146,16 @@ def get_tf_resnet_config(
   # TODO(ranran): replace Variable.get() to XCOM when it applies
   tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
   env_variable = common.export_env_variables(tpu_name, is_pod, is_pjrt)
+
+  epoch = time.time()
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/resnet/{benchmark_id}/{epoch}"
   run_model_cmds = (
       "sudo chmod -R 777 /tmp/",
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/vision/train.py"
           f" --experiment=resnet_imagenet"
-          " --mode=train_and_eval --model_dir=/tmp/"
+          f" --mode=train_and_eval --model_dir={model_dir}"
           f" --params_override='{params_override}'"
       ),
   )
@@ -177,7 +180,7 @@ def get_tf_resnet_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
+      all_workers=False,
   )
 
 
@@ -304,8 +307,8 @@ def get_tf_dlrm_config(
               "concat_dense": "false",
               "dcn_use_bias": "true",
               "max_ids_per_chip_per_sample": 128,
-              "max_ids_per_table": 2048,
-              "max_unique_ids_per_table": 512,
+              "max_ids_per_table": 15000,
+              "max_unique_ids_per_table": 4096,
               "initialize_tables_on_host": "false",
               "use_partial_tpu_embedding": "false",
               "size_threshold": 0,
@@ -369,5 +372,5 @@ def get_tf_dlrm_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
+      all_workers=False,
   )
