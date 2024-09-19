@@ -12,32 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName
+from dags.vm_resource import TpuVersion, Zone, DockerImage
 from dags.multipod.configs import gke_config
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from xlml.apis import task
 from typing import List
-
-
-# TODO(jonbolin): Refactor this to cluster definition
-CLUSTER_CONFIG = {
-    ClusterName.V4_8_MULTISLICE_CLUSTER: {
-        'tpu_version': TpuVersion.V4,
-        'tpu_cores': 8,
-        'tpu_zone': Zone.US_CENTRAL2_B.value,
-    },
-    ClusterName.V4_16_MULTISLICE_CLUSTER: {
-        'tpu_version': TpuVersion.V4,
-        'tpu_cores': 16,
-        'tpu_zone': Zone.US_CENTRAL2_B.value,
-    },
-}
 
 
 def get_nightly_pytorch_config(
     test_name: str,
     test_owner: str,
     run_commands: List[str],
-    cluster: ClusterName,
+    cluster: XpkClusterConfig,
     num_slices: int,
 ) -> task.XpkTask:
   cmds = (
@@ -45,12 +31,11 @@ def get_nightly_pytorch_config(
       *run_commands,
   )
   return gke_config.get_gke_config(
-      cluster_name=cluster.value,
+      cluster=cluster,
       test_name=test_name,
       run_model_cmds=cmds,
       num_slices=num_slices,
       docker_image=DockerImage.PYTORCH_NIGHTLY.value,
       test_owner=test_owner,
       time_out_in_min=60,
-      **CLUSTER_CONFIG[cluster],
   )
