@@ -18,7 +18,7 @@
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import ClusterName, CpuVersion, DockerImage, GpuVersion, Project, TpuVersion, Zone
+from dags.vm_resource import XpkClusters, CpuVersion, DockerImage, GpuVersion, Project, TpuVersion, Zone
 from dags.multipod.configs import gke_config
 from airflow.utils.task_group import TaskGroup
 from xlml.utils import name_format
@@ -114,9 +114,6 @@ with models.DAG(
 
   for model, test_script in test_models_tpu.items():
     stable_tpu = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
@@ -124,9 +121,6 @@ with models.DAG(
         test_owner=test_owner.JON_B,
     ).run()
     nightly_tpu = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
@@ -137,46 +131,38 @@ with models.DAG(
 
   for model, (test_script, nnodes) in test_models_gpu.items():
     pinned_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        accelerator_type=GpuVersion.XPK_H100,
-        gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-pinned-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster_name=ClusterName.A3_CLUSTER.value,
+        cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
         test_owner=test_owner.NINA_C,
     ).run()
     stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        accelerator_type=GpuVersion.XPK_H100,
-        gpu_zone=Zone.US_CENTRAL1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster_name=ClusterName.A3_CLUSTER.value,
+        cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
     ).run()
     pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        accelerator_type=GpuVersion.XPK_H100_MEGA,
-        gpu_zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-pinned-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster_name=ClusterName.A3PLUS_CLUSTER.value,
+        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
         test_owner=test_owner.NINA_C,
     ).run()
     stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        accelerator_type=GpuVersion.XPK_H100_MEGA,
-        gpu_zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
         time_out_in_min=300,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
-        cluster_name=ClusterName.A3PLUS_CLUSTER.value,
+        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.NINA_C,
     ).run()
@@ -186,70 +172,48 @@ with models.DAG(
       "gemma-7b": [
           {
               "script_name": "tpu/gemma/7b/1_test_gemma",
-              "cpu_device_type": CpuVersion.N2_STANDARD,
-              "cpu_zone": Zone.US_CENTRAL1_B.value,
-              "cluster_name": ClusterName.CPU_N2_STANDARD_64.value,
+              "cluster": XpkClusters.CPU_N2_STANDARD_64_CLUSTER,
               "time_out_in_min": 60,
           },
           {
               "script_name": "tpu/gemma/7b/2_test_gemma",
-              "tpu_version": TpuVersion.V4,
-              "tpu_cores": 16,
-              "cluster_name": ClusterName.V4_16_MULTISLICE_CLUSTER.value,
-              "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "cluster": XpkClusters.TPU_V4_16_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
       "mixtral-8x7b": [
           {
               "script_name": "tpu/mixtral/8x7b/1_test_mixtral",
-              "cpu_device_type": CpuVersion.M1_MEGAMEM,
-              "cpu_zone": Zone.US_CENTRAL1_B.value,
-              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 240,
           },
           {
               "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
-              "tpu_version": TpuVersion.V4,
-              "tpu_cores": 128,
-              "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
-              "project_name": Project.CLOUD_TPU_MULTIPOD_DEV.value,
-              "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
       "mixtral-8x22b": [
           {
               "script_name": "tpu/mixtral/8x22b/1_test_mixtral",
-              "cpu_device_type": CpuVersion.M1_MEGAMEM,
-              "cpu_zone": Zone.US_CENTRAL1_B.value,
-              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 360,
           },
           {
               "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
-              "tpu_version": TpuVersion.V5E,
-              "tpu_cores": 256,
-              "cluster_name": ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
-              "tpu_zone": Zone.US_WEST4_B.value,
+              "cluster": XpkClusters.TPU_V5E_256_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
       "llama2-70b": [
           {
               "script_name": "tpu/llama2/70b/1_test_llama2_70b",
-              "cpu_device_type": CpuVersion.M1_MEGAMEM,
-              "cpu_zone": Zone.US_CENTRAL1_B.value,
-              "cluster_name": ClusterName.CPU_M1_MEGAMEM_96.value,
+              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 360,
           },
           {
               "script_name": "tpu/llama2/70b/2_test_llama2_70b",
-              "tpu_version": TpuVersion.V4,
-              "tpu_cores": 128,
-              "cluster_name": ClusterName.V4_128_MULTISLICE_CLUSTER.value,
-              "project_name": Project.CLOUD_TPU_MULTIPOD_DEV.value,
-              "tpu_zone": Zone.US_CENTRAL2_B.value,
+              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
@@ -268,21 +232,16 @@ with models.DAG(
           test_group_id,
       )
       stable_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
-          device_type=test_scripts_details[0]["cpu_device_type"],
-          cpu_zone=test_scripts_details[0]["cpu_zone"],
           time_out_in_min=test_scripts_details[0]["time_out_in_min"],
           test_name=f"{test_name_prefix}-stable-{model}",
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
-          cluster_name=test_scripts_details[0]["cluster_name"],
+          cluster=test_scripts_details[0]["cluster"],
           docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
           test_owner=test_owner.ANISHA_M,
       ).run(gcs_location=shared_gcs_location)
       stable_tpu = gke_config.get_gke_config(
-          tpu_version=test_scripts_details[1]["tpu_version"],
-          tpu_cores=test_scripts_details[1]["tpu_cores"],
-          tpu_zone=test_scripts_details[1]["tpu_zone"],
           time_out_in_min=test_scripts_details[1]["time_out_in_min"],
           test_name=f"{test_name_prefix}-stable-{model}",
           run_model_cmds=(
@@ -290,7 +249,7 @@ with models.DAG(
           ),
           docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
           test_owner=test_owner.ANISHA_M,
-          cluster_name=test_scripts_details[1]["cluster_name"],
+          cluster=test_scripts_details[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
 
     test_group_id = "chained_tests" + "_" + model + "_" + "nightly"
@@ -303,21 +262,16 @@ with models.DAG(
           test_group_id,
       )
       nightly_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
-          device_type=test_scripts_details[0]["cpu_device_type"],
-          cpu_zone=test_scripts_details[0]["cpu_zone"],
           time_out_in_min=test_scripts_details[0]["time_out_in_min"],
           test_name=f"{test_name_prefix}-nightly-{model}",
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
-          cluster_name=test_scripts_details[0]["cluster_name"],
+          cluster=test_scripts_details[0]["cluster"],
           docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
           test_owner=test_owner.ANISHA_M,
       ).run(gcs_location=shared_gcs_location)
       nightly_tpu = gke_config.get_gke_config(
-          tpu_version=test_scripts_details[1]["tpu_version"],
-          tpu_cores=test_scripts_details[1]["tpu_cores"],
-          tpu_zone=test_scripts_details[1]["tpu_zone"],
           time_out_in_min=test_scripts_details[1]["time_out_in_min"],
           test_name=f"{test_name_prefix}-nightly-{model}",
           run_model_cmds=(
@@ -325,6 +279,6 @@ with models.DAG(
           ),
           docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
           test_owner=test_owner.ANISHA_M,
-          cluster_name=test_scripts_details[1]["cluster_name"],
+          cluster=test_scripts_details[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
