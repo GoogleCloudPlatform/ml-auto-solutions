@@ -120,7 +120,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
-        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.JON_B,
     ).run()
     nightly_tpu = gke_config.get_gke_config(
@@ -276,7 +276,7 @@ with models.DAG(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
           cluster_name=test_scripts_details[0]["cluster_name"],
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.ANISHA_M,
       ).run(gcs_location=shared_gcs_location)
       stable_tpu = gke_config.get_gke_config(
@@ -288,7 +288,7 @@ with models.DAG(
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
           ),
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.ANISHA_M,
           cluster_name=test_scripts_details[1]["cluster_name"],
       ).run(gcs_location=shared_gcs_location)
