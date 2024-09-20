@@ -7,7 +7,7 @@ from dags import composer_env, test_owner
 from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
 from dags.inference.configs import jetstream_pytorch_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
-
+import numpy as np
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
@@ -31,7 +31,7 @@ with models.DAG(
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama3-8b-quantized",
           "dataset": "openorca",
           "tokenizer": "tokenizer.model",
-          "batch_sizes": [128],
+          "batch_sizes": [8, 32, 64, 128],
           "request_rate": 100,
           "num_prompts": 200,
           "quantize": [True, False],
@@ -48,7 +48,7 @@ with models.DAG(
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-7b-chat/pytorch/llama-2-7b-chat-merged-int8-per-channel",
           "dataset": "openorca",
           "tokenizer": "tokenizer.llama2",
-          "batch_sizes": [96],
+          "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
           "num_prompts": 200,
           "quantize": [True, False],
@@ -65,7 +65,7 @@ with models.DAG(
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-13b-chat/pytorch/llama-2-13b-chat-merged-int8-per-channel",
           "dataset": "openorca",
           "tokenizer": "tokenizer.llama2",
-          "batch_sizes": [96],
+          "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
           "num_prompts": 200,
           "quantize": [True, False],
@@ -82,7 +82,7 @@ with models.DAG(
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-70b-chat/pytorch/llama-2-70b-chat-merged-quantized",
           "dataset": "openorca",
           "tokenizer": "tokenizer.model",
-          "batch_sizes": [96],
+          "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
           "num_prompts": 200,
           "quantize": [True],
@@ -91,7 +91,7 @@ with models.DAG(
           "sharding_config": "default_shardings/llama.yaml",
       },
   }
-
+  dags = []
   for model, sweep_model_configs in test_models.items():
     for batch_size in sweep_model_configs["batch_sizes"]:
       for quantize in sweep_model_configs["quantize"]:
@@ -122,6 +122,14 @@ with models.DAG(
           model_configs["sharding_config"] = sweep_model_configs[
               "sharding_config"
           ]
+          # Llama-2 13b unquantized with bs 96 cannot hold in v5e-8
+          if (
+              model_configs["model_name"],
+              model_configs["size"],
+              model_configs["batch_size"],
+              model_configs["quantize"],
+          ) == ("llama-2", "13b", 96, "False"):
+            continue
 
           # v5e e2e test with benchmarks
           project_name = Project.TPU_PROD_ENV_AUTOMATED.value
@@ -144,4 +152,9 @@ with models.DAG(
               subnetwork=subnetwork,
               model_configs=model_configs,
           )
-          jetstream_pytorch_nightly_1slice
+          dags.append(jetstream_pytorch_nightly_1slice)
+  n_parallel_jobs = 10
+  chunks = np.array_split(dags, n_parallel_jobs)
+  for chunk in chunks:
+    for i in range(1, len(chunk)):
+      chunk[i - 1] >> chunk[i]
