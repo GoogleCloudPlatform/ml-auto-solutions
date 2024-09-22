@@ -30,6 +30,7 @@ def get_microbenchmark_config(
         "pip install --upgrade clu tensorflow tensorflow-datasets ",
         "pip install jsonlines ",
         "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true ",
+        # TODO(qinyiyan): Clone maxtext from google repo when code is merged.
         "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext "
     )
 
@@ -157,7 +158,7 @@ def get_microbenchmark_xpk_config(
     # Check if the metrics report exists, and if so, upload it to GCS
     run_model_cmds += (
         f"if [ -f {metrics_report} ]; then "
-        f"gsutil cp {metrics_report} {metric_config.SshEnvVars.GCS_OUTPUT.value} "
+        f"gsutil cp {metrics_report} {metric_config.SshEnvVars.GCS_OUTPUT.value} ; "
         "fi ",
     )
 
