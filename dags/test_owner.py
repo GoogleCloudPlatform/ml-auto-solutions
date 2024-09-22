@@ -24,6 +24,7 @@ class Team(enum.Enum):
   MLCOMPASS = "mlcompass"
   IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
+  FRAMEWORK = "framework3p"
 
 
 # XLML - TensorFlow
@@ -58,3 +59,6 @@ ANDY_Y = "Andy Y."
 XIANG_S = "Xiang S."
 MORGAN_D = "Morgan D."
 YIJIA_J = "Yijia J."
+
+# FRAMEWORK
+QINY_Y = "Qinyi Y."
