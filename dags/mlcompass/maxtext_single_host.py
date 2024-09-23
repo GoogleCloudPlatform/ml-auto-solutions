@@ -21,7 +21,6 @@ gcloud composer environments run ml-automation-solutions \
   -- \
   mlcompass_maxtext_single_host \
   --conf={\\\"uuid\\\":\\\"abc\\\"}
-51
 """
 
 import datetime
@@ -35,8 +34,9 @@ import json
 
 
 def get_single_host_config(
-    model_name: str,
     docker_image: str,
+    model_name: str,
+    base_output_directory: str,
     tpu_version: TpuVersion = TpuVersion.V4,
     tpu_cores: int = 8,
     tpu_zone: str = Zone.US_CENTRAL2_B.value,
@@ -61,8 +61,8 @@ def get_single_host_config(
           version=tpu_version,
           cores=tpu_cores,
       ),
-      test_name=model_name,
-      run_model_cmds=["source benchmark_run.sh;run"],
+      test_name="maxtext",
+      run_model_cmds=["bash simple_jax_test.sh", f"source benchmark_run.sh;run {model_name} {base_output_directory}"],
       set_up_cmds=None,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=task_owner,
@@ -74,7 +74,6 @@ def get_single_host_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
   )
-
 
 
 with models.DAG(
@@ -105,10 +104,23 @@ with models.DAG(
   def get_docker_image_path(state: dict) -> str:
     return state["docker_image_path"]
 
+  @task.python
+  def get_model_name(state: dict) -> str:
+    return state["model_name"]
+
+  @task.python
+  def get_base_output_directory(state: dict) -> str:
+    bucket = state["workdir_bucket"]
+    path = state["workdir_path"]
+    return f"gs://{bucket}/{path}"
+
   xlml_state = load_xlml_state()
   docker_image_path = get_docker_image_path(xlml_state)
+  model_name_arg = get_model_name(xlml_state)
+  base_output_directory_arg = get_base_output_directory(xlml_state)
 
   default_benchmark = get_single_host_config(
-    model_name="gpt3-6b", # TODO
     docker_image=docker_image_path,
+    model_name=model_name_arg,
+    base_output_directory=base_output_directory_arg,
   ).run()
