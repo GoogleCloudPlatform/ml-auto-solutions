@@ -346,7 +346,7 @@ with models.DAG(
           "run_eval": False,
       }
 
-    tests_llama2_7b_bf16_chat_mode_tests[f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_7B] \
+    tests_llama2_7b_int8_chat_mode_tests[f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_7B] \
       | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"] \
       | {
           "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
@@ -411,7 +411,7 @@ with models.DAG(
                     "run_eval": False,
           }
 
-    tests_llama2_13b_bf16_chat_mode_tests[f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_13B] \
+    tests_llama2_13b_int8_chat_mode_tests[f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_13B] \
       | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"] \
       | {
                     "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
@@ -430,7 +430,7 @@ with models.DAG(
 
 
   for bs in gemma_7B_bf16_batch_sizes:
-    tests_gemma_7b_int8_base_mode_tests[f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"] = test_templates[GEMMA_7B] \
+    tests_gemma_7b_bf16_base_mode_tests[f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"] = test_templates[GEMMA_7B] \
       | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect"] | \
       {
                 "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
@@ -521,22 +521,23 @@ with models.DAG(
       },
   }
 
-  run_configs = [
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
-      f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
-      f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
-      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}",
-      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}",
-  ]
+
+  # run_configs = [
+  #     f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+  #     f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+  #     f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+  #     f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}",
+  # ]
 
   skip_configs = []
 
