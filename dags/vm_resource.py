@@ -23,6 +23,9 @@ V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
 V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
+V6E_SUBNETWORKS = (
+    f"{V5_NETWORKS_PREFIX}/regions/us-central2/subnetworks/mas-test"
+)
 
 BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
 BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
@@ -198,7 +201,7 @@ class XpkClusters:
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
       name="v5e-256-bodaborg-us-west4",
-      device_version=TpuVersion.V5P,
+      device_version=TpuVersion.V5E,
       core_count=256,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
       zone=Zone.US_WEST4_B.value,
