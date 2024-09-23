@@ -205,7 +205,7 @@ with models.DAG(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-ci-func-v6e-4-1vm",
           network=V5_NETWORKS,
-          subnetwork=V6E_SUBNETWORKS
+          subnetwork=V6E_SUBNETWORKS,
       ),
       US_CENTRAL2_B_TPU_PROD_ENV,
   )
