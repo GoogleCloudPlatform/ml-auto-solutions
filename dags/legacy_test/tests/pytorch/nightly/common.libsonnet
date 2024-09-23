@@ -24,7 +24,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'pytorch-nightly',
     },
-    imageTag: 'nightly_3.8',
+    imageTag: 'nightly_3.10',
   },
   PyTorchTest:: common.PyTorchTest + Nightly {
     local config = self,

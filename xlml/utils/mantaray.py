@@ -36,11 +36,13 @@ def load_file_from_gcs(gs_file_path):
 
 
 @task
-def run_workload(workload_file_name: str):
+def run_workload(
+    workload_file_name: str, mantaray_gcs_bucket: str = MANTARAY_G3_GS_BUCKET
+):
   with tempfile.TemporaryDirectory() as tmpdir:
     cmds = (
         f"cd {tmpdir}",
-        f"gsutil -m cp -r {MANTARAY_G3_GS_BUCKET} .",
+        f"gsutil -m cp -r {mantaray_gcs_bucket} .",
         "sudo apt-get update && sudo apt-get install -y rsync",  # Install rsync
         f"cd mantaray && pip install -e .",
         f"python xlml_jobs/{workload_file_name}",  # Run the workload

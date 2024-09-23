@@ -199,7 +199,7 @@ class XpkClusters:
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
       name="v5e-256-bodaborg-us-west4",
-      device_version=TpuVersion.V5P,
+      device_version=TpuVersion.V5E,
       core_count=256,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
       zone=Zone.US_WEST4_B.value,
