@@ -17,7 +17,7 @@ from airflow.decorators import task_group
 from airflow import models
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import composer_env
-from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS
+from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V6E_SUBNETWORKS
 
 
 # Run once a day at 2 pm UTC (6 am PST)
@@ -38,7 +38,6 @@ US_EAST1_D = gcp_config.GCPConfig(
     metric_config.DatasetOption.XLML_DATASET,
 )
 
-
 US_CENTRAL1 = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     # HACK: use region in place of zone, since clusters are regional
@@ -57,6 +56,7 @@ US_CENTRAL2_B_TPU_PROD_ENV = gcp_config.GCPConfig(
     zone=Zone.US_CENTRAL2_B.value,
     dataset_name=metric_config.DatasetOption.XLML_DATASET,
 )
+
 
 @task_group(prefix_group_id=False)
 def torchvision():
@@ -204,6 +204,8 @@ with models.DAG(
   ci_trillium_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-ci-func-v6e-4-1vm",
+          network=V5_NETWORKS,
+          subnetwork=V6E_SUBNETWORKS
       ),
       US_CENTRAL2_B_TPU_PROD_ENV,
   )
