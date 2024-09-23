@@ -52,6 +52,11 @@ US_EAST1_C = gcp_config.GCPConfig(
     dataset_name=metric_config.DatasetOption.XLML_DATASET,
 )
 
+US_CENTRAL2_B_TPU_PROD_ENV = gcp_config.GCPConfig(
+    project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
+    zone=Zone.US_CENTRAL2_B.value,
+    dataset_name=metric_config.DatasetOption.XLML_DATASET,
+)
 
 @task_group(prefix_group_id=False)
 def torchvision():
@@ -194,4 +199,11 @@ with models.DAG(
           reserved=True,
       ),
       US_EAST1_C,
+  )
+
+  ci_trillium_4 = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-nightly-ci-func-v6e-4-1vm",
+      ),
+      US_CENTRAL2_B_TPU_PROD_ENV,
   )
