@@ -58,7 +58,7 @@ with models.DAG(
               f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-ss/automated/{current_datetime}",
           ),
           test_name=f"maxtext-jax-ss-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
       ).run()
 
@@ -76,6 +76,6 @@ with models.DAG(
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-ss/automated/{current_datetime}",
           ),
           test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXDIFFUSION_TPU_STABLE.value,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
       ).run()

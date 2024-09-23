@@ -29,7 +29,7 @@ MODEL_CONFIGS = [
     "gpt3_175b",
 ]
 DOCKER_IMAGES = [
-    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
 ]
 QUANTIZATION_SWEEP = {"M_QUANTIZATION": ["", "int8"]}
