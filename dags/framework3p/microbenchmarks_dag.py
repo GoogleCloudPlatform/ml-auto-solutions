@@ -15,7 +15,6 @@ with models.DAG(
     start_date=datetime.datetime(2024, 9, 11),
     catchup=False,
 ) as dag:
-
   all_gather_v4_16 = get_microbenchmark_config(
       tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=16,
@@ -45,7 +44,7 @@ with models.DAG(
       docker_image=vm_resource.DockerImage.XPK_JAX_TEST.value,
       test_owner=test_owner.QINY_Y,
       cluster=vm_resource.XpkClusters.TPU_V5E_256_CLUSTER,
-      project=vm_resource.Project.TPU_PROD_ENV_MULTIPOD,      
+      project=vm_resource.Project.TPU_PROD_ENV_MULTIPOD,
   ).run()
 
 # Test dependency: run in parallel
