@@ -251,17 +251,17 @@ class DockerImage(enum.Enum):
       "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/"
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
-  MAXTEXT_TPU_JAX_STABLE = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-jax-stable-stack/tpu:"
+  MAXTEXT_TPU_JAX_STABLE_STACK = (
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.33:"
       f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXDIFFUSION_TPU_STABLE = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-stable-stack/tpu:"
-      f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.33:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-nightly/tpu:"
-      f"auto-{datetime.datetime.today().strftime('%Y-%m-%d')}"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
