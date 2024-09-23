@@ -37,7 +37,7 @@ with models.DAG(
   test_name_prefix = "maxtext"
   test_models_tpu = {
       "llama2-7b": "tpu/llama2/7b/test_llama2_7b",
-      "mistral": "tpu/test_mistral",
+      "mistral-7b": "tpu/mistral/7b/test_mistral-7b",
       "gemma-2b": "tpu/gemma/2b/test_gemma",
       "gpt3": "tpu/test_gpt3",
   }
