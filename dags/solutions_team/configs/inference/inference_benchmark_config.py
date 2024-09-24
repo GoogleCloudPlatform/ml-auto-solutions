@@ -93,8 +93,6 @@ def get_vllm_benchmark_cmds(model_id: str, num_chips: int, model_configs: Dict =
   num_prompts = 1000
 
   run_cmds = [
-    # TODO: Find a better way to do this
-    "export HF_TOKEN=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",
     # Start virtual environment
     "source .env/bin/activate",
     # Start vllm in the background
