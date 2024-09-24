@@ -214,11 +214,11 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   GPU_A3_CLUSTER = XpkClusterConfig(
-      name="maxtext-a3-20n",
+      name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
       core_count=8,
       project=Project.SUPERCOMPUTER_TESTING.value,
-      zone=Zone.US_CENTRAL1_C.value,
+      zone=Zone.US_EAST5_A.value,
   )
   GPU_A3PLUS_CLUSTER = XpkClusterConfig(
       name="a3plus-benchmark",
