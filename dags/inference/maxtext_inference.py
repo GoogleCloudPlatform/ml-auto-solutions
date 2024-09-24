@@ -314,7 +314,6 @@ with models.DAG(
             "quantization": "",
             "quantize_kvcache": "false",
             "per_device_batch_size": bs,
-            # "per_device_batch_size": 12,
             "kv_quant_axis": "",
             "run_eval": False,
         }
@@ -351,7 +350,7 @@ with models.DAG(
             "quantization": "int8",
             "quantize_kvcache": "true",
             "kv_quant_dtype": "int8",
-            "per_device_batch_size": 24,
+            "per_device_batch_size": bs,
             "kv_quant_axis": "heads_and_dkv",
             "run_eval": False,
         }
@@ -369,7 +368,7 @@ with models.DAG(
             "quantization": "int8",
             "quantize_kvcache": "true",
             "kv_quant_dtype": "int8",
-            "per_device_batch_size": 24,
+            "per_device_batch_size": bs,
             "kv_quant_axis": "heads_and_dkv",
             "run_eval": True,
         }
@@ -396,7 +395,6 @@ with models.DAG(
             "quantization": "",
             "quantize_kvcache": "false",
             "per_device_batch_size": bs,
-            # "per_device_batch_size": 12,
             "kv_quant_axis": "",
             "run_eval": False,
         }
