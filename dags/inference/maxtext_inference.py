@@ -300,65 +300,80 @@ with models.DAG(
   tests_llama2_7b_int8_base_mode_tests = {}
   tests_llama2_7b_int8_chat_mode_tests = {}
 
-
   # llama 2 7B bfloat16 tests in both base and chat mode
   for bs in llama2_7B_bf16_batch_sizes:
-    tests_llama2_7b_bf16_base_mode_tests[f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"] = test_templates[LLAMA2_7B] \
-      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"] | \
-        {
-                    "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
-                    "model_mode": BASE_MODE,
-                    "quant_mode": W_BF16_KV_BF16,
-                    "quantization": "",
-                    "quantize_kvcache": "false",
-                    "per_device_batch_size": bs,
-                    # "per_device_batch_size": 12,
-                    "kv_quant_axis": "",
-                    "run_eval": False,
-                  }
+    tests_llama2_7b_bf16_base_mode_tests[
+        f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            # "per_device_batch_size": 12,
+            "kv_quant_axis": "",
+            "run_eval": False,
+        }
+    )
 
-    tests_llama2_7b_bf16_chat_mode_tests[f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}-{bs}"] = test_templates[LLAMA2_7B] \
-      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"] | \
-        {
-                    "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
-                    "model_mode": CHAT_MODE,
-                    "quant_mode": W_BF16_KV_BF16,
-                    "quantization": "",
-                    "quantize_kvcache": "false",
-                    "per_device_batch_size": bs,
-                    "kv_quant_axis": "",
-                    "run_eval": True,
-                  }
+    tests_llama2_7b_bf16_chat_mode_tests[
+        f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": True,
+        }
+    )
 
   # llama 2 7B int8 tests in both base and chat mode
   for bs in llama2_7B_int8_batch_sizes:
-    tests_llama2_7b_int8_base_mode_tests[f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_7B] \
-      | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"] | \
-        {
-          "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "kv_quant_dtype": "int8",
-          "per_device_batch_size": 24,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": False,
-      }
+    tests_llama2_7b_int8_base_mode_tests[
+        f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": 24,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": False,
+        }
+    )
 
-    tests_llama2_7b_int8_chat_mode_tests[f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_7B] \
-      | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"] \
-      | {
-          "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
-          "model_mode": CHAT_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "kv_quant_dtype": "int8",
-          "per_device_batch_size": 24,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": True,
-      }
+    tests_llama2_7b_int8_chat_mode_tests[
+        f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": 24,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": True,
+        }
+    )
 
   tests_llama2_13b_bf16_base_mode_tests = {}
   tests_llama2_13b_bf16_chat_mode_tests = {}
@@ -369,158 +384,192 @@ with models.DAG(
   # llama 13B 7B bfloat16 tests in both base and chat mode
 
   for bs in llama2_13B_bf16_batch_sizes:
-    tests_llama2_13b_bf16_base_mode_tests[f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"] = test_templates[LLAMA2_13B] \
-      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"] | \
-      {
-          "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
-          "model_mode": BASE_MODE,
-          "quant_mode": W_BF16_KV_BF16,
-          "quantization": "",
-          "quantize_kvcache": "false",
-          "per_device_batch_size": bs,
-          # "per_device_batch_size": 12,
-          "kv_quant_axis": "",
-          "run_eval": False,
-      }
-
-    tests_llama2_13b_bf16_chat_mode_tests[f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"] = test_templates[LLAMA2_13B] \
-      | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"] | \
-        {
-                    "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
-                    "model_mode": CHAT_MODE,
-                    "quant_mode": W_BF16_KV_BF16,
-                    "quantization": "",
-                    "quantize_kvcache": "false",
-                    "per_device_batch_size": bs,
-                    "kv_quant_axis": "",
-                    "run_eval": True,
+    tests_llama2_13b_bf16_base_mode_tests[
+        f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            # "per_device_batch_size": 12,
+            "kv_quant_axis": "",
+            "run_eval": False,
         }
+    )
+
+    tests_llama2_13b_bf16_chat_mode_tests[
+        f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": True,
+        }
+    )
 
   for bs in llama2_13B_int8_batch_sizes:
-    tests_llama2_13b_int8_base_mode_tests[f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_13B] \
-      | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"] | \
-        {
-                    "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
-                    "model_mode": BASE_MODE,
-                    "quant_mode": W_INT8_KV_INT8,
-                    "quantization": "int8",
-                    "quantize_kvcache": "true",
-                    "kv_quant_dtype": "int8",
-                    "per_device_batch_size": bs,
-                    "kv_quant_axis": "heads_and_dkv",
-                    "run_eval": False,
-          }
+    tests_llama2_13b_int8_base_mode_tests[
+        f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": False,
+        }
+    )
 
-    tests_llama2_13b_int8_chat_mode_tests[f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[LLAMA2_13B] \
-      | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"] \
-      | {
-                    "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
-                    "model_mode": CHAT_MODE,
-                    "quant_mode": W_INT8_KV_INT8,
-                    "quantization": "int8",
-                    "quantize_kvcache": "true",
-                    "kv_quant_dtype": "int8",
-                    "per_device_batch_size": bs,
-                    "kv_quant_axis": "heads_and_dkv",
-                    "run_eval": True,
-                  }
+    tests_llama2_13b_int8_chat_mode_tests[
+        f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": True,
+        }
+    )
 
   tests_gemma_7b_bf16_base_mode_tests = {}
   tests_gemma_7b_int8_base_mode_tests = {}
 
-
   for bs in gemma_7B_bf16_batch_sizes:
-    tests_gemma_7b_bf16_base_mode_tests[f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"] = test_templates[GEMMA_7B] \
-      | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect"] | \
-      {
-                "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
-                "model_mode": BASE_MODE,
-                "quant_mode": W_BF16_KV_BF16,
-                "quantization": "",
-                "quantize_kvcache": "false",
-                "per_device_batch_size": bs,
-                "kv_quant_axis": "",
-                "run_eval": False,
+    tests_gemma_7b_bf16_base_mode_tests[
+        f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[GEMMA_7B]
+        | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect"]
+        | {
+            "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": False,
         }
+    )
 
   for bs in gemma_7B_int8_batch_sizes:
-    tests_gemma_7b_int8_base_mode_tests[f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"] = test_templates[GEMMA_7B] \
-      | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"] \
-      | {
-                "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
-                "model_mode": BASE_MODE,
-                "quant_mode": W_INT8_KV_INT8,
-                "quantization": "int8",
-                "quantize_kvcache": "true",
-                "kv_quant_dtype": "int8",
-                "per_device_batch_size": bs,
-                "kv_quant_axis": "heads_and_dkv",
-                "run_eval": False,
+    tests_gemma_7b_int8_base_mode_tests[
+        f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[GEMMA_7B]
+        | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
+        | {
+            "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": False,
         }
+    )
 
-  tests = tests_llama2_7b_bf16_base_mode_tests | tests_llama2_7b_bf16_chat_mode_tests | \
-          tests_llama2_7b_int8_base_mode_tests | tests_llama2_7b_int8_chat_mode_tests | \
-          tests_llama2_13b_bf16_base_mode_tests | tests_llama2_13b_bf16_chat_mode_tests | \
-          tests_llama2_13b_int8_base_mode_tests | tests_llama2_13b_int8_chat_mode_tests | \
-          tests_gemma_7b_bf16_base_mode_tests | tests_gemma_7b_int8_base_mode_tests | {
-      # LLAMA2_70B
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[LLAMA2_70B]
-      | test_templates[f"{LLAMA2_70B}-{W_BF16_KV_BF16}-dot-product"]
+  tests = (
+      tests_llama2_7b_bf16_base_mode_tests
+      | tests_llama2_7b_bf16_chat_mode_tests
+      | tests_llama2_7b_int8_base_mode_tests
+      | tests_llama2_7b_int8_chat_mode_tests
+      | tests_llama2_13b_bf16_base_mode_tests
+      | tests_llama2_13b_bf16_chat_mode_tests
+      | tests_llama2_13b_int8_base_mode_tests
+      | tests_llama2_13b_int8_chat_mode_tests
+      | tests_gemma_7b_bf16_base_mode_tests
+      | tests_gemma_7b_int8_base_mode_tests
       | {
-          "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
-          "model_mode": CHAT_MODE,
-          "quant_mode": W_BF16_KV_BF16,
-          "quantization": "",
-          "quantize_kvcache": "false",
-          "per_device_batch_size": 24,
-          "kv_quant_axis": "",
-          "run_eval": True,
-      },
-      f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[LLAMA2_70B]
-      | test_templates[f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product"]
-      | {
-          "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
-          "model_mode": CHAT_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "kv_quant_dtype": "int8",
-          "per_device_batch_size": 48,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": True,
-      },
-      # MIXTRAL_8_7B
-      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}": test_templates[
-          MIXTRAL_8_7B
-      ]
-      | test_templates[f"{MIXTRAL_8_7B}-{W_BF16_KV_BF16}-dot-product"]
-      | {
-          "checkpoint": CKPT[MIXTRAL_8_7B][INSTRUCT_MODE],
-          "model_mode": INSTRUCT_MODE,
-          "quant_mode": W_BF16_KV_BF16,
-          "quantization": "",
-          "quantize_kvcache": "false",
-          "per_device_batch_size": 128,
-          "kv_quant_axis": "",
-          "run_eval": True,
-      },
-      f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}": test_templates[
-          MIXTRAL_8_7B
-      ]
-      | test_templates[f"{MIXTRAL_8_7B}-{W_INT8_KV_INT8}-dot-product"]
-      | {
-          "checkpoint": CKPT[MIXTRAL_8_7B][INSTRUCT_MODE],
-          "model_mode": INSTRUCT_MODE,
-          "quant_mode": W_INT8_KV_INT8,
-          "quantization": "int8",
-          "quantize_kvcache": "true",
-          "kv_quant_dtype": "int8",
-          "per_device_batch_size": 258,
-          "kv_quant_axis": "heads_and_dkv",
-          "run_eval": True,
-      },
-  }
-
+          # LLAMA2_70B
+          f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[
+              LLAMA2_70B
+          ]
+          | test_templates[f"{LLAMA2_70B}-{W_BF16_KV_BF16}-dot-product"]
+          | {
+              "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
+              "model_mode": CHAT_MODE,
+              "quant_mode": W_BF16_KV_BF16,
+              "quantization": "",
+              "quantize_kvcache": "false",
+              "per_device_batch_size": 24,
+              "kv_quant_axis": "",
+              "run_eval": True,
+          },
+          f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[
+              LLAMA2_70B
+          ]
+          | test_templates[f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product"]
+          | {
+              "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
+              "model_mode": CHAT_MODE,
+              "quant_mode": W_INT8_KV_INT8,
+              "quantization": "int8",
+              "quantize_kvcache": "true",
+              "kv_quant_dtype": "int8",
+              "per_device_batch_size": 48,
+              "kv_quant_axis": "heads_and_dkv",
+              "run_eval": True,
+          },
+          # MIXTRAL_8_7B
+          f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}": test_templates[
+              MIXTRAL_8_7B
+          ]
+          | test_templates[f"{MIXTRAL_8_7B}-{W_BF16_KV_BF16}-dot-product"]
+          | {
+              "checkpoint": CKPT[MIXTRAL_8_7B][INSTRUCT_MODE],
+              "model_mode": INSTRUCT_MODE,
+              "quant_mode": W_BF16_KV_BF16,
+              "quantization": "",
+              "quantize_kvcache": "false",
+              "per_device_batch_size": 128,
+              "kv_quant_axis": "",
+              "run_eval": True,
+          },
+          f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}": test_templates[
+              MIXTRAL_8_7B
+          ]
+          | test_templates[f"{MIXTRAL_8_7B}-{W_INT8_KV_INT8}-dot-product"]
+          | {
+              "checkpoint": CKPT[MIXTRAL_8_7B][INSTRUCT_MODE],
+              "model_mode": INSTRUCT_MODE,
+              "quant_mode": W_INT8_KV_INT8,
+              "quantization": "int8",
+              "quantize_kvcache": "true",
+              "kv_quant_dtype": "int8",
+              "per_device_batch_size": 258,
+              "kv_quant_axis": "heads_and_dkv",
+              "run_eval": True,
+          },
+      }
+  )
 
   # run_configs = [
   #     f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
