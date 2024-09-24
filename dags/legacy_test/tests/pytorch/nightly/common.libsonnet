@@ -24,7 +24,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'pytorch-nightly',
     },
-    imageTag: 'nightly_3.8',
+    imageTag: 'nightly_3.10',
   },
   PyTorchTest:: common.PyTorchTest + Nightly {
     local config = self,
@@ -91,7 +91,12 @@ local volumes = import 'templates/volumes.libsonnet';
       tpuVmPytorchSetup: |||
         pip3 install -U 'setuptools>=70.0.0,<71.0.0'
         # `unattended-upgr` blocks us from installing apt dependencies
-        sudo systemctl stop unattended-upgrades
+        if systemctl is-active --quiet unattended-upgrades; then
+          sudo systemctl stop unattended-upgrades
+          echo "unattended-upgrades stopped."
+        else
+          echo "unattended-upgrades is not running."
+        fi
         sudo apt-get -y update
         sudo apt install -y libopenblas-base
         # for huggingface tests
