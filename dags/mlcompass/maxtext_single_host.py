@@ -64,7 +64,7 @@ def get_single_host_config(
       test_name="maxtext",
       run_model_cmds=[
           "bash simple_jax_test.sh",
-          f"source benchmark_run.sh;run {model_name} {base_output_directory}"
+          f"source benchmark_run.sh;run {model_name} {base_output_directory}",
       ],
       set_up_cmds=None,
       timeout=datetime.timedelta(minutes=time_out_in_min),
