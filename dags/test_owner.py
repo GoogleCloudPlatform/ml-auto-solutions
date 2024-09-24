@@ -61,3 +61,8 @@ ANDY_Y = "Andy Y."
 XIANG_S = "Xiang S."
 MORGAN_D = "Morgan D."
 YIJIA_J = "Yijia J."
+
+# 3P Ecosystems
+RICHARD_L = "Richard L."
+WENXIN_D = "Wenxin D."
+QUINN_Y = "Quinn Y."
