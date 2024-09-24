@@ -62,7 +62,10 @@ def get_single_host_config(
           cores=tpu_cores,
       ),
       test_name="maxtext",
-      run_model_cmds=["bash simple_jax_test.sh", f"source benchmark_run.sh;run {model_name} {base_output_directory}"],
+      run_model_cmds=[
+          "bash simple_jax_test.sh",
+          f"source benchmark_run.sh;run {model_name} {base_output_directory}"
+      ],
       set_up_cmds=None,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=task_owner,
@@ -97,7 +100,9 @@ with models.DAG(
     if not uuid:
       raise RuntimeError("uuid is not set")
     gcs_hook = GCSHook()
-    file_content = gcs_hook.download("mlcompass-jax-artifacts", f"xlml/{uuid}/xlml_state.json")
+    file_content = gcs_hook.download(
+        "mlcompass-jax-artifacts", f"xlml/{uuid}/xlml_state.json"
+    )
     return json.loads(file_content)
 
   @task.python
@@ -120,7 +125,7 @@ with models.DAG(
   base_output_directory_arg = get_base_output_directory(xlml_state)
 
   default_benchmark = get_single_host_config(
-    docker_image=docker_image_path,
-    model_name=model_name_arg,
-    base_output_directory=base_output_directory_arg,
+      docker_image=docker_image_path,
+      model_name=model_name_arg,
+      base_output_directory=base_output_directory_arg,
   ).run()
