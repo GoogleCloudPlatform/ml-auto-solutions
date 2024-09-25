@@ -12,7 +12,7 @@ dags/multipod @jonb377
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/imagegen_devx @RissyRan
+dags/imagegen_devx @RissyRan @will-cromar
 dags/imagegen_devx/project_bite* @RissyRan @jiya-zhang
 dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang
 dags/imagegen_devx/configs/jax_ss_config* @parambole @RissyRan
