@@ -23,6 +23,9 @@ V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
 V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
+V6E_SUBNETWORKS = (
+    f"{V5_NETWORKS_PREFIX}/regions/us-central2/subnetworks/mas-test"
+)
 
 BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
 BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
@@ -198,7 +201,7 @@ class XpkClusters:
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
       name="v5e-256-bodaborg-us-west4",
-      device_version=TpuVersion.V5P,
+      device_version=TpuVersion.V5E,
       core_count=256,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
       zone=Zone.US_WEST4_B.value,
@@ -211,11 +214,11 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   GPU_A3_CLUSTER = XpkClusterConfig(
-      name="maxtext-a3-20n",
+      name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
       core_count=8,
       project=Project.SUPERCOMPUTER_TESTING.value,
-      zone=Zone.US_CENTRAL1_C.value,
+      zone=Zone.US_EAST5_A.value,
   )
   GPU_A3PLUS_CLUSTER = XpkClusterConfig(
       name="a3plus-benchmark",
@@ -248,17 +251,17 @@ class DockerImage(enum.Enum):
       "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/"
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
-  MAXTEXT_TPU_JAX_STABLE = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-jax-stable-stack/tpu:"
-      f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  MAXTEXT_TPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.33:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXDIFFUSION_TPU_STABLE = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-stable-stack/tpu:"
-      f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.33:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-nightly/tpu:"
-      f"auto-{datetime.datetime.today().strftime('%Y-%m-%d')}"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"

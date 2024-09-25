@@ -48,7 +48,7 @@ with models.DAG(
           time_out_in_min=60,
           base_output_directory=base_output_directory,
           num_slices=[1],
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           run_name_prefix="maxtext-16b",
           base_run_model_cmds=base_run_model_cmds,
           sweep_params={"M_PER_DEVICE_BATCH_SIZE": [2, 4, 8]},
