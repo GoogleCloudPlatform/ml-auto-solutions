@@ -8,7 +8,7 @@ dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
 dags/pytorch_xla @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore @ManfeiBai
 dags/legacy_test/tests/pytorch @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore @ManfeiBai
 
-dags/multipod @jonb377 @RissyRan @tonyjohnchen @raymondzouu
+dags/multipod @jonb377 @tonyjohnchen @raymondzouu
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
