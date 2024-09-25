@@ -71,7 +71,7 @@ with models.DAG(
           cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
-              f"python install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
+              f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
               f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-stable-stack/automated/{current_datetime}",
           ),

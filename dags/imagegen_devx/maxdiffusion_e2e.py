@@ -48,7 +48,7 @@ with models.DAG(
           time_out_in_min=60,
           run_model_cmds=(
               f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-              f"python install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
+              f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
               f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
               f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
               f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
@@ -66,7 +66,7 @@ with models.DAG(
           time_out_in_min=60,
           run_model_cmds=(
               f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-              f"python install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
+              f"pip install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
               f"OUTPUT_DIR={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/maxd-sdxl-nan/{current_datetime} "
               f"RUN_NAME={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
               f"STEPS=20 "
