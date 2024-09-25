@@ -1,18 +1,17 @@
-# @RissyRan and @will-cromar will be the default owners for everything in
-# the repo, unless a later match takes precedence.
-* @RissyRan @will-cromar @allenwang28
+# Default owners for everything in the repo, unless a later match takes precedence.
+* @RissyRan @allenwang28
 
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
 
-dags/pytorch_xla @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore @ManfeiBai
-dags/legacy_test/tests/pytorch @will-cromar @jonb377 @JackCaoG @vanbasten23 @zpcore @ManfeiBai
+dags/pytorch_xla @JackCaoG @vanbasten23 @zpcore @ManfeiBai
+dags/legacy_test/tests/pytorch @JackCaoG @vanbasten23 @zpcore @ManfeiBai
 
 dags/multipod @jonb377 @tonyjohnchen @raymondzouu
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/imagegen_devx @RissyRan @will-cromar @parambole
+dags/imagegen_devx @RissyRan @parambole
 dags/imagegen_devx/project_bite* @RissyRan @jiya-zhang
 dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang
 dags/imagegen_devx/configs/jax_ss_config* @parambole @RissyRan
