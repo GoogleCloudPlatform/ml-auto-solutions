@@ -56,6 +56,7 @@ class Project(enum.Enum):
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
+  TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
 
 
 class ImageProject(enum.Enum):
@@ -134,6 +135,7 @@ class TpuVersion(enum.Enum):
   V4 = "4"
   V5E = "5litepod"
   V5P = "5p"
+  TRILLIUM = "6e"
 
 
 class GpuVersion(enum.Enum):
