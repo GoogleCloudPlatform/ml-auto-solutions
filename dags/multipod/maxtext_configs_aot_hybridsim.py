@@ -18,7 +18,7 @@ A DAG to run AOT compilation and HybridSim tests for MaxText model configs on TP
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName, Project
+from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
 from dags.multipod.configs import gke_config
 from xlml.utils import name_format
 from airflow.utils.task_group import TaskGroup
@@ -44,19 +44,8 @@ with models.DAG(
   }
   num_slices = [1, 2, 4, 8]
   clusters = {
-      # accelerator: [(cluster_name, cluster_zone, cluster_project, num_cores)],
-      TpuVersion.V4: (
-          ClusterName.V4_8_MULTISLICE_CLUSTER.value,
-          Zone.US_CENTRAL2_B.value,
-          Project.TPU_PROD_ENV_MULTIPOD.value,
-          8,
-      ),
-      TpuVersion.V5E: (
-          ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
-          Zone.US_WEST4_B.value,
-          Project.TPU_PROD_ENV_MULTIPOD.value,
-          256,
-      ),
+      TpuVersion.V4: XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+      TpuVersion.V5E: XpkClusters.TPU_V5E_256_CLUSTER,
   }
   v5e_alt = "5e"
 
@@ -84,9 +73,6 @@ with models.DAG(
               "gsutil -m cp -r /tmp/xla_dump/ ${GCS_OUTPUT}",
           )
           maxtext_aot = gke_config.get_gke_config(
-              tpu_version=TpuVersion.V4,
-              tpu_cores=8,
-              tpu_zone=Zone.US_CENTRAL2_B.value,
               time_out_in_min=240,
               test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-aot",
               run_model_cmds=aot_cmd,
@@ -95,7 +81,7 @@ with models.DAG(
           ).run(gcs_location=shared_gcs_location)
 
           # Run HybridSim workload: read HLO from GCS, generate estimated step time
-          cluster_name, zone, project_name, cores = clusters[tpu]
+          cluster = clusters[tpu]
           chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
           hybridsim_cmd = (
               "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
@@ -108,11 +94,7 @@ with models.DAG(
               use_runtime_generated_gcs_folder=True,
           )
           maxtext_hybridsim = gke_config.get_gke_config(
-              tpu_version=tpu,
-              tpu_cores=cores,
-              tpu_zone=zone,
-              project_name=project_name,
-              cluster_name=cluster_name,
+              cluster=cluster,
               time_out_in_min=240,
               test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-hybridsim",
               run_model_cmds=hybridsim_cmd,

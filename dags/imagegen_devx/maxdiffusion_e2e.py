@@ -18,7 +18,7 @@
 import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, ClusterName
+from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
 from dags.imagegen_devx.configs import gke_config as config
 from xlml.utils import name_format
 
@@ -40,26 +40,40 @@ with models.DAG(
   current_datetime = config.get_current_datetime()
   for accelerator, slices in maxdiffusion_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
+    cluster = config.clusters[accelerator]
     for slice_num in slices:
       maxdiffusion_sdxl_test = config.get_gke_config(
-          tpu_version=config.tpu_versions[accelerator],
-          tpu_cores=cores,
           num_slices=slice_num,
-          cluster_name=config.cluster_names[accelerator].value,
-          tpu_zone=config.tpu_zones[accelerator].value,
-          project_name=config.project_names[accelerator].value,
+          cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
               f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-              f"python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
+              f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
               f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
               f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
               f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
               f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash run_name=sdxl-fsdp-v5p-64-ddp enable_profiler=True "
-              f"run_name={slice_num}slice-V{config.tpu_versions[accelerator]}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
-              f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/{current_datetime}",
+              f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+              f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/maxdiffusion_sdxl/{current_datetime}",
           ),
-          test_name=f"maxdiffusion-jax-ss-{accelerator}-{slice_num}x",
+          test_name=f"maxd-sdxl-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY.value,
           test_owner=test_owner.PARAM_B,
       ).run()
+      maxdiffusion_sdxl_nan_test = config.get_gke_config(
+          num_slices=slice_num,
+          cluster=cluster,
+          time_out_in_min=60,
+          run_model_cmds=(
+              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
+              f"pip install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
+              f"OUTPUT_DIR={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/maxd-sdxl-nan/{current_datetime} "
+              f"RUN_NAME={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+              f"STEPS=20 "
+              f"LOSS_THRESHOLD=100",
+          ),
+          test_name=f"maxd-sdxl-nan-{accelerator}-{slice_num}x",
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY.value,
+          test_owner=test_owner.PARAM_B,
+      ).run()
+      maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test

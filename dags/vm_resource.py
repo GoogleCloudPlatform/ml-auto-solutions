@@ -16,12 +16,16 @@
 
 import datetime
 import enum
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 
 
 V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
 V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
+V6E_SUBNETWORKS = (
+    f"{V5_NETWORKS_PREFIX}/regions/us-central2/subnetworks/mas-test"
+)
 
 BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
 BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
@@ -167,24 +171,86 @@ class RuntimeVersion(enum.Enum):
   V2_ALPHA_TPUV5 = "v2-alpha-tpuv5"
 
 
-class ClusterName(enum.Enum):
-  """Common XPK cluster names."""
+class XpkClusters:
+  """Common XPK cluster configs."""
 
-  V4_8_CLUSTER = "mas-v4-8"
-  V4_32_CLUSTER = "mas-v4-32"
-  V5E_4_CLUSTER = "mas-v5e-4"
-  V5E_16_CLUSTER = "mas-v5e-16"
-  V4_8_MULTISLICE_CLUSTER = "v4-8-maxtext"
-  V4_16_MULTISLICE_CLUSTER = "v4-16-maxtext"
-  V4_128_MULTISLICE_CLUSTER = "v4-bodaborg"
-  V5P_8_MULTISLICE_CLUSTER = "v5p-8-bodaborg-us-east5-a"
-  V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
-  V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
-  V5E_256_US_WEST_4_MULTISLICE_CLUSTER = "v5e-256-bodaborg-us-west4"
-  A3_CLUSTER = "maxtext-a3-20n"
-  A3PLUS_CLUSTER = "a3plus-benchmark"
-  CPU_M1_MEGAMEM_96 = "m1-megamem-96-shared"
-  CPU_N2_STANDARD_64 = "shared-n2-standard-64"
+  TPU_V4_8_MAS_CLUSTER = XpkClusterConfig(
+      name="mas-v4-8",
+      device_version=TpuVersion.V4,
+      core_count=8,
+      project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V4_8_MAXTEXT_CLUSTER = XpkClusterConfig(
+      name="v4-8-maxtext",
+      device_version=TpuVersion.V4,
+      core_count=8,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V4_16_CLUSTER = XpkClusterConfig(
+      name="v4-16-maxtext",
+      device_version=TpuVersion.V4,
+      core_count=16,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V4_128_CLUSTER = XpkClusterConfig(
+      name="v4-128-bodaborg-us-central2-b",
+      device_version=TpuVersion.V4,
+      core_count=128,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V5P_8_CLUSTER = XpkClusterConfig(
+      name="v5p-8-bodaborg-us-east5-a",
+      device_version=TpuVersion.V5P,
+      core_count=8,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.US_EAST5_A.value,
+  )
+  TPU_V5E_256_CLUSTER = XpkClusterConfig(
+      name="v5e-256-bodaborg-us-west4",
+      device_version=TpuVersion.V5E,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_WEST4_B.value,
+  )
+  TPU_V6E_256_CLUSTER = XpkClusterConfig(
+      name="bodaborg-v6e-256",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  GPU_A3_CLUSTER = XpkClusterConfig(
+      name="ninacai-maxtext-a3",
+      device_version=GpuVersion.XPK_H100,
+      core_count=8,
+      project=Project.SUPERCOMPUTER_TESTING.value,
+      zone=Zone.US_EAST5_A.value,
+  )
+  GPU_A3PLUS_CLUSTER = XpkClusterConfig(
+      name="a3plus-benchmark",
+      device_version=GpuVersion.XPK_H100_MEGA,
+      core_count=8,
+      project=Project.SUPERCOMPUTER_TESTING.value,
+      zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
+  )
+  CPU_M1_MEGAMEM_96_CLUSTER = XpkClusterConfig(
+      name="m1-megamem-96-shared",
+      device_version=CpuVersion.M1_MEGAMEM,
+      core_count=96,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL1_B.value,
+  )
+  CPU_N2_STANDARD_64_CLUSTER = XpkClusterConfig(
+      name="shared-n2-standard-64",
+      device_version=CpuVersion.N2_STANDARD,
+      core_count=64,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL1_B.value,
+  )
 
 
 class DockerImage(enum.Enum):
@@ -195,17 +261,17 @@ class DockerImage(enum.Enum):
       "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/"
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
-  MAXTEXT_TPU_JAX_STABLE = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:"
+  MAXTEXT_TPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.33:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXTEXT_TPU_JAX_STABLE_STACK = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-jax-stable-stack/tpu:"
-      f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/maxdiffusion-jax-stable-stack/tpu:"
-      f"jax0.4.30-rev1-{datetime.datetime.today().strftime('%Y-%m-%d')}"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.33:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
+  MAXDIFFUSION_TPU_JAX_NIGHTLY = (
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"

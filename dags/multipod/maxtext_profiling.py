@@ -36,7 +36,7 @@ with models.DAG(
   base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_profiling"
   dataset_path = gcs_bucket.MAXTEXT_DIR
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
 
@@ -56,9 +56,6 @@ with models.DAG(
         "python3 MaxText/tests/profiler_test.py",
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-profiling-{mode.value}",
         run_model_cmds=profiling_cmds,
