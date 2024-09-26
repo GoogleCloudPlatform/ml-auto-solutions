@@ -111,8 +111,8 @@ def get_trt_llm_mlperf_gpu_config(
   for model_name in general_configs["model_name"].split(","):
     if accelerator_type == GpuVersion.L4:
       model_parameters_sweep_cmds.append(
-        f'CUDA_VISIBLE_DEVICES=0 make generate_engines RUN_ARGS=\'--benchmarks={model_name} --scenarios={general_configs["scenario"]}\''
-    )
+          f'CUDA_VISIBLE_DEVICES=0 make generate_engines RUN_ARGS=\'--benchmarks={model_name} --scenarios={general_configs["scenario"]}\''
+      )
     else:
       model_parameters_sweep_cmds.append(
           f'make generate_engines RUN_ARGS=\'--benchmarks={model_name} --scenarios={general_configs["scenario"]}\''
@@ -155,7 +155,9 @@ def get_trt_llm_mlperf_gpu_config(
       "make build BUILD_TRTLLM=1",
   ]
   if accelerator_type == GpuVersion.L4:
-    docker_cmds.append("sed -i '310s/16/24/' code/common/systems/known_hardware.py")
+    docker_cmds.append(
+        "sed -i '310s/16/24/' code/common/systems/known_hardware.py"
+    )
   docker_cmds.extend(model_parameters_sweep_cmds)
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
