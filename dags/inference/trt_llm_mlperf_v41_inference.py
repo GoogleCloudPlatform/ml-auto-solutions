@@ -41,9 +41,10 @@ with models.DAG(
 
   config_ver = "default,high_accuracy"
   test_mode = "PerformanceOnly"
+  scenario = "Offline,Server"
   g2_configs = {
       "model_name": "bert",
-      "scenario": "Offline",
+      "scenario": scenario,
       "config_ver": config_ver,
       "test_mode": test_mode,
       "docker_config": "gs://yijiaj/mlperf/config.json",
@@ -53,26 +54,26 @@ with models.DAG(
   g2_model_parameters = {
       "bert": {
           "Offline": {
-              "offline_expected_qps": (27200, 27500),
+              "offline_expected_qps": (1000, 1200),
           },
           "Server": {
-              "server_target_qps": (10700, 10900),
+              "server_target_qps": (900, 1200),
           },
       },
   }
-  g2_parameter_position= {
-    "bert": {
+  g2_parameter_position = {
+      "bert": {
           "Offline": {
-              "offline_expected_qps": 411,
+              "offline_expected_qps": 309,
           },
           "Server": {
-              "server_target_qps": 560,
+              "server_target_qps": 278,
           },
       },
   }
   a2_configs = {
       "model_name": "bert",
-      "scenario": "Offline",
+      "scenario": scenario,
       "config_ver": config_ver,
       "test_mode": test_mode,
       "docker_config": "gs://yijiaj/mlperf/config.json",
@@ -82,15 +83,15 @@ with models.DAG(
   a2_model_parameters = {
       "bert": {
           "Offline": {
-              "offline_expected_qps": (27200, 27500),
+              "offline_expected_qps": (27000, 27500),
           },
           "Server": {
               "server_target_qps": (25400, 25600),
           },
       },
   }
-  a2_parameter_position= {
-    "bert": {
+  a2_parameter_position = {
+      "bert": {
           "Offline": {
               "offline_expected_qps": 411,
           },
@@ -121,14 +122,14 @@ with models.DAG(
 
   # Running on L4 GPU
   trt_llm_mlperf_v41_config.get_trt_llm_mlperf_gpu_config(
-      machine_type=MachineVersion.G2_CUSTOME_96,
+      machine_type=MachineVersion.G2_STAND_96,
       image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=GpuVersion.L4,
       count=8,
-      gpu_zone=Zone.ASIA_EAST1_A,
+      gpu_zone=Zone.US_CENTRAL1_C,
       time_out_in_min=1600,
-      test_name=f"{test_name_prefix}-nightly-test-l4-8",
+      test_name=f"{test_name_prefix}-nightly-test-l4-1",
       project=Project.CLOUD_TPU_INFERENCE_TEST,
       network=INFERENCE_NETWORKS,
       subnetwork=L4_INFERENCE_SUBNETWORKS,

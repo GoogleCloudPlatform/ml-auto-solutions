@@ -93,6 +93,26 @@ def disk_from_image(
   return boot_disk
 
 
+def local_ssd_disk(zone: str) -> compute_v1.AttachedDisk:
+  """
+  Create an AttachedDisk object to be used in VM instance creation. The created disk contains
+  no data and requires formatting before it can be used.
+
+  Args:
+      zone: The zone in which the local SSD drive will be attached.
+
+  Returns:
+      AttachedDisk object configured as a local SSD disk.
+  """
+  disk = compute_v1.AttachedDisk(interface="NVME")
+  disk.type_ = compute_v1.AttachedDisk.Type.SCRATCH.name
+  initialize_params = compute_v1.AttachedDiskInitializeParams()
+  initialize_params.disk_type = f"zones/{zone}/diskTypes/local-ssd"
+  disk.initialize_params = initialize_params
+  disk.auto_delete = True
+  return disk
+
+
 def create_metadata(key_val: Dict[str, str]) -> compute_v1.Metadata:
   metadata = compute_v1.Metadata()
   metadata.items = [{"key": key, "value": val} for key, val in key_val.items()]
@@ -169,6 +189,9 @@ def create_resource(
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
     disks = [disk_from_image(disk_type, 1000, True, image.self_link)]
+    if accelerator.attach_local_ssd:
+      for _ in range(accelerator.count):
+        disks.append(local_ssd_disk(gcp.zone))
     metadata = create_metadata({
         "install-nvidia-driver": "False",
         "proxy-mode": "project_editors",

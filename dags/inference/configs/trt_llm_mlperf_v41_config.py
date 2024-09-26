@@ -18,7 +18,7 @@ import datetime
 from typing import Dict, List
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, vm_resource
-from dags.vm_resource import Project, RuntimeVersion
+from dags.vm_resource import GpuVersion, Project, RuntimeVersion
 
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
@@ -59,15 +59,16 @@ def get_trt_llm_mlperf_gpu_config(
       "sudo chmod a+w /scratch",
       "cd /scratch",
       # Prepare data
-      f"gsutil -m cp -n -r gs://tohaowu/mlpinf-v41/submission/closed/Google_GPU .",
+      f"gsutil -m cp -n -r gs://yijiaj/mlperf/v41/Google_GPU .",
       f"gsutil -m cp -n -r {general_configs['models']} .",
       f"gsutil -m cp -n -r {general_configs['preprocessed_data']} .",
       f"gsutil -m cp -n -r {general_configs['docker_config']} .",
       "curl -sSL https://get.docker.com/ | sh",
-      "sudo chmod u+w /",
       "sudo mkdir -p /home/cloud-ml-auto-solutions/.docker",
       "sudo touch ~/.docker/config.json",
       "sudo cp config.json ~/.docker/config.json",
+      "sudo chown cloud-ml-auto-solutions:cloud-ml-auto-solutions /home/cloud-ml-auto-solutions",
+      "sudo chmod a+w /home/cloud-ml-auto-solutions/.docker",
       "cd Google_GPU",
       "export MLPERF_SCRATCH_PATH=/scratch",
       "sed -i '27i\ARCH=x86_64' Makefile",
@@ -107,29 +108,55 @@ def get_trt_llm_mlperf_gpu_config(
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
 
   model_parameters_sweep_cmds = []
-  for model_name in general_configs['model_name'].split(','):
-    model_parameters_sweep_cmds.append(f'make generate_engines RUN_ARGS="--benchmarks={model_name} --scenarios={general_configs["scenario"]}"')
+  for model_name in general_configs["model_name"].split(","):
+    if accelerator_type == GpuVersion.L4:
+      model_parameters_sweep_cmds.append(
+        f'CUDA_VISIBLE_DEVICES=0 make generate_engines RUN_ARGS=\'--benchmarks={model_name} --scenarios={general_configs["scenario"]}\''
+    )
+    else:
+      model_parameters_sweep_cmds.append(
+          f'make generate_engines RUN_ARGS=\'--benchmarks={model_name} --scenarios={general_configs["scenario"]}\''
+      )
 
-  for model_name in general_configs['model_name'].split(','):
-      for scenario in model_parameters[model_name]:
-          for parameter in model_parameters[model_name][scenario]:
-            steps = 2 ** (binary_search_steps - 1) + 1
-            step_interval = round((model_parameters[model_name][scenario][parameter][1] - model_parameters[model_name][scenario][parameter][0]) / (steps - 1), 2)
-            parameter_current_value = model_parameters[model_name][scenario][parameter][0]
-            while steps > 0:
-              model_parameters_sweep_cmds.append(f'make run_harness RUN_ARGS="--benchmarks={model_name} --scenarios={scenario}"')
-              current_value_str = str(parameter_current_value)
-              parameter_current_value = parameter_current_value + step_interval
-              next_value_str = str(parameter_current_value)
-              model_parameters_sweep_cmds.append(f'sed -i "{parameter_positions[model_name][scenario][parameter]}s/{current_value_str}/{next_value_str}/" __init__.py')
-              steps = steps - 1
+  for model_name in general_configs["model_name"].split(","):
+    for scenario in model_parameters[model_name]:
+      for parameter in model_parameters[model_name][scenario]:
+        steps = 2 ** (binary_search_steps - 1) + 1
+        step_interval = round(
+            (
+                model_parameters[model_name][scenario][parameter][1]
+                - model_parameters[model_name][scenario][parameter][0]
+            )
+            / (steps - 1),
+            2,
+        )
+        parameter_current_value = model_parameters[model_name][scenario][
+            parameter
+        ][0]
+        while steps > 0:
+          if accelerator_type == GpuVersion.L4:
+            model_parameters_sweep_cmds.append(
+                f"CUDA_VISIBLE_DEVICES=0 make run_harness RUN_ARGS='--benchmarks={model_name} --scenarios={scenario}'"
+            )
+          else:
+            model_parameters_sweep_cmds.append(
+                f"make run_harness RUN_ARGS='--benchmarks={model_name} --scenarios={scenario}'"
+            )
+          current_value_str = str(parameter_current_value)
+          parameter_current_value = parameter_current_value + step_interval
+          next_value_str = str(parameter_current_value)
+          model_parameters_sweep_cmds.append(
+              f"sed -i '{parameter_positions[model_name][scenario][parameter]}s/{current_value_str}/{next_value_str}/' configs/{model_name}/{scenario}/__init__.py"
+          )
+          steps = steps - 1
 
   docker_cmds = [
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
-      #f'make run RUN_ARGS="--benchmarks={general_configs["model_name"]} --scenarios={general_configs["scenario"]} --config_ver={general_configs["config_ver"]} --test_mode={general_configs["test_mode"]}"',
   ]
-
+  if accelerator_type == GpuVersion.L4:
+    docker_cmds.append("sed -i '310s/16/24/' code/common/systems/known_hardware.py")
+  docker_cmds.extend(model_parameters_sweep_cmds)
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
       "pip install jsonlines",
@@ -151,6 +178,7 @@ def get_trt_llm_mlperf_gpu_config(
           runtime_version=RUNTIME_IMAGE,
           network=network,
           subnetwork=subnetwork,
+          attach_local_ssd=True,
       ),
       test_name=test_name,
       set_up_cmds=set_up_cmds,
