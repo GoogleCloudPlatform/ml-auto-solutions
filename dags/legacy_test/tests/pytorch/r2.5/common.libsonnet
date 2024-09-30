@@ -99,7 +99,7 @@ local volumes = import 'templates/volumes.libsonnet';
         # Install torchvision by pinned commit in PyTorch 2.5 release branch.
         pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc5-cp310-cp310-linux_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
@@ -142,7 +142,7 @@ local volumes = import 'templates/volumes.libsonnet';
         pip uninstall -y torch torchvision
         pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc5-cp310-cp310-linux_x86_64.whl
 
         mkdir -p pytorch/xla
         git clone -b v2.5.0-rc5 https://github.com/pytorch/xla.git pytorch/xla
