@@ -58,6 +58,7 @@ US_CENTRAL2_B_TPU_PROD_ENV = gcp_config.GCPConfig(
     dataset_name=metric_config.DatasetOption.XLML_DATASET,
 )
 
+
 @task_group(prefix_group_id=False)
 def torchvision():
   mnist_v2_8 = task.run_queued_resource_test(
