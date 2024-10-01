@@ -203,7 +203,7 @@ with models.DAG(
 
   ci_trillium_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-nightly-ci-func-v6e-4-1vm",
+          "pt-2-5-ci-func-v6e-4-1vm",
           network=V5_NETWORKS,
           subnetwork=V6E_SUBNETWORKS,
       ),
