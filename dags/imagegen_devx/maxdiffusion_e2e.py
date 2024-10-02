@@ -36,6 +36,7 @@ with models.DAG(
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
       "v6e-256": [1],
+      "v4-8": [2],
   }
   current_datetime = config.get_current_datetime()
   for accelerator, slices in maxdiffusion_test_configs.items():
