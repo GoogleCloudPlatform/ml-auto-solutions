@@ -31,9 +31,9 @@ with models.DAG(
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama3-8b-quantized",
           "dataset": "openorca",
           "tokenizer": "tokenizer.model",
-          "batch_sizes": [8, 32, 64, 128],
+          "batch_sizes": [8, 32, 64, 96, 128],
           "request_rate": 100,
-          "num_prompts": 200,
+          "num_prompts": 1000,
           "quantize": [True, False],
           "max_output_length": 1024,
           "max_cache_length": 2048,
@@ -48,13 +48,30 @@ with models.DAG(
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-7b-chat/pytorch/llama-2-7b-chat-merged-int8-per-channel",
           "dataset": "openorca",
           "tokenizer": "tokenizer.llama2",
-          "batch_sizes": [8, 32, 64, 96],
+          "batch_sizes": [8, 32, 64, 96, 128, 192],
           "request_rate": 100,
-          "num_prompts": 200,
+          "num_prompts": 1000,
           "quantize": [True, False],
           "max_output_length": 1024,
           "max_cache_length": 2048,
           "sharding_config": "default_shardings/llama.yaml",
+      },
+      "gemma-7b": {
+          "model_name": "gemma",
+          "size": "7b",
+          "sleep_time": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "checkpoint": "gs://inference-benchmarks/models/gemma-7b/pytorch/gemma-7b-merged-int8-per-channel",
+          "checkpoint_quantized": "gs://inference-benchmarks/models/gemma-7b/pytorch/gemma-7b-merged-int8-per-channel",
+          "dataset": "openorca",
+          "tokenizer": "tokenizer.model",
+          "batch_sizes": [8, 32, 64, 96, 128],
+          "request_rate": 100,
+          "num_prompts": 1000,
+          "quantize": [True],
+          "max_output_length": 1024,
+          "max_cache_length": 2048,
+          "sharding_config": "default_shardings/gemma.yaml",
       },
       "llama2-13b": {
           "model_name": "llama-2",
@@ -67,7 +84,7 @@ with models.DAG(
           "tokenizer": "tokenizer.llama2",
           "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
-          "num_prompts": 200,
+          "num_prompts": 1000,
           "quantize": [True, False],
           "max_output_length": 1024,
           "max_cache_length": 2048,
@@ -84,7 +101,7 @@ with models.DAG(
           "tokenizer": "tokenizer.model",
           "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
-          "num_prompts": 200,
+          "num_prompts": 1000,
           "quantize": [True],
           "max_output_length": 1024,
           "max_cache_length": 2048,
@@ -110,6 +127,7 @@ with models.DAG(
           model_configs["dataset"] = sweep_model_configs["dataset"]
           model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
           model_configs["batch_size"] = batch_size
+          model_configs["per_device_batch_size"] = batch_size // tpu_cores
           model_configs["request_rate"] = sweep_model_configs["request_rate"]
           model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
           model_configs["quantize"] = str(quantize)
