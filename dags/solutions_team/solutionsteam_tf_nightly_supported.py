@@ -136,7 +136,7 @@ with models.DAG(
       tpu_version=TpuVersion.V5P,
       tpu_cores=32,
       tpu_zone=Zone.US_EAST5_A.value,
-      time_out_in_min=60,
+      time_out_in_min=120,
       bottom_mlp=[512, 256, embedding_dim],
       embedding_dim=embedding_dim,
       train_steps=10000,
