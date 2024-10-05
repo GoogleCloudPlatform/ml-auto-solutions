@@ -1,16 +1,22 @@
 """A DAG to run inference benchmarks with nightly version."""
 
 import datetime
+import enum
 from airflow import models
 from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
+from dags.vm_resource import GpuVersion, TpuVersion, Region, Zone, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, ImageProject, ImageFamily, MachineVersion, RuntimeVersion
 from dags.multipod.configs.common import SetupMode, Platform
 from dags.solutions_team.configs.inference import inference_benchmark_config
 
 
 # Run once a day at 6 am UTC (10 pm PST)
 SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+
+
+class AcceleratorType(enum.Enum):
+  GPU = "GPU"
+  TPU = "TPU"
 
 
 with models.DAG(
@@ -20,11 +26,20 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
-  test_name_prefix = "solutionsteam-inference-benchmark"
+  test_name_prefix = "solutionsteam-benchmark"
   test_models = {
       "llama3-8b": {
-          # TODO: Add support for GPUs
-          "accelerator_version_cores": [(TpuVersion.V5E, 8)],
+          'accelerator_specs': [
+            #  (AcceleratorType.GPU, (
+            #    MachineVersion.G2_STAND_48,
+            #    GpuVersion.L4,
+            #    4)),
+            #  (AcceleratorType.GPU, (
+            #    MachineVersion.G2_STAND_96,
+            #    GpuVersion.L4,
+            #    8)),
+            (AcceleratorType.TPU, (TpuVersion.V5E, 8))
+          ],
           # TODO: Support other backends
           "backend": ["vllm"],
           "model_id": ["meta-llama/Meta-Llama-3.1-8B"],
@@ -41,13 +56,11 @@ with models.DAG(
   for model, sweep_model_configs in test_models.items():
     for backend in sweep_model_configs["backend"]:
       for model_id in sweep_model_configs["model_id"]:
-        for tpu_version, tpu_cores in sweep_model_configs["accelerator_version_cores"]:
-          #for request_rate in sweep_model_configs["request_rates"]:
+        for accelerator_type, accelerator_spec in sweep_model_configs["accelerator_specs"]:
             model_configs = {}
             model_configs["backend"] = backend
             model_configs["model_id"] = model_id
             model_configs["dataset"] = sweep_model_configs["dataset"]
-            #model_configs["request_rates"] = request_rate
             model_configs["request_rates"] = sweep_model_configs["request_rates"]
             model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
             model_configs["max_output_length"] = sweep_model_configs[
@@ -60,27 +73,49 @@ with models.DAG(
                 "sharding_config"
             ]
 
-            # v5e e2e test with benchmarks
-            project_name = Project.TPU_PROD_ENV_AUTOMATED.value
-            zone = Zone.US_EAST1_C.value
-            network = V5_NETWORKS
-            subnetwork = V5E_SUBNETWORKS
-            runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+            if accelerator_type == AcceleratorType.TPU:
+              project = Project.TPU_PROD_ENV_AUTOMATED
+              zone = Zone.US_EAST1_C
+              tpu_version, tpu_cores = accelerator_spec
+              runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+              network = V5_NETWORKS
+              subnetwork = V5E_SUBNETWORKS
 
-            tpu_inference_benchmark = inference_benchmark_config.get_tpu_inference_gce_config(
-                tpu_version=tpu_version,
-                tpu_cores=tpu_cores,
-                tpu_zone=zone,
-                backend=backend,
-                runtime_version=runtime_version,
-                project_name=project_name,
-                time_out_in_min=120,
-                is_tpu_reserved=True,
-                #test_name=f"{test_name_prefix}-nightly-{model}-{backend}-{request_rate}qps",
-                test_name=f"{test_name_prefix}-nightly-{model}-{backend}",
-                test_mode=SetupMode.NIGHTLY,
-                network=network,
-                subnetwork=subnetwork,
-                model_configs=model_configs,
-            )
-            tpu_inference_benchmark
+              inference_benchmark_config.get_tpu_inference_gce_config(
+                  tpu_version=tpu_version,
+                  tpu_cores=tpu_cores,
+                  tpu_zone=zone,
+                  backend=backend,
+                  runtime_version=runtime_version,
+                  project=project,
+                  time_out_in_min=120,
+                  is_tpu_reserved=True,
+                  test_name=f"{test_name_prefix}-tpu-nightly-{model}-{backend}",
+                  network=network,
+                  subnetwork=subnetwork,
+                  model_configs=model_configs,
+              )
+            elif accelerator_type == AcceleratorType.GPU:
+              project = Project.CLOUD_TPU_INFERENCE_TEST
+              zone = Zone.US_CENTRAL1_A
+              machine_version, gpu_version, count = accelerator_spec
+              image_project = ImageProject.DEEP_LEARNING_PLATFORM_RELEASE
+              image_family = ImageFamily.COMMON_CU121_DEBIAN_11
+              network = INFERENCE_NETWORKS
+              subnetwork = H100_INFERENCE_SUBNETWORKS
+
+              inference_benchmark_config.get_gpu_inference_gce_config(
+                  machine_version=machine_version,
+                  image_project=image_project,
+                  image_family=image_family,
+                  gpu_version=gpu_version,
+                  count=count,
+                  backend=backend,
+                  project=project,
+                  gpu_zone=zone,
+                  time_out_in_min=120,
+                  test_name=f"{test_name_prefix}-gpu-nightly-{model}-{backend}",
+                  network=network,
+                  subnetwork=subnetwork,
+                  model_configs=model_configs,
+              ).run()

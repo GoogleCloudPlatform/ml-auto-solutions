@@ -109,6 +109,8 @@ class MachineVersion(enum.Enum):
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
   G2_STAND_32 = "g2-standard-32"  # 128GB memroy
+  G2_STAND_48 = "g2-standard-48"  # 4 GPUs, 192GB memory
+  G2_STAND_96 = "g2-standard-96"  # 8 GPUs, 384GB memory
 
 
 class TpuVersion(enum.Enum):
