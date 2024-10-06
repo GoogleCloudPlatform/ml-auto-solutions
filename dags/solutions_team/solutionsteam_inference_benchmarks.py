@@ -30,15 +30,15 @@ with models.DAG(
   test_models = {
       "llama3-8b": {
           'accelerator_specs': [
-            #  (AcceleratorType.GPU, (
-            #    MachineVersion.G2_STAND_48,
-            #    GpuVersion.L4,
-            #    4)),
+              (AcceleratorType.GPU, (
+                MachineVersion.G2_STAND_48,
+                GpuVersion.L4,
+                4)),
             #  (AcceleratorType.GPU, (
             #    MachineVersion.G2_STAND_96,
             #    GpuVersion.L4,
             #    8)),
-            (AcceleratorType.TPU, (TpuVersion.V5E, 8))
+            #(AcceleratorType.TPU, (TpuVersion.V5E, 8))
           ],
           # TODO: Support other backends
           "backend": ["vllm"],

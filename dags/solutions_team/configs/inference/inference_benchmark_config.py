@@ -28,7 +28,6 @@ from dags.vm_resource import MachineVersion, ImageFamily, ImageProject, GpuVersi
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
-ROOT_DIRECTORY = "/home/ml-auto-solutions"
 HF_TOKEN = os.getenv("HF_TOKEN", None)
 
 
@@ -37,26 +36,15 @@ def get_vllm_gpu_setup_cmds():
       "pip install --upgrade pip",
       "sudo apt-get -y update",
       "sudo apt install python3",
-      "alias python=python3",
+      "sudo apt-get install python-is-python3",
       "pip install google-auth",
       "pip install vllm",
       "export PATH=$PATH:/home/cloud-ml-auto-solutions/.local/bin",
       "ls $(which vllm)",
-      #"sudo apt-get -y install python3-venv",
-      #"sudo apt-get -y install jq",
-      #"python -m venv .env",
-      #"source .env/bin/activate",
-      #"rm -rf vllm && git clone https://github.com/vllm-project/vllm.git",
-      #"cd vllm",
-      # Hack - remove this
-      #"git checkout f2bd246c17ba67d7749a2560a30711f74cd19177",
-      #"pip install -e .",
       # Download dataset
       'wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json',
       # Download benchmark
-      "git clone https://github.com/GoogleCloudPlatform/ai-on-gke",
-      "pwd",
-      "ls",
+      "rm -rf ai-on-gke && git clone https://github.com/GoogleCloudPlatform/ai-on-gke",
   )
   return setup_cmds
 
@@ -93,7 +81,7 @@ def get_vllm_tpu_setup_cmds():
       # Download dataset
       'cd .. && wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json',
       # Download benchmark
-      'git clone https://github.com/GoogleCloudPlatform/ai-on-gke',
+      'rm -rf ai-on-gke && git clone https://github.com/GoogleCloudPlatform/ai-on-gke',
   )
 
   return setup_cmds
