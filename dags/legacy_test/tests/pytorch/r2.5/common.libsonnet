@@ -24,7 +24,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.5.0-rc5_3.10',
+    imageTag: 'r2.5.0-rc9_3.10',
   },
   PyTorchTest:: common.PyTorchTest + r2_5 {
     local config = self,
@@ -109,7 +109,7 @@ local volumes = import 'templates/volumes.libsonnet';
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
         cd pytorch
-        git clone -b v2.5.0-rc5 https://github.com/pytorch/xla.git
+        git clone -b v2.5.0-rc9 https://github.com/pytorch/xla.git
       |||,
     },
     podTemplate+:: {
@@ -150,7 +150,7 @@ local volumes = import 'templates/volumes.libsonnet';
         pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc5-cp310-cp310-linux_x86_64.whl
 
         mkdir -p pytorch/xla
-        git clone -b v2.5.0-rc5 https://github.com/pytorch/xla.git pytorch/xla
+        git clone -b v2.5.0-rc9 https://github.com/pytorch/xla.git pytorch/xla
 
         %s
 
