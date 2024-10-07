@@ -26,6 +26,9 @@ V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
 V6E_SUBNETWORKS = (
     f"{V5_NETWORKS_PREFIX}/regions/us-central2/subnetworks/mas-test"
 )
+# TODO: Figure V6E_GCE_NETWORK and V6E_GCE_SUBNETWORK
+V6E_GCE_NETWORK = "default"
+V6E_GCE_SUBNETWORK = "default"
 
 BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
 BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
@@ -106,6 +109,8 @@ class Zone(enum.Enum):
   US_WEST1_C = "us-west1-c"
   # reserved a3+ cluster in supercomputer-testing
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
+  # reserved TRILLIUM capacity
+  EUROPE_WEST4_A = "europe-west4-a"
   # reserved l4 in cloud-tpu-inference-test
   ASIA_EAST1_A = "asia-east1-a"
   ASIA_EAST1_C = "asia-east1-c"
@@ -171,6 +176,7 @@ class RuntimeVersion(enum.Enum):
   TPU_VM_V4_BASE = "tpu-vm-v4-base"
   V2_ALPHA_TPUV5_LITE = "v2-alpha-tpuv5-lite"
   V2_ALPHA_TPUV5 = "v2-alpha-tpuv5"
+  V2_ALPHA_TPUV6 = "v2-alpha-tpuv6e"
 
 
 class XpkClusters:

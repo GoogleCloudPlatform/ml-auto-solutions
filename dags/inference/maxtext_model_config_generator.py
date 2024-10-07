@@ -14,7 +14,7 @@
 
 """A helper to generate maxtext model configs."""
 
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
+from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.inference.configs import jetstream_benchmark_serving_gce_config
 from dags.multipod.configs.common import SetupMode
 
@@ -112,7 +112,12 @@ def generate_model_configs(
     project_name = Project.TPU_PROD_ENV_AUTOMATED.value
     network = V5_NETWORKS
     subnetwork = V5P_SUBNETWORKS
-
+  elif tpu_version == TpuVersion.TRILLIUM:
+    zone = Zone.EUROPE_WEST4_A.value
+    runtime_version = RuntimeVersion.V2_ALPHA_TPUV6.value
+    project_name = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+    network = V6E_GCE_NETWORK
+    subnetwork = V6E_GCE_SUBNETWORK
   jetstream_benchmark_serving = (
       jetstream_benchmark_serving_gce_config.get_config(
           tpu_version=tpu_version,
