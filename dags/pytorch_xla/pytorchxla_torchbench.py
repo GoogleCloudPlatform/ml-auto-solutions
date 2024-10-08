@@ -66,7 +66,7 @@ with models.DAG(
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
-    # Running on V5P
+  # Running on V5P
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V5P,
       tpu_cores=8,
@@ -82,7 +82,7 @@ with models.DAG(
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
-    # Running on V6E
+  # Running on V6E
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.TRILLIUM,
       tpu_cores=8,
