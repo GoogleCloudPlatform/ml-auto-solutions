@@ -90,7 +90,7 @@ with models.DAG(
       tpu_zone=resource.Zone.US_CENTRAL2_B,
       runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV6,
       network=resource.BM_NETWORKS,
-      subnetwork=resource.V5E_BM_SUBNETWORKS,
+      subnetwork=resource.V4_BM_SUBNETWORKS,
       time_out_in_min=1600,
       model_name=model,
       reserved=False,
