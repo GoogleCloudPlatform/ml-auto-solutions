@@ -181,6 +181,7 @@ def get_trt_llm_mlperf_gpu_config(
           network=network,
           subnetwork=subnetwork,
           attach_local_ssd=True,
+          disk_size_gb=1000,
       ),
       test_name=test_name,
       set_up_cmds=set_up_cmds,

@@ -53,9 +53,9 @@ def get_image_from_family(project: str, family: str) -> compute_v1.Image:
 
 def disk_from_image(
     disk_type: str,
-    disk_size_gb: int,
     boot: bool,
     source_image: str,
+    disk_size_gb: int = 100,
     auto_delete: bool = True,
 ) -> compute_v1.AttachedDisk:
   """
@@ -188,7 +188,7 @@ def create_resource(
     machine_type = accelerator.machine_type
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
-    disks = [disk_from_image(disk_type, 1000, True, image.self_link)]
+    disks = [disk_from_image(disk_type, True, image.self_link, accelerator.disk_size_gb)]
     if accelerator.attach_local_ssd:
       for _ in range(accelerator.count):
         disks.append(local_ssd_disk(gcp.zone))
