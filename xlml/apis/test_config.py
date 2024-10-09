@@ -104,6 +104,8 @@ class Gpu(Accelerator):
     runtime_version: Runtime image version.
     network: The network that a GPU will be a part of.
     subnetwork: The subnetwork that a GPU will be a part of.
+    use_local_ssd: Whether to attach local ssd.
+    disk_size_gb: size of the new disk in gigabytes.
   """
 
   machine_type: str
@@ -113,6 +115,8 @@ class Gpu(Accelerator):
   runtime_version: Optional[str] = None
   network: Optional[str] = None
   subnetwork: Optional[str] = None
+  attach_local_ssd: bool = False
+  disk_size_gb: int = 100
 
   @property
   def name(self):
