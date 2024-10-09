@@ -27,18 +27,24 @@ with models.DAG(
     catchup=False,
 ) as dag:
   test_name_prefix = "solutionsteam-benchmark"
+
+  # Generate a test run id in the format YYYYMMDD-HHmm to group
+  # tests together.
+  now = datetime.datetime.now()
+  test_run_id = now.strftime("%Y%m%d-%H%M")
+
   test_models = {
       "llama3-8b": {
           "accelerator_specs": [
-              (
-                  AcceleratorType.GPU,
-                  (MachineVersion.G2_STAND_48, GpuVersion.L4, 4),
-              ),
-              #  (AcceleratorType.GPU, (
-              #    MachineVersion.G2_STAND_96,
-              #    GpuVersion.L4,
-              #    8)),
-              # (AcceleratorType.TPU, (TpuVersion.V5E, 8))
+              #(
+              #    AcceleratorType.GPU,
+              #    (MachineVersion.G2_STAND_48, GpuVersion.L4, 4),
+              #),
+              (AcceleratorType.GPU, (
+                  MachineVersion.A2_HIGHGPU_1G,
+                  GpuVersion.A100,
+                  1)),
+              (AcceleratorType.TPU, (TpuVersion.V5E, 8))
           ],
           # TODO: Support other backends
           "backend": ["vllm"],
@@ -93,6 +99,7 @@ with models.DAG(
                 time_out_in_min=120,
                 is_tpu_reserved=True,
                 test_name=f"{test_name_prefix}-tpu-nightly-{model}-{backend}",
+                test_run_id=test_run_id,
                 network=network,
                 subnetwork=subnetwork,
                 model_configs=model_configs,
@@ -117,6 +124,7 @@ with models.DAG(
                 gpu_zone=zone,
                 time_out_in_min=120,
                 test_name=f"{test_name_prefix}-gpu-nightly-{model}-{backend}",
+                test_run_id=test_run_id,
                 network=network,
                 subnetwork=subnetwork,
                 model_configs=model_configs,

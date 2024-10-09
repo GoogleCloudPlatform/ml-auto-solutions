@@ -62,8 +62,6 @@ def get_vllm_tpu_setup_cmds():
       # Install vllm at head
       "rm -rf vllm && git clone https://github.com/vllm-project/vllm",
       "cd vllm",
-      # Hack - remove this
-      "git checkout f2bd246c17ba67d7749a2560a30711f74cd19177",
       # From https://docs.vllm.ai/en/latest/getting_started/tpu-installation.html
       "pip uninstall torch torch-xla -y",
       'export DATE="20240828"',
@@ -74,7 +72,7 @@ def get_vllm_tpu_setup_cmds():
       "pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html",
       "pip install torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html",
       # Install other build dependencies.
-      #'pip install -r requirements-build.txt',
+      "pip install setuptools-scm>=8",
       "pip install -r requirements-tpu.txt",
       # Build vLLM
       'VLLM_TARGET_DEVICE="tpu" python setup.py develop',
@@ -88,7 +86,7 @@ def get_vllm_tpu_setup_cmds():
 
 
 def get_vllm_benchmark_cmds(
-    model_id: str, num_chips: int, model_configs: Dict = {}
+    model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
   base_model_id = model_id.split("/")[-1]
   request_rates = model_configs["request_rates"].split(",")
@@ -101,12 +99,13 @@ def get_vllm_benchmark_cmds(
       # Start virtual environment
       '[[ -f ".env/bin/activate" ]] && source .env/bin/activate',
       # Start vllm in the background
-      f"vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 &",
+      f"vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps 4 &",
       # Wait for server to come up
       "sleep 600",
   ]
 
-  metadata = {"test": "test"}
+  # Group metrics together using test_run_id.
+  metadata = {"test_run_id": test_run_id}
   for request_rate in request_rates:
     benchmark_cmd_fmt = "python ai-on-gke/benchmarks/benchmark/tools/profile-generator/container/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
 
@@ -127,12 +126,12 @@ def get_vllm_benchmark_cmds(
     ]
     run_cmds.extend(benchmark_cmds)
 
-  # Kill background process
   run_cmds.extend(
       [
-          "gsutil cp metric_report.jsonl gs://us-west4-ricliu-736a999d-bucket/logs",
-          f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+          # Kill background process
           "pkill -P $$",
+          # Copy metrics as the last step
+          f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
       ]
   )
 
@@ -149,6 +148,7 @@ def get_gpu_inference_gce_config(
     gpu_zone: Zone,
     time_out_in_min: int,
     test_name: str,
+    test_run_id: str,
     project: Project,
     network: str,
     subnetwork: str,
@@ -165,6 +165,7 @@ def get_gpu_inference_gce_config(
   run_model_cmds = get_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
       num_chips=count,
+      test_run_id=test_run_id,
       model_configs=model_configs,
   )
 
@@ -213,6 +214,7 @@ def get_tpu_inference_gce_config(
     backend: str,
     time_out_in_min: int,
     test_name: str,
+    test_run_id: str,
     project: Project,
     runtime_version: str = RUNTIME_IMAGE,
     network: str = "default",
@@ -232,6 +234,7 @@ def get_tpu_inference_gce_config(
   run_model_cmds = get_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
       num_chips=tpu_cores,
+      test_run_id=test_run_id,
       model_configs=model_configs,
   )
 
@@ -263,6 +266,3 @@ def get_tpu_inference_gce_config(
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
   )
-
-
-# Copyright 2024 Google LLC
