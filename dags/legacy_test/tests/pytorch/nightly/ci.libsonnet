@@ -34,7 +34,16 @@ local tpus = import 'templates/tpus.libsonnet';
     accelerator: tpus.v5litepod_4,
   },
 
+  local trillium_4 = self.trillium_4,
+  trillium_4:: {
+    tpuSettings+: {
+      softwareVersion: 'v2-alpha-tpuv6e',
+    },
+    accelerator: tpus.trillium_4,
+  },
+
   configs: [
     ci + v5litepod_4 + pjrt,
+    ci + pjrt + trillium_4,
   ],
 }

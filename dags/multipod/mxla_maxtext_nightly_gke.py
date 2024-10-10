@@ -18,11 +18,12 @@ A DAG to run MXLA MaxText tests.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName, Project
+from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
 from dags.multipod.configs import gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
-SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
+# Pause test on GKE
+SCHEDULED_TIME = None
 
 with models.DAG(
     dag_id="mxla_maxtext_nightly_gke",
@@ -35,9 +36,6 @@ with models.DAG(
   default_test_name = "mxla-maxtext-nightly-gke"
 
   maxtext_nightly_1slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
@@ -45,10 +43,7 @@ with models.DAG(
   ).run()
 
   maxtext_nightly_2slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
       num_slices=2,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
@@ -56,10 +51,7 @@ with models.DAG(
   ).run()
 
   maxtext_nightly_4slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
       num_slices=4,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
@@ -67,10 +59,7 @@ with models.DAG(
   ).run()
 
   maxtext_nightly_8slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
       num_slices=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
@@ -78,54 +67,38 @@ with models.DAG(
   ).run()
 
   maxtext_nightly_1slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
-      cluster_name=ClusterName.V5P_8_MULTISLICE_CLUSTER.value,
-      tpu_zone=Zone.US_EAST5_A.value,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   maxtext_nightly_2slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
       num_slices=2,
-      cluster_name=ClusterName.V5P_8_MULTISLICE_CLUSTER.value,
-      tpu_zone=Zone.US_EAST5_A.value,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   maxtext_nightly_4slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
       num_slices=4,
-      cluster_name=ClusterName.V5P_8_MULTISLICE_CLUSTER.value,
-      tpu_zone=Zone.US_EAST5_A.value,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   maxtext_nightly_8slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
       num_slices=8,
-      cluster_name=ClusterName.V5P_8_MULTISLICE_CLUSTER.value,
-      tpu_zone=Zone.US_EAST5_A.value,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-      project_name=Project.CLOUD_TPU_MULTIPOD_DEV.value,
   ).run()
 
   (

@@ -18,7 +18,7 @@ A DAG to run AOT compilation tests for MaxText model configs.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import GpuVersion, TpuVersion, Zone, DockerImage, ClusterName
+from dags.vm_resource import GpuVersion, TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -51,7 +51,7 @@ with models.DAG(
   }
   num_slices = [1, 2]
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
 
@@ -66,9 +66,6 @@ with models.DAG(
 
   for mode, image in docker_images:
     maxtext_v4_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-aot-v4-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v4"],
@@ -77,9 +74,6 @@ with models.DAG(
     ).run()
 
     maxtext_v5e_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-aot-v5e-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v5e"],
@@ -88,9 +82,6 @@ with models.DAG(
     ).run()
 
     maxtext_v5p_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-aot-v5p-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v5p"],
@@ -107,13 +98,11 @@ with models.DAG(
   # GPU AoT tests
   cmd = f"bash MaxText/configs/a3/llama_2_7b/16vm.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=16"
   stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-      accelerator_type=GpuVersion.XPK_H100,
-      gpu_zone=Zone.US_CENTRAL1_C.value,
       time_out_in_min=300,
       test_name=f"maxtext-aot-a3-stable",
       run_model_cmds=(cmd,),
       num_slices=1,
-      cluster_name=ClusterName.A3_CLUSTER.value,
+      cluster=XpkClusters.GPU_A3_CLUSTER,
       docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
       test_owner=test_owner.JON_B,
   ).run()

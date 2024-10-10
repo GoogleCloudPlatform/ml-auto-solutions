@@ -15,34 +15,18 @@
 """Utilities to construct configs for solutionsteam_jax_bite DAG."""
 
 from xlml.apis import gcp_config, metric_config, task, test_config
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from dags import test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Project, ClusterName, GpuVersion, CpuVersion, Zone
+from dags.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion, Zone
 from typing import Iterable
 import datetime
 
-tpu_versions = {
-    # accelerator: tpu versions
-    "v4-8": TpuVersion.V4,
-    "v4-16": TpuVersion.V4,
-    "v5-8": TpuVersion.V5P,
-}
-cluster_names = {
+clusters = {
     # accelerator: cluster names
-    "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
-    "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
-    "v5-8": ClusterName.V5P_8_MULTISLICE_CLUSTER,
-}
-tpu_zones = {
-    # accelerator: cluster name
-    "v4-8": Zone.US_CENTRAL2_B,
-    "v4-16": Zone.US_CENTRAL2_B,
-    "v5-8": Zone.US_EAST5_A,
-}
-project_names = {
-    # accelerator: project names
-    "v4-8": Project.TPU_PROD_ENV_MULTIPOD,
-    "v4-16": Project.TPU_PROD_ENV_MULTIPOD,
-    "v5-8": Project.CLOUD_TPU_MULTIPOD_DEV,
+    "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+    "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
+    "v5-8": XpkClusters.TPU_V5P_8_CLUSTER,
+    "v6e-256": XpkClusters.TPU_V6E_256_CLUSTER,
 }
 
 
@@ -52,25 +36,21 @@ def get_current_datetime() -> str:
   return current_datetime
 
 
-def get_gke_jax_stable_stack_config(
-    tpu_version: TpuVersion,
-    tpu_cores: int,
-    tpu_zone: str,
+def get_gke_config(
     time_out_in_min: int,
     test_name: str,
     docker_image: str,
     run_model_cmds: Iterable[str],
     test_owner: str,
-    cluster_name: str = ClusterName.V4_8_MULTISLICE_CLUSTER.value,
-    project_name: str = Project.TPU_PROD_ENV_MULTIPOD.value,
+    cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
     num_slices: int = 1,
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ) -> task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
+      project_name=cluster.project,
+      zone=cluster.zone,
       dataset_name=dataset_name,
       dataset_project=dataset_project,
       composer_project=composer_project,
@@ -78,8 +58,8 @@ def get_gke_jax_stable_stack_config(
 
   job_test_config = test_config.TpuGkeTest(
       test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
+          version=cluster.device_version,
+          cores=cluster.core_count,
       ),
       test_name=test_name,
       run_model_cmds=run_model_cmds,
@@ -87,7 +67,7 @@ def get_gke_jax_stable_stack_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       num_slices=num_slices,
-      cluster_name=cluster_name,
+      cluster_name=cluster.name,
       docker_image=docker_image,
   )
 

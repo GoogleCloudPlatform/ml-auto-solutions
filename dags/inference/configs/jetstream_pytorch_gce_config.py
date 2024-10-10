@@ -50,7 +50,6 @@ def get_jetstream_pytorch_inference_nightly_config(
 
   set_up_cmds = (
       "pip install --upgrade pip",
-      "git clone https://github.com/google/jetstream-pytorch.git",
       # Create a python virtual environment
       "sudo apt-get -y update",
       "sudo apt-get -y install python3.10-venv",
@@ -58,7 +57,10 @@ def get_jetstream_pytorch_inference_nightly_config(
       "python -m venv .env",
       "source .env/bin/activate",
       # Setup jetstream-pytorch
+      "git clone https://github.com/google/jetstream-pytorch.git",
       "cd jetstream-pytorch && source install_everything.sh",
+      """pip install -r deps/JetStream/benchmarks/requirements.in \
+                     -r deps/JetStream/requirements.txt """,
   )
 
   additional_metadata_dict = model_configs.copy()
@@ -81,29 +83,29 @@ def get_jetstream_pytorch_inference_nightly_config(
       f"export BATCH_SIZE={model_configs['batch_size']}",
       f"export MAX_CACHE_LEN={model_configs['max_cache_length']}",
       f"export CKPT_PATH={model_configs['checkpoint']}",
-      f"export TOKENIZER_PATH=$(pwd)/ckpt_dir/{model_configs['tokenizer']}",
+      f"export TOKENIZER_PATH=/dev/shm/ckpt_dir/{model_configs['tokenizer']}",
       f"export SHARDING_CONFIG={model_configs['sharding_config']}",
-      "mkdir ckpt_dir",
-      "gsutil cp -r ${CKPT_PATH}/* ckpt_dir/",
+      f"export QUANTIZE={str(model_configs['quantize'])}",
+      f"export QUANTIZE_KV_CACHE={str(model_configs['quantize'])}",
+      "mkdir -p /dev/shm/ckpt_dir",
+      "gsutil cp -r ${CKPT_PATH}/* /dev/shm/ckpt_dir/",
       # Start jetstream-pytorch server in the background
       """python run_server.py \
         --model_name=${MODEL_NAME} \
         --size=${SIZE} \
         --batch_size=${BATCH_SIZE} \
         --max_cache_length=${MAX_CACHE_LEN} \
-        --checkpoint_path=ckpt_dir \
+        --checkpoint_path=/dev/shm/ckpt_dir \
         --tokenizer_path=${TOKENIZER_PATH} \
+        --quantize_weights=${QUANTIZE} \
+        --quantize_kv_cache=${QUANTIZE_KV_CACHE} \
         --sharding_config=${SHARDING_CONFIG} &""",
-      """pip install -r deps/JetStream/benchmarks/requirements.in \
-                     -r deps/JetStream/requirements.in \
-                     -r deps/JetStream/requirements.txt """,
-      # redo the install everything script to keep jax library versions in accord
-      "source ./install_everything.sh",
+      "pip install --force-reinstall --no-deps nltk==3.8.1",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",
       # Run benchmark, run eval, save benchmark and eval results, and save predictions to /tmp/request-outputs.json
       f"""python deps/JetStream/benchmarks/benchmark_serving.py \
-      --tokenizer ckpt_dir/{model_configs['tokenizer']} \
+      --tokenizer /dev/shm/ckpt_dir/{model_configs['tokenizer']} \
       --model {model_configs['model_name']} \
       --num-prompts {model_configs['num_prompts']}  \
       --dataset {model_configs['dataset']} \
