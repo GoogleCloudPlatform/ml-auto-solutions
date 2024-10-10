@@ -161,7 +161,6 @@ def set_up_torchbench_tpu(
 
   return (
       "pip3 install -U 'setuptools>=70.0.0,<71.0.0'",
-      "sudo systemctl stop unattended-upgrades",
       "sudo apt-get -y update",
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",
