@@ -90,6 +90,7 @@ def get_vllm_benchmark_cmds(
 ):
   base_model_id = model_id.split("/")[-1]
   request_rates = model_configs["request_rates"].split(",")
+  instance_type = model_configs["instance_type"]
   num_prompts = 1000
 
   run_cmds = [
@@ -99,13 +100,17 @@ def get_vllm_benchmark_cmds(
       # Start virtual environment
       '[[ -f ".env/bin/activate" ]] && source .env/bin/activate',
       # Start vllm in the background
-      f"vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps 4 &",
+      f"vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 &",
       # Wait for server to come up
       "sleep 600",
   ]
 
   # Group metrics together using test_run_id.
-  metadata = {"test_run_id": test_run_id}
+  metadata = {
+      "test_run_id": test_run_id,
+      "instance_type": instance_type,
+      "num_accelerators": num_chips,
+  }
   for request_rate in request_rates:
     benchmark_cmd_fmt = "python ai-on-gke/benchmarks/benchmark/tools/profile-generator/container/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
 
@@ -161,6 +166,7 @@ def get_gpu_inference_gce_config(
   )
 
   set_up_cmds = get_vllm_gpu_setup_cmds()
+  model_configs["instance_type"] = machine_version.value
 
   run_model_cmds = get_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
@@ -230,6 +236,7 @@ def get_tpu_inference_gce_config(
   )
 
   set_up_cmds = get_vllm_tpu_setup_cmds()
+  model_configs["instance_type"] = tpu_version.value
 
   run_model_cmds = get_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
