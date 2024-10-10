@@ -16,22 +16,18 @@
 
 import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags.vm_resource import TpuVersion
+from dags.vm_resource import TpuVersion, XpkClusterConfig
 import itertools
 from typing import List, Iterable, Dict, Any
 
 
 def get_maxtext_sweep_gke_config(
     test_owner: str,
-    tpu_version: TpuVersion,
+    cluster: XpkClusterConfig,
     num_slices: List[int],
     sweep_params: Dict[str, List[Any]],
-    tpu_cores: int,
-    tpu_zone: str,
     time_out_in_min: int,
     run_name_prefix: str,
-    project_name: str,
-    cluster_name: str,
     docker_image: str,
     base_output_directory: str,
     base_run_model_cmds: Iterable[str],
@@ -41,13 +37,13 @@ def get_maxtext_sweep_gke_config(
     composer_project: str = None,
 ) -> List[task.XpkTask]:
   if not dataset_project:
-    dataset_project = project_name
+    dataset_project = cluster.project
   if not composer_project:
-    composer_project = project_name
+    composer_project = cluster.project
 
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
+      project_name=cluster.project,
+      zone=cluster.zone,
       dataset_name=dataset_name,
       dataset_project=dataset_project,
       composer_project=composer_project,
@@ -79,8 +75,8 @@ def get_maxtext_sweep_gke_config(
 
     job_test_config = test_config.TpuGkeTest(
         test_config.Tpu(
-            version=tpu_version,
-            cores=tpu_cores,
+            version=cluster.device_version,
+            cores=cluster.core_count,
         ),
         test_name=f"{run_name_prefix}-{idx}",
         set_up_cmds=None,
@@ -88,7 +84,7 @@ def get_maxtext_sweep_gke_config(
         timeout=datetime.timedelta(minutes=time_out_in_min),
         task_owner=test_owner,
         num_slices=curr_num_slices,
-        cluster_name=cluster_name,
+        cluster_name=cluster.name,
         docker_image=docker_image,
     )
 

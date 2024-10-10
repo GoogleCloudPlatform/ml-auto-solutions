@@ -18,7 +18,7 @@ A DAG to run MaxText checkpointing tests.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName
+from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -36,7 +36,7 @@ with models.DAG(
   base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_checkpointing"
   dataset_path = gcs_bucket.MAXTEXT_DIR
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
   test_configs = {
@@ -44,10 +44,10 @@ with models.DAG(
       "v4-8": [1],
       "v4-16": [1, 2],
   }
-  cluster_names = {
+  clusters = {
       # accelerator: cluster name
-      "v4-8": ClusterName.V4_8_MULTISLICE_CLUSTER,
-      "v4-16": ClusterName.V4_16_MULTISLICE_CLUSTER,
+      "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+      "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
   }
 
   for mode, image in docker_images:
@@ -60,11 +60,8 @@ with models.DAG(
             f" {base_output_directory} {dataset_path} true",
         )
         maxtext_v4_configs_test = gke_config.get_gke_config(
-            tpu_version=TpuVersion.V4,
-            tpu_cores=cores,
             num_slices=slice_num,
-            cluster_name=cluster_names[accelerator].value,
-            tpu_zone=Zone.US_CENTRAL2_B.value,
+            cluster=clusters[accelerator],
             time_out_in_min=60,
             test_name=f"maxtext-checkpointing-{mode.value}",
             run_model_cmds=command,

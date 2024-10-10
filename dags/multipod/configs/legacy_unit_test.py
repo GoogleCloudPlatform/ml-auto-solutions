@@ -17,26 +17,23 @@
 import datetime
 import os
 from xlml.apis import gcp_config, metric_config, task, test_config
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from base64 import b64encode
 from collections.abc import Iterable
 from dags import test_owner
 from dags.multipod.configs import common
-from dags.vm_resource import TpuVersion, Project, RuntimeVersion, ClusterName
+from dags.vm_resource import TpuVersion, Project, RuntimeVersion, XpkClusters
 
 
 def get_legacy_unit_test_config(
     script_to_copy: str,
     test_cmd: Iterable,
-    tpu_version: TpuVersion,
-    tpu_cores: int,
-    tpu_zone: str,
     time_out_in_min: int,
     test_name: str,
     test_owner: str,
     docker_image: str,
     num_slices: int = 1,
-    cluster_name: str = ClusterName.V4_8_MULTISLICE_CLUSTER.value,
-    project_name: str = Project.TPU_PROD_ENV_MULTIPOD.value,
+    cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
 ) -> task.XpkTask:
   """
   Run a legacy unit test script.
@@ -45,8 +42,8 @@ def get_legacy_unit_test_config(
   in the working directory.
   """
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
+      project_name=cluster.project,
+      zone=cluster.zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
@@ -65,8 +62,8 @@ def get_legacy_unit_test_config(
 
   job_test_config = test_config.TpuGkeTest(
       test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
+          version=cluster.device_version,
+          cores=cluster.core_count,
       ),
       test_name=test_name,
       run_model_cmds=run_model_cmds,
@@ -74,7 +71,7 @@ def get_legacy_unit_test_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
       num_slices=num_slices,
-      cluster_name=cluster_name,
+      cluster_name=cluster.name,
       docker_image=docker_image,
   )
 

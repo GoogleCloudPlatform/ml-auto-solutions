@@ -19,7 +19,7 @@ import pytz
 import itertools
 import numpy
 from airflow import models
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
+from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.inference.configs import maxtext_inference_microbenchmark_gce_config
 from dags.multipod.configs.common import SetupMode
 
@@ -184,6 +184,12 @@ def generate_model_configs(
     network = V5_NETWORKS
     subnetwork = V5E_SUBNETWORKS
     runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+  if tpu_version == TpuVersion.TRILLIUM:
+    project_name = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+    zone = Zone.EUROPE_WEST4_A.value
+    network = V6E_GCE_NETWORK
+    subnetwork = V6E_GCE_SUBNETWORK
+    runtime_version = RuntimeVersion.V2_ALPHA_TPUV6.value
 
   maxtext_kv_cache_layout_optimization = (
       maxtext_inference_microbenchmark_gce_config.config(
@@ -241,7 +247,7 @@ with models.DAG(
           if not MAXTEXT_BRANCH
           else f"-b {MAXTEXT_BRANCH}",
           "sleep_time": 60,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
           "model_name": LLAMA2_7B,
           "tokenizer": "tokenizer.llama2",
           "weight_dtype": "bfloat16",

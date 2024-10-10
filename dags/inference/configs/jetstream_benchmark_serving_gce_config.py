@@ -65,6 +65,7 @@ def get_config(
       f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
       "cd JetStream && pip install -e . && cd benchmarks && pip install -r requirements.in",
       "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+      "pip install aqtp==0.7.5",
   )
 
   additional_metadata_dict = {

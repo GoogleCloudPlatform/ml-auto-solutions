@@ -92,11 +92,12 @@ def run_queued_resource_test(
           tpu_create_timeout,
           task_test_config,
       )
+
       queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
           queued_resource_name,
           task_test_config.setup_script,
           ssh_keys,
-          all_workers,
+          True if task_test_config.test_name.startswith("tf_") else all_workers,
       )
 
     run_model = tpu.ssh_tpu.override(

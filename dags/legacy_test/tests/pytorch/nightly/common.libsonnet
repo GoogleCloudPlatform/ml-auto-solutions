@@ -24,7 +24,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'pytorch-nightly',
     },
-    imageTag: 'nightly_3.8',
+    imageTag: 'nightly_3.10',
   },
   PyTorchTest:: common.PyTorchTest + Nightly {
     local config = self,
@@ -91,14 +91,19 @@ local volumes = import 'templates/volumes.libsonnet';
       tpuVmPytorchSetup: |||
         pip3 install -U 'setuptools>=70.0.0,<71.0.0'
         # `unattended-upgr` blocks us from installing apt dependencies
-        sudo systemctl stop unattended-upgrades
+        if systemctl is-active --quiet unattended-upgrades; then
+          sudo systemctl stop unattended-upgrades
+          echo "unattended-upgrades stopped."
+        else
+          echo "unattended-upgrades is not running."
+        fi
         sudo apt-get -y update
         sudo apt install -y libopenblas-base
         # for huggingface tests
         sudo apt install -y libsndfile-dev
         pip3 install --user --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu
         pip install --user \
-          'torch_xla[tpu] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-nightly-cp310-cp310-linux_x86_64.whl' \
+          'torch_xla[tpu] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0.dev-cp310-cp310-linux_x86_64.whl' \
           -f https://storage.googleapis.com/libtpu-releases/index.html
         pip3 install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git

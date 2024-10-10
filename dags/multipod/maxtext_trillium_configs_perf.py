@@ -26,14 +26,7 @@ from xlml.apis import metric_config
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 MODEL_CONFIGS = [
-    "16b",
-    "32b",
-    "64b",
-    "128b",
     "gpt3_175b",
-    "llama2_7b",
-    "llama2_13b",
-    "llama2_70b",
 ]
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
@@ -43,7 +36,7 @@ QUANTIZATION_SWEEP = {"M_QUANTIZATION": ["", "int8"]}
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 
 with models.DAG(
-    dag_id="maxtext_v5e_configs_perf",
+    dag_id="maxtext_trillium_configs_perf",
     schedule=SCHEDULED_TIME,
     tags=["multipod_team", "maxtext", "stable", "nightly"],
     start_date=datetime.datetime(2024, 2, 19),
@@ -52,7 +45,7 @@ with models.DAG(
   for mode, image in DOCKER_IMAGES:
     for model in MODEL_CONFIGS:
       base_run_model_cmds = [
-          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue",
+          f"bash MaxText/configs/trillium/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -60,7 +53,7 @@ with models.DAG(
               dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               dataset_name=metric_config.DatasetOption.XLML_DATASET,
-              cluster=XpkClusters.TPU_V5E_256_CLUSTER,
+              cluster=XpkClusters.TPU_V6E_256_CLUSTER,
               time_out_in_min=360,
               base_output_directory=BASE_OUTPUT_DIRECTORY,
               num_slices=[1, 2],
@@ -75,51 +68,6 @@ with models.DAG(
       prev = maxtext_sweep_gke_test[0].run_with_run_name_generation()
       for i in range(1, len(maxtext_sweep_gke_test)):
         curr = maxtext_sweep_gke_test[i].run_with_run_name_generation()
-        if i % chain_num != 0:
-          prev >> curr
-        prev = curr
-
-
-# Run once a day at 10 am UTC (2 am PST / 3 am PDT)
-PATHWAYS_SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
-
-with models.DAG(
-    dag_id="pathways_maxtext_v5e_configs_perf",
-    schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable", "nightly"],
-    start_date=datetime.datetime(2024, 2, 19),
-    catchup=False,
-) as dag:
-  for mode, image in DOCKER_IMAGES:
-    for model in MODEL_CONFIGS:
-      base_run_model_cmds = [
-          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue RUN_PREFLIGHT=false",
-      ]
-      maxtext_sweep_gke_test = (
-          maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
-              test_owner=test_owner.RAYMOND_Z,
-              dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-              composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-              dataset_name=metric_config.DatasetOption.XLML_DATASET,
-              cluster=XpkClusters.TPU_V5E_256_CLUSTER,
-              time_out_in_min=360,
-              base_output_directory=BASE_OUTPUT_DIRECTORY,
-              num_slices=[1, 2],
-              docker_image=image.value,
-              run_name_prefix=f"p-maxtext-{model}-{mode.value}",
-              base_run_model_cmds=base_run_model_cmds,
-              sweep_params=QUANTIZATION_SWEEP,
-          )
-      )
-
-      chain_num = 4
-      prev = maxtext_sweep_gke_test[0].run_with_run_name_generation(
-          use_pathways=True
-      )
-      for i in range(1, len(maxtext_sweep_gke_test)):
-        curr = maxtext_sweep_gke_test[i].run_with_run_name_generation(
-            use_pathways=True
-        )
         if i % chain_num != 0:
           prev >> curr
         prev = curr
