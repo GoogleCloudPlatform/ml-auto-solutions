@@ -66,3 +66,4 @@ WENXIN_D = "Wenxin D."
 
 # FRAMEWORK
 QINY_Y = "Qinyi Y."
+

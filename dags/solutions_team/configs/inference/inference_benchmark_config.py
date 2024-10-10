@@ -131,14 +131,12 @@ def get_vllm_benchmark_cmds(
     ]
     run_cmds.extend(benchmark_cmds)
 
-  run_cmds.extend(
-      [
-          # Kill background process
-          "pkill -P $$",
-          # Copy metrics as the last step
-          f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
-      ]
-  )
+  run_cmds.extend([
+      # Kill background process
+      "pkill -P $$",
+      # Copy metrics as the last step
+      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+  ])
 
   return tuple(run_cmds)
 

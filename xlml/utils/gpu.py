@@ -169,13 +169,11 @@ def create_resource(
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
     disks = [disk_from_image(disk_type, 100, True, image.self_link)]
-    metadata = create_metadata(
-        {
-            "install-nvidia-driver": "True",
-            "proxy-mode": "project_editors",
-            "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
-        }
-    )
+    metadata = create_metadata({
+        "install-nvidia-driver": "True",
+        "proxy-mode": "project_editors",
+        "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
+    })
 
     accelerators = [
         compute_v1.AcceleratorConfig(
