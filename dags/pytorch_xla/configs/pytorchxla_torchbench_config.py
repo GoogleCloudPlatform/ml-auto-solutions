@@ -161,7 +161,6 @@ def set_up_torchbench_tpu(
 
   return (
       "pip3 install -U 'setuptools>=70.0.0,<71.0.0'",
-      "sudo kill -9 $(lsof -t /var/lib/dpkg/lock-frontend); sudo pkill -SIGTERM unattended-upgr; sleep 5; sudo pkill --signal SIGKILL unattended-upgr; sleep 3; sudo killall unattended-upgr; sudo rm -f /var/lib/apt/lists/lock; sudo rm -f /var/cache/apt/archives/lock; sudo rm -f /var/lib/dpkg/lock*; sudo rm /var/lib/dpkg/lock-frontend; sudo dpkg --configure -a",
       "sudo apt-get -y update",
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",
