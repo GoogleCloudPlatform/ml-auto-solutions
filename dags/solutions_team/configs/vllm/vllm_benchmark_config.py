@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to construct configs for inference benchmark DAG."""
+"""Utilities to construct configs for vLLM benchmark DAG."""
 
 
 import datetime
@@ -125,6 +125,9 @@ def get_vllm_benchmark_cmds(
         # Process result json files
         f'export OUTPUT_FORMAT="*vllm*{base_model_id}*"',
         "export BENCHMARK_OUTPUT=$(find . -name $OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\n\" | sort -n | head -1 | awk 'NF>1{print $NF}')",
+        # Log output file contest
+        "cat ${BENCHMARK_OUTPUT}",
+        # Append output file contents to final metrics report
         "cat ${BENCHMARK_OUTPUT} >> metric_report.jsonl",
         "echo '' >> metric_report.jsonl",
         "rm ${BENCHMARK_OUTPUT}",
@@ -141,7 +144,7 @@ def get_vllm_benchmark_cmds(
   return tuple(run_cmds)
 
 
-def get_gpu_inference_gce_config(
+def get_gpu_vllm_gce_config(
     machine_version: MachineVersion,
     image_project: ImageProject,
     image_family: ImageFamily,
@@ -188,7 +191,7 @@ def get_gpu_inference_gce_config(
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RICHARD_L,
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/inference_benchmark",
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/vllm_benchmark",
   )
 
   job_gcp_config = gcp_config.GCPConfig(
@@ -205,13 +208,14 @@ def get_gpu_inference_gce_config(
   return task.GpuCreateResourceTask(
       image_project.value,
       image_family.value,
+      install_nvidia_drivers=True,
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
   )
 
 
-def get_tpu_inference_gce_config(
+def get_tpu_vllm_gce_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: Zone,
@@ -258,7 +262,7 @@ def get_tpu_inference_gce_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RICHARD_L,
       num_slices=num_slices,
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/inference_benchmark",
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/vllm_benchmark",
   )
 
   job_metric_config = metric_config.MetricConfig(

@@ -1,4 +1,4 @@
-"""A DAG to run inference benchmarks with nightly version."""
+"""A DAG to run vllm benchmarks with nightly version."""
 
 import datetime
 import enum
@@ -7,7 +7,7 @@ from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
 from dags.vm_resource import GpuVersion, TpuVersion, Region, Zone, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, ImageProject, ImageFamily, MachineVersion, RuntimeVersion
 from dags.multipod.configs.common import SetupMode, Platform
-from dags.solutions_team.configs.inference import inference_benchmark_config
+from dags.solutions_team.configs.vllm import vllm_benchmark_config
 
 
 # Run once a day at 6 am UTC (10 pm PST)
@@ -20,13 +20,13 @@ class AcceleratorType(enum.Enum):
 
 
 with models.DAG(
-    dag_id="solutionsteam_inference_benchmark",
+    dag_id="solutionsteam_vllm_benchmark",
     schedule=SCHEDULED_TIME,
     tags=["solutions_team", "nightly", "supported", "xlml"],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
-  test_name_prefix = "solutionsteam-benchmark"
+  test_name_prefix = "solutionsteam-vllm-benchmark"
 
   # Generate a test run id in the format YYYYMMDD-HHmm to group
   # tests together.
@@ -36,10 +36,6 @@ with models.DAG(
   test_models = {
       "llama3-8b": {
           "accelerator_specs": [
-              # (
-              #    AcceleratorType.GPU,
-              #    (MachineVersion.G2_STAND_48, GpuVersion.L4, 4),
-              # ),
               (
                   AcceleratorType.GPU,
                   (MachineVersion.A2_HIGHGPU_1G, GpuVersion.A100, 1),
@@ -89,7 +85,7 @@ with models.DAG(
             network = V5_NETWORKS
             subnetwork = V5E_SUBNETWORKS
 
-            inference_benchmark_config.get_tpu_inference_gce_config(
+            vllm_benchmark_config.get_tpu_vllm_gce_config(
                 tpu_version=tpu_version,
                 tpu_cores=tpu_cores,
                 tpu_zone=zone,
@@ -113,7 +109,7 @@ with models.DAG(
             network = INFERENCE_NETWORKS
             subnetwork = H100_INFERENCE_SUBNETWORKS
 
-            inference_benchmark_config.get_gpu_inference_gce_config(
+            vllm_benchmark_config.get_gpu_vllm_gce_config(
                 machine_version=machine_version,
                 image_project=image_project,
                 image_family=image_family,
