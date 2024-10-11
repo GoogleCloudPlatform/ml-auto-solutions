@@ -208,6 +208,6 @@ local utils = import 'templates/utils.libsonnet';
   configs: [
     llama2 + v4_8 + infer + timeouts.Hours(3),
     llama2 + v4_8 + spmd + timeouts.Hours(3),
-    llama3_8 + v5_8 + trainv6e + timeouts.Hours(3),
+    llama3_8 + v5p_8 + trainv6e + timeouts.Hours(3),
   ],
 }
