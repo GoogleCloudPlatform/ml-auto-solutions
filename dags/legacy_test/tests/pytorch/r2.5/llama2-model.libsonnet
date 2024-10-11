@@ -204,6 +204,13 @@ local utils = import 'templates/utils.libsonnet';
   v4_8:: {
     accelerator: tpus.v4_8,
   },
+  local v5p_8 = self.v5p_8,
+  v5p_8:: {
+    tpuSettings+: {
+      softwareVersion: 'v2-alpha-tpuv5',
+    },
+    accelerator: tpus.v5p_8,
+  },
 
   configs: [
     llama2 + v4_8 + infer + timeouts.Hours(3),
