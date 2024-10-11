@@ -133,8 +133,8 @@ local utils = import 'templates/utils.libsonnet';
       |||,
     },
   },
-  local trainv6e = self.spmd,
-  spmd:: common.Functional + common.PyTorchTpuVmMixin {
+  local trainv6e = self.trainv6e,
+  trainv6e:: common.Functional + common.PyTorchTpuVmMixin {
     modelName+: '-train-v6e',
     command: [
       'python',
