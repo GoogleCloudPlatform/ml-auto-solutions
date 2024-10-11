@@ -23,6 +23,10 @@ local utils = import 'templates/utils.libsonnet';
   llama2:: common.PyTorchTest {
     modelName: 'llama2',
   },
+  local llama3_8 = self.llama3_8,
+  llama3_8:: common.PyTorchTest {
+    modelName: 'llama3_8',
+  },
 
   local infer = self.infer,
   infer:: common.Functional + common.PyTorchTpuVmMixin {
@@ -129,6 +133,72 @@ local utils = import 'templates/utils.libsonnet';
       |||,
     },
   },
+  local trainv6e = self.spmd,
+  spmd:: common.Functional + common.PyTorchTpuVmMixin {
+    modelName+: '-train-v6e',
+    command: [
+      'python',
+      'examples/pytorch/language-modeling/run_clm.py',
+      '--dataset_name=wikitext',
+      '--dataset_config_name=wikitext-2-raw-v1',
+      '--per_device_train_batch_size=8',
+      '--do_train',
+      '--output_dir=./tmp/test-clm',
+      '--overwrite_output_dir',
+      '--config_name=./config-8B.json',
+      '--cache_dir=./cache',
+      '--tokenizer_name=meta-llama/Meta-Llama-3-8B',
+      '--block_size=8192',
+      '--optim=adafactor',
+      '--save_strategy=no',
+      '--logging_strategy=no',
+      '--fsdp=full_shard',
+      '--fsdp_config=./fsdp-config.json',
+      '--torch_dtype=bfloat16',
+      '--dataloader_drop_last=yes',
+      '--flash_attention',
+      '--max_steps=10',
+    ],
+    tpuSettings+: {
+      tpuVmExports+: |||
+        export JAX_PLATFORMS=tpu,cpu
+        export PJRT_DEVICE=TPU
+        export XLA_IR_DEBUG=1
+        export XLA_HLO_DEBUG=1
+        export PROFILE_EPOCH=0
+        export PROFILE_STEP=3
+        export PROFILE_DURATION_MS=40000
+        export PROFILE_LOGDIR=.
+        export XLA_USE_SPMD=1
+        export XLA_PERSISTENT_CACHE_PATH=./xla_cache
+        export HF_TOKEN=your_HF_token
+      |||,
+      tpuVmExtraSetup: |||
+        # # install tokenizer model
+        # gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
+
+        # git clone and build transformers ### llama/transformers/
+        git clone -b alanwaketan/flash_attention https://github.com/bhavya01/pytorch-tpu.git
+
+        cd pytorch-tpu
+        sudo pip3 install -e .
+        pip3 install datasets
+        pip3 install evaluate
+        pip3 install scikit-learn
+        pip3 install accelerate
+        pip3 install transformers
+        pip3 install torch_xla~=2.4.0
+
+        # Use this if you're using public TPUs (e.g. v5e)
+        pip3 install torch_xla[tpu]~=2.4.0 -f https://storage.googleapis.com/libtpu-releases/index.html
+        pip3 install -U torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html
+
+        # setup env
+        pip3 install "huggingface_hub[cli]"
+        ~/.local/bin/huggingface-cli login
+      |||,
+    },
+  },
 
   local v4_8 = self.v4_8,
   v4_8:: {
@@ -138,5 +208,6 @@ local utils = import 'templates/utils.libsonnet';
   configs: [
     llama2 + v4_8 + infer + timeouts.Hours(3),
     llama2 + v4_8 + spmd + timeouts.Hours(3),
+    llama3_8 + v5_8 + trainv6e + timeouts.Hours(3),
   ],
 }
