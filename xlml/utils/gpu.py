@@ -188,7 +188,11 @@ def create_resource(
     machine_type = accelerator.machine_type
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
-    disks = [disk_from_image(disk_type, True, image.self_link, accelerator.disk_size_gb)]
+    disks = [
+        disk_from_image(
+            disk_type, True, image.self_link, accelerator.disk_size_gb
+        )
+    ]
     if accelerator.attach_local_ssd:
       for _ in range(accelerator.count):
         disks.append(local_ssd_disk(gcp.zone))
