@@ -135,7 +135,7 @@ local utils = import 'templates/utils.libsonnet';
   },
   local llama3_8b = self.llama3_8b,
   llama3_8b:: common.Functional + common.PyTorchTpuVmMixin {
-    modelName+: '-llama3-8b-train',
+    modelName+: '-llama3-8b',
     command: [
       'python',
       'examples/pytorch/language-modeling/run_clm.py',
