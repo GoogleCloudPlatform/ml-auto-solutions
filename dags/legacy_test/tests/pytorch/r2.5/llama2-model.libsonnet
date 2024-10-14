@@ -171,7 +171,7 @@ local utils = import 'templates/utils.libsonnet';
         pip3 install accelerate
         pip3 install transformers
         # # install tokenizer model
-        gsutil cp -r gs://tpu-pytorch/ptxla-debug/llama_3/ .
+        gsutil cp -r gs://tpu-pytorch/llama_3/ .
 
         pip install jax==0.4.33 -f https://storage.googleapis.com/jax-releases/jax_releases.html
         pip install jaxlib==0.4.33 -f https://storage.googleapis.com/jax-releases/jaxlib_releases.html
