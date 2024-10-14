@@ -321,16 +321,15 @@ class GpuCreateResourceTask(BaseTask):
     task_gcp_config: gcp related config (e.g., zone, project) for the task.
     task_metric_config: metric configuration (e.g., result gcs path).
     gpu_create_timeout: timeout when waiting for the GPU vm creation.
-
   """
 
   image_project: str
   image_family: str
-  install_nvidia_drivers: bool
   task_test_config: test_config.TestConfig[test_config.Gpu]
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
   gpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
+  install_nvidia_drivers: bool = False
 
   def run(self) -> DAGNode:
     """Run a test job.

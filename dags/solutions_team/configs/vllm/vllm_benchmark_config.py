@@ -208,10 +208,10 @@ def get_gpu_vllm_gce_config(
   return task.GpuCreateResourceTask(
       image_project.value,
       image_family.value,
-      install_nvidia_drivers=True,
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
+      install_nvidia_drivers=True,
   )
 
 
