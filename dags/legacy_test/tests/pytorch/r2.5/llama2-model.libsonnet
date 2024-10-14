@@ -133,9 +133,9 @@ local utils = import 'templates/utils.libsonnet';
       |||,
     },
   },
-  local trainv6e = self.trainv6e,
-  trainv6e:: common.Functional + common.PyTorchTpuVmMixin {
-    modelName+: '-train-v6e',
+  local llama3_8b = self.llama3_8b,
+  llama3_8b:: common.Functional + common.PyTorchTpuVmMixin {
+    modelName+: '-llama3-8b-train',
     command: [
       'python',
       'examples/pytorch/language-modeling/run_clm.py',
@@ -215,6 +215,6 @@ local utils = import 'templates/utils.libsonnet';
   configs: [
     llama2 + v4_8 + infer + timeouts.Hours(3),
     llama2 + v4_8 + spmd + timeouts.Hours(3),
-    llama3_8 + v5p_8 + trainv6e + timeouts.Hours(3),
+    llama3_8 + v5p_8 + llama3_8b + timeouts.Hours(3),
   ],
 }
