@@ -53,9 +53,9 @@ def get_image_from_family(project: str, family: str) -> compute_v1.Image:
 
 def disk_from_image(
     disk_type: str,
-    disk_size_gb: int,
     boot: bool,
     source_image: str,
+    disk_size_gb: int = 100,
     auto_delete: bool = True,
 ) -> compute_v1.AttachedDisk:
   """
@@ -91,6 +91,26 @@ def disk_from_image(
   boot_disk.auto_delete = auto_delete
   boot_disk.boot = boot
   return boot_disk
+
+
+def local_ssd_disk(zone: str) -> compute_v1.AttachedDisk:
+  """
+  Create an AttachedDisk object to be used in VM instance creation. The created disk contains
+  no data and requires formatting before it can be used.
+
+  Args:
+      zone: The zone in which the local SSD drive will be attached.
+
+  Returns:
+      AttachedDisk object configured as a local SSD disk.
+  """
+  disk = compute_v1.AttachedDisk(interface="NVME")
+  disk.type_ = compute_v1.AttachedDisk.Type.SCRATCH.name
+  initialize_params = compute_v1.AttachedDiskInitializeParams()
+  initialize_params.disk_type = f"zones/{zone}/diskTypes/local-ssd"
+  disk.initialize_params = initialize_params
+  disk.auto_delete = True
+  return disk
 
 
 def create_metadata(key_val: Dict[str, str]) -> compute_v1.Metadata:
@@ -173,7 +193,14 @@ def create_resource(
     machine_type = accelerator.machine_type
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"
-    disks = [disk_from_image(disk_type, 100, True, image.self_link)]
+    disks = [
+        disk_from_image(
+            disk_type, True, image.self_link, accelerator.disk_size_gb
+        )
+    ]
+    if accelerator.attach_local_ssd:
+      for _ in range(accelerator.count):
+        disks.append(local_ssd_disk(gcp.zone))
     metadata = create_metadata({
         "install-nvidia-driver": str(install_nvidia_drivers),
         "proxy-mode": "project_editors",
@@ -281,6 +308,7 @@ def create_resource(
                 "Error during resource creation: [Code:"
                 f" {operation.http_error_status_code}]:"
                 f" {operation.http_error_message}"
+                f" {operation.error}"
             ),
         )
         raise operation.exception() or RuntimeError(

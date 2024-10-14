@@ -41,6 +41,12 @@ INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
 H100_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
+A100_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
+L4_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
 
 
 class Project(enum.Enum):
@@ -105,6 +111,9 @@ class Zone(enum.Enum):
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
+  # reserved l4 in cloud-tpu-inference-test
+  ASIA_EAST1_A = "asia-east1-a"
+  ASIA_EAST1_C = "asia-east1-c"
 
 
 class MachineVersion(enum.Enum):
@@ -143,6 +152,7 @@ class GpuVersion(enum.Enum):
 
   L4 = "nvidia-l4"
   A100 = "nvidia-tesla-a100"
+  A100_80G = "nvidia-a100-80gb"
   H100 = "nvidia-h100-80gb"
   XPK_H100 = "h100-80gb-8"
   XPK_H100_MEGA = "h100-mega-80gb-8"
