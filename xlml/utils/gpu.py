@@ -138,6 +138,7 @@ def create_resource(
     gcp: gcp_config.GCPConfig,
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
+    install_nvidia_drivers: bool = False,
 ) -> airflow.XComArg:
   """Request a resource and wait until the nodes are created.
 
@@ -149,6 +150,7 @@ def create_resource(
     gcp: GCP project/zone configuration.
     ssh_kpeys: XCom value for SSH keys to communicate with these GPUs.
     timeout: Amount of time to wait for GPUs to be created.
+    install_nvidia_drivers: Whether to install Nvidia drivers.
 
   Returns:
     The ip address of the GPU VM.
@@ -165,6 +167,7 @@ def create_resource(
       external_access=True,
       spot: bool = False,
       delete_protection: bool = False,
+      install_nvidia_drivers: bool = False,
   ) -> airflow.XComArg:
     """
     Send an instance creation request to the Compute Engine API and wait for
@@ -182,6 +185,8 @@ def create_resource(
             or not.
         delete_protection: boolean value indicating if the new virtual machine
             should be protected against deletion or not.
+        install_nvidia_drivers: boolean value indicating whether to install
+            Nvidia drivers.
     Returns:
         Ip address of the instance object created.
     """
@@ -197,7 +202,7 @@ def create_resource(
       for _ in range(accelerator.count):
         disks.append(local_ssd_disk(gcp.zone))
     metadata = create_metadata({
-        "install-nvidia-driver": "False",
+        "install-nvidia-driver": str(install_nvidia_drivers),
         "proxy-mode": "project_editors",
         "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
     })
@@ -336,6 +341,7 @@ def create_resource(
       accelerator=accelerator,
       ssh_keys=ssh_keys,
       instance_termination_action="STOP",
+      install_nvidia_drivers=install_nvidia_drivers,
   )
   ip_address = get_ip_address(gpu_name)
   wait_for_resource_creation(operation) >> ip_address
