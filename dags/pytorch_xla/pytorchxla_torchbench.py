@@ -50,6 +50,22 @@ with models.DAG(
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
+  # Running on V5E
+  config.get_torchbench_tpu_config(
+      tpu_version=resource.TpuVersion.V5E,
+      tpu_cores=4,
+      project=resource.Project.CLOUD_ML_BENCHMARKING,
+      tpu_zone=resource.Zone.US_WEST1_C,
+      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE,
+      network=resource.BM_NETWORKS,
+      subnetwork=resource.V5E_BM_SUBNETWORKS,
+      time_out_in_min=1600,
+      model_name=model,
+      reserved=False,
+      preemptible=False,
+      extraFlags=" ".join(torchbench_extra_flags),
+  )
+
   # Running on V5P
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V5P,
@@ -66,15 +82,15 @@ with models.DAG(
       extraFlags=" ".join(torchbench_extra_flags),
   )
 
-  # Running on V5E
+  # Running on V6E
   config.get_torchbench_tpu_config(
-      tpu_version=resource.TpuVersion.V5E,
-      tpu_cores=4,
+      tpu_version=resource.TpuVersion.TRILLIUM,
+      tpu_cores=8,
       project=resource.Project.CLOUD_ML_BENCHMARKING,
-      tpu_zone=resource.Zone.US_WEST1_C,
-      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE,
+      tpu_zone=resource.Zone.US_CENTRAL2_B,
+      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV6,
       network=resource.BM_NETWORKS,
-      subnetwork=resource.V5E_BM_SUBNETWORKS,
+      subnetwork=resource.V4_BM_SUBNETWORKS,
       time_out_in_min=1600,
       model_name=model,
       reserved=False,

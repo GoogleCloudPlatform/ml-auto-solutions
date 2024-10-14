@@ -4,7 +4,7 @@ import datetime
 from airflow import models
 from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
+from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.inference.configs import jetstream_pytorch_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
 import numpy as np
@@ -26,7 +26,7 @@ with models.DAG(
           "model_name": "llama-3",
           "size": "8b",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama3-8b",
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama3-8b-quantized",
           "dataset": "openorca",
@@ -43,7 +43,7 @@ with models.DAG(
           "model_name": "llama-2",
           "size": "7b",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-7b-chat/pytorch/llama-2-7b-chat-merged",
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-7b-chat/pytorch/llama-2-7b-chat-merged-int8-per-channel",
           "dataset": "openorca",
@@ -60,7 +60,7 @@ with models.DAG(
           "model_name": "gemma",
           "size": "7b",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
           "checkpoint": "gs://inference-benchmarks/models/gemma-7b/pytorch/gemma-7b-merged-int8-per-channel",
           "checkpoint_quantized": "gs://inference-benchmarks/models/gemma-7b/pytorch/gemma-7b-merged-int8-per-channel",
           "dataset": "openorca",
@@ -77,7 +77,7 @@ with models.DAG(
           "model_name": "llama-2",
           "size": "13b",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
           "checkpoint": "gs://inference-benchmarks/models/llama2-13b-chat/pytorch/llama-2-13b-chat-merged",
           "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-13b-chat/pytorch/llama-2-13b-chat-merged-int8-per-channel",
           "dataset": "openorca",
@@ -150,11 +150,19 @@ with models.DAG(
             continue
 
           # v5e e2e test with benchmarks
-          project_name = Project.TPU_PROD_ENV_AUTOMATED.value
-          zone = Zone.US_EAST1_C.value
-          network = V5_NETWORKS
-          subnetwork = V5E_SUBNETWORKS
-          runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+          if tpu_version == TpuVersion.TRILLIUM:
+            project_name = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+            zone = Zone.EUROPE_WEST4_A.value
+            network = V6E_GCE_NETWORK
+            subnetwork = V6E_GCE_SUBNETWORK
+            runtime_version = RuntimeVersion.V2_ALPHA_TPUV6.value
+
+          else:
+            project_name = Project.TPU_PROD_ENV_AUTOMATED.value
+            zone = Zone.US_EAST1_C.value
+            network = V5_NETWORKS
+            subnetwork = V5E_SUBNETWORKS
+            runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
 
           jetstream_pytorch_nightly_1slice = jetstream_pytorch_gce_config.get_jetstream_pytorch_inference_nightly_config(
               tpu_version=tpu_version,
