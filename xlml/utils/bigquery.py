@@ -19,6 +19,7 @@ import dataclasses
 import datetime
 import enum
 import math
+import numbers
 from typing import Iterable, Optional
 
 from absl import logging
@@ -112,8 +113,11 @@ class BigQueryMetricClient:
 
   def is_valid_metric(self, value: float):
     """Check if float metric is valid for BigQuery table."""
-    invalid_values = [math.inf, -math.inf, math.nan]
-    return not (value in invalid_values or math.isnan(value))
+    if isinstance(value, numbers.Number) and not isinstance(value, bool):
+      invalid_values = [math.inf, -math.inf, math.nan]
+      return not (value in invalid_values or math.isnan(value))
+
+    return False
 
   def insert(self, test_runs: Iterable[TestRun]) -> None:
     """Insert Benchmark test runs into the table.
