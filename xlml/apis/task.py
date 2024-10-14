@@ -316,7 +316,6 @@ class GpuCreateResourceTask(BaseTask):
   Attributes:
     image_project: the project that an image belongs to.
     image_family: the family group that an image belongs to.
-    install_nvidia_drivers: whether to install Nvidia drivers.
     task_test_config: task configutation.
     task_gcp_config: gcp related config (e.g., zone, project) for the task.
     task_metric_config: metric configuration (e.g., result gcs path).
@@ -326,7 +325,6 @@ class GpuCreateResourceTask(BaseTask):
 
   image_project: str
   image_family: str
-  install_nvidia_drivers: bool
   task_test_config: test_config.TestConfig[test_config.Gpu]
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
@@ -411,7 +409,6 @@ class GpuCreateResourceTask(BaseTask):
           self.task_gcp_config,
           ssh_keys,
           timeout=self.gpu_create_timeout,
-          install_nvidia_drivers=self.install_nvidia_drivers,
       )
 
       ip_address >> gpu.ssh_host.override(task_id="setup")(

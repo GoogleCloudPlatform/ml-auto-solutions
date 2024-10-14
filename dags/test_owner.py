@@ -60,9 +60,5 @@ XIANG_S = "Xiang S."
 MORGAN_D = "Morgan D."
 YIJIA_J = "Yijia J."
 
-# 3P Ecosystems
-RICHARD_L = "Richard L."
-WENXIN_D = "Wenxin D."
-
 # FRAMEWORK
 QINY_Y = "Qinyi Y."

@@ -112,9 +112,6 @@ class BigQueryMetricClient:
 
   def is_valid_metric(self, value: float):
     """Check if float metric is valid for BigQuery table."""
-    if not isinstance(value, float):
-      return False
-
     invalid_values = [math.inf, -math.inf, math.nan]
     return not (value in invalid_values or math.isnan(value))
 

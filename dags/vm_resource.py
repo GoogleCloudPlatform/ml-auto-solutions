@@ -124,16 +124,12 @@ class MachineVersion(enum.Enum):
   N1_STANDARD_32 = "n1-standard-32"
   A2_HIGHGPU_1G = "a2-highgpu-1g"
   A2_HIGHGPU_4G = "a2-highgpu-4g"
-  A2_ULTRAGPU_1G = "a2-ultragpu-1g"
-  A2_ULTRAGPU_2G = "a2-ultragpu-2g"
-  A2_ULTRAGPU_4G = "a2-ultragpu-4g"
   A2_ULTRAGPU_8G = "a2-ultragpu-8g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
   G2_STAND_32 = "g2-standard-32"  # 128GB memroy
-  G2_STAND_48 = "g2-standard-48"  # 4 GPUs, 192GB memory
-  G2_STAND_96 = "g2-standard-96"  # 8 GPUs, 384GB memory
+  G2_STAND_96 = "g2-standard-96"
 
 
 class TpuVersion(enum.Enum):
