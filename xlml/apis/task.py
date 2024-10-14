@@ -316,11 +316,11 @@ class GpuCreateResourceTask(BaseTask):
   Attributes:
     image_project: the project that an image belongs to.
     image_family: the family group that an image belongs to.
-    install_nvidia_drivers: whether to install Nvidia drivers.
     task_test_config: task configutation.
     task_gcp_config: gcp related config (e.g., zone, project) for the task.
     task_metric_config: metric configuration (e.g., result gcs path).
     gpu_create_timeout: timeout when waiting for the GPU vm creation.
+    install_nvidia_drivers: whether to install Nvidia drivers.
   """
 
   image_project: str
