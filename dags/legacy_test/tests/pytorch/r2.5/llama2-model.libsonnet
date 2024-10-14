@@ -23,10 +23,6 @@ local utils = import 'templates/utils.libsonnet';
   llama2:: common.PyTorchTest {
     modelName: 'llama2',
   },
-  local llama3_8 = self.llama3_8,
-  llama3_8:: common.PyTorchTest {
-    modelName: 'llama3_8',
-  },
 
   local infer = self.infer,
   infer:: common.Functional + common.PyTorchTpuVmMixin {
@@ -133,27 +129,27 @@ local utils = import 'templates/utils.libsonnet';
       |||,
     },
   },
-  local llama3_8b = self.llama3_8b,
-  llama3_8b:: common.Functional + common.PyTorchTpuVmMixin {
-    modelName+: '-llama3-8b',
+  local llama3_train = self.llama3_train,
+  llama3_train:: common.PyTorchTest + common.Functional + common.PyTorchTpuVmMixin {
+    modelName: 'llama3-train',
     command: [
       'python',
       'examples/pytorch/language-modeling/run_clm.py',
       '--dataset_name=wikitext',
       '--dataset_config_name=wikitext-2-raw-v1',
-      '--per_device_train_batch_size=8',
+      '--per_device_train_batch_size=2',
       '--do_train',
       '--output_dir=./tmp/test-clm',
       '--overwrite_output_dir',
-      '--config_name=./config-8B.json',
+      '--config_name=./llama_3/config.json',
       '--cache_dir=./cache',
-      '--tokenizer_name=meta-llama/Meta-Llama-3-8B',
+      '--tokenizer_name=./llama_3/tokenizer/',
       '--block_size=8192',
       '--optim=adafactor',
       '--save_strategy=no',
       '--logging_strategy=no',
       '--fsdp=full_shard',
-      '--fsdp_config=./fsdp-config.json',
+      '--fsdp_config=./llama_3/fsdp_config.json',
       '--torch_dtype=bfloat16',
       '--dataloader_drop_last=yes',
       '--flash_attention',
@@ -161,43 +157,24 @@ local utils = import 'templates/utils.libsonnet';
     ],
     tpuSettings+: {
       tpuVmExports+: |||
-        export JAX_PLATFORMS=tpu,cpu
         export PJRT_DEVICE=TPU
-        export XLA_IR_DEBUG=1
-        export XLA_HLO_DEBUG=1
-        export PROFILE_EPOCH=0
-        export PROFILE_STEP=3
-        export PROFILE_DURATION_MS=40000
-        export PROFILE_LOGDIR=.
         export XLA_USE_SPMD=1
-        export XLA_PERSISTENT_CACHE_PATH=./xla_cache
-        export HF_TOKEN=your_HF_token
       |||,
       tpuVmExtraSetup: |||
-        # # install tokenizer model
-        # gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
-
-        # git clone and build transformers ### llama/transformers/
         git clone -b flash_attention https://github.com/pytorch-tpu/transformers.git
 
-        cd pytorch-tpu
+        cd transformers
         sudo pip3 install -e .
         pip3 install datasets
         pip3 install evaluate
         pip3 install scikit-learn
         pip3 install accelerate
         pip3 install transformers
-        pip3 install torch_xla~=2.4.0
+        # # install tokenizer model
+        gsutil cp -r gs://tpu-pytorch/ptxla-debug/llama_3/ .
 
-        # Use this if you're using public TPUs (e.g. v5e)
-        # pip3 install -U torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_releases.html
-        # pip install jaxlib==0.3.25 -f https://storage.googleapis.com/jax-releases/jax_releases.html
         pip install jax==0.4.33 -f https://storage.googleapis.com/jax-releases/jax_releases.html
         pip install jaxlib==0.4.33 -f https://storage.googleapis.com/jax-releases/jaxlib_releases.html
-
-        # setup env
-        pip3 install "huggingface_hub[cli]"
-        ~/.local/bin/huggingface-cli login
       |||,
     },
   },
@@ -206,6 +183,7 @@ local utils = import 'templates/utils.libsonnet';
   v4_8:: {
     accelerator: tpus.v4_8,
   },
+
   local v5p_8 = self.v5p_8,
   v5p_8:: {
     tpuSettings+: {
@@ -214,9 +192,18 @@ local utils = import 'templates/utils.libsonnet';
     accelerator: tpus.v5p_8,
   },
 
+  local trillium_4 = self.trillium_4,
+  trillium_4:: {
+    tpuSettings+: {
+      softwareVersion: 'v2-alpha-tpuv6e',
+    },
+    accelerator: tpus.trillium_4,
+  },
+
   configs: [
     llama2 + v4_8 + infer + timeouts.Hours(3),
     llama2 + v4_8 + spmd + timeouts.Hours(3),
-    llama3_8 + v5p_8 + llama3_8b + timeouts.Hours(3),
+    llama3_train + v5p_8 + timeouts.Hours(3),
+    llama3_train + trillium_4 + timeouts.Hours(3),
   ],
 }
