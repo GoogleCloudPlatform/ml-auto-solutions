@@ -5,18 +5,13 @@ import enum
 from airflow import models
 from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
-from dags.vm_resource import GpuVersion, TpuVersion, Region, Zone, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, ImageProject, ImageFamily, MachineVersion, RuntimeVersion
+from dags.vm_resource import AcceleratorType, GpuVersion, TpuVersion, Region, Zone, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, ImageProject, ImageFamily, MachineVersion, RuntimeVersion
 from dags.multipod.configs.common import SetupMode, Platform
 from dags.solutions_team.configs.vllm import vllm_benchmark_config
 
 
 # Run once a day at 6 am UTC (10 pm PST)
 SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
-
-
-class AcceleratorType(enum.Enum):
-  GPU = "GPU"
-  TPU = "TPU"
 
 
 with models.DAG(

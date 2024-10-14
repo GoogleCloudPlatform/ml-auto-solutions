@@ -136,6 +136,12 @@ class MachineVersion(enum.Enum):
   G2_STAND_96 = "g2-standard-96"  # 8 GPUs, 384GB memory
 
 
+class AcceleratorType(enum.Enum):
+  CPU = "CPU"
+  GPU = "GPU"
+  TPU = "TPU"
+
+
 class TpuVersion(enum.Enum):
   """Common TPU versions."""
 
