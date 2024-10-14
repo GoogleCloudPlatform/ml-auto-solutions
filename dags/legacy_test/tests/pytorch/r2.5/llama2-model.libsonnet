@@ -116,7 +116,7 @@ local utils = import 'templates/utils.libsonnet';
         gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
         # git clone and build transformers ### llama/transformers/
-        git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.gitz
+        git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.git
         cd transformers
         sudo pip3 uninstall transformers
         sudo pip3 install -e .
