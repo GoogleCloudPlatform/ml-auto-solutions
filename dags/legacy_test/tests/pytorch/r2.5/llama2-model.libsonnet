@@ -190,8 +190,10 @@ local utils = import 'templates/utils.libsonnet';
         pip3 install torch_xla~=2.4.0
 
         # Use this if you're using public TPUs (e.g. v5e)
-        pip3 install torch_xla[tpu]~=2.4.0 -f https://storage.googleapis.com/libtpu-releases/index.html
-        pip3 install -U torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html
+        # pip3 install -U torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_releases.html
+        # pip install jaxlib==0.3.25 -f https://storage.googleapis.com/jax-releases/jax_releases.html
+        pip install jax==0.4.33 -f https://storage.googleapis.com/jax-releases/jax_releases.html
+        pip install jaxlib==0.4.33 -f https://storage.googleapis.com/jax-releases/jaxlib_releases.html
 
         # setup env
         pip3 install "huggingface_hub[cli]"
