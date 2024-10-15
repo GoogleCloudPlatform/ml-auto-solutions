@@ -58,6 +58,12 @@ US_CENTRAL2_B_TPU_PROD_ENV = gcp_config.GCPConfig(
     dataset_name=metric_config.DatasetOption.XLML_DATASET,
 )
 
+US_EAST5_A_TPU_PROD_ENV_AUTOMATED = gcp_config.GCPConfig(
+    Project.TPU_PROD_ENV_AUTOMATED.value,
+    Zone.US_EAST5_A.value,
+    metric_config.DatasetOption.XLML_DATASET,
+)
+
 
 @task_group(prefix_group_id=False)
 def torchvision():
@@ -180,19 +186,19 @@ def llama():
   )
   llama_2_inference_v5_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-5-llama2-infer-func-v5litepod-8-1vm",
+          "pt-2-5-llama2-infer-func-v5p-8-1vm",
           network=V5_NETWORKS,
-          subnetwork=V6E_SUBNETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
       ),
-      US_CENTRAL2_B_TPU_PROD_ENV,
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
   )
   llama_2_train_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-5-llama2-train-spmd-func-v5litepod-8-1vm",
+          "pt-2-5-llama2-train-spmd-func-v5p-8-1vm",
           network=V5_NETWORKS,
-          subnetwork=V6E_SUBNETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
       ),
-      US_CENTRAL2_B_TPU_PROD_ENV,
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
   )
   llama_3_train_trillium = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
@@ -204,11 +210,11 @@ def llama():
   )
   llama_3_train_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-5-llama3-train-func-v5litepod-8-1vm",
+          "pt-2-5-llama3-train-func-v5p-8-1vm",
           network=V5_NETWORKS,
-          subnetwork=V6E_SUBNETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
       ),
-      US_CENTRAL2_B_TPU_PROD_ENV,
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
   )
 
 
