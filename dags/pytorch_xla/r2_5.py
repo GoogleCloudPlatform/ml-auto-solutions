@@ -187,6 +187,7 @@ def llama():
   llama_2_inference_v5_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-5-llama2-infer-func-v5p-8-1vm",
+          reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
       ),
@@ -196,6 +197,7 @@ def llama():
   llama_2_train_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-5-llama2-train-spmd-func-v5p-8-1vm",
+          reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
       ),
@@ -213,11 +215,12 @@ def llama():
   llama_3_train_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-5-llama3-train-func-v5p-8-1vm",
+          reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
       ),
       US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
-      reserved=True,
+      
   )
 
 
