@@ -58,7 +58,8 @@ def get_jetstream_pytorch_inference_nightly_config(
       "source .env/bin/activate",
       # Setup jetstream-pytorch
       "git clone https://github.com/google/jetstream-pytorch.git",
-      "cd jetstream-pytorch && source install_everything.sh",
+      "cd jetstream-pytorch", 
+      "source install_everything.sh",
       """pip install -r deps/JetStream/benchmarks/requirements.in \
                      -r deps/JetStream/requirements.txt """,
   )
@@ -80,32 +81,25 @@ def get_jetstream_pytorch_inference_nightly_config(
       # Configure flags
       f"export MODEL_NAME={model_configs['model_name']}",
       f"export SIZE={model_configs['size']}",
+      f"export MODEL_ID={model_configs['model_id']}",
       f"export BATCH_SIZE={model_configs['batch_size']}",
-      f"export MAX_CACHE_LEN={model_configs['max_cache_length']}",
       f"export CKPT_PATH={model_configs['checkpoint']}",
-      f"export TOKENIZER_PATH=/dev/shm/ckpt_dir/{model_configs['tokenizer']}",
-      f"export SHARDING_CONFIG={model_configs['sharding_config']}",
       f"export QUANTIZE={str(model_configs['quantize'])}",
-      f"export QUANTIZE_KV_CACHE={str(model_configs['quantize'])}",
-      "mkdir -p /dev/shm/ckpt_dir",
-      "gsutil cp -r ${CKPT_PATH}/* /dev/shm/ckpt_dir/",
+      "mkdir -p /dev/shm/ckpt_dir/${MODEL_ID}/hf_original",
+      "gsutil cp -r ${CKPT_PATH}/* /dev/shm/ckpt_dir/${MODEL_ID}/hf_original/",
       # Start jetstream-pytorch server in the background
-      """python run_server.py \
-        --model_name=${MODEL_NAME} \
-        --size=${SIZE} \
-        --batch_size=${BATCH_SIZE} \
-        --max_cache_length=${MAX_CACHE_LEN} \
-        --checkpoint_path=/dev/shm/ckpt_dir \
-        --tokenizer_path=${TOKENIZER_PATH} \
-        --quantize_weights=${QUANTIZE} \
-        --quantize_kv_cache=${QUANTIZE_KV_CACHE} \
-        --sharding_config=${SHARDING_CONFIG} &""",
+      """jpt serve \
+        --model_id=${MODEL_ID} \
+        --working_dir=/dev/shm/ckpt_dir \
+        --override_batch_size=${BATCH_SIZE} \
+        --internal_use_local_tokenizer=True \
+        --quantize_weights=${QUANTIZE}&""",
       "pip install --force-reinstall --no-deps nltk==3.8.1",
       # Give server time to start
       f"sleep {model_configs['sleep_time']}",
       # Run benchmark, run eval, save benchmark and eval results, and save predictions to /tmp/request-outputs.json
       f"""python deps/JetStream/benchmarks/benchmark_serving.py \
-      --tokenizer /dev/shm/ckpt_dir/{model_configs['tokenizer']} \
+      --tokenizer /dev/shm/ckpt_dir/{model_configs['model_id']}/hf_original/tokenizer.model \
       --model {model_configs['model_name']} \
       --num-prompts {model_configs['num_prompts']}  \
       --dataset {model_configs['dataset']} \
