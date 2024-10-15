@@ -17,7 +17,7 @@ from airflow.decorators import task_group
 from airflow import models
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import composer_env
-from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V6E_SUBNETWORKS
+from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, V6E_SUBNETWORKS
 
 
 # Run once a day at 2 pm UTC (6 am PST)
