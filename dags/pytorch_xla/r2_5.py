@@ -178,6 +178,14 @@ def llama():
       ),
       US_CENTRAL2_B,
   )
+  llama_3_train_trillium = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-2-5-llama3-train-func-v6e-4-1vm",
+          network=V5_NETWORKS,
+          subnetwork=V6E_SUBNETWORKS,
+      ),
+      US_CENTRAL2_B_TPU_PROD_ENV,
+  )
 
 
 with models.DAG(
