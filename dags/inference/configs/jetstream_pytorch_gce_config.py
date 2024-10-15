@@ -58,7 +58,7 @@ def get_jetstream_pytorch_inference_nightly_config(
       "source .env/bin/activate",
       # Setup jetstream-pytorch
       "git clone https://github.com/google/jetstream-pytorch.git",
-      "cd jetstream-pytorch", 
+      "cd jetstream-pytorch",
       "source install_everything.sh",
       """pip install -r deps/JetStream/benchmarks/requirements.in \
                      -r deps/JetStream/requirements.txt """,

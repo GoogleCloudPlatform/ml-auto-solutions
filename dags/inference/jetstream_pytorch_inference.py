@@ -33,7 +33,7 @@ with models.DAG(
           "batch_sizes": [8, 32, 64, 128],
           "request_rate": 100,
           "num_prompts": 1000,
-          "max_output_length": 1024, 
+          "max_output_length": 1024,
           "quantize": [True, False],
       },
       "llama2-7b": {
@@ -47,7 +47,7 @@ with models.DAG(
           "batch_sizes": [8, 32, 64, 96, 128],
           "request_rate": 100,
           "num_prompts": 1000,
-          "max_output_length": 1024, 
+          "max_output_length": 1024,
           "quantize": [True, False],
       },
       "gemma-7b": {
@@ -62,7 +62,7 @@ with models.DAG(
           "batch_sizes": [8, 32, 64, 128],
           "request_rate": 100,
           "num_prompts": 1000,
-          "max_output_length": 1024, 
+          "max_output_length": 1024,
           "quantize": [True, False],
       },
       "llama2-13b": {
@@ -77,7 +77,7 @@ with models.DAG(
           "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
           "num_prompts": 1000,
-          "max_output_length": 1024, 
+          "max_output_length": 1024,
           "quantize": [True, False],
       },
       "llama2-70b": {
@@ -92,13 +92,13 @@ with models.DAG(
           "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
           "num_prompts": 1000,
-          "max_output_length": 1024, 
+          "max_output_length": 1024,
           "quantize": [True],
       },
   }
   skip_settings = (
-    ("llama-2", "13b", 96, "False"),
-    ("llama-2", "7b", 128, "False"),
+      ("llama-2", "13b", 96, "False"),
+      ("llama-2", "7b", 128, "False"),
   )
   dags = []
   for model, sweep_model_configs in test_models.items():
