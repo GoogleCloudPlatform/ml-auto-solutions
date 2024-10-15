@@ -17,7 +17,7 @@ from airflow.decorators import task_group
 from airflow import models
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import composer_env
-from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V6E_SUBNETWORKS
+from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, V6E_SUBNETWORKS
 
 
 # Run once a day at 2 pm UTC (6 am PST)
@@ -56,6 +56,12 @@ US_CENTRAL2_B_TPU_PROD_ENV = gcp_config.GCPConfig(
     project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
     zone=Zone.US_CENTRAL2_B.value,
     dataset_name=metric_config.DatasetOption.XLML_DATASET,
+)
+
+US_EAST5_A_TPU_PROD_ENV_AUTOMATED = gcp_config.GCPConfig(
+    Project.TPU_PROD_ENV_AUTOMATED.value,
+    Zone.US_EAST5_A.value,
+    metric_config.DatasetOption.XLML_DATASET,
 )
 
 
@@ -178,6 +184,24 @@ def llama():
       ),
       US_CENTRAL2_B,
   )
+  llama_2_inference_v5_8 = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-2-5-llama2-infer-func-v5p-8-1vm",
+          reserved=True,
+          network=V5_NETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
+      ),
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
+  )
+  llama_2_train_v5p_8 = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-2-5-llama2-train-spmd-func-v5p-8-1vm",
+          reserved=True,
+          network=V5_NETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
+      ),
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
+  )
   llama_3_train_trillium = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-5-llama3-train-func-v6e-4-1vm",
@@ -185,6 +209,15 @@ def llama():
           subnetwork=V6E_SUBNETWORKS,
       ),
       US_CENTRAL2_B_TPU_PROD_ENV,
+  )
+  llama_3_train_v5p_8 = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-2-5-llama3-train-func-v5p-8-1vm",
+          reserved=True,
+          network=V5_NETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
+      ),
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
   )
 
 
