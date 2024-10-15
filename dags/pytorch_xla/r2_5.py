@@ -218,7 +218,6 @@ def llama():
           subnetwork=V5P_SUBNETWORKS,
       ),
       US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
-      
   )
 
 
