@@ -41,8 +41,8 @@ US_EAST1_D = gcp_config.GCPConfig(
     metric_config.DatasetOption.XLML_DATASET,
 )
 
-US_EAST5_A_CLOUD_ML_AUTO_SOLUTIONS = gcp_config.GCPConfig(
-    Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+US_EAST5_A_TPU_PROD_ENV_AUTOMATED = gcp_config.GCPConfig(
+    Project.TPU_PROD_ENV_AUTOMATED.value,
     Zone.US_EAST5_A.value,
     metric_config.DatasetOption.XLML_DATASET,
 )
@@ -221,9 +221,10 @@ with models.DAG(
 
   ci_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-nightly-ci-func-v5p-8-1vm",
+          test_name="pt-nightly-ci-func-v5p-8-1vm",
+          reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
       ),
-      US_EAST5_A_CLOUD_ML_AUTO_SOLUTIONS,
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
   )
