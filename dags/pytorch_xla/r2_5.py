@@ -191,6 +191,7 @@ def llama():
           subnetwork=V5P_SUBNETWORKS,
       ),
       US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
+      reserved=True,
   )
   llama_2_train_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
@@ -199,6 +200,7 @@ def llama():
           subnetwork=V5P_SUBNETWORKS,
       ),
       US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
+      reserved=True,
   )
   llama_3_train_trillium = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
@@ -215,6 +217,7 @@ def llama():
           subnetwork=V5P_SUBNETWORKS,
       ),
       US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
+      reserved=True,
   )
 
 
