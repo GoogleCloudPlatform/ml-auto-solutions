@@ -42,6 +42,7 @@ def config(
     num_slices: int = 1,
     model_configs: Dict = {},
     maxtext_branch: str = "",
+    xla_flags: str = "",
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -86,7 +87,8 @@ def config(
       "cat MaxText/metadata.json",
       ### Benchmark
       # Configure flags
-      "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
+      "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'"
+      + xla_flags,
       f"""python MaxText/inference_microbenchmark_sweep.py \
           MaxText/configs/base.yml \
           model_name={model_configs['model_name']} \

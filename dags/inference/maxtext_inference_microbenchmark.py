@@ -22,6 +22,7 @@ from airflow import models
 from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.inference.configs import maxtext_inference_microbenchmark_gce_config
 from dags.multipod.configs.common import SetupMode
+from sklearn.model_selection import ParameterGrid
 
 USER_PREFIX = ""
 MAXTEXT_BRANCH = ""
@@ -100,6 +101,61 @@ def get_concatenated_list_of_params(sweep_vm_count=1):
   )
 
 
+def generate_possible_values(min_val="", max_val="", type="", interval="0.1"):
+  possible_vals = ["None"]
+  if type == "boolean":
+    possible_vals = ["True", "False"]
+  if type == "int":
+    for i in range(min_val, max_val):
+      possible_vals.append(i)
+  if type == "flaot":
+    for i in range(min_val, max_val, interval):
+      possible_vals.append(i)
+  return possible_vals
+
+
+boolean_flags = {
+    "xla_tpu_enable_async_collective_fusion",
+    "xla_tpu_enable_async_collective_fusion_fuse_all_gather",
+    "xla_tpu_overlap_compute_collective_tc",
+    "xla_tpu_rwb_fusion",
+}
+
+int_flags = {
+    "xla_tpu_rematerialization_min_size_in_bytes": [],
+    "xla_tpu_relayout_group_size_threshold_for_reduce_scatter": [],
+    "xla_jf_spmd_threshold_for_windowed_einsum_mib": [],
+    "xla_tpu_nd_short_transfer_max_chunks": [],
+}
+float_flags = {}
+
+
+def create_flags_possible_vals_dict():
+  flags_possible_vals = {}
+  list_flags_combinations = []
+  for flag in boolean_flags.items():
+    flags_possible_vals[flag] = generate_possible_values(type="boolean")
+  for flag, val_range in int_flags.items():
+    flags_possible_vals[flag] = generate_possible_values(
+        type="int", min_val=val_range[0], max_val=val_range[1]
+    )
+  for flag, val_range in float_flags.items():
+    flags_possible_vals[flag] = generate_possible_values(
+        type="float", min_val=val_range[0], max_val=val_range[1], interval=0.1
+    )
+
+  flags_grid = ParameterGrid(flags_possible_vals)
+  for dict_ in flags_grid:
+    dict_pruned = {}
+    str_flags = ""
+    for k, v in dict_.items():
+      if v != "None":
+        dict_pruned[k] = v
+        str_flags += f" --{k}={v} "
+    list_flags_combinations.append(str_flags)
+  return list_flags_combinations
+
+
 def generate_model_configs(
     test_name_prefix,
     model_config_name,
@@ -109,6 +165,7 @@ def generate_model_configs(
     vm_number,
     tpu_version,
     tpu_cores,
+    xla_flags,
 ):
   model_configs = {}
   model_configs["model_config_name"] = model_config_name
@@ -206,6 +263,7 @@ def generate_model_configs(
           is_tpu_reserved=True,
           model_configs=model_configs,
           maxtext_branch=model_configs["maxtext_branch"],
+          xla_flags=xla_flags,
       )
   )
 
@@ -306,14 +364,16 @@ with models.DAG(
     for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
       for compute_axis_order in sweep_model_configs["compute_axis_order"]:
         for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
-          for vm_number in range(sweep_vm_count):
-            maxtext_kv_cache_layout_optimization = generate_model_configs(
-                test_name_prefix=test_name_prefix,
-                model_config_name=model_config_name,
-                sweep_model_configs=sweep_model_configs,
-                compute_axis_order=compute_axis_order,
-                ici_parallelism=ici_parallelism,
-                vm_number=vm_number,
-                tpu_version=tpu_version,
-                tpu_cores=tpu_cores,
-            )
+          for flag_combination in sweep_model_configs["xla_flags"]:
+            for vm_number in range(sweep_vm_count):
+              maxtext_kv_cache_layout_optimization = generate_model_configs(
+                  test_name_prefix=test_name_prefix,
+                  model_config_name=model_config_name,
+                  sweep_model_configs=sweep_model_configs,
+                  compute_axis_order=compute_axis_order,
+                  ici_parallelism=ici_parallelism,
+                  vm_number=vm_number,
+                  tpu_version=tpu_version,
+                  tpu_cores=tpu_cores,
+                  xla_flags=flag_combination,
+              )
