@@ -107,7 +107,9 @@ local volumes = import 'templates/volumes.libsonnet';
         pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc9-cp310-cp310-linux_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html
         pip install pillow
-        git clone --depth=1 https://github.com/pytorch/pytorch.git
+        if [ ! -d "pytorch" ]; then
+          git clone --depth=1 https://github.com/pytorch/pytorch.git
+        fi
         cd pytorch
         git clone -b v2.5.0-rc9 https://github.com/pytorch/xla.git
       |||,
