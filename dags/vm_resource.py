@@ -241,6 +241,13 @@ class XpkClusters:
       project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
       zone=Zone.US_CENTRAL2_B.value,
   )
+  TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
+      name="mlperf-v6e-256",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.EUROPE_WEST4_A.value,
+  )
   GPU_A3_CLUSTER = XpkClusterConfig(
       name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
