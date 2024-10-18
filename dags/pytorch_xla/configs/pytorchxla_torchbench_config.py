@@ -85,7 +85,7 @@ class VERSION_MAPPING:
     TORCH_XLA_REPO_BRANCH = "-b v2.4.0-rc8"
 
   class R2_5(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0%2Blibtpu-cp310-cp310-manylinux_2_28_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0-cp310-cp310-manylinux_2_28_x86_64.whl"
     TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.5.0-cp310-cp310-manylinux_2_28_x86_64.whl"
     TORCH = "torch==2.5.0"
     TORCHVISION = "torchvision==0.20.0"
