@@ -55,10 +55,17 @@ with models.DAG(
               f"export M_EXPANSION_FACTOR_REAL_DATA=2; {base_convergence_command}"
           ),
       ),
+      "maxtext-convergence-grain": (
+          (f"{base_convergence_command} DATASET_TYPE=grain"),
+      ),
+      "maxtext-convergence-hf": (
+          (f"{base_convergence_command} DATASET_TYPE=hf"),
+      ),
   }
 
+  maxtext_v4_config_tests = {}
   for test_name, run_command in convergence_tests.items():
-    maxtext_v4_configs_test = gke_config.get_gke_config(
+    maxtext_v4_config_tests[test_name] = gke_config.get_gke_config(
         cluster=XpkClusters.TPU_V4_128_CLUSTER,
         time_out_in_min=300,
         test_name=test_name,
@@ -68,3 +75,9 @@ with models.DAG(
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
     ).run_with_run_name_generation()
+
+# Test dependencies
+(
+    maxtext_v4_config_tests["maxtext-convergence-bf16"]
+    >> maxtext_v4_config_tests["maxtext-convergence-subset-hosts"]
+)
