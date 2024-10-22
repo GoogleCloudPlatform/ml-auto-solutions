@@ -63,7 +63,6 @@ def get_vllm_tpu_setup_cmds():
       # Install vllm at head
       "rm -rf vllm && git clone https://github.com/vllm-project/vllm",
       "cd vllm",
-      #"git checkout cbc2ef55292b2af6ff742095c030e8425124c005",
       # From https://docs.vllm.ai/en/latest/getting_started/tpu-installation.html
       "pip uninstall torch torch-xla -y",
       'export DATE="20240828"',
