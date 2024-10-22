@@ -36,10 +36,12 @@ with models.DAG(
   maxtext_test_configs = {
       # accelerator: list of slices to test
       "v4-16": [1, 2],
+      "v6e-256": [1],
   }
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
       "v4-8": [1],
+      "v6e-256": [1],
   }
   current_datetime = config.get_current_datetime()
   for accelerator, slices in maxtext_test_configs.items():
@@ -51,6 +53,7 @@ with models.DAG(
           cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
+              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               f"python MaxText/train.py MaxText/configs/base.yml run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxtext-jax-stable-stack-{current_datetime} "
               "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
               "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
@@ -71,6 +74,7 @@ with models.DAG(
           cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
+              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
               f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-stable-stack/automated/{current_datetime}",
