@@ -20,6 +20,7 @@ import json
 import os
 from typing import Dict
 from xlml.apis import gcp_config, metric_config, task, test_config
+from airflow.models import Variable
 from dags import test_owner
 from dags.multipod.configs import common
 from dags.vm_resource import MachineVersion, ImageFamily, ImageProject, GpuVersion, TpuVersion, Project, RuntimeVersion, Zone
@@ -28,7 +29,7 @@ from dags.vm_resource import MachineVersion, ImageFamily, ImageProject, GpuVersi
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
-HF_TOKEN = os.getenv("HF_TOKEN", None)
+HF_TOKEN = Variable.get("HF_TOKEN", None)
 
 
 def get_vllm_gpu_setup_cmds():
@@ -62,6 +63,7 @@ def get_vllm_tpu_setup_cmds():
       # Install vllm at head
       "rm -rf vllm && git clone https://github.com/vllm-project/vllm",
       "cd vllm",
+      #"git checkout cbc2ef55292b2af6ff742095c030e8425124c005",
       # From https://docs.vllm.ai/en/latest/getting_started/tpu-installation.html
       "pip uninstall torch torch-xla -y",
       'export DATE="20240828"',
