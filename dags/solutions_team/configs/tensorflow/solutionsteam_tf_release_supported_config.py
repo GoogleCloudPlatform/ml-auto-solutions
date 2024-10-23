@@ -26,11 +26,11 @@ from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
 MAJOR_VERSION = "2"
-MINOR_VERSION = "17"
+MINOR_VERSION = "18"
 PATCH_VERSION = "0"
-RELEASE_CANDIDATE = "rc1"
-LIBTPU_VERSION = "1.11.0"
-KERAS_VERSION = "2.17.0rc0"
+RELEASE_CANDIDATE = "rc2"
+LIBTPU_VERSION = "1.12.0"
+KERAS_VERSION = "2.18.0rc0"
 MODELS_BRANCH = None  # "r2.17.0"
 
 GS_VERSION_STR = f"tf-{MAJOR_VERSION}-{MINOR_VERSION}-{PATCH_VERSION}"
@@ -144,12 +144,12 @@ def get_tf_dlrm_config(
     tpu_cores: int,
     tpu_zone: str,
     time_out_in_min: int,
-    bottom_mlp: list[int],
+    bottom_mlp: List[int],
     embedding_dim: int,
     train_steps: int,
-    runtime_version: str,
     extraFlags: str = "",
     project_name: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    runtime_version: str = RuntimeVersion.TPU_VM_TF_NIGHTLY.value,
     is_pod: bool = False,
     is_pjrt: bool = True,
     criteo_dir: str = gcs_bucket.CRITEO_DIR,
@@ -172,36 +172,27 @@ def get_tf_dlrm_config(
       tpu_name, is_pod, is_pjrt, is_v5p_sc=is_v5p
   )
 
-  set_up_cmds = common.set_up_tensorflow_models(MODELS_BRANCH, KERAS_VERSION)
-  set_up_cmds += common.install_tf(
-      MAJOR_VERSION,
-      MINOR_VERSION,
-      PATCH_VERSION,
-      RELEASE_CANDIDATE,
-      LIBTPU_VERSION,
-  )
+  set_up_cmds = common.set_up_tensorflow_models() + common.install_tf()
   if is_pod:
     if not is_pjrt:
-      set_up_cmds += common.set_up_se(
-          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
-      )
+      set_up_cmds += common.set_up_se()
     else:
-      set_up_cmds += common.set_up_pjrt(
-          MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION
-      )
-  global_batch_size = 16384 * (tpu_cores // 8)
+      set_up_cmds += common.set_up_pjrt()
   params_override = {
-      "runtime": {"distribution_strategy": "tpu"},
+      "runtime": {
+          "distribution_strategy": "tpu",
+          "mixed_precision_dtype": "mixed_bfloat16",
+      },
       "task": {
           "use_synthetic_data": "false",
           "use_tf_record_reader": "true",
           "train_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
-              "global_batch_size": global_batch_size,
+              "global_batch_size": 16384,
           },
           "validation_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/eval/day_*/*",
-              "global_batch_size": global_batch_size,
+              "global_batch_size": 16384,
           },
           "model": {
               "interaction": "multi_layer_dcn",
@@ -271,17 +262,18 @@ def get_tf_dlrm_config(
               "concat_dense": "false",
               "dcn_use_bias": "true",
               "max_ids_per_chip_per_sample": 128,
-              "max_ids_per_table": 2048,
-              "max_unique_ids_per_table": 512,
+              "max_ids_per_table": 15000,
+              "max_unique_ids_per_table": 4096,
+              "initialize_tables_on_host": "false",
               "use_partial_tpu_embedding": "false",
               "size_threshold": 0,
           },
       },
       "trainer": {
           "use_orbit": "true",
-          "validation_interval": 90000,
-          "checkpoint_interval": 270000,
-          "validation_steps": 5440,
+          "validation_interval": 1000,
+          "checkpoint_interval": 0,
+          "validation_steps": 1000,
           "train_steps": train_steps,
           "optimizer_config": {
               "embedding_optimizer": "SGD",
@@ -303,7 +295,7 @@ def get_tf_dlrm_config(
   # TODO (ericlefort): Replace the model_dir with this line when the var is available
   # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
   epoch = time.time()
-  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}/{epoch}"
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/{benchmark_id}/{epoch}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
