@@ -178,6 +178,7 @@ def get_tf_dlrm_config(
       set_up_cmds += common.set_up_se()
     else:
       set_up_cmds += common.set_up_pjrt()
+  global_batch_size = 16384 * (tpu_cores // 8)
   params_override = {
       "runtime": {
           "distribution_strategy": "tpu",
@@ -188,11 +189,11 @@ def get_tf_dlrm_config(
           "use_tf_record_reader": "true",
           "train_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
-              "global_batch_size": 16384,
+              "global_batch_size": global_batch_size,
           },
           "validation_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/eval/day_*/*",
-              "global_batch_size": 16384,
+              "global_batch_size": global_batch_size,
           },
           "model": {
               "interaction": "multi_layer_dcn",
