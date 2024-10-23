@@ -287,11 +287,11 @@ class DockerImage(enum.Enum):
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
   MAXTEXT_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.33:"
+      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.33:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (
