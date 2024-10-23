@@ -25,7 +25,7 @@ class Team(enum.Enum):
   IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
   FRAMEWORK = "framework3p"
-
+  REPRODUCIBILITY = "reproducibility"
 
 # XLML - TensorFlow
 ERIC_L = "Eric L."
@@ -66,3 +66,6 @@ WENXIN_D = "Wenxin D."
 
 # FRAMEWORK
 QINY_Y = "Qinyi Y."
+
+# REPRODUCIBILITY
+GUNJAN_J = "Gunjan J."
