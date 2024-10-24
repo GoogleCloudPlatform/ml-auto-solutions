@@ -51,7 +51,10 @@ with models.DAG(
       "steps=2 enable_checkpointing=false attention=dot_product"
   )
   test_models_gpu = {
-      "train-c4-data": (f"{train_base} run_name=runner-{current_datetime}-0", 1),
+      "train-c4-data": (
+          f"{train_base} run_name=runner-{current_datetime}-0",
+          1,
+      ),
   }
 
   for accelerator, slices in maxtext_test_configs.items():
@@ -96,21 +99,21 @@ with models.DAG(
 
   # GCP GPU Tests
   for model, (test_script, nnodes) in test_models_gpu.items():
-      stable_a3_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
-          time_out_in_min=300,
-          test_name=f"maxtext-stable-stack-{model}",
-          run_model_cmds=(test_script,),
-          num_slices=nnodes,
-          cluster=XpkClusters.GPU_A3_CLUSTER,
-          docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.NINA_C,
-      ).run()
-      stable_a3plus_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
-          time_out_in_min=300,
-          test_name=f"maxtext-stable-stack-{model}",
-          run_model_cmds=(test_script,),
-          num_slices=nnodes,
-          cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
-          docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.NINA_C,
-      ).run()
+    stable_a3_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
+        time_out_in_min=300,
+        test_name=f"maxtext-stable-stack-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster=XpkClusters.GPU_A3_CLUSTER,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
+        test_owner=test_owner.NINA_C,
+    ).run()
+    stable_a3plus_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
+        time_out_in_min=300,
+        test_name=f"maxtext-stable-stack-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
+        test_owner=test_owner.NINA_C,
+    ).run()

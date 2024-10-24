@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Utilities to construct configs for solutionsteam_jax_bite DAG."""
+
 from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from dags import test_owner, gcs_bucket
