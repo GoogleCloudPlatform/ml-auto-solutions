@@ -35,8 +35,8 @@ with models.DAG(
 ) as dag:
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
-      "v6e-256": [1],
-      "v4-8": [2],
+      "v6e-256": [1,2],
+      "v4-8": [1,2],
   }
   current_datetime = config.get_current_datetime()
   for accelerator, slices in maxdiffusion_test_configs.items():
@@ -58,7 +58,7 @@ with models.DAG(
               f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/maxdiffusion_sdxl/{current_datetime}",
           ),
           test_name=f"maxd-sdxl-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY.value,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
       ).run()
       maxdiffusion_sdxl_nan_test = config.get_gke_config(
@@ -74,7 +74,7 @@ with models.DAG(
               f"LOSS_THRESHOLD=100",
           ),
           test_name=f"maxd-sdxl-nan-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_NIGHTLY.value,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
       ).run()
       maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test
