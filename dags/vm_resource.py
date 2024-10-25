@@ -41,6 +41,12 @@ INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
 H100_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
+A100_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
+L4_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
 
 
 class Project(enum.Enum):
@@ -105,6 +111,9 @@ class Zone(enum.Enum):
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
+  # reserved l4 in cloud-tpu-inference-test
+  ASIA_EAST1_A = "asia-east1-a"
+  ASIA_EAST1_C = "asia-east1-c"
 
 
 class MachineVersion(enum.Enum):
@@ -115,10 +124,22 @@ class MachineVersion(enum.Enum):
   N1_STANDARD_32 = "n1-standard-32"
   A2_HIGHGPU_1G = "a2-highgpu-1g"
   A2_HIGHGPU_4G = "a2-highgpu-4g"
+  A2_ULTRAGPU_1G = "a2-ultragpu-1g"
+  A2_ULTRAGPU_2G = "a2-ultragpu-2g"
+  A2_ULTRAGPU_4G = "a2-ultragpu-4g"
+  A2_ULTRAGPU_8G = "a2-ultragpu-8g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
   G2_STAND_32 = "g2-standard-32"  # 128GB memroy
+  G2_STAND_48 = "g2-standard-48"  # 4 GPUs, 192GB memory
+  G2_STAND_96 = "g2-standard-96"  # 8 GPUs, 384GB memory
+
+
+class AcceleratorType(enum.Enum):
+  CPU = "CPU"
+  GPU = "GPU"
+  TPU = "TPU"
 
 
 class TpuVersion(enum.Enum):
@@ -137,6 +158,7 @@ class GpuVersion(enum.Enum):
 
   L4 = "nvidia-l4"
   A100 = "nvidia-tesla-a100"
+  A100_80G = "nvidia-a100-80gb"
   H100 = "nvidia-h100-80gb"
   XPK_H100 = "h100-80gb-8"
   XPK_H100_MEGA = "h100-mega-80gb-8"
@@ -219,6 +241,13 @@ class XpkClusters:
       project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
       zone=Zone.US_CENTRAL2_B.value,
   )
+  TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
+      name="mlperf-v6e-256",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.EUROPE_WEST4_A.value,
+  )
   GPU_A3_CLUSTER = XpkClusterConfig(
       name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
@@ -258,11 +287,11 @@ class DockerImage(enum.Enum):
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
   MAXTEXT_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.33:"
+      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.33:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (
