@@ -45,7 +45,6 @@ with models.DAG(
       "v6e-256": [1],
   }
   train_base = (
-      "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
       "python3 MaxText/train.py MaxText/configs/base.yml "
       "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
       "steps=2 enable_checkpointing=false attention=dot_product"
