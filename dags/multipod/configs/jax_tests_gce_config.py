@@ -41,7 +41,7 @@ def get_jax_distributed_initialize_config(
     num_slices: int = 1,
     base_output_dir: str = gcs_bucket.BASE_OUTPUT_DIR,
 ):
-  set_up_cmds = 'pip install "jax[tpu]" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html; python -m pip install fabric;'
+  set_up_cmds = ('pip install "jax[tpu]" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html; python -m pip install fabric;')
   run_model_cmds = (
       (
           "python -m 'print(10111); import jax; jax.distributed.initialize(); print(20111);'"
