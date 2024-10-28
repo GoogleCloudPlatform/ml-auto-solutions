@@ -122,7 +122,9 @@ def torchvision():
   resnet_v2_8 >> resnet_v3_8_tests
 
   resnet_v100_2x2 = task.GpuGkeTask(
-      test_config.GpuGkeTest.from_pytorch("pt-2-5-1-resnet50-mp-fake-v100-x2x2"),
+      test_config.GpuGkeTest.from_pytorch(
+          "pt-2-5-1-resnet50-mp-fake-v100-x2x2"
+      ),
       US_CENTRAL1,
       "gpu-uc1",
   ).run()
