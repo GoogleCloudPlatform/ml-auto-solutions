@@ -19,14 +19,14 @@ local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
 {
-  local r2_5 = {
-    frameworkPrefix: 'pt-2-5',
+  local r2_5_1 = {
+    frameworkPrefix: 'pt-2-5-1',
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.5.0_3.10',
+    imageTag: 'r2.5.1-rc1_3.10',
   },
-  PyTorchTest:: common.PyTorchTest + r2_5 {
+  PyTorchTest:: common.PyTorchTest + r2_5_1 {
     local config = self,
 
     podTemplate+:: {
@@ -67,7 +67,7 @@ local volumes = import 'templates/volumes.libsonnet';
 
                 ctc = cloud_tpu_client.Client(tpu=os.path.basename('$(TPU_NAME)'), zone=os.path.dirname('$(TPU_NAME)'))
                 ctc.wait_for_healthy()
-                ctc.configure_tpu_version(f'pytorch-2.5-dev{libtpu_date}', restart_type='always')
+                ctc.configure_tpu_version(f'pytorch-2.5.1-dev{libtpu_date}', restart_type='always')
                 ctc.wait_for_healthy()
               |||,
             ],
@@ -101,15 +101,18 @@ local volumes = import 'templates/volumes.libsonnet';
         sudo apt install -y libopenblas-base
         # for huggingface tests
         sudo apt install -y libsndfile-dev
-        # Install torchvision by pinned commit in PyTorch 2.5 release branch.
-        pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
+        # Install torchvision by pinned commit in PyTorch 2.5.1 release branch.
+        # TODO(@manfei): please update to PyTorch wheel after they have
+        # pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch-2.5.1rc1-cp310-cp310-linux_x86_64.whl
+        # torchvision commit reference: https://github.com/pytorch/pytorch/blob/v2.5.1-rc1/.github/ci_commit_pins/vision.txt
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0-cp310-cp310-manylinux_2_28_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.1rc1-cp310-cp310-manylinux_2_28_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
         cd pytorch
-        git clone -b v2.5.0 https://github.com/pytorch/xla.git
+        git clone -b v2.5.1-rc1 https://github.com/pytorch/xla.git
       |||,
     },
     podTemplate+:: {
@@ -145,12 +148,14 @@ local volumes = import 'templates/volumes.libsonnet';
 
         nvidia-smi
         pip uninstall -y torch torchvision
-        pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
+        # TODO(@manfei): please update to PyTorch wheel after they have
+        # pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/test/cpu
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch-2.5.1rc1-cp310-cp310-linux_x86_64.whl
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0-cp310-cp310-manylinux_2_28_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.1rc1-cp310-cp310-manylinux_2_28_x86_64.whl
 
         mkdir -p pytorch/xla
-        git clone -b v2.5.0 https://github.com/pytorch/xla.git pytorch/xla
+        git clone -b v2.5.1-rc1 https://github.com/pytorch/xla.git pytorch/xla
 
         %s
 
@@ -222,5 +227,5 @@ local volumes = import 'templates/volumes.libsonnet';
   },
 
   // DEPRECATED: Use PyTorchTpuVmMixin instead
-  tpu_vm_r2_5_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
+  tpu_vm_r2_5_1_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
 }
