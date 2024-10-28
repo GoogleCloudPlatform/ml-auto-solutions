@@ -5,7 +5,7 @@ import enum
 from airflow import models
 from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
-from dags.vm_resource import AcceleratorType, GpuVersion, TpuVersion, Region, Zone, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, ImageProject, ImageFamily, MachineVersion, RuntimeVersion
+from dags.vm_resource import AcceleratorType, GpuVersion, TpuVersion, Region, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, BM_NETWORKS, A100_BM_SUBNETWORKS, ImageProject, ImageFamily, MachineVersion, RuntimeVersion
 from dags.multipod.configs.common import SetupMode, Platform
 from dags.solutions_team.configs.vllm import vllm_benchmark_config
 
@@ -96,13 +96,13 @@ with models.DAG(
                 model_configs=model_configs,
             )
           elif accelerator_type == AcceleratorType.GPU:
-            project = Project.CLOUD_TPU_INFERENCE_TEST
-            zone = Zone.US_CENTRAL1_A
+            project = Project.CLOUD_ML_BENCHMARKING
+            zone = Zone.US_WEST4_B
             machine_version, gpu_version, count = accelerator_spec
             image_project = ImageProject.DEEP_LEARNING_PLATFORM_RELEASE
             image_family = ImageFamily.COMMON_CU121_DEBIAN_11
-            network = INFERENCE_NETWORKS
-            subnetwork = H100_INFERENCE_SUBNETWORKS
+            network = BM_NETWORKS
+            subnetwork = A100_BM_SUBNETWORKS
 
             vllm_benchmark_config.get_gpu_vllm_gce_config(
                 machine_version=machine_version,
