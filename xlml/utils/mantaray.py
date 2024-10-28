@@ -21,7 +21,7 @@ from dags import composer_env
 
 
 MANTARAY_G3_GS_BUCKET = "gs://borgcron/cmcs-benchmark-automation/mantaray"
-MAXLIBRARY_G3_GS_BUCKET = "gs://borgcron/cmcs-benchmark-automation/maxlibrary"
+MAXLIBRARY_G3_GS_BUCKET = "gs://borgcron/maxlibrary"
 
 
 def load_file_from_gcs(gs_file_path):
