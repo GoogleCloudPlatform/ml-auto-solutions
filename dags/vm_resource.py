@@ -105,7 +105,7 @@ class Zone(enum.Enum):
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
   # reserved v6e in tpu-prod-env-automated
-  US_EAST5_C = "us-east1-c"
+  US_EAST5_C = "us-east5-c"
   # reserved v5e in tpu-prod-env-multipod
   US_WEST4_B = "us-west4-b"
   # reserved v5e in cloud-tpu-inference-test
