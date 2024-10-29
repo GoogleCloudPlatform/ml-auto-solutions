@@ -107,6 +107,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
       "pip install jsonlines",
+      "pip install huggingface_hub==0.24.7",
       f'docker exec -i {docker_container_name} /bin/bash -c "{docker_cmd}"',
       make_jsonl_converter_cmd,
       "cat jsonl_converter.py",
