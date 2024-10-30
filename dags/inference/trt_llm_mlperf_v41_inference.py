@@ -127,7 +127,7 @@ with models.DAG(
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=GpuVersion.L4,
       count=8,
-      gpu_zone=Zone.US_CENTRAL1_C,
+      gpu_zone=Zone.US_CENTRAL1_A,
       time_out_in_min=1600,
       test_name=f"{test_name_prefix}-nightly-test-l4-1",
       project=Project.CLOUD_TPU_INFERENCE_TEST,
