@@ -5,7 +5,7 @@ provider "google-beta" {
 
 terraform {
   backend "gcs" {
-    bucket = "us-central1-akshu-test-225d2657-bucket"
+    bucket = "composer-ml-auto-solutions-tfstate"
     prefix = "terraform/state"
   }
 }
