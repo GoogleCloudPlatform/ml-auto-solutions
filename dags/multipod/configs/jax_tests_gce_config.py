@@ -41,10 +41,10 @@ def get_jax_distributed_initialize_config(
   test_platform = common.Platform.GCE
   set_up_cmds = common.setup_maxtext(test_mode, test_platform)
   set_up_cmds = [
-    "pip install 'jax[tpu]' -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
+      "pip install 'jax[tpu]' -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
   ]
   run_model_cmds = [
-    "python3 -c 'import jax; jax.distributed.initialize()'",
+      "python3 -c 'import jax; jax.distributed.initialize()'",
   ]
 
   job_test_config = test_config.TpuVmTest(
@@ -67,7 +67,7 @@ def get_jax_distributed_initialize_config(
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
       zone=tpu_zone,
-      dataset_name=metric_config.DatasetOption.XLML_DATASET, # TODO: can remove?
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
   return task.run_queued_resource_test(
