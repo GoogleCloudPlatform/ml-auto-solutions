@@ -21,8 +21,8 @@ from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5P_SUBNETW
 from dags.multipod.configs import jax_tests_gce_config
 from dags.multipod.configs.common import SetupMode
 
-# Run once a day at  am UTC ( am PST) # TODO time
-SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None # TODO time
+# Run once a day at 10 am UTC (2 am PST)
+SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="jax_functional_tests",
