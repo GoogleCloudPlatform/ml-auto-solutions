@@ -35,26 +35,28 @@ with models.DAG(
   test_mode = SetupMode.NIGHTLY
 
   # v4
-  jax_nightly_1slice_v4_8 = jax_tests_gce_config.get_jax_distributed_initialize_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
-      time_out_in_min=60,
-      is_tpu_reserved=False,
-      test_name=default_test_name,
-      test_mode=test_mode,
-  )
+  jax_nightly_1slice_v4_8 =
+      jax_tests_gce_config.get_jax_distributed_initialize_config(
+          tpu_version=TpuVersion.V4,
+          tpu_cores=8,
+          tpu_zone=Zone.US_CENTRAL2_B.value,
+          time_out_in_min=60,
+          is_tpu_reserved=False,
+          test_name=default_test_name,
+          test_mode=test_mode,
+    )
 
-  jax_nightly_2slice_v4_8 = jax_tests_gce_config.get_jax_distributed_initialize_config(
-      tpu_version=TpuVersion.V4,
-      tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
-      time_out_in_min=60,
-      is_tpu_reserved=False,
-      num_slices=2,
-      test_name=default_test_name,
-      test_mode=test_mode,
-  )
+  jax_nightly_2slice_v4_8 =
+      jax_tests_gce_config.get_jax_distributed_initialize_config(
+          tpu_version=TpuVersion.V4,
+          tpu_cores=8,
+          tpu_zone=Zone.US_CENTRAL2_B.value,
+          time_out_in_min=60,
+          is_tpu_reserved=False,
+          num_slices=2,
+          test_name=default_test_name,
+          test_mode=test_mode,
+      )
 
   # v5p
   v5p_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
@@ -62,31 +64,33 @@ with models.DAG(
   v5p_subnetwork = V5P_SUBNETWORKS
   v5p_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5.value
 
-  jax_nightly_1slice_v5p_8 = jax_tests_gce_config.get_jax_distributed_initialize_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
-      tpu_zone=Zone.US_EAST5_A.value,
-      runtime_version=v5p_runtime_version,
-      project_name=v5p_project_name,
-      time_out_in_min=60,
-      is_tpu_reserved=True,
-      test_name=default_test_name,
-      test_mode=test_mode,
-      network=v5p_network,
-      subnetwork=v5p_subnetwork,
-  )
+  jax_nightly_1slice_v5p_8 =
+      jax_tests_gce_config.get_jax_distributed_initialize_config(
+          tpu_version=TpuVersion.V5P,
+          tpu_cores=8,
+          tpu_zone=Zone.US_EAST5_A.value,
+          runtime_version=v5p_runtime_version,
+          project_name=v5p_project_name,
+          time_out_in_min=60,
+          is_tpu_reserved=True,
+          test_name=default_test_name,
+          test_mode=test_mode,
+          network=v5p_network,
+          subnetwork=v5p_subnetwork,
+      )
 
-  jax_nightly_2slice_v5p_8 = jax_tests_gce_config.get_jax_distributed_initialize_config(
-      tpu_version=TpuVersion.V5P,
-      tpu_cores=8,
-      num_slices=2,
-      tpu_zone=Zone.US_EAST5_A.value,
-      runtime_version=v5p_runtime_version,
-      project_name=v5p_project_name,
-      time_out_in_min=60,
-      is_tpu_reserved=True,
-      test_name=default_test_name,
-      test_mode=test_mode,
-      network=v5p_network,
-      subnetwork=v5p_subnetwork,
-  )
+  jax_nightly_2slice_v5p_8 =
+      jax_tests_gce_config.get_jax_distributed_initialize_config(
+          tpu_version=TpuVersion.V5P,
+          tpu_cores=8,
+          num_slices=2,
+          tpu_zone=Zone.US_EAST5_A.value,
+          runtime_version=v5p_runtime_version,
+          project_name=v5p_project_name,
+          time_out_in_min=60,
+          is_tpu_reserved=True,
+          test_name=default_test_name,
+          test_mode=test_mode,
+          network=v5p_network,
+          subnetwork=v5p_subnetwork,
+      )
