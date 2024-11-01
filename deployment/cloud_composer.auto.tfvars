@@ -6,7 +6,7 @@ project_config = {
 
 environment_config = [
   {
-    environment_name   = "akshu-test"
+    environment_name   = "ml-automation-solutions-dev"
     service_account_id = "akshu-dev"
   }
 ]

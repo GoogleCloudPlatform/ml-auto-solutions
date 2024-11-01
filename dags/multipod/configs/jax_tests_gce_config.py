@@ -22,8 +22,7 @@ import datetime
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
-# PROJECT_NAME = Project.TPU_PROD_ENV_MULTIPOD.value
-# RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
+
 
 def get_jax_distributed_initialize_config(
     tpu_version: TpuVersion,
@@ -37,19 +36,17 @@ def get_jax_distributed_initialize_config(
     network: str = "default",
     subnetwork: str = "default",
     is_tpu_reserved: bool = True,
-    automated_test: bool = True,
     num_slices: int = 1,
-    base_output_dir: str = gcs_bucket.BASE_OUTPUT_DIR,
 ):
-  set_up_cmds = (
-    'pip install "jax[tpu]" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html,
-    'python -m pip install fabric;',
-  )
-  run_model_cmds = (
-      (
-          "python -m 'print(10111); import jax; jax.distributed.initialize(); print(20111);'"
-      ),
-  ) # TODO: Do we need to verify success or will the command fail if execution fails?
+  test_platform = common.Platform.GCE
+  set_up_cmds = common.setup_maxtext(test_mode, test_platform)
+  set_up_cmds = [
+    "pip install 'jax[tpu]' -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
+  ]
+  run_model_cmds = [
+    "python3 -c 'import jax; jax.distributed.initialize()'",
+  ]
+
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
