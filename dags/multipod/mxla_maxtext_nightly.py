@@ -22,8 +22,7 @@ from dags.multipod.configs import maxtext_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
 
 # Run once a day at 9 am UTC (1 am PST)
-# Pausing on GCE
-SCHEDULED_TIME = None
+SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
@@ -143,18 +142,4 @@ with models.DAG(
       test_mode=test_mode,
       network=v5p_network,
       subnetwork=v5p_subnetwork,
-  )
-
-  # Test dependencie
-  (
-      maxtext_nightly_1slice_v4_8
-      >> maxtext_nightly_2slice_v4_8
-      >> maxtext_nightly_4slice_v4_8
-      >> maxtext_nightly_8slice_v4_8
-  )
-  (
-      maxtext_nightly_1slice_v5p_8
-      >> maxtext_nightly_2slice_v5p_8
-      >> maxtext_nightly_4slice_v5p_8
-      >> maxtext_nightly_8slice_v5p_8
   )

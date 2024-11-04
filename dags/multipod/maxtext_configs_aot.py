@@ -18,12 +18,13 @@ A DAG to run AOT compilation tests for MaxText model configs.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, DockerImage
+from dags.vm_resource import GpuVersion, TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 5 am UTC (9 pm PST / 10 pm PDT)
 SCHEDULED_TIME = "0 5 * * *" if composer_env.is_prod_env() else None
+
 
 with models.DAG(
     dag_id="maxtext_configs_aot",
@@ -34,7 +35,7 @@ with models.DAG(
     concurrency=2,
 ) as dag:
   # Testing configurations
-  model_configs = {
+  tpu_configs = {
       # accelerator: [(model_size, num_cores), ...],
       "v4": [("22b", 128), ("52b", 384)],
       "v5e": [("16b", 256), ("32b", 256), ("64b", 256), ("128b", 256)],
@@ -51,12 +52,12 @@ with models.DAG(
   }
   num_slices = [1, 2]
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
 
   run_model_cmds_dict = {}
-  for tpu, models in model_configs.items():
+  for tpu, models in tpu_configs.items():
     run_model_cmds = []
     for model_size, num_cores in models:
       for n in num_slices:
@@ -66,9 +67,6 @@ with models.DAG(
 
   for mode, image in docker_images:
     maxtext_v4_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-aot-v4-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v4"],
@@ -77,9 +75,6 @@ with models.DAG(
     ).run()
 
     maxtext_v5e_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-aot-v5e-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v5e"],
@@ -88,9 +83,6 @@ with models.DAG(
     ).run()
 
     maxtext_v5p_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=8,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
         time_out_in_min=60,
         test_name=f"maxtext-aot-v5p-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v5p"],
@@ -103,3 +95,15 @@ with models.DAG(
         >> maxtext_v5e_configs_test
         >> maxtext_v5p_configs_test
     )
+
+  # GPU AoT tests
+  cmd = f"bash MaxText/configs/a3/llama_2_7b/16vm.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=16"
+  stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+      time_out_in_min=300,
+      test_name=f"maxtext-aot-a3-stable",
+      run_model_cmds=(cmd,),
+      num_slices=1,
+      cluster=XpkClusters.GPU_A3_CLUSTER,
+      docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
+      test_owner=test_owner.JON_B,
+  ).run()

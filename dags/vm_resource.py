@@ -16,15 +16,23 @@
 
 import datetime
 import enum
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 
 
 V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
 V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
+V6E_SUBNETWORKS = (
+    f"{V5_NETWORKS_PREFIX}/regions/us-central2/subnetworks/mas-test"
+)
+# TODO: Figure V6E_GCE_NETWORK and V6E_GCE_SUBNETWORK
+V6E_GCE_NETWORK = "default"
+V6E_GCE_SUBNETWORK = "default"
 
 BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
 BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
+A100_BM_SUBNETWORKS = "regions/us-west4/subnetworks/mas-test"
 V4_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-central2/subnetworks/mas-test"
 V5E_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-west1/subnetworks/mas-test"
 V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
@@ -32,6 +40,12 @@ V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
 INFERENCE_NETWORK_PREFIX = "projects/cloud-tpu-inference-test"
 INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
 H100_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
+A100_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-central1"
+)
+L4_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
 
@@ -46,6 +60,7 @@ class Project(enum.Enum):
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
+  TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
 
 
 class ImageProject(enum.Enum):
@@ -89,12 +104,19 @@ class Zone(enum.Enum):
   US_EAST4_A = "us-east4-a"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
+  # reserved v6e in tpu-prod-env-automated
+  US_EAST5_C = "us-east5-c"
   # reserved v5e in tpu-prod-env-multipod
   US_WEST4_B = "us-west4-b"
   # reserved v5e in cloud-tpu-inference-test
   US_WEST1_C = "us-west1-c"
   # reserved a3+ cluster in supercomputer-testing
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
+  # reserved TRILLIUM capacity
+  EUROPE_WEST4_A = "europe-west4-a"
+  # reserved l4 in cloud-tpu-inference-test
+  ASIA_EAST1_A = "asia-east1-a"
+  ASIA_EAST1_C = "asia-east1-c"
 
 
 class MachineVersion(enum.Enum):
@@ -105,10 +127,22 @@ class MachineVersion(enum.Enum):
   N1_STANDARD_32 = "n1-standard-32"
   A2_HIGHGPU_1G = "a2-highgpu-1g"
   A2_HIGHGPU_4G = "a2-highgpu-4g"
+  A2_ULTRAGPU_1G = "a2-ultragpu-1g"
+  A2_ULTRAGPU_2G = "a2-ultragpu-2g"
+  A2_ULTRAGPU_4G = "a2-ultragpu-4g"
+  A2_ULTRAGPU_8G = "a2-ultragpu-8g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
   G2_STAND_32 = "g2-standard-32"  # 128GB memroy
+  G2_STAND_48 = "g2-standard-48"  # 4 GPUs, 192GB memory
+  G2_STAND_96 = "g2-standard-96"  # 8 GPUs, 384GB memory
+
+
+class AcceleratorType(enum.Enum):
+  CPU = "CPU"
+  GPU = "GPU"
+  TPU = "TPU"
 
 
 class TpuVersion(enum.Enum):
@@ -119,6 +153,7 @@ class TpuVersion(enum.Enum):
   V4 = "4"
   V5E = "5litepod"
   V5P = "5p"
+  TRILLIUM = "6e"
 
 
 class GpuVersion(enum.Enum):
@@ -126,6 +161,7 @@ class GpuVersion(enum.Enum):
 
   L4 = "nvidia-l4"
   A100 = "nvidia-tesla-a100"
+  A100_80G = "nvidia-a100-80gb"
   H100 = "nvidia-h100-80gb"
   XPK_H100 = "h100-80gb-8"
   XPK_H100_MEGA = "h100-mega-80gb-8"
@@ -153,26 +189,97 @@ class RuntimeVersion(enum.Enum):
   TPU_VM_V4_BASE = "tpu-vm-v4-base"
   V2_ALPHA_TPUV5_LITE = "v2-alpha-tpuv5-lite"
   V2_ALPHA_TPUV5 = "v2-alpha-tpuv5"
+  V2_ALPHA_TPUV6 = "v2-alpha-tpuv6e"
 
 
-class ClusterName(enum.Enum):
-  """Common XPK cluster names."""
+class XpkClusters:
+  """Common XPK cluster configs."""
 
-  V4_8_CLUSTER = "mas-v4-8"
-  V4_32_CLUSTER = "mas-v4-32"
-  V5E_4_CLUSTER = "mas-v5e-4"
-  V5E_16_CLUSTER = "mas-v5e-16"
-  V4_8_MULTISLICE_CLUSTER = "v4-8-maxtext"
-  V4_16_MULTISLICE_CLUSTER = "v4-16-maxtext"
-  V4_128_MULTISLICE_CLUSTER = "v4-bodaborg"
-  V5P_8_MULTISLICE_CLUSTER = "v5p-8-bodaborg-us-east5-a"
-  V5E_16_MULTISLICE_CLUSTER = "v5e-16-bodaborg"
-  V5E_256_MULTISLICE_CLUSTER = "v5e-256-bodaborg"
-  V5E_256_US_WEST_4_MULTISLICE_CLUSTER = "v5e-256-bodaborg-us-west4"
-  A3_CLUSTER = "maxtext-a3-20n"
-  A3PLUS_CLUSTER = "a3plus-benchmark"
-  CPU_M1_MEGAMEM_96 = "m1-megamem-96-shared"
-  CPU_N2_STANDARD_64 = "shared-n2-standard-64"
+  TPU_V4_8_MAS_CLUSTER = XpkClusterConfig(
+      name="mas-v4-8",
+      device_version=TpuVersion.V4,
+      core_count=8,
+      project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V4_8_MAXTEXT_CLUSTER = XpkClusterConfig(
+      name="v4-8-maxtext",
+      device_version=TpuVersion.V4,
+      core_count=8,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V4_16_CLUSTER = XpkClusterConfig(
+      name="v4-16-maxtext",
+      device_version=TpuVersion.V4,
+      core_count=16,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V4_128_CLUSTER = XpkClusterConfig(
+      name="v4-128-bodaborg-us-central2-b",
+      device_version=TpuVersion.V4,
+      core_count=128,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+  TPU_V5P_8_CLUSTER = XpkClusterConfig(
+      name="v5p-8-bodaborg-us-east5-a",
+      device_version=TpuVersion.V5P,
+      core_count=8,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.US_EAST5_A.value,
+  )
+  TPU_V5E_256_CLUSTER = XpkClusterConfig(
+      name="v5e-256-bodaborg-us-west4",
+      device_version=TpuVersion.V5E,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_WEST4_B.value,
+  )
+  TPU_V6E_256_CLUSTER = XpkClusterConfig(
+      name="bodaborg-v6e-256",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
+      zone=Zone.US_CENTRAL2_B.value,
+  )
+
+  TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
+      name="bodaborg-v6e-256",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=256,
+      project=Project.TPU_PROD_ENV_AUTOMATED.value,
+      zone=Zone.US_EAST5_C.value,
+  )
+  GPU_A3_CLUSTER = XpkClusterConfig(
+      name="ninacai-maxtext-a3",
+      device_version=GpuVersion.XPK_H100,
+      core_count=8,
+      project=Project.SUPERCOMPUTER_TESTING.value,
+      zone=Zone.US_EAST5_A.value,
+  )
+  GPU_A3PLUS_CLUSTER = XpkClusterConfig(
+      name="a3plus-benchmark",
+      device_version=GpuVersion.XPK_H100_MEGA,
+      core_count=8,
+      project=Project.SUPERCOMPUTER_TESTING.value,
+      zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
+  )
+  CPU_M1_MEGAMEM_96_CLUSTER = XpkClusterConfig(
+      name="m1-megamem-96-shared",
+      device_version=CpuVersion.M1_MEGAMEM,
+      core_count=96,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL1_B.value,
+  )
+  CPU_N2_STANDARD_64_CLUSTER = XpkClusterConfig(
+      name="shared-n2-standard-64",
+      device_version=CpuVersion.N2_STANDARD,
+      core_count=64,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Zone.US_CENTRAL1_B.value,
+  )
 
 
 class DockerImage(enum.Enum):
@@ -183,15 +290,17 @@ class DockerImage(enum.Enum):
       "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/"
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
-  MAXTEXT_TPU_JAX_STABLE = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:"
+  MAXTEXT_TPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXTEXT_TPU_JAX_SS = (
-      "gcr.io/tpu-prod-env-multipod/jax-ss-maxtext-unpinned:06032024"
+  MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.35:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXDIFFUSION_TPU_JAX_SS = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_ss:06112024"
+  MAXDIFFUSION_TPU_JAX_NIGHTLY = (
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
@@ -201,8 +310,8 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_pinned:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXTEXT_GPU_JAX_STABLE = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable:"
+  MAXTEXT_GPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_JAX_NIGHTLY = (

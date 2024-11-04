@@ -48,7 +48,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
       # Format and mount multiple Local SSD
       "sudo apt update && sudo apt install mdadm --no-install-recommends",
       "find /dev/ | grep google-local-nvme-ssd",
-      "sudo mdadm --create /dev/md0 --level=0 --raid-devices=16 /dev/disk/by-id/google-local-nvme-ssd-0 /dev/disk/by-id/google-local-nvme-ssd-1 /dev/disk/by-id/google-local-nvme-ssd-2 /dev/disk/by-id/google-local-nvme-ssd-3 /dev/disk/by-id/google-local-nvme-ssd-4 /dev/disk/by-id/google-local-nvme-ssd-5 /dev/disk/by-id/google-local-nvme-ssd-6 /dev/disk/by-id/google-local-nvme-ssd-7 /dev/disk/by-id/google-local-nvme-ssd-8 /dev/disk/by-id/google-local-nvme-ssd-9 /dev/disk/by-id/google-local-nvme-ssd-10 /dev/disk/by-id/google-local-nvme-ssd-11 /dev/disk/by-id/google-local-nvme-ssd-12 /dev/disk/by-id/google-local-nvme-ssd-13 /dev/disk/by-id/google-local-nvme-ssd-14 /dev/disk/by-id/google-local-nvme-ssd-15",
+      "sudo mdadm --create /dev/md0 --level=0 --raid-devices=$(find /dev/ -name 'google-local-nvme-ssd*' | wc -l) $(find /dev/ -name 'google-local-nvme-ssd*')",
       "sudo mdadm --detail --prefer=by-id /dev/md0",
       "sudo mkfs.ext4 -F /dev/md0",
       "sudo mkdir -p /scratch",
@@ -102,6 +102,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
   docker_cmds = (
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
+      "pip install huggingface_hub==0.24.7",
       f'make run RUN_ARGS="--benchmarks={model_configs["model_name"]} --scenarios={model_configs["scenario"]} --config_ver={model_configs["config_ver"]} --test_mode=PerformanceOnly"',
   )
   docker_cmd = " && ".join(docker_cmds)

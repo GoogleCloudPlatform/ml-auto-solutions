@@ -148,6 +148,10 @@ def create_queued_resource(
                         ),
                         metadata=metadata,
                         labels=labels,
+                        scheduling_config=tpu_api.SchedulingConfig(
+                            preemptible=accelerator.preemptible,
+                            reserved=accelerator.reserved,
+                        ),
                     ),
                 )
             ],

@@ -15,205 +15,606 @@
 """A DAG to run MaxText inference benchmarks with nightly version."""
 
 import datetime
+import numpy as np
 from airflow import models
-from airflow.models.baseoperator import chain
-from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
-from dags.inference.configs import maxtext_inference_gce_config
-from dags.multipod.configs.common import SetupMode, Platform
+from dags import composer_env
+from dags.vm_resource import TpuVersion
+from dags.inference.maxtext_model_config_generator import generate_model_configs
+
+USER_PREFIX = ""
+
+MAXTEXT_BRANCH = ""
+JETSTREAM_BRANCH = ""
+
+maxtext_branch = "" if not MAXTEXT_BRANCH else f"-b {MAXTEXT_BRANCH}"
+jetstream_branch = "" if not JETSTREAM_BRANCH else f"-b {JETSTREAM_BRANCH}"
+
+# Run once a day at 8 am UTC (12 am PST)
+SCHEDULED_TIME = "0 8 * * *" if composer_env.is_prod_env() else None
+
+LLAMA2_7B = "llama2-7b"
+LLAMA2_13B = "llama2-13b"
+LLAMA2_70B = "llama2-70b"
+GEMMA_7B = "gemma-7b"
+MIXTRAL_8_7B = "mixtral-8x7b"
+
+BASE_MODE = "base"
+CHAT_MODE = "chat"
+INSTRUCT_MODE = "instruct"
+
+W_BF16_KV_BF16 = "w-b16-kv-b16"
+W_INT8_KV_INT8 = "w-i8-kv-i8"
+
+CKPT = {
+    LLAMA2_7B: {
+        BASE_MODE: "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+        CHAT_MODE: "gs://inference-benchmarks/models/llama2-7b-chat/2024-05-24-12-39/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+    },
+    LLAMA2_13B: {
+        BASE_MODE: "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+        CHAT_MODE: "gs://inference-benchmarks/models/llama2-13b-chat/2024-05-24-12-39/param-only-decode-ckpt-maxtext/checkpoints/0/items",
+    },
+    LLAMA2_70B: {
+        CHAT_MODE: "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items"
+    },
+    GEMMA_7B: {
+        BASE_MODE: "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items"
+    },
+    MIXTRAL_8_7B: {
+        # checkpoint created using these instructions - go/mixtral-inference-testing
+        INSTRUCT_MODE: "gs://vipannalla_mixtral_ckpt/moe_matmul/moe_matmul_06_15_24/checkpoints/0/items/"
+    },
+}
 
 
-# Run once a day at 4 am UTC (8 pm PST)
-SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+dag_id = (
+    "jetstream_benchmark_serving"
+    if not USER_PREFIX
+    else f"{USER_PREFIX}_jetstream_benchmark_serving"
+)
+tags = ["inference_team", "jetstream", "maxtext", "benchmark"]
+if USER_PREFIX:
+  tags.append(USER_PREFIX)
 
 
 with models.DAG(
-    dag_id="maxtext_inference",
-    schedule=SCHEDULED_TIME,
-    tags=["inference_team", "maxtext", "nightly", "benchmark"],
+    dag_id=dag_id,
+    tags=tags,
     start_date=datetime.datetime(2024, 1, 19),
+    schedule=SCHEDULED_TIME,
     catchup=False,
 ) as dag:
-  test_name_prefix = "maxtext-inference"
-  test_models = {
-      "llama2-7b": {
-          "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "model_mode": "base",
-          "maxtext_logs": "gs://inference-benchmarks/models/llama2-7b/2024-04-25-14-01/",
-          "scan_layers": "false",
-          "dataset": "openorca",
-          "weight_dtype": "bfloat16",
+  test_name_prefix = "max-js" if not USER_PREFIX else f"{USER_PREFIX}-max-js"
+
+  # TODO: baseline layout can be deleted if meeting one of the below conditions:
+  #   - default cache layout performs better
+  #   - run layout tuning to get optimized cache layout for 0213
+
+  llama2_7B_bf16_batch_sizes = [1, 2, 4, 8, 12]
+  llama2_7B_int8_batch_sizes = [1, 2, 4, 8, 12, 24]
+
+  llama2_13B_bf16_batch_sizes = [1, 2, 4, 8]
+  llama2_13B_int8_batch_sizes = [1, 2, 4, 8]
+
+  llama2_70B_bf16_batch_sizes = [1, 4, 8, 16, 24]
+  llama2_70B_int8_batch_sizes = [1, 2, 4, 8, 11]
+
+  gemma_7B_bf16_batch_sizes = [1, 2, 4, 8, 12]
+  gemma_7B_int8_batch_sizes = [1, 2, 4, 8, 12, 24]
+
+  test_templates = {
+      # LLAMA2_7B
+      LLAMA2_7B: {
+          "maxtext_branch": maxtext_branch,
+          "jetstream_branch": jetstream_branch,
+          "sleep_time": 360,
+          "time_out_in_min": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "model_name": LLAMA2_7B,
           "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
-          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-          "request_rate": 5,
-          "num_prompts": 1000,
+          "weight_dtype": "bfloat16",
+          "scan_layers": "false",
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
-          "max_output_length": 1024,
-      },
-      "llama2-13b": {
-          "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "model_mode": "base",
-          "maxtext_logs": "gs://inference-benchmarks/models/llama2-13b/2024-04-25-14-01/",
-          "scan_layers": "false",
-          "dataset": "openorca",
-          "weight_dtype": "bfloat16",
-          "tokenizer": "tokenizer.llama2",
-          "per_device_batch_sizes": [1, 2, 4, 5, 6],
+          "reshape_q": True,
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-          "request_rate": 5,
+          "ici_parallelisms": [(1, 1, -1)],
+          "dataset": "openorca",
           "num_prompts": 1000,
+          "max_output_length": 1024,
+          "warmup_mode": "full",
+      },
+      f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-2013-2013",  # optimized layout for 0123
+              "0213-0213-0213",  # default layout
+              "0213-0213-0132",  # optimized layout for 0213
+          ],
+      },
+      f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0213-0213-0213",  # default layout
+              "0213-0231-0213",  # optimized layout for 0213
+          ],
+      },
+      # LLAMA2_13B
+      LLAMA2_13B: {
+          "maxtext_branch": maxtext_branch,
+          "jetstream_branch": jetstream_branch,
+          "sleep_time": 360,
+          "time_out_in_min": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "model_name": LLAMA2_13B,
+          "tokenizer": "tokenizer.llama2",
+          "weight_dtype": "bfloat16",
+          "scan_layers": "false",
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
-          "max_output_length": 1024,
-      },
-      "llama2-70b": {
-          "sleep_time": 240,
-          "tpu_version_cores": [(TpuVersion.V5P, 8)],
-          "per_device_batch_sizes": [12, 16, 20, 24],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "model_mode": "chat",
-          "maxtext_logs": "gs://inference-benchmarks/models/llama2-70b-chat/2024-05-08-23-16/",
-          "scan_layers": "false",
-          "dataset": "openorca",
-          "weight_dtype": "bfloat16",
-          "tokenizer": "tokenizer.llama2",
+          "reshape_q": True,
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-          "request_rate": 5,
+          "ici_parallelisms": [(1, 1, -1)],
+          "dataset": "openorca",
+          "request_rate": [0.0],
           "num_prompts": 1000,
+          "max_output_length": 1024,
+          "warmup_mode": "full",
+      },
+      f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
+      },
+      f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
+      },
+      # LLAMA2_70B
+      LLAMA2_70B: {
+          "maxtext_branch": maxtext_branch,
+          "jetstream_branch": jetstream_branch,
+          "sleep_time": 360,
+          "time_out_in_min": 240,
+          "tpu_version_cores": [(TpuVersion.V5P, 8), (TpuVersion.TRILLIUM, 8)],
+          "model_name": LLAMA2_70B,
+          "tokenizer": "tokenizer.llama2",
+          "weight_dtype": "bfloat16",
+          "scan_layers": "false",
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
-          "max_output_length": 1024,
-      },
-      "gemma-7b": {
-          "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.V5P, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/param-only-decode-ckpt-maxtext/checkpoints/0/items",
-          "model_mode": "base",
-          "maxtext_logs": "gs://inference-benchmarks/models/gemma-7b/2024-04-25-14-01/",
-          "scan_layers": "false",
+          "reshape_q": True,
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          "ici_parallelisms": [(1, 1, -1)],
           "dataset": "openorca",
-          "weight_dtype": "bfloat16",
+          "num_prompts": 1000,
+          "max_output_length": 1024,
+          "warmup_mode": "full",
+      },
+      f"{LLAMA2_70B}-{W_BF16_KV_BF16}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
+      },
+      f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
+      },
+      # GEMMA_7B
+      GEMMA_7B: {
+          "maxtext_branch": maxtext_branch,
+          "jetstream_branch": jetstream_branch,
+          "sleep_time": 360,
+          "time_out_in_min": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "model_name": GEMMA_7B,
           "tokenizer": "tokenizer.gemma",
-          "per_device_batch_sizes": [1, 2, 4, 8, 11, 12],
-          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-          "request_rate": 5,
-          "num_prompts": 1000,
+          "weight_dtype": "bfloat16",
+          "scan_layers": "false",
           "max_prefill_predict_length": 1024,
           "max_target_length": 2048,
-          "max_output_length": 1024,
-      },
-      "mixtral-8x7b": {
-          "sleep_time": 240,
-          # Unquantized checkpoint only loads on v5p
-          "tpu_version_cores": [(TpuVersion.V5P, 8)],
-          "per_device_batch_sizes": [80, 128],
-          # checkpoint created using these instructions - go/mixtral-inference-testing
-          "checkpoint": "gs://vipannalla_mixtral_ckpt/moe_matmul/moe_matmul_06_15_24/checkpoints/0/items/",
-          "model_mode": "instruct",
-          "maxtext_logs": "gs://inference-benchmarks/models/mixtral-8x7b-instruct/2024-06-18/",
-          "scan_layers": "false",
-          "dataset": "openorca",
-          "weight_dtype": "bfloat16",
-          "tokenizer": "gs://maxtext-external/mixtral-8x7B-v0.1-Instruct/tokenizer.mistral",
+          "reshape_q": True,
           # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
-          "ici_parallelisms": [(1, -1, 1), (1, 1, -1)],
-          "request_rate": 5,
+          "ici_parallelisms": [(1, 1, -1)],
+          "dataset": "sharegpt",
+          "dataset_path": "~/ShareGPT_V3_unfiltered_cleaned_split.json",
+          "request_rate": [0.0],
           "num_prompts": 1000,
+          "max_output_length": 1024,
+          "warmup_mode": "full",
+      },
+      f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect": {
+          "attention": "autoselected",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
+      },
+      f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect": {
+          "attention": "autoselected",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
+      },
+      # MIXTRAL_8_7B
+      MIXTRAL_8_7B: {
+          "maxtext_branch": maxtext_branch,
+          "jetstream_branch": jetstream_branch,
+          "sleep_time": 240,
+          "time_out_in_min": 240,
+          "tpu_version_cores": [(TpuVersion.V5P, 8), (TpuVersion.TRILLIUM, 8)],
+          "model_name": MIXTRAL_8_7B,
+          "tokenizer": "gs://maxtext-external/mixtral-8x7B-v0.1-Instruct/tokenizer.mistral",
+          "weight_dtype": "bfloat16",
+          "scan_layers": "false",
           "max_prefill_predict_length": 2048,
           "max_target_length": 3072,
+          "reshape_q": True,
+          # (ici_fsdp_parallelism, ici_autoregressive_parallelism, ici_tensor_parallelism)
+          "ici_parallelisms": [(1, 1, -1)],
+          "dataset": "openorca",
+          "num_prompts": 1000,
           "max_output_length": 1024,
-          # Only used for MoE models
-          "moe_matmul": "true",
+          "warmup_mode": "full",
+      },
+      f"{MIXTRAL_8_7B}-{W_BF16_KV_BF16}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
+      },
+      f"{MIXTRAL_8_7B}-{W_INT8_KV_INT8}-dot-product": {
+          "attention": "dot_product",
+          "request_rate": [0.0],
+          "axis_order": [
+              "0123-1203-1203",  # baseline layout
+              "0213-0213-0213",  # default layout
+          ],
       },
   }
 
-  for model, sweep_model_configs in test_models.items():
-    # tasks_per_model = []
-    for per_device_batch_size in sweep_model_configs["per_device_batch_sizes"]:
-      for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
-        for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
-          # Set per_device_batch_size to a single value, not a list
-          model_configs = {}
-          model_configs["model_name"] = model
-          model_configs["model_mode"] = sweep_model_configs["model_mode"]
-          model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
-          model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
-          model_configs["maxtext_logs"] = sweep_model_configs["maxtext_logs"]
-          model_configs["scan_layers"] = sweep_model_configs["scan_layers"]
-          model_configs["dataset"] = sweep_model_configs["dataset"]
-          model_configs["weight_dtype"] = sweep_model_configs["weight_dtype"]
-          model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
-          model_configs["per_device_batch_size"] = per_device_batch_size
-          ici_fsdp = ici_parallelism[0]
-          ici_ar = ici_parallelism[1]
-          ici_tensor = ici_parallelism[2]
-          model_configs["ici_fsdp_parallelism"] = ici_fsdp
-          model_configs["ici_autoregressive_parallelism"] = ici_ar
-          model_configs["ici_tensor_parallelism"] = ici_tensor
-          model_configs["request_rate"] = sweep_model_configs["request_rate"]
-          model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
-          model_configs["max_target_length"] = sweep_model_configs[
-              "max_target_length"
-          ]
-          model_configs["max_prefill_predict_length"] = sweep_model_configs[
-              "max_prefill_predict_length"
-          ]
-          model_configs["max_output_length"] = sweep_model_configs[
-              "max_output_length"
-          ]
-          model_configs["moe_matmul"] = sweep_model_configs.get(
-              "moe_matmul", "false"
-          )
-          if tpu_version == TpuVersion.V5E:
-            # v5e benchmarks
-            project_name = Project.TPU_PROD_ENV_AUTOMATED.value
-            zone = Zone.US_EAST1_C.value
-            network = V5_NETWORKS
-            subnetwork = V5E_SUBNETWORKS
-            runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
-          elif tpu_version == TpuVersion.V5P:
-            zone = Zone.US_EAST5_A.value
-            runtime_version = RuntimeVersion.V2_ALPHA_TPUV5.value
-            project_name = Project.TPU_PROD_ENV_AUTOMATED.value
-            network = V5_NETWORKS
-            subnetwork = V5P_SUBNETWORKS
+  tests_llama2_7b_bf16_base_mode_tests = {}
+  tests_llama2_7b_bf16_chat_mode_tests = {}
 
-          maxtext_stable_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
-              tpu_version=tpu_version,
-              tpu_cores=tpu_cores,
-              tpu_zone=zone,
-              runtime_version=runtime_version,
-              project_name=project_name,
-              time_out_in_min=60,
-              is_tpu_reserved=True,
-              test_name=f"{test_name_prefix}-stable-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
-              test_mode=SetupMode.STABLE,
-              network=network,
-              subnetwork=subnetwork,
-              model_configs=model_configs,
-          )
-          maxtext_nightly_1slice = maxtext_inference_gce_config.get_maxtext_inference_nightly_config(
-              tpu_version=tpu_version,
-              tpu_cores=tpu_cores,
-              tpu_zone=zone,
-              runtime_version=runtime_version,
-              project_name=project_name,
-              time_out_in_min=60,
-              is_tpu_reserved=True,
-              test_name=f"{test_name_prefix}-nightly-{model}-per_device_batch_size-{per_device_batch_size}-ici-fsdp{ici_fsdp}-ar{ici_ar}-tensor{ici_tensor}",
-              test_mode=SetupMode.NIGHTLY,
-              network=network,
-              subnetwork=subnetwork,
-              model_configs=model_configs,
-          )
-          maxtext_stable_1slice >> maxtext_nightly_1slice
+  tests_llama2_7b_int8_base_mode_tests = {}
+  tests_llama2_7b_int8_chat_mode_tests = {}
+
+  # llama 2 7B bfloat16 tests in both base and chat mode
+  for bs in llama2_7B_bf16_batch_sizes:
+    tests_llama2_7b_bf16_base_mode_tests[
+        f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": False,
+        }
+    )
+
+    tests_llama2_7b_bf16_chat_mode_tests[
+        f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": True,
+        }
+    )
+
+  # llama 2 7B int8 tests in both base and chat mode
+  for bs in llama2_7B_int8_batch_sizes:
+    tests_llama2_7b_int8_base_mode_tests[
+        f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_INT8_KV_INT8}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": False,
+        }
+    )
+
+    tests_llama2_7b_int8_chat_mode_tests[
+        f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_7B]
+        | test_templates[f"{LLAMA2_7B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_7B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": True,
+        }
+    )
+
+  tests_llama2_13b_bf16_base_mode_tests = {}
+  tests_llama2_13b_bf16_chat_mode_tests = {}
+
+  tests_llama2_13b_int8_base_mode_tests = {}
+  tests_llama2_13b_int8_chat_mode_tests = {}
+
+  # llama 13B 7B bfloat16 tests in both base and chat mode
+
+  for bs in llama2_13B_bf16_batch_sizes:
+    tests_llama2_13b_bf16_base_mode_tests[
+        f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": False,
+        }
+    )
+
+    tests_llama2_13b_bf16_chat_mode_tests[
+        f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_BF16_KV_BF16}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": True,
+        }
+    )
+
+  for bs in llama2_13B_int8_batch_sizes:
+    tests_llama2_13b_int8_base_mode_tests[
+        f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": False,
+        }
+    )
+
+    tests_llama2_13b_int8_chat_mode_tests[
+        f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[LLAMA2_13B]
+        | test_templates[f"{LLAMA2_13B}-{W_INT8_KV_INT8}-dot-product"]
+        | {
+            "checkpoint": CKPT[LLAMA2_13B][CHAT_MODE],
+            "model_mode": CHAT_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": True,
+        }
+    )
+
+  tests_gemma_7b_bf16_base_mode_tests = {}
+  tests_gemma_7b_int8_base_mode_tests = {}
+
+  for bs in gemma_7B_bf16_batch_sizes:
+    tests_gemma_7b_bf16_base_mode_tests[
+        f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}-{bs}"
+    ] = (
+        test_templates[GEMMA_7B]
+        | test_templates[f"{GEMMA_7B}-{W_BF16_KV_BF16}-autoselect"]
+        | {
+            "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_BF16_KV_BF16,
+            "quantization": "",
+            "quantize_kvcache": "false",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "",
+            "run_eval": False,
+        }
+    )
+
+  for bs in gemma_7B_int8_batch_sizes:
+    tests_gemma_7b_int8_base_mode_tests[
+        f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}-{bs}"
+    ] = (
+        test_templates[GEMMA_7B]
+        | test_templates[f"{GEMMA_7B}-{W_INT8_KV_INT8}-autoselect"]
+        | {
+            "checkpoint": CKPT[GEMMA_7B][BASE_MODE],
+            "model_mode": BASE_MODE,
+            "quant_mode": W_INT8_KV_INT8,
+            "quantization": "int8",
+            "quantize_kvcache": "true",
+            "kv_quant_dtype": "int8",
+            "per_device_batch_size": bs,
+            "kv_quant_axis": "heads_and_dkv",
+            "run_eval": False,
+        }
+    )
+
+  tests = (
+      tests_llama2_7b_bf16_base_mode_tests
+      | tests_llama2_7b_bf16_chat_mode_tests
+      | tests_llama2_7b_int8_base_mode_tests
+      | tests_llama2_7b_int8_chat_mode_tests
+      | tests_llama2_13b_bf16_base_mode_tests
+      | tests_llama2_13b_bf16_chat_mode_tests
+      | tests_llama2_13b_int8_base_mode_tests
+      | tests_llama2_13b_int8_chat_mode_tests
+      | tests_gemma_7b_bf16_base_mode_tests
+      | tests_gemma_7b_int8_base_mode_tests
+      | {
+          # LLAMA2_70B
+          f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}": test_templates[
+              LLAMA2_70B
+          ]
+          | test_templates[f"{LLAMA2_70B}-{W_BF16_KV_BF16}-dot-product"]
+          | {
+              "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
+              "model_mode": CHAT_MODE,
+              "quant_mode": W_BF16_KV_BF16,
+              "quantization": "",
+              "quantize_kvcache": "false",
+              "per_device_batch_size": 24,
+              "kv_quant_axis": "",
+              "run_eval": True,
+          },
+          f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}": test_templates[
+              LLAMA2_70B
+          ]
+          | test_templates[f"{LLAMA2_70B}-{W_INT8_KV_INT8}-dot-product"]
+          | {
+              "checkpoint": CKPT[LLAMA2_70B][CHAT_MODE],
+              "model_mode": CHAT_MODE,
+              "quant_mode": W_INT8_KV_INT8,
+              "quantization": "int8",
+              "quantize_kvcache": "true",
+              "kv_quant_dtype": "int8",
+              "per_device_batch_size": 48,
+              "kv_quant_axis": "heads_and_dkv",
+              "run_eval": True,
+          },
+          # MIXTRAL_8_7B
+          f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}": test_templates[
+              MIXTRAL_8_7B
+          ]
+          | test_templates[f"{MIXTRAL_8_7B}-{W_BF16_KV_BF16}-dot-product"]
+          | {
+              "checkpoint": CKPT[MIXTRAL_8_7B][INSTRUCT_MODE],
+              "model_mode": INSTRUCT_MODE,
+              "quant_mode": W_BF16_KV_BF16,
+              "quantization": "",
+              "quantize_kvcache": "false",
+              "per_device_batch_size": 128,
+              "kv_quant_axis": "",
+              "run_eval": True,
+          },
+          f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}": test_templates[
+              MIXTRAL_8_7B
+          ]
+          | test_templates[f"{MIXTRAL_8_7B}-{W_INT8_KV_INT8}-dot-product"]
+          | {
+              "checkpoint": CKPT[MIXTRAL_8_7B][INSTRUCT_MODE],
+              "model_mode": INSTRUCT_MODE,
+              "quant_mode": W_INT8_KV_INT8,
+              "quantization": "int8",
+              "quantize_kvcache": "true",
+              "kv_quant_dtype": "int8",
+              "per_device_batch_size": 258,
+              "kv_quant_axis": "heads_and_dkv",
+              "run_eval": True,
+          },
+      }
+  )
+
+  # run_configs = [
+  #     f"{LLAMA2_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_7B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_7B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_13B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_13B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_13B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_13B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+  #     f"{LLAMA2_70B}-{CHAT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{LLAMA2_70B}-{CHAT_MODE}-{W_INT8_KV_INT8}",
+  #     f"{GEMMA_7B}-{BASE_MODE}-{W_BF16_KV_BF16}",
+  #     f"{GEMMA_7B}-{BASE_MODE}-{W_INT8_KV_INT8}",
+  #     f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_BF16_KV_BF16}",
+  #     f"{MIXTRAL_8_7B}-{INSTRUCT_MODE}-{W_INT8_KV_INT8}",
+  # ]
+
+  skip_configs = []
+
+  dags = []
+  for model_config_name, sweep_model_configs in tests.items():
+    # if run_configs and model_config_name not in run_configs:
+    #   continue
+    if skip_configs and model_config_name in skip_configs:
+      continue
+    for tpu_version, tpu_cores in sweep_model_configs["tpu_version_cores"]:
+      for axis_order in sweep_model_configs["axis_order"]:
+        for ici_parallelism in sweep_model_configs["ici_parallelisms"]:
+          for request_rate in sweep_model_configs["request_rate"]:
+            jetstream_benchmark_serving_kv_cache_layout = (
+                generate_model_configs(
+                    test_name_prefix=test_name_prefix,
+                    model_config_name=model_config_name,
+                    sweep_model_configs=sweep_model_configs,
+                    axis_order=axis_order,
+                    ici_parallelism=ici_parallelism,
+                    request_rate=request_rate,
+                    tpu_version=tpu_version,
+                    tpu_cores=tpu_cores,
+                )
+            )
+            dags.append(jetstream_benchmark_serving_kv_cache_layout)
+
+  # Cap the number of simultaneously requested v5e-8 due to resource contraints
+  n_parallel_jobs = 10
+  chunks = np.array_split(dags, n_parallel_jobs)
+  for chunk in chunks:
+    for i in range(1, len(chunk)):
+      chunk[i - 1] >> chunk[i]

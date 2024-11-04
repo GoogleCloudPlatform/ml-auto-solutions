@@ -24,10 +24,8 @@ class Team(enum.Enum):
   MLCOMPASS = "mlcompass"
   IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
+  FRAMEWORK = "framework3p"
 
-
-# XLML - JAX/FLAX
-SHIVA_S = "Shiva S."
 
 # XLML - TensorFlow
 ERIC_L = "Eric L."
@@ -61,3 +59,10 @@ ANDY_Y = "Andy Y."
 XIANG_S = "Xiang S."
 MORGAN_D = "Morgan D."
 YIJIA_J = "Yijia J."
+
+# 3P Ecosystems
+RICHARD_L = "Richard L."
+WENXIN_D = "Wenxin D."
+
+# FRAMEWORK
+QINY_Y = "Qinyi Y."

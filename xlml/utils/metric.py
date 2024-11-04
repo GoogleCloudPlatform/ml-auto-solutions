@@ -266,6 +266,8 @@ def process_tensorboard_summary(
 
   if summary_config.use_regex_file_location:
     file_location = get_gcs_file_location_with_regex(file_location)
+    if file_location == "":
+      return [[]], [[]]
 
   aggregation_strategy = summary_config.aggregation_strategy
   include_tag_patterns = summary_config.include_tag_patterns
@@ -330,9 +332,8 @@ def get_gcs_file_location_with_regex(file_location: str) -> str:
         f"{next(filter(file_path_regex.match, all_blobs_names))}"
     )
   except StopIteration:
-    raise AirflowFailException(
-        f"No objects matched supplied regex: {file_location}"
-    )
+    logging.warning(f"No objects matched supplied regex: {file_location}")
+    return ""
 
 
 # TODO(qinwen): implement profile metrics & upload to Vertex AI TensorBoard

@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for solutionsteam_tf_nightly_supported DAG."""
 
+import time
 import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
@@ -83,7 +84,7 @@ def get_tf_keras_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
+      all_workers=False,
   )
 
 
@@ -111,8 +112,11 @@ def get_tf_resnet_config(
   )
 
   set_up_cmds = common.set_up_tensorflow_models() + common.install_tf()
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
+  if is_pod:
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se()
+    else:
+      set_up_cmds += common.set_up_pjrt()
 
   # adjust global batch size based on num_cores
   global_batch_size = 128 * tpu_cores
@@ -142,13 +146,16 @@ def get_tf_resnet_config(
   # TODO(ranran): replace Variable.get() to XCOM when it applies
   tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
   env_variable = common.export_env_variables(tpu_name, is_pod, is_pjrt)
+
+  epoch = time.time()
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/resnet/{benchmark_id}/{epoch}"
   run_model_cmds = (
       "sudo chmod -R 777 /tmp/",
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/vision/train.py"
           f" --experiment=resnet_imagenet"
-          " --mode=train_and_eval --model_dir=/tmp/"
+          f" --mode=train_and_eval --model_dir={model_dir}"
           f" --params_override='{params_override}'"
       ),
   )
@@ -173,7 +180,7 @@ def get_tf_resnet_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
+      all_workers=False,
   )
 
 
@@ -211,63 +218,107 @@ def get_tf_dlrm_config(
   )
 
   set_up_cmds = common.set_up_tensorflow_models() + common.install_tf()
-  if not is_pjrt and is_pod:
-    set_up_cmds += common.set_up_se_nightly()
-  if is_v5p:
-    set_up_cmds += common.set_up_dlrm_v5p()
-
+  if is_pod:
+    if not is_pjrt:
+      set_up_cmds += common.set_up_se()
+    else:
+      set_up_cmds += common.set_up_pjrt()
   params_override = {
-      "runtime": {"distribution_strategy": "tpu"},
+      "runtime": {
+          "distribution_strategy": "tpu",
+          "mixed_precision_dtype": "mixed_bfloat16",
+      },
       "task": {
+          "use_synthetic_data": "false",
+          "use_tf_record_reader": "true",
           "train_data": {
-              "input_path": criteo_dir + "/train/*",
+              "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
               "global_batch_size": 16384,
           },
           "validation_data": {
-              "input_path": criteo_dir + "/eval/*",
+              "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/eval/day_*/*",
               "global_batch_size": 16384,
           },
           "model": {
-              "interaction": "dot",
+              "interaction": "multi_layer_dcn",
+              "dcn_num_layers": 3,
+              "dcn_low_rank_dim": 512,
               "num_dense_features": 13,
               "bottom_mlp": bottom_mlp,
               "embedding_dim": embedding_dim,
               "top_mlp": [1024, 1024, 512, 256, 1],
               "vocab_sizes": [
-                  39884406,
-                  39043,
-                  17289,
-                  7420,
-                  20263,
+                  40000000,
+                  39060,
+                  17295,
+                  7424,
+                  20265,
                   3,
-                  7120,
+                  7122,
                   1543,
                   63,
-                  38532951,
-                  2953546,
-                  403346,
+                  40000000,
+                  3067956,
+                  405282,
                   10,
-                  2208,
+                  2209,
                   11938,
                   155,
                   4,
                   976,
                   14,
-                  39979771,
-                  25641295,
-                  39664984,
-                  585935,
-                  12972,
+                  40000000,
+                  40000000,
+                  40000000,
+                  590152,
+                  12973,
                   108,
                   36,
               ],
+              "multi_hot_sizes": [
+                  3,
+                  2,
+                  1,
+                  2,
+                  6,
+                  1,
+                  1,
+                  1,
+                  1,
+                  7,
+                  3,
+                  8,
+                  1,
+                  6,
+                  9,
+                  5,
+                  1,
+                  1,
+                  1,
+                  12,
+                  100,
+                  27,
+                  10,
+                  3,
+                  1,
+                  1,
+              ],
+              "use_multi_hot": "true",
+              "concat_dense": "false",
+              "dcn_use_bias": "true",
+              "max_ids_per_chip_per_sample": 128,
+              "max_ids_per_table": 15000,
+              "max_unique_ids_per_table": 4096,
+              "initialize_tables_on_host": "false",
+              "use_partial_tpu_embedding": "false",
+              "size_threshold": 0,
           },
       },
       "trainer": {
           "use_orbit": "true",
-          "validation_interval": 90000,
-          "checkpoint_interval": 270000,
-          "validation_steps": 5440,
+          "validation_interval": 1000,
+          "checkpoint_interval": 0,
+          "validation_steps": 1000,
           "train_steps": train_steps,
           "optimizer_config": {
               "embedding_optimizer": "SGD",
@@ -282,22 +333,21 @@ def get_tf_dlrm_config(
       },
   }
 
-  model_dir = "/tmp/"
-  if is_v5p:
-    params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
-    tpu_id = Variable.get(benchmark_id, default_var=None)
-    # TODO (ericlefort): Replace the model_dir with this line when the var is available
-    # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
-    model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/v5p/{benchmark_id}"
+  model_dir = "/tmp"
+
+  params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
+  tpu_id = Variable.get(benchmark_id, default_var=None)
+  # TODO (ericlefort): Replace the model_dir with this line when the var is available
+  # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
+  epoch = time.time()
+  model_dir = f"{gcs_bucket.BASE_OUTPUT_DIR}/{test_owner.Team.SOLUTIONS_TEAM.value}/dlrm/{benchmark_id}/{epoch}"
 
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
-      "sudo chmod -R 777 /tmp/",
-      f"gsutil rm {model_dir}/* 2> /dev/null || true" if is_v5p else "echo",
       (
           f"cd /usr/share/tpu/models && {env_variable} &&"
           " python3 official/recommendation/ranking/train.py"
-          f" --model_dir=/tmp/output {extraFlags}"
+          f" --model_dir={model_dir} {extraFlags}"
           f" --params_override='{params_override}'"
       ),
   )
@@ -322,5 +372,5 @@ def get_tf_dlrm_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       tpu_name_env_var=is_pod,
-      all_workers=not is_pod,
+      all_workers=False,
   )

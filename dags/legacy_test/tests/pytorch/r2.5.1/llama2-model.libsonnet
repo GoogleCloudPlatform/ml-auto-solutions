@@ -41,7 +41,7 @@ local utils = import 'templates/utils.libsonnet';
     tpuSettings+: {
       tpuVmExtraSetup: |||
         # install tokenizer model
-        wget https://storage.googleapis.com/tpu-pytorch/lsiyuan-experiment/llama/spiece.model
+        gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
         # git clone and build llama
         git clone --branch llama2-google-next-inference https://github.com/pytorch-tpu/llama.git
@@ -109,7 +109,7 @@ local utils = import 'templates/utils.libsonnet';
       |||,
       tpuVmExtraSetup: |||
         # install tokenizer model
-        wget https://storage.googleapis.com/tpu-pytorch/lsiyuan-experiment/llama/spiece.model
+        gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
         # git clone and build transformers ### llama/transformers/
         git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.git
@@ -125,7 +125,60 @@ local utils = import 'templates/utils.libsonnet';
         # 7B config
         mkdir 7B
         cd 7B/
-        wget https://storage.googleapis.com/manfei_public_experimental/2B.json
+        gsutil cp gs://manfei_public_experimental/2B.json .
+      |||,
+    },
+  },
+  local llama3_train = self.llama3_train,
+  llama3_train:: common.PyTorchTest + common.Functional + common.PyTorchTpuVmMixin {
+    modelName: 'llama3-train',
+    command: [
+      'python',
+      'transformers/examples/pytorch/language-modeling/run_clm.py',
+      '--dataset_name=wikitext',
+      '--dataset_config_name=wikitext-2-raw-v1',
+      '--per_device_train_batch_size=2',
+      '--do_train',
+      '--output_dir=./tmp/test-clm',
+      '--overwrite_output_dir',
+      '--config_name=./llama_3/config.json',
+      '--cache_dir=./cache',
+      '--tokenizer_name=./llama_3/tokenizer/',
+      '--block_size=8192',
+      '--optim=adafactor',
+      '--save_strategy=no',
+      '--logging_strategy=no',
+      '--fsdp=full_shard',
+      '--fsdp_config=./llama_3/fsdp_config.json',
+      '--torch_dtype=bfloat16',
+      '--dataloader_drop_last=yes',
+      '--flash_attention',
+      '--max_steps=10',
+    ],
+    tpuSettings+: {
+      tpuVmExports+: |||
+        export PJRT_DEVICE=TPU
+        export XLA_USE_SPMD=1
+      |||,
+      tpuVmExtraSetup: |||
+        git clone -b flash_attention https://github.com/pytorch-tpu/transformers.git
+
+        # install tokenizer model
+        curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz
+        tar -xf google-cloud-cli-linux-x86_64.tar.gz
+        yes | ./google-cloud-sdk/install.sh
+        google-cloud-sdk/bin/gsutil cp -r gs://pytorch-airflow/llama_3/ .
+
+        cd transformers
+        sudo pip3 install -e .
+        pip3 install datasets
+        pip3 install evaluate
+        pip3 install scikit-learn
+        pip3 install accelerate
+        pip3 install transformers
+
+        pip install jax==0.4.33 -f https://storage.googleapis.com/jax-releases/jax_releases.html
+        pip install jaxlib==0.4.33 -f https://storage.googleapis.com/jax-releases/jaxlib_releases.html
       |||,
     },
   },
@@ -135,8 +188,28 @@ local utils = import 'templates/utils.libsonnet';
     accelerator: tpus.v4_8,
   },
 
+  local v5p_8 = self.v5p_8,
+  v5p_8:: {
+    tpuSettings+: {
+      softwareVersion: 'v2-alpha-tpuv5',
+    },
+    accelerator: tpus.v5p_8,
+  },
+
+  local trillium_4 = self.trillium_4,
+  trillium_4:: {
+    tpuSettings+: {
+      softwareVersion: 'v2-alpha-tpuv6e',
+    },
+    accelerator: tpus.trillium_4,
+  },
+
   configs: [
     llama2 + v4_8 + infer + timeouts.Hours(3),
     llama2 + v4_8 + spmd + timeouts.Hours(3),
+    llama2 + v5p_8 + infer + timeouts.Hours(3),
+    llama2 + v5p_8 + spmd + timeouts.Hours(3),
+    llama3_train + v5p_8 + timeouts.Hours(3),
+    llama3_train + trillium_4 + timeouts.Hours(3),
   ],
 }

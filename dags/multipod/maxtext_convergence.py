@@ -18,7 +18,7 @@ A DAG to run MaxText convergence tests for both bf16 and int8.
 import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Zone, DockerImage, ClusterName
+from dags.vm_resource import XpkClusters, DockerImage, Project, TpuVersion, Zone
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import gcp_config, metric_config, task, test_config
@@ -55,19 +55,29 @@ with models.DAG(
               f"export M_EXPANSION_FACTOR_REAL_DATA=2; {base_convergence_command}"
           ),
       ),
+      "maxtext-convergence-grain": (
+          (f"{base_convergence_command} DATASET_TYPE=grain"),
+      ),
+      "maxtext-convergence-hf": (
+          (f"{base_convergence_command} DATASET_TYPE=hf"),
+      ),
   }
 
+  maxtext_v4_config_tests = {}
   for test_name, run_command in convergence_tests.items():
-    maxtext_v4_configs_test = gke_config.get_gke_config(
-        tpu_version=TpuVersion.V4,
-        tpu_cores=128,
-        tpu_zone=Zone.US_CENTRAL2_B.value,
-        cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
+    maxtext_v4_config_tests[test_name] = gke_config.get_gke_config(
+        cluster=XpkClusters.TPU_V4_128_CLUSTER,
         time_out_in_min=300,
         test_name=test_name,
         run_model_cmds=run_command,
-        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.MATT_D,
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
     ).run_with_run_name_generation()
+
+# Test dependencies
+(
+    maxtext_v4_config_tests["maxtext-convergence-bf16"]
+    >> maxtext_v4_config_tests["maxtext-convergence-subset-hosts"]
+)

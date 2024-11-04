@@ -15,6 +15,7 @@
 """A DAG to run all supported ML models with the nightly TensorFlow version."""
 
 import datetime
+import time
 from airflow import models
 from dags import composer_env
 from dags.vm_resource import TpuVersion, Project, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
@@ -111,9 +112,46 @@ with models.DAG(
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
   )
 
+  embedding_dim = 32
+  tf_dlrm_v5p_8 = tf_config.get_tf_dlrm_config(
+      project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
+      tpu_version=TpuVersion.V5P,
+      tpu_cores=8,
+      tpu_zone=Zone.US_EAST5_A.value,
+      time_out_in_min=60,
+      bottom_mlp=[512, 256, embedding_dim],
+      embedding_dim=embedding_dim,
+      train_steps=10000,
+      extraFlags="--mode=train",
+      is_pod=False,
+      is_pjrt=True,
+      network=V5_NETWORKS,
+      subnetwork=V5P_SUBNETWORKS,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
+  )
+
+  embedding_dim = 128
+  tf_dlrm_v5p_32 = tf_config.get_tf_dlrm_config(
+      project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
+      tpu_version=TpuVersion.V5P,
+      tpu_cores=32,
+      tpu_zone=Zone.US_EAST5_A.value,
+      time_out_in_min=120,
+      bottom_mlp=[512, 256, embedding_dim],
+      embedding_dim=embedding_dim,
+      train_steps=10000,
+      extraFlags="--mode=train",
+      is_pod=True,
+      is_pjrt=True,
+      network=V5_NETWORKS,
+      subnetwork=V5P_SUBNETWORKS,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
+  )
+
   # Test dependencies
   tf_resnet_v2_8
   tf_resnet_v3_8
   tf_resnet_v4_8 >> tf_resnet_v4_32
   tf_resnet_v5e_4 >> tf_resnet_v5e_16
   tf_resnet_v5p_8 >> tf_resnet_v5p_32
+  tf_dlrm_v5p_8 >> tf_dlrm_v5p_32

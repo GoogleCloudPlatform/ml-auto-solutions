@@ -21,7 +21,7 @@ on 1xv4-128.
 import datetime
 from airflow import models
 from dags import test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, ClusterName, DockerImage
+from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 
 # Set concurrency to number of workers otherwise tasks may time out
@@ -44,15 +44,11 @@ with models.DAG(
   maxtext_sweep_gke_test = (
       maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
           test_owner=test_owner.RAYMOND_Z,
-          project_name=Project.TPU_PROD_ENV_MULTIPOD.value,
-          cluster_name=ClusterName.V4_128_MULTISLICE_CLUSTER.value,
-          tpu_zone=Zone.US_CENTRAL2_B.value,
+          cluster=XpkClusters.TPU_V4_128_CLUSTER,
           time_out_in_min=60,
           base_output_directory=base_output_directory,
-          tpu_version=TpuVersion.V4,
-          tpu_cores=128,
           num_slices=[1],
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           run_name_prefix="maxtext-16b",
           base_run_model_cmds=base_run_model_cmds,
           sweep_params={"M_PER_DEVICE_BATCH_SIZE": [2, 4, 8]},

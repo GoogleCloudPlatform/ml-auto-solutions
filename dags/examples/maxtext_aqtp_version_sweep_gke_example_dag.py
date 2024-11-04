@@ -21,7 +21,7 @@ Used upon library upgrades.
 import datetime
 from airflow import models
 from dags import test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, ClusterName, DockerImage
+from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 
 # Set concurrency to number of workers otherwise tasks may time out
@@ -37,24 +37,21 @@ with models.DAG(
   base_output_directory = "gs://maxtext-experiments-multipod"
 
   sweep_model_configs = {
-      "v5e": [("16b", 256), ("32b", 256), ("64b", 256), ("128b", 256)],
+      "v5e": ["16b", "32b", "64b", "128b"],
   }
 
   shared_task_config = {
       "test_owner": test_owner.ZHIYU_L,
-      "project_name": Project.TPU_PROD_ENV_MULTIPOD.value,
-      "cluster_name": ClusterName.V5E_256_US_WEST_4_MULTISLICE_CLUSTER.value,
-      "tpu_zone": Zone.US_WEST4_B.value,
+      "cluster": XpkClusters.TPU_V5E_256_CLUSTER,
       "time_out_in_min": 60,
       "base_output_directory": base_output_directory,
-      "tpu_version": TpuVersion.V5E,
       "num_slices": [1, 2],
       "docker_image": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
   }
 
   tests = []
   for tpu, models in sweep_model_configs.items():
-    for model_size, num_cores in models:
+    for model_size in models:
       run_cmds = [
           "pip show aqtp",
           f"bash MaxText/configs/{tpu}/{model_size}.sh EXECUTABLE=train.py OUTPUT_PATH={base_output_directory} PLATFORM=gke",
@@ -63,7 +60,6 @@ with models.DAG(
       tests.extend(
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               **shared_task_config,
-              tpu_cores=num_cores,
               run_name_prefix=f"bf16-{model_size}",
               base_run_model_cmds=run_cmds,
               sweep_params={
@@ -77,7 +73,6 @@ with models.DAG(
       tests.extend(
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               **shared_task_config,
-              tpu_cores=num_cores,
               run_name_prefix=f"int8-aqtp061-{model_size}",
               base_run_model_cmds=["pip install aqtp==0.6.1"] + run_cmds,
               sweep_params={
@@ -91,7 +86,6 @@ with models.DAG(
       tests.extend(
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               **shared_task_config,
-              tpu_cores=num_cores,
               run_name_prefix=f"int8-aqpt062-{model_size}",
               base_run_model_cmds=["pip install aqtp==0.6.2"] + run_cmds,
               sweep_params={
