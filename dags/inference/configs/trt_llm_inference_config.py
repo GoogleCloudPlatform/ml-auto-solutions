@@ -14,6 +14,7 @@
 
 """Utilities to construct configs for TensorRT-LLM inference DAG."""
 
+import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import test_owner, vm_resource
 from dags.vm_resource import Project, RuntimeVersion
@@ -32,6 +33,8 @@ def get_trt_llm_gpu_config(
     time_out_in_min: int,
     test_name: str,
     project: Project,
+    network: str,
+    subnetwork: str,
 ) -> task.GpuCreateResourceTask:
   set_up_cmds = (
       "pip install --upgrade pip",
@@ -40,7 +43,20 @@ def get_trt_llm_gpu_config(
       "chmod u+x NVIDIA-Linux-x86_64-550.54.15.run",
       "sudo ./NVIDIA-Linux-x86_64-550.54.15.run -x-module-path=/usr/lib/xorg/modules --ui=none -x-library-path=/usr/lib -q",
       "sudo nvidia-smi -pm 1",
+      # Format and mount multiple Local SSD
+      "sudo apt update && sudo apt install mdadm --no-install-recommends",
+      "find /dev/ | grep google-local-nvme-ssd",
+      "sudo mdadm --create /dev/md0 --level=0 --raid-devices=$(find /dev/ -name 'google-local-nvme-ssd*' | wc -l) $(find /dev/ -name 'google-local-nvme-ssd*')",
+      "sudo mdadm --detail --prefer=by-id /dev/md0",
+      "sudo mkfs.ext4 -F /dev/md0",
+      "sudo mkdir -p /scratch",
+      "sudo mount /dev/md0 /scratch",
+      "sudo chmod a+w /scratch",
+      "cd /scratch",
       # Install TensorRT-LLM.
+      "gsutil -m cp -r gs://tohaowu/llama_3_8B_Instruct_HF_model .",
+      "gsutil -m cp -r gs://tohaowu/llama_3.1_70B_Instruct_HF_model .",
+      "gsutil -m cp -r gs://tohaowu/Mixtral-8x22B-Instruct-v0.1 .",
       "sudo apt-get update",
       "sudo apt-get -y install git git-lfs",
       "git clone https://github.com/NVIDIA/TensorRT-LLM.git",
@@ -49,14 +65,13 @@ def get_trt_llm_gpu_config(
       "git lfs install",
       "git lfs pull",
       "make -C docker release_build",
-      "make -C docker release_run DOCKER_RUN_ARGS='--detach' RUN_CMD='sleep infinity'",
+      "make -C docker release_run DOCKER_RUN_ARGS='--detach -v /scratch:/scratch' RUN_CMD='sleep infinity'",
   )
 
   jsonl_output_path = "metric_report.jsonl"
   jsonl_converter_py_lines = (
       "import sys, csv, jsonlines, glob",
       'csv_files = glob.glob(\\"*.csv\\")',
-      "csv_metric_path = csv_files[0]",
       "def make_json(csv_path, jsonl_path):",
       "  data = dict()",
       '  data[\\"dimensions\\"] = {\\"framework\\":\\"TensorRT-LLM\\"}',
@@ -70,18 +85,28 @@ def get_trt_llm_gpu_config(
       '                  data[\\"metrics\\"][key] = float(rows[key])',
       "              except:",
       '                  data[\\"dimensions\\"][key] = rows[key]',
-      '  with jsonlines.open(jsonl_path, \\"w\\") as writter:',
+      '  with jsonlines.open(jsonl_path, \\"a\\") as writter:',
       "      writter.write(data)",
       'if __name__ == \\"__main__\\":',
-      "  make_json(csv_metric_path, sys.argv[1])",
+      "  for csv_metric_path in csv_files:",
+      "    make_json(csv_metric_path, sys.argv[1])",
   )
   docker_container_name = "tensorrt_llm-release-cloud-ml-auto-solutions"
   py_script = "\n".join(jsonl_converter_py_lines)
   make_jsonl_convert_cmd = f"echo '{py_script}' > jsonl_converter.py"
   docker_cmds = (
-      "cd benchmarks/python",
       "pip install jsonlines",
-      "python benchmark.py -m llama_7b --mode plugin --batch_size 8 --input_output_len 128,128 --csv",
+      "cd examples/llama",
+      "python convert_checkpoint.py --model_dir /scratch/llama_3_8B_Instruct_HF_model/ --output_dir /scratch/tllm_checkpoint_1gpu_tp1 --dtype float16 --tp_size 1",
+      "trtllm-build --checkpoint_dir /scratch/tllm_checkpoint_1gpu_tp1 --output_dir /scratch/llama/8B/trt_engines/fp16/1-gpu/ --gemm_plugin auto",
+      "python convert_checkpoint.py --model_dir /scratch/llama_3.1_70B_Instruct_HF_model/ --output_dir /scratch/tllm_checkpoint_8gpu_tp8 --dtype float16 --tp_size 8",
+      "trtllm-build --checkpoint_dir /scratch/tllm_checkpoint_8gpu_tp8 --output_dir /scratch/llama/70B/trt_engines/fp16/8-gpu/ --gemm_plugin auto",
+      "python ../llama/convert_checkpoint.py --model_dir /scratch/Mixtral-8x22B-Instruct-v0.1 --output_dir /scratch/tllm_checkpoint_mixtral_8gpu --dtype float16 --tp_size 8 --moe_tp_size 2 --moe_ep_size 4",
+      "trtllm-build --checkpoint_dir /scratch/tllm_checkpoint_mixtral_8gpu --output_dir /scratch/trt_engines/mixtral/tp2ep4",
+      "cd ../../benchmarks/python",
+      "python benchmark.py -m dec --engine_dir /scratch/llama/8B/trt_engines/fp16/1-gpu/ --csv",
+      "OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 mpirun -n 8 python benchmark.py -m dec --engine_dir /scratch/llama/70B/trt_engines/fp16/8-gpu/ --csv",
+      "OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 mpirun -n 8 python benchmark.py -m dec --engine_dir /scratch/trt_engines/mixtral/tp2ep4 --csv",
       make_jsonl_convert_cmd,
       f"python jsonl_converter.py {jsonl_output_path}",
   )
@@ -100,11 +125,14 @@ def get_trt_llm_gpu_config(
           count=count,
           accelerator_type=accelerator_type.value,
           runtime_version=RUNTIME_IMAGE,
+          network=network,
+          subnetwork=subnetwork,
+          disk_size_gb=1000,
       ),
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
-      time_out_in_min=time_out_in_min,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.YIJIA_J,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm",
   )

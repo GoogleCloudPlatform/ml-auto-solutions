@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project
+from dags.vm_resource import H100_INFERENCE_SUBNETWORKS, INFERENCE_NETWORKS, GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project
 from dags.inference.configs import trt_llm_inference_config
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -28,46 +28,22 @@ with models.DAG(
     dag_id="tensorrt_llm_inference",
     schedule=SCHEDULED_TIME,
     tags=["inference_team", "tensorrt_llm", "nightly", "benchmark"],
-    start_date=datetime.datetime(2024, 5, 10),
+    start_date=datetime.datetime(2024, 11, 5),
     catchup=False,
 ) as dag:
   test_name_prefix = "tensorrt-llm-inference"
 
-  # Running on L4 GPU
+  # Running on H100 GPU
   trt_llm_inference_config.get_trt_llm_gpu_config(
-      machine_type=MachineVersion.G2_STAND_4,
+      machine_type=MachineVersion.A3_HIGHGPU_8G,
       image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.L4,
-      count=1,
-      gpu_zone=Zone.US_CENTRAL1_C,
+      accelerator_type=GpuVersion.H100,
+      count=8,
+      gpu_zone=Zone.US_CENTRAL1_A,
       time_out_in_min=1600,
-      test_name=f"{test_name_prefix}-nightly-llama-7b-l4-1",
+      test_name=f"{test_name_prefix}-nightly-h100-8",
       project=Project.CLOUD_TPU_INFERENCE_TEST,
-  ).run()
-
-  # Running on A100 GPU
-  trt_llm_inference_config.get_trt_llm_gpu_config(
-      machine_type=MachineVersion.A2_HIGHGPU_1G,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.A100,
-      count=1,
-      gpu_zone=Zone.US_CENTRAL1_F,
-      time_out_in_min=1600,
-      test_name=f"{test_name_prefix}-nightly-llama-7b-a100-1",
-      project=Project.CLOUD_TPU_INFERENCE_TEST,
-  ).run()
-
-  # Running on V100 GPU
-  trt_llm_inference_config.get_trt_llm_gpu_config(
-      machine_type=MachineVersion.N1_STANDARD_8,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
-      image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
-      accelerator_type=GpuVersion.V100,
-      count=1,
-      gpu_zone=Zone.US_CENTRAL1_C,
-      time_out_in_min=1600,
-      test_name=f"{test_name_prefix}-nightly-llama-7b-v100-1",
-      project=Project.CLOUD_TPU_INFERENCE_TEST,
+      network=INFERENCE_NETWORKS,
+      subnetwork=H100_INFERENCE_SUBNETWORKS,
   ).run()
