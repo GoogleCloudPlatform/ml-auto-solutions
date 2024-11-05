@@ -69,3 +69,6 @@ QINY_Y = "Qinyi Y."
 
 # MAP_REPRODUCIBILITY
 GUNJAN_J = "Gunjan J."
+
+# JAX
+AKANKSHA_G = "Akanksha G."
