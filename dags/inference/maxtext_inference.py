@@ -613,7 +613,7 @@ with models.DAG(
             dags.append(jetstream_benchmark_serving_kv_cache_layout)
 
   # Cap the number of simultaneously requested v5e-8 due to resource contraints
-  n_parallel_jobs = 10
+  n_parallel_jobs = 4
   chunks = np.array_split(dags, n_parallel_jobs)
   for chunk in chunks:
     for i in range(1, len(chunk)):
