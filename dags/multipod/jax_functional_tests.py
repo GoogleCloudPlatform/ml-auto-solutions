@@ -60,6 +60,8 @@ with models.DAG(
       )
   )
 
+  jax_nightly_1slice_v4_8 >> jax_nightly_2slice_v4_8
+
   # v5p
   v5p_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
   v5p_network = V5_NETWORKS
@@ -98,3 +100,5 @@ with models.DAG(
           subnetwork=v5p_subnetwork,
       )
   )
+
+jax_nightly_1slice_v5p_8 >> jax_nightly_2slice_v5p_8
