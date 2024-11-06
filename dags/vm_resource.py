@@ -32,6 +32,7 @@ V6E_GCE_SUBNETWORK = "default"
 
 BM_NETWORKS_PREFIX_BENCHMARKING = "projects/cloud-ml-benchmarking"
 BM_NETWORKS = f"{BM_NETWORKS_PREFIX_BENCHMARKING}/global/networks/mas-test"
+A100_BM_SUBNETWORKS = "regions/us-west4/subnetworks/mas-test"
 V4_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-central2/subnetworks/mas-test"
 V5E_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-west1/subnetworks/mas-test"
 V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
@@ -103,6 +104,8 @@ class Zone(enum.Enum):
   US_EAST4_A = "us-east4-a"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
+  # reserved v6e in tpu-prod-env-automated
+  US_EAST5_C = "us-east5-c"
   # reserved v5e in tpu-prod-env-multipod
   US_WEST4_B = "us-west4-b"
   # reserved v5e in cloud-tpu-inference-test
@@ -241,12 +244,13 @@ class XpkClusters:
       project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
       zone=Zone.US_CENTRAL2_B.value,
   )
+
   TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
-      name="mlperf-v6e-256",
+      name="bodaborg-v6e-256",
       device_version=TpuVersion.TRILLIUM,
       core_count=256,
-      project=Project.TPU_PROD_ENV_MULTIPOD.value,
-      zone=Zone.EUROPE_WEST4_A.value,
+      project=Project.TPU_PROD_ENV_AUTOMATED.value,
+      zone=Zone.US_EAST5_C.value,
   )
   GPU_A3_CLUSTER = XpkClusterConfig(
       name="ninacai-maxtext-a3",
@@ -306,8 +310,8 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_pinned:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXTEXT_GPU_JAX_STABLE = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable:"
+  MAXTEXT_GPU_JAX_STABLE_STACK = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_JAX_NIGHTLY = (
