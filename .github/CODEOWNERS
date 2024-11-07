@@ -7,14 +7,12 @@ dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
 dags/pytorch_xla @JackCaoG @vanbasten23 @zpcore @ManfeiBai
 dags/legacy_test/tests/pytorch @JackCaoG @vanbasten23 @zpcore @ManfeiBai
 
-dags/multipod @jonb377 @tonyjohnchen @raymondzouu
+dags/multipod @jonb377 @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/imagegen_devx @RissyRan @parambole @jiangjy1982 @aireenmei
-dags/imagegen_devx/project_bite* @RissyRan @jiya-zhang @jiangjy1982 @aireenmei
-dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang @jiangjy1982 @aireenmei
-dags/imagegen_devx/configs/jax_ss_config* @parambole @RissyRan @jiangjy1982 @aireenmei
-dags/imagegen_devx/maxtext_jax_ss_e2e* @parambole @RissyRan @jiangjy1982 @aireenmei
+dags/imagegen_devx @RissyRan @parambole @jiangjy1982 @aireenmei @jfacevedo-google @michelle-yooh
+dags/imagegen_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @jfacevedo-google @michelle-yooh @jiya-zhang
+dags/imagegen_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @jfacevedo-google @michelle-yooh @jiya-zhang
 
 dags/inference @yeandy @vipannalla @morgandu @mailvijayasingh @sixiang-google @joezijunzhou @singh-mitali
