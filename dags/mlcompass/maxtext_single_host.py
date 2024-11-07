@@ -55,7 +55,7 @@ def get_single_host_config(
   )
   job_test_config = test_config.TpuGkeTest(
       test_config.Tpu(
-          version=cluster.version,
+          version=cluster.device_version,
           cores=cluster.core_count,
       ),
       test_name="maxtext",
