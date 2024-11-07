@@ -93,7 +93,7 @@ with models.DAG(
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     cluster = config.clusters[accelerator]
     for slice_num in slices:
-        axlearn_jax_stable_stack_test = config.get_gke_config(
+      axlearn_jax_stable_stack_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
           time_out_in_min=180,
