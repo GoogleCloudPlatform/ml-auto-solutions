@@ -27,8 +27,9 @@ import datetime
 from airflow import models
 from airflow.decorators import task
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from dags import test_owner
-from dags.vm_resource import TpuVersion, Zone, ClusterName, Project
+from dags.vm_resource import Project, XpkClusters
 from xlml.apis import gcp_config, metric_config, task as xlml_task, test_config
 import json
 
@@ -37,29 +38,25 @@ def get_single_host_config(
     docker_image: str,
     model_name: str,
     base_output_directory: str,
-    tpu_version: TpuVersion = TpuVersion.V4,
-    tpu_cores: int = 8,
-    tpu_zone: str = Zone.US_CENTRAL2_B.value,
-    time_out_in_min: int = 60,
     task_owner: str = test_owner.ORTI_B,
-    cluster_name: str = ClusterName.V4_8_MULTISLICE_CLUSTER.value,
-    project_name: str = Project.TPU_PROD_ENV_MULTIPOD.value,
+    cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+    time_out_in_min: int = 60,
     num_slices: int = 1,
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ) -> xlml_task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
+      project_name=cluster.project,
+      zone=cluster.zone,
       dataset_name=dataset_name,
       dataset_project=dataset_project,
       composer_project=composer_project,
   )
   job_test_config = test_config.TpuGkeTest(
       test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
+          version=cluster.version,
+          cores=cluster.core_count,
       ),
       test_name="maxtext",
       run_model_cmds=[
@@ -70,7 +67,7 @@ def get_single_host_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=task_owner,
       num_slices=num_slices,
-      cluster_name=cluster_name,
+      cluster_name=cluster.name,
       docker_image=docker_image,
   )
   return xlml_task.XpkTask(
