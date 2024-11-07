@@ -11,10 +11,10 @@ dags/multipod @jonb377 @tonyjohnchen @raymondzouu
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/imagegen_devx @RissyRan @parambole
-dags/imagegen_devx/project_bite* @RissyRan @jiya-zhang
-dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang
-dags/imagegen_devx/configs/jax_ss_config* @parambole @RissyRan
-dags/imagegen_devx/maxtext_jax_ss_e2e* @parambole @RissyRan
+dags/imagegen_devx @RissyRan @parambole @jiangjy1982 @aireenmei
+dags/imagegen_devx/project_bite* @RissyRan @jiya-zhang @jiangjy1982 @aireenmei
+dags/imagegen_devx/configs/project_bite* @RissyRan @jiya-zhang @jiangjy1982 @aireenmei
+dags/imagegen_devx/configs/jax_ss_config* @parambole @RissyRan @jiangjy1982 @aireenmei
+dags/imagegen_devx/maxtext_jax_ss_e2e* @parambole @RissyRan @jiangjy1982 @aireenmei
 
 dags/inference @yeandy @vipannalla @morgandu @mailvijayasingh @sixiang-google @joezijunzhou @singh-mitali
