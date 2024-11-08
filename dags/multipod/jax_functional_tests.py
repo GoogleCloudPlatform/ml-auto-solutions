@@ -33,6 +33,7 @@ with models.DAG(
 ) as dag:
   default_test_name = "jax-distributed-initialize"
   test_modes = [SetupMode.STABLE, SetupMode.NIGHTLY, SetupMode.JAX_STABLE_STACK]
+  v4_task_arr, v5p_task_arr = [], []
 
   for test_mode in test_modes:
     # v4
@@ -43,10 +44,14 @@ with models.DAG(
             tpu_zone=Zone.US_CENTRAL2_B.value,
             time_out_in_min=60,
             is_tpu_reserved=False,
-            test_name=f"{default_test_name}-1xv4-8-{test_mode.value}",
+            test_name=f"{default_test_name}-{test_mode.value}",
             test_mode=test_mode,
         )
     )
+    if len(v4_task_arr) > 1:
+      # pylint: disable-next=pointless-statement
+      v4_task_arr[-1] >> jax_nightly_1slice_v4_8
+    v4_task_arr.append(jax_nightly_1slice_v4_8)
 
     jax_nightly_2slice_v4_8 = (
         jax_tests_gce_config.get_jax_distributed_initialize_config(
@@ -56,12 +61,14 @@ with models.DAG(
             time_out_in_min=60,
             is_tpu_reserved=False,
             num_slices=2,
-            test_name=f"{default_test_name}-2xv4-8-{test_mode.value}",
+            test_name=f"{default_test_name}-{test_mode.value}",
             test_mode=test_mode,
         )
     )
 
-    jax_nightly_1slice_v4_8 >> jax_nightly_2slice_v4_8
+    # pylint: disable-next=pointless-statement
+    v4_task_arr[-1] >> jax_nightly_2slice_v4_8
+    v4_task_arr.append(jax_nightly_2slice_v4_8)
 
     # v5p
     v5p_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
@@ -78,12 +85,16 @@ with models.DAG(
             project_name=v5p_project_name,
             time_out_in_min=60,
             is_tpu_reserved=True,
-            test_name=f"{default_test_name}-1xv5p-8-{test_mode.value}",
+            test_name=f"{default_test_name}-{test_mode.value}",
             test_mode=test_mode,
             network=v5p_network,
             subnetwork=v5p_subnetwork,
         )
     )
+    if len(v5p_task_arr) > 1:
+      # pylint: disable-next=pointless-statement
+      v5p_task_arr[-1] >> jax_nightly_1slice_v5p_8
+    v5p_task_arr.append(jax_nightly_1slice_v5p_8)
 
     jax_nightly_2slice_v5p_8 = (
         jax_tests_gce_config.get_jax_distributed_initialize_config(
@@ -95,11 +106,13 @@ with models.DAG(
             project_name=v5p_project_name,
             time_out_in_min=60,
             is_tpu_reserved=True,
-            test_name=f"{default_test_name}-2xv5p-8-{test_mode.value}",
+            test_name=f"{default_test_name}-{test_mode.value}",
             test_mode=test_mode,
             network=v5p_network,
             subnetwork=v5p_subnetwork,
         )
     )
 
-    jax_nightly_1slice_v5p_8 >> jax_nightly_2slice_v5p_8
+    # pylint: disable-next=pointless-statement
+    v5p_task_arr[-1] >> jax_nightly_2slice_v5p_8
+    v5p_task_arr.append(jax_nightly_2slice_v5p_8)
