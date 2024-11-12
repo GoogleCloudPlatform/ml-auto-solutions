@@ -28,7 +28,7 @@ SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="jax_stable_tpu_stack_e2e",
+    dag_id="jax_stable_stack_tpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
         "multipod_team",
@@ -107,7 +107,7 @@ with models.DAG(
       axlearn_jax_stable_stack_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
-          time_out_in_min=180,
+          time_out_in_min=300,
           run_model_cmds=(
               "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               "cd axlearn && python -m axlearn.common.launch_trainer_main "
