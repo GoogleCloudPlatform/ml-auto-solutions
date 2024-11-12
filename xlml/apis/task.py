@@ -18,6 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
+from dags.quarantined_tests import QuarantineTests
 from typing import Optional, Tuple, Union
 import airflow
 from airflow.models.taskmixin import DAGNode
@@ -37,6 +38,19 @@ class BaseTask(abc.ABC):
       A DAG node that executes this test.
     """
     ...
+
+  def run_with_quarantine(self, quarantine_task_group):
+    """Run a test job. If the test job is flaky, wrap it in a special task grop.
+
+    Returns:
+      A DAG node that executes this test.
+    """
+    test_name = self.task_test_config.benchmark_id
+    if QuarantineTests.is_quarantined(test_name):
+      with quarantine_task_group:
+        return self.run()
+    else:
+      return self.run()
 
 
 def run_queued_resource_test(
