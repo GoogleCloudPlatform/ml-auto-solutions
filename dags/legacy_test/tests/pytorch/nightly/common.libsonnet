@@ -91,7 +91,13 @@ local volumes = import 'templates/volumes.libsonnet';
       tpuVmPytorchSetup: |||
         pip3 install -U 'setuptools>=70.0.0,<71.0.0'
         # `unattended-upgr` blocks us from installing apt dependencies
-        sudo systemctl stop unattended-upgrades
+        sudo systemctl stop unattended-upgrades || true
+        sudo systemctl disable unattended-upgrades || true
+        sudo killall --signal SIGKILL unattended-upgrades || true
+        sudo rm /var/lib/dpkg/lock-frontend || true
+        sudo dpkg --configure -a || true
+        echo "unattended-upgrades stopped."
+
         sudo apt-get -y update
         sudo apt install -y libopenblas-base
         # for huggingface tests

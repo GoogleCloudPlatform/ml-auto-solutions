@@ -25,6 +25,7 @@ from dags.multipod.configs.common import SetupMode
 # Run once a day at 5 am UTC (9 pm PST / 10 pm PDT)
 SCHEDULED_TIME = "0 5 * * *" if composer_env.is_prod_env() else None
 
+
 with models.DAG(
     dag_id="maxtext_configs_aot",
     schedule=SCHEDULED_TIME,
@@ -51,7 +52,7 @@ with models.DAG(
   }
   num_slices = [1, 2]
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
 
@@ -103,6 +104,6 @@ with models.DAG(
       run_model_cmds=(cmd,),
       num_slices=1,
       cluster=XpkClusters.GPU_A3_CLUSTER,
-      docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
+      docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
       test_owner=test_owner.JON_B,
   ).run()

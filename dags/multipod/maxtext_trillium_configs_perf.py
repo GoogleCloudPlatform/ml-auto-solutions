@@ -25,11 +25,9 @@ from xlml.apis import metric_config
 
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
-MODEL_CONFIGS = [
-    "gpt3_175b",
-]
+MODEL_CONFIGS = ["gpt3_175b", "llama2_70b_4096", "mixtral_8x7b"]
 DOCKER_IMAGES = [
-    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
 ]
 QUANTIZATION_SWEEP = {"M_QUANTIZATION": ["", "int8"]}
@@ -53,7 +51,7 @@ with models.DAG(
               dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               dataset_name=metric_config.DatasetOption.XLML_DATASET,
-              cluster=XpkClusters.TPU_V6E_256_CLUSTER,
+              cluster=XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
               time_out_in_min=360,
               base_output_directory=BASE_OUTPUT_DIRECTORY,
               num_slices=[1, 2],

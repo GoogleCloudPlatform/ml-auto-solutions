@@ -18,6 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
+from dags.quarantined_tests import QuarantineTests
 from typing import Optional, Tuple, Union
 import airflow
 from airflow.models.taskmixin import DAGNode
@@ -37,6 +38,19 @@ class BaseTask(abc.ABC):
       A DAG node that executes this test.
     """
     ...
+
+  def run_with_quarantine(self, quarantine_task_group):
+    """Run a test job. If the test job is flaky, wrap it in a special task grop.
+
+    Returns:
+      A DAG node that executes this test.
+    """
+    test_name = self.task_test_config.benchmark_id
+    if QuarantineTests.is_quarantined(test_name):
+      with quarantine_task_group:
+        return self.run()
+    else:
+      return self.run()
 
 
 def run_queued_resource_test(
@@ -320,7 +334,7 @@ class GpuCreateResourceTask(BaseTask):
     task_gcp_config: gcp related config (e.g., zone, project) for the task.
     task_metric_config: metric configuration (e.g., result gcs path).
     gpu_create_timeout: timeout when waiting for the GPU vm creation.
-
+    install_nvidia_drivers: whether to install Nvidia drivers.
   """
 
   image_project: str
@@ -329,6 +343,7 @@ class GpuCreateResourceTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
   gpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
+  install_nvidia_drivers: bool = False
 
   def run(self) -> DAGNode:
     """Run a test job.
@@ -409,6 +424,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_gcp_config,
           ssh_keys,
           timeout=self.gpu_create_timeout,
+          install_nvidia_drivers=self.install_nvidia_drivers,
       )
 
       ip_address >> gpu.ssh_host.override(task_id="setup")(

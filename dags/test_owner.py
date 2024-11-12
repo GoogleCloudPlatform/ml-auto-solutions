@@ -24,6 +24,11 @@ class Team(enum.Enum):
   MLCOMPASS = "mlcompass"
   IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
+  FRAMEWORK = "framework3p"
+  LLM_DEVX = "llm_devx"
+  SPARCITY_DIFFUSION_DEVX = "sparcity_diffusion_devx"
+  PERFORMANCE = "performance"
+  PRODUCTIVITY = "productivity"
 
 
 # XLML - TensorFlow
@@ -58,3 +63,13 @@ ANDY_Y = "Andy Y."
 XIANG_S = "Xiang S."
 MORGAN_D = "Morgan D."
 YIJIA_J = "Yijia J."
+
+# 3P Ecosystems
+RICHARD_L = "Richard L."
+WENXIN_D = "Wenxin D."
+
+# FRAMEWORK
+QINY_Y = "Qinyi Y."
+
+# JAX
+AKANKSHA_G = "Akanksha G."

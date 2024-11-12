@@ -28,7 +28,7 @@ SCHEDULED_TIME = "0 18 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="project_bite",
     schedule=SCHEDULED_TIME,
-    tags=["imagegen_devx", "jax", "nightly", "bite"],
+    tags=["imagegen_devx", "jax", "nightly", "bite", "multipod_team"],
     start_date=datetime.datetime(2024, 4, 4),
     catchup=False,
 ) as dag:
@@ -43,15 +43,15 @@ with models.DAG(
   )
 
   # AXLearn pinned version against JAX head
-  # pinned_version commit: 2a44f58fe3d3f33eaa9d10bfa8a2f8ce9bec029e
-  # pinned_version PR: https://github.com/apple/axlearn/pull/505
-  # pinned_version date: Jun 3, 2024
+  # pinned_version commit: e918d7c219d067dfcace8a25e619d90c5a54c36b
+  # pinned_version PR: https://github.com/apple/axlearn/pull/752
+  # pinned_version date: Oct 16, 2024
   jax_pinned_fuji_v4_8 = config.get_bite_tpu_config(
       tpu_version=TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
       model_config="fuji-test-v1",
-      pinned_version="2a44f58fe3d3f33eaa9d10bfa8a2f8ce9bec029e",
+      pinned_version="e918d7c219d067dfcace8a25e619d90c5a54c36b",
       time_out_in_min=180,
   )

@@ -37,7 +37,7 @@ with models.DAG(
   test_name_prefix = "maxtext"
   test_models_tpu = {
       "llama2-7b": "tpu/llama2/7b/test_llama2_7b",
-      "mistral": "tpu/test_mistral",
+      "mistral-7b": "tpu/mistral/7b/test_mistral-7b",
       "gemma-2b": "tpu/gemma/2b/test_gemma",
       "gpt3": "tpu/test_gpt3",
   }
@@ -47,7 +47,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
-        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.JON_B,
     ).run()
     nightly_tpu = gke_config.get_gke_config(
@@ -129,7 +129,7 @@ with models.DAG(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
           cluster=test_scripts_details[0]["cluster"],
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.ANISHA_M,
       ).run(gcs_location=shared_gcs_location)
       stable_tpu = gke_config.get_gke_config(
@@ -138,7 +138,7 @@ with models.DAG(
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
           ),
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.ANISHA_M,
           cluster=test_scripts_details[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)

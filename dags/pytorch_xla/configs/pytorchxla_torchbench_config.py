@@ -31,6 +31,7 @@ class VERSION(enum.Enum):
   R2_3 = enum.auto()
   R2_4 = enum.auto()
   R2_5 = enum.auto()
+  R2_5_1 = enum.auto()
 
 
 class VERSION_MAPPING:
@@ -85,16 +86,28 @@ class VERSION_MAPPING:
     TORCH_XLA_REPO_BRANCH = "-b v2.4.0-rc8"
 
   class R2_5(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl"
-    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.5.0rc1-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.0-cp310-cp310-manylinux_2_28_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.5.0-cp310-cp310-manylinux_2_28_x86_64.whl"
     TORCH = "torch==2.5.0"
-    TORCHVISION = "torchvision==0.19.0"
+    TORCHVISION = "torchvision==0.20.0"
     TORCHAUDIO = "torchaudio==2.5.0"
     TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.5.0_3.10_cuda_12.1"
     TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
     TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
-    TORCH_REPO_BRANCH = "-b v2.5.0-rc1"
-    TORCH_XLA_REPO_BRANCH = "-b v2.5.0-rc1"
+    TORCH_REPO_BRANCH = "-b v2.5.0"
+    TORCH_XLA_REPO_BRANCH = "-b v2.5.0"
+
+  class R2_5_1(enum.Enum):
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.5.1-cp310-cp310-manylinux_2_28_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.5.1-cp310-cp310-linux_x86_64.whl"
+    TORCH = "torch==2.5.1"
+    TORCHVISION = "torchvision==0.20.0"
+    TORCHAUDIO = "torchaudio==2.5.0"
+    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.5.1_3.10_cuda_12.1"
+    TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
+    TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
+    TORCH_REPO_BRANCH = "-b v2.5.1"
+    TORCH_XLA_REPO_BRANCH = "-b v2.5.1"
 
 
 def get_version_mapping(test_version):
@@ -118,6 +131,8 @@ def get_version_mapping(test_version):
     version_mapping = VERSION_MAPPING.R2_4
   elif test_version == VERSION.R2_5:
     version_mapping = VERSION_MAPPING.R2_5
+  elif test_version == VERSION.R2_5_1:
+    version_mapping = VERSION_MAPPING.R2_5_1
   else:
     raise ValueError("version number does not exist in VERSION enum")
   return version_mapping
@@ -161,7 +176,6 @@ def set_up_torchbench_tpu(
 
   return (
       "pip3 install -U 'setuptools>=70.0.0,<71.0.0'",
-      "sudo systemctl stop unattended-upgrades",
       "sudo apt-get -y update",
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",

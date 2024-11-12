@@ -21,6 +21,7 @@ from dags import composer_env
 
 
 MANTARAY_G3_GS_BUCKET = "gs://borgcron/cmcs-benchmark-automation/mantaray"
+MAXLIBRARY_G3_GS_BUCKET = "gs://borgcron/maxlibrary"
 
 
 def load_file_from_gcs(gs_file_path):
@@ -37,7 +38,9 @@ def load_file_from_gcs(gs_file_path):
 
 @task
 def run_workload(
-    workload_file_name: str, mantaray_gcs_bucket: str = MANTARAY_G3_GS_BUCKET
+    workload_file_name: str,
+    mantaray_gcs_bucket: str = MANTARAY_G3_GS_BUCKET,
+    maxlibrary_gcs_bucket: str = MAXLIBRARY_G3_GS_BUCKET,
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     cmds = (
@@ -45,6 +48,9 @@ def run_workload(
         f"gsutil -m cp -r {mantaray_gcs_bucket} .",
         "sudo apt-get update && sudo apt-get install -y rsync",  # Install rsync
         f"cd mantaray && pip install -e .",
+        # Install maxlibrary
+        f"gsutil -m cp -r {maxlibrary_gcs_bucket} ./xlml_jobs",
+        f"pip install -e ./xlml_jobs/maxlibrary",
         f"python xlml_jobs/{workload_file_name}",  # Run the workload
     )
     hook = SubprocessHook()

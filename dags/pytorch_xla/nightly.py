@@ -17,27 +17,35 @@ from airflow.decorators import task_group
 from airflow import models
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import composer_env
-from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS
+from dags.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, V6E_SUBNETWORKS
 
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
+
 US_CENTRAL1_C = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     Zone.US_CENTRAL1_C.value,
     metric_config.DatasetOption.XLML_DATASET,
 )
+
 US_CENTRAL2_B = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     Zone.US_CENTRAL2_B.value,
     metric_config.DatasetOption.XLML_DATASET,
 )
+
 US_EAST1_D = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     Zone.US_EAST1_D.value,
     metric_config.DatasetOption.XLML_DATASET,
 )
 
+US_EAST5_A_TPU_PROD_ENV_AUTOMATED = gcp_config.GCPConfig(
+    Project.TPU_PROD_ENV_AUTOMATED.value,
+    Zone.US_EAST5_A.value,
+    metric_config.DatasetOption.XLML_DATASET,
+)
 
 US_CENTRAL1 = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
@@ -49,6 +57,12 @@ US_CENTRAL1 = gcp_config.GCPConfig(
 US_EAST1_C = gcp_config.GCPConfig(
     project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
     zone=Zone.US_EAST1_C.value,
+    dataset_name=metric_config.DatasetOption.XLML_DATASET,
+)
+
+US_CENTRAL2_B_TPU_PROD_ENV = gcp_config.GCPConfig(
+    project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
+    zone=Zone.US_CENTRAL2_B.value,
     dataset_name=metric_config.DatasetOption.XLML_DATASET,
 )
 
@@ -194,4 +208,23 @@ with models.DAG(
           reserved=True,
       ),
       US_EAST1_C,
+  )
+
+  ci_trillium_4 = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-nightly-ci-func-v6e-4-1vm",
+          network=V5_NETWORKS,
+          subnetwork=V6E_SUBNETWORKS,
+      ),
+      US_CENTRAL2_B_TPU_PROD_ENV,
+  )
+
+  ci_v5p_8 = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          test_name="pt-nightly-ci-func-v5p-8-1vm",
+          reserved=True,
+          network=V5_NETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
+      ),
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
   )

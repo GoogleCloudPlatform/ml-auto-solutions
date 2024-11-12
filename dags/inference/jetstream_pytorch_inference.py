@@ -4,7 +4,7 @@ import datetime
 from airflow import models
 from airflow.models.baseoperator import chain
 from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion
+from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.inference.configs import jetstream_pytorch_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
 import numpy as np
@@ -25,72 +25,81 @@ with models.DAG(
       "llama3-8b": {
           "model_name": "llama-3",
           "size": "8b",
+          "model_id": "meta-llama/Meta-Llama-3-8B-Instruct",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama3-8b",
-          "checkpoint_quantized": "gs://inference-benchmarks/models/llama3-8b-quantized",
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "checkpoint": "gs://inference-benchmarks/models/llama3-8b-instruct/pytorch/llama3-8b-instruct-hf",
           "dataset": "openorca",
-          "tokenizer": "tokenizer.model",
           "batch_sizes": [8, 32, 64, 128],
           "request_rate": 100,
-          "num_prompts": 200,
-          "quantize": [True, False],
+          "num_prompts": 1000,
           "max_output_length": 1024,
-          "max_cache_length": 2048,
-          "sharding_config": "default_shardings/llama.yaml",
+          "quantize": [True, False],
       },
       "llama2-7b": {
           "model_name": "llama-2",
           "size": "7b",
+          "model_id": "meta-llama/Llama-2-7b-chat-hf",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-7b-chat/pytorch/llama-2-7b-chat-merged",
-          "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-7b-chat/pytorch/llama-2-7b-chat-merged-int8-per-channel",
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "checkpoint": "gs://inference-benchmarks/models/llama2-7b-chat/pytorch/llama-2-7b-chat-hf",
           "dataset": "openorca",
-          "tokenizer": "tokenizer.llama2",
-          "batch_sizes": [8, 32, 64, 96],
+          "batch_sizes": [8, 32, 64, 96, 128],
           "request_rate": 100,
-          "num_prompts": 200,
-          "quantize": [True, False],
+          "num_prompts": 1000,
           "max_output_length": 1024,
-          "max_cache_length": 2048,
-          "sharding_config": "default_shardings/llama.yaml",
+          "quantize": [True, False],
+      },
+      "gemma-7b": {
+          "model_name": "gemma",
+          "size": "7b",
+          "model_id": "google/gemma-7b",
+          "sleep_time": 120,
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "checkpoint": "gs://inference-benchmarks/models/gemma-7b-it/pytorch/gemma-7b-it-hf",
+          "dataset": "openorca",
+          "tokenizer": "tokenizer.model",
+          "batch_sizes": [8, 32, 64, 128],
+          "request_rate": 100,
+          "num_prompts": 1000,
+          "max_output_length": 1024,
+          "quantize": [True, False],
       },
       "llama2-13b": {
           "model_name": "llama-2",
           "size": "13b",
+          "model_id": "meta-llama/Llama-2-13b-chat-hf",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-13b-chat/pytorch/llama-2-13b-chat-merged",
-          "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-13b-chat/pytorch/llama-2-13b-chat-merged-int8-per-channel",
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "checkpoint": "gs://inference-benchmarks/models/llama2-13b-chat/pytorch/llama-2-13b-chat-hf",
           "dataset": "openorca",
           "tokenizer": "tokenizer.llama2",
           "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
-          "num_prompts": 200,
-          "quantize": [True, False],
+          "num_prompts": 1000,
           "max_output_length": 1024,
-          "max_cache_length": 2048,
-          "sharding_config": "default_shardings/llama.yaml",
+          "quantize": [True, False],
       },
       "llama2-70b": {
           "model_name": "llama-2",
           "size": "70b",
+          "model_id": "meta-llama/Llama-2-70b-chat-hf",
           "sleep_time": 120,
-          "tpu_version_cores": [(TpuVersion.V5E, 8)],
-          "checkpoint": "gs://inference-benchmarks/models/llama2-70b-chat/pytorch/llama-2-70b-chat-merged-quantized",
-          "checkpoint_quantized": "gs://inference-benchmarks/models/llama2-70b-chat/pytorch/llama-2-70b-chat-merged-quantized",
+          "tpu_version_cores": [(TpuVersion.V5E, 8), (TpuVersion.TRILLIUM, 8)],
+          "checkpoint": "gs://inference-benchmarks/models/llama2-70b-chat/pytorch/llama-2-70b-chat-hf",
           "dataset": "openorca",
           "tokenizer": "tokenizer.model",
           "batch_sizes": [8, 32, 64, 96],
           "request_rate": 100,
-          "num_prompts": 200,
-          "quantize": [True],
+          "num_prompts": 1000,
           "max_output_length": 1024,
-          "max_cache_length": 2048,
-          "sharding_config": "default_shardings/llama.yaml",
+          "quantize": [True],
       },
   }
+  skip_settings = (
+      ("llama-2", "13b", 96, "False"),
+      ("llama-2", "7b", 128, "False"),
+  )
   dags = []
   for model, sweep_model_configs in test_models.items():
     for batch_size in sweep_model_configs["batch_sizes"]:
@@ -100,27 +109,17 @@ with models.DAG(
           model_configs = {}
           model_configs["model_name"] = sweep_model_configs["model_name"]
           model_configs["size"] = sweep_model_configs["size"]
+          model_configs["model_id"] = sweep_model_configs["model_id"]
           model_configs["sleep_time"] = sweep_model_configs["sleep_time"]
-          if quantize:
-            model_configs["checkpoint"] = sweep_model_configs[
-                "checkpoint_quantized"
-            ]
-          else:
-            model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
+          model_configs["checkpoint"] = sweep_model_configs["checkpoint"]
           model_configs["dataset"] = sweep_model_configs["dataset"]
-          model_configs["tokenizer"] = sweep_model_configs["tokenizer"]
           model_configs["batch_size"] = batch_size
+          model_configs["per_device_batch_size"] = batch_size // tpu_cores
           model_configs["request_rate"] = sweep_model_configs["request_rate"]
           model_configs["num_prompts"] = sweep_model_configs["num_prompts"]
           model_configs["quantize"] = str(quantize)
           model_configs["max_output_length"] = sweep_model_configs[
               "max_output_length"
-          ]
-          model_configs["max_cache_length"] = sweep_model_configs[
-              "max_cache_length"
-          ]
-          model_configs["sharding_config"] = sweep_model_configs[
-              "sharding_config"
           ]
           # Llama-2 13b unquantized with bs 96 cannot hold in v5e-8
           if (
@@ -128,15 +127,23 @@ with models.DAG(
               model_configs["size"],
               model_configs["batch_size"],
               model_configs["quantize"],
-          ) == ("llama-2", "13b", 96, "False"):
+          ) in skip_settings:
             continue
 
           # v5e e2e test with benchmarks
-          project_name = Project.TPU_PROD_ENV_AUTOMATED.value
-          zone = Zone.US_EAST1_C.value
-          network = V5_NETWORKS
-          subnetwork = V5E_SUBNETWORKS
-          runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+          if tpu_version == TpuVersion.TRILLIUM:
+            project_name = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+            zone = Zone.EUROPE_WEST4_A.value
+            network = V6E_GCE_NETWORK
+            subnetwork = V6E_GCE_SUBNETWORK
+            runtime_version = RuntimeVersion.V2_ALPHA_TPUV6.value
+
+          else:
+            project_name = Project.TPU_PROD_ENV_AUTOMATED.value
+            zone = Zone.US_EAST1_C.value
+            network = V5_NETWORKS
+            subnetwork = V5E_SUBNETWORKS
+            runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
 
           jetstream_pytorch_nightly_1slice = jetstream_pytorch_gce_config.get_jetstream_pytorch_inference_nightly_config(
               tpu_version=tpu_version,
