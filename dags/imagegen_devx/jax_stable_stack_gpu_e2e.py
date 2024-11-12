@@ -17,11 +17,12 @@
 
 import datetime
 from airflow import models
-from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
+from airflow.utils.task_group import TaskGroup
 from dags.imagegen_devx.configs import gke_config as config
 from xlml.utils import name_format
+from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 3 am UTC (7 pm PST)
 SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
@@ -36,6 +37,7 @@ with models.DAG(
 ) as dag:
   current_datetime = config.get_current_datetime()
   train_base = (
+      "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
       "python3 MaxText/train.py MaxText/configs/base.yml "
       "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
       "steps=2 enable_checkpointing=false attention=dot_product"
@@ -51,22 +53,28 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
+  docker_images = [
+      (SetupMode.STABLE, DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK_NIGHTLY),
+  ]
+
   for model, (test_script, nnodes) in test_models_gpu.items():
-    stable_a3_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=300,
-        test_name=f"maxtext-stable-stack-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.NINA_C,
-    ).run_with_quarantine(quarantine_task_group)
-    stable_a3plus_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=300,
-        test_name=f"maxtext-stable-stack-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.NINA_C,
-    ).run_with_quarantine(quarantine_task_group)
+    for mode, image in docker_images:
+      stable_a3_gpu = config.get_gpu_gke_test_config(
+          time_out_in_min=300,
+          test_name=f"maxtext-stable-stack-{mode.value}-{model}",
+          run_model_cmds=(test_script,),
+          num_slices=nnodes,
+          cluster=XpkClusters.GPU_A3_CLUSTER,
+          docker_image=image.value,
+          test_owner=test_owner.PARAM_B,
+      ).run_with_quarantine(quarantine_task_group)
+      stable_a3plus_gpu = config.get_gpu_gke_test_config(
+          time_out_in_min=300,
+          test_name=f"maxtext-stable-stack-{mode.value}-{model}",
+          run_model_cmds=(test_script,),
+          num_slices=nnodes,
+          cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
+          docker_image=image.value,
+          test_owner=test_owner.PARAM_B,
+      ).run_with_quarantine(quarantine_task_group)
