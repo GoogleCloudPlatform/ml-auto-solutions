@@ -17,10 +17,11 @@
 
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner
+from dags.quarantined_tests import QuarantineTests
 from dags.vm_resource import XpkClusters, CpuVersion, DockerImage, GpuVersion, Project, TpuVersion, Zone
 from dags.multipod.configs import gke_config
-from airflow.utils.task_group import TaskGroup
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -42,6 +43,10 @@ with models.DAG(
       "gpt3": "tpu/test_gpt3",
   }
 
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
+
   for model, test_script in test_models_tpu.items():
     stable_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
@@ -49,14 +54,14 @@ with models.DAG(
         run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.JON_B,
-    ).run()
+    ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         test_owner=test_owner.JON_B,
-    ).run()
+    ).run_with_quarantine(quarantine_task_group)
     stable_tpu >> nightly_tpu
 
   multicluster_test_models = {
@@ -110,66 +115,75 @@ with models.DAG(
       ],
   }
 
+  def convert_checkpoint_and_run_training(
+      test_group_id,
+      test_name_prefix,
+      type,
+      docker_image,
+      model,
+      test_scripts_details,
+  ):
+    with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
+      test_name = f"{test_name_prefix}-{type}-{model}"
+      shared_gcs_location = name_format.generate_gcs_folder_location.override(
+          task_id=f"{test_group_id}_generate_gcs_folder_location"
+      )(
+          gcs_subfolder,
+          test_group_id,
+      )
+      conversion_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
+          time_out_in_min=test_scripts_details[0]["time_out_in_min"],
+          test_name=test_name,
+          run_model_cmds=(
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
+          ),
+          docker_image=docker_image,
+          test_owner=test_owner.ANISHA_M,
+          cluster=test_scripts_details[0]["cluster"],
+      ).run(gcs_location=shared_gcs_location)
+      training_tpu = gke_config.get_gke_config(
+          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
+          test_name=test_name,
+          run_model_cmds=(
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
+          ),
+          docker_image=docker_image,
+          test_owner=test_owner.ANISHA_M,
+          cluster=test_scripts_details[1]["cluster"],
+      ).run(gcs_location=shared_gcs_location)
+      return conversion_cpu, training_tpu
+
+  docker_image = {
+      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+      "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
+  }
+  tests = []
   for model, test_scripts_details in multicluster_test_models.items():
     gcs_subfolder = f"{test_owner.Team.MULTIPOD.value}/maxtext"
+    for type in docker_image.keys():
+      test_group_id = "chained_tests" + "_" + model + "_" + type
+      if QuarantineTests.is_quarantined(test_group_id):
+        with quarantine_task_group:
+          mode_cpu, mode_tpu = convert_checkpoint_and_run_training(
+              test_group_id,
+              test_name_prefix,
+              type,
+              docker_image[type],
+              model,
+              test_scripts_details,
+          )
+      else:
+        mode_cpu, mode_tpu = convert_checkpoint_and_run_training(
+            test_group_id,
+            test_name_prefix,
+            type,
+            docker_image[type],
+            model,
+            test_scripts_details,
+        )
+      tests.append(mode_cpu)
+      tests.append(mode_tpu)
 
-    test_group_id = "chained_tests" + "_" + model + "_" + "stable"
-
-    with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
-      shared_gcs_location = name_format.generate_gcs_folder_location.override(
-          task_id=f"{test_group_id}_generate_gcs_folder_location"
-      )(
-          gcs_subfolder,
-          test_group_id,
-      )
-      stable_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
-          time_out_in_min=test_scripts_details[0]["time_out_in_min"],
-          test_name=f"{test_name_prefix}-stable-{model}",
-          run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
-          ),
-          cluster=test_scripts_details[0]["cluster"],
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.ANISHA_M,
-      ).run(gcs_location=shared_gcs_location)
-      stable_tpu = gke_config.get_gke_config(
-          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
-          test_name=f"{test_name_prefix}-stable-{model}",
-          run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
-          ),
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.ANISHA_M,
-          cluster=test_scripts_details[1]["cluster"],
-      ).run(gcs_location=shared_gcs_location)
-
-    test_group_id = "chained_tests" + "_" + model + "_" + "nightly"
-
-    with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
-      shared_gcs_location = name_format.generate_gcs_folder_location.override(
-          task_id=f"{test_group_id}_generate_gcs_folder_location"
-      )(
-          gcs_subfolder,
-          test_group_id,
-      )
-      nightly_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
-          time_out_in_min=test_scripts_details[0]["time_out_in_min"],
-          test_name=f"{test_name_prefix}-nightly-{model}",
-          run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
-          ),
-          cluster=test_scripts_details[0]["cluster"],
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-          test_owner=test_owner.ANISHA_M,
-      ).run(gcs_location=shared_gcs_location)
-      nightly_tpu = gke_config.get_gke_config(
-          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
-          test_name=f"{test_name_prefix}-nightly-{model}",
-          run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
-          ),
-          docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-          test_owner=test_owner.ANISHA_M,
-          cluster=test_scripts_details[1]["cluster"],
-      ).run(gcs_location=shared_gcs_location)
-      stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
+    # stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
+    for i in range(len(tests) - 1):
+      tests[i] << tests[i + 1]

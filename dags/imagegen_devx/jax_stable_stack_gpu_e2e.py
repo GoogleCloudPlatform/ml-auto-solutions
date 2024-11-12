@@ -17,6 +17,7 @@
 
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
 from dags.imagegen_devx.configs import gke_config as config
@@ -46,6 +47,10 @@ with models.DAG(
       ),
   }
 
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
+
   for model, (test_script, nnodes) in test_models_gpu.items():
     stable_a3_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=300,
@@ -55,7 +60,7 @@ with models.DAG(
         cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.NINA_C,
-    ).run()
+    ).run_with_quarantine(quarantine_task_group)
     stable_a3plus_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=300,
         test_name=f"maxtext-stable-stack-{model}",
@@ -64,4 +69,4 @@ with models.DAG(
         cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.NINA_C,
-    ).run()
+    ).run_with_quarantine(quarantine_task_group)

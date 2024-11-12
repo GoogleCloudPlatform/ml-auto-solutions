@@ -176,7 +176,8 @@ class XpkTask(BaseTask):
 
     Attributes:
       gcs_location: GCS path for all artifacts of the test.
-      use_vertex_tensorboard: Set to True to view workload data on Vertex AI Tensorboard.
+      use_vertex_tensorboard: Set to True to view workload data on
+        Vertex AI Tensorboard.
 
     Returns:
       A task group with the following tasks chained: run_model and
@@ -238,7 +239,8 @@ class XpkTask(BaseTask):
 
     Attributes:
       gcs_location: GCS path for all artifacts of the test.
-      use_vertex_tensorboard: Set to True to view workload data on Vertex AI Tensorboard.
+      use_vertex_tensorboard: Set to True to view workload data on
+        Vertex AI Tensorboard.
 
     Returns:
       A DAG node that executes the model test.
@@ -566,6 +568,7 @@ class GpuGkeTask(BaseTask):
       return group
 
   def _get_job_manifest(self):
+    # pylint: disable=line-too-long
     accelerator = self.task_test_config.accelerator
     return {
         "apiVersion": "batch/v1",
