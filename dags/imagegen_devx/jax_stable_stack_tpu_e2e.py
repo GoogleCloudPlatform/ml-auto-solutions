@@ -17,6 +17,7 @@
 
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
 from dags.imagegen_devx.configs import gke_config as config
@@ -55,6 +56,10 @@ with models.DAG(
       "v4-16": [1, 2],
   }
 
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
+
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     cluster = config.clusters[accelerator]
@@ -74,7 +79,7 @@ with models.DAG(
           test_name=f"maxtext-jax-stable-stack-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-      ).run()
+      ).run_with_quarantine(quarantine_task_group)
 
   for accelerator, slices in maxdiffusion_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
@@ -93,7 +98,7 @@ with models.DAG(
           test_name=f"maxdiffusion-jax-stable-stack-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-      ).run()
+      ).run_with_quarantine(quarantine_task_group)
 
   for accelerator, slices in axlearn_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
@@ -113,4 +118,4 @@ with models.DAG(
           test_name=f"axlearn-jax-stable-stack-{accelerator}-{slice_num}x",
           docker_image=DockerImage.AXLEARN_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-      ).run()
+      ).run_with_quarantine(quarantine_task_group)
