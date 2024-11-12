@@ -17,16 +17,69 @@ A DAG to run AOT compilation and HybridSim tests for MaxText model configs on TP
 """
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner
+from dags.quarantined_tests import QuarantineTests
 from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
 from dags.multipod.configs import gke_config
 from xlml.utils import name_format
-from airflow.utils.task_group import TaskGroup
 from dags.multipod.configs import gke_config
 from xlml.apis import metric_config
 
+
 # Run once a day at 1 pm UTC (5 am PST / 6 am PDT)
 SCHEDULED_TIME = "0 13 * * *" if composer_env.is_prod_env() else None
+
+
+def hybridsim_compile_and_run(test_group_id):
+  with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
+    gcs_subfolder = f"{test_owner.Team.MULTIPOD.value}/maxtext"
+    shared_gcs_location = name_format.generate_gcs_folder_location.override(
+        task_id=f"{test_group_id}_generate_gcs_folder_location"
+    )(
+        f"{gcs_subfolder}/maxtext_configs_aot_hybridsim/v{tpu.value}",
+        test_group_id,
+    )
+
+    # Run AOT workload: generate HLO, upload to GCS
+    aot_cmd = (
+        'export XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/"',
+        f"bash MaxText/configs/v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}",
+        "gsutil -m cp -r /tmp/xla_dump/ ${GCS_OUTPUT}",
+    )
+    maxtext_aot = gke_config.get_gke_config(
+        time_out_in_min=240,
+        test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-aot",
+        run_model_cmds=aot_cmd,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
+        test_owner=test_owner.RAYMOND_Z,
+    ).run(gcs_location=shared_gcs_location)
+
+    # Run HybridSim workload: read HLO from GCS, generate estimated step time
+    cluster = clusters[tpu]
+    chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
+    hybridsim_cmd = (
+        "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
+        f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}}estimated_cost_ns.jsonl CHIP_CONFIG={chip_config}",
+    )
+    job_metric_config = metric_config.MetricConfig(
+        json_lines=metric_config.JSONLinesConfig(
+            file_location="estimated_cost_ns.jsonl",
+        ),
+        use_runtime_generated_gcs_folder=True,
+    )
+    maxtext_hybridsim = gke_config.get_gke_config(
+        cluster=cluster,
+        time_out_in_min=240,
+        test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-hybridsim",
+        run_model_cmds=hybridsim_cmd,
+        docker_image=DockerImage.CLOUD_HYBRIDSIM_NIGHTLY.value,
+        test_owner=test_owner.RAYMOND_Z,
+        user_specified_job_metric_config=job_metric_config,
+    ).run(gcs_location=shared_gcs_location)
+
+    shared_gcs_location >> maxtext_aot >> maxtext_hybridsim
+
 
 with models.DAG(
     dag_id="maxtext_configs_aot_hybridsim",
@@ -49,58 +102,18 @@ with models.DAG(
   }
   v5e_alt = "5e"
 
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
+
   for tpu, models in model_configs.items():
     for model_size, num_cores in models:
       for n in num_slices:
         test_group_id = (
             f"{model_size}-{n}xv{tpu.value}-{num_cores}-aot-hybridsim"
         )
-        with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
-          gcs_subfolder = f"{test_owner.Team.MULTIPOD.value}/maxtext"
-          shared_gcs_location = (
-              name_format.generate_gcs_folder_location.override(
-                  task_id=f"{test_group_id}_generate_gcs_folder_location"
-              )(
-                  f"{gcs_subfolder}/maxtext_configs_aot_hybridsim/v{tpu.value}",
-                  test_group_id,
-              )
-          )
-
-          # Run AOT workload: generate HLO, upload to GCS
-          aot_cmd = (
-              'export XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/"',
-              f"bash MaxText/configs/v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}",
-              "gsutil -m cp -r /tmp/xla_dump/ ${GCS_OUTPUT}",
-          )
-          maxtext_aot = gke_config.get_gke_config(
-              time_out_in_min=240,
-              test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-aot",
-              run_model_cmds=aot_cmd,
-              docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-              test_owner=test_owner.RAYMOND_Z,
-          ).run(gcs_location=shared_gcs_location)
-
-          # Run HybridSim workload: read HLO from GCS, generate estimated step time
-          cluster = clusters[tpu]
-          chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
-          hybridsim_cmd = (
-              "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
-              f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}}estimated_cost_ns.jsonl CHIP_CONFIG={chip_config}",
-          )
-          job_metric_config = metric_config.MetricConfig(
-              json_lines=metric_config.JSONLinesConfig(
-                  file_location="estimated_cost_ns.jsonl",
-              ),
-              use_runtime_generated_gcs_folder=True,
-          )
-          maxtext_hybridsim = gke_config.get_gke_config(
-              cluster=cluster,
-              time_out_in_min=240,
-              test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-hybridsim",
-              run_model_cmds=hybridsim_cmd,
-              docker_image=DockerImage.CLOUD_HYBRIDSIM_NIGHTLY.value,
-              test_owner=test_owner.RAYMOND_Z,
-              user_specified_job_metric_config=job_metric_config,
-          ).run(gcs_location=shared_gcs_location)
-
-          shared_gcs_location >> maxtext_aot >> maxtext_hybridsim
+        if QuarantineTests.is_quarantined(test_group_id):
+          with quarantine_task_group:
+            hybridsim_compile_and_run(test_group_id)
+        else:
+          hybridsim_compile_and_run(test_group_id)
