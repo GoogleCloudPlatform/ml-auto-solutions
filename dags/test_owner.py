@@ -25,6 +25,10 @@ class Team(enum.Enum):
   IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
   FRAMEWORK = "framework3p"
+  LLM_DEVX = "llm_devx"
+  SPARCITY_DIFFUSION_DEVX = "sparcity_diffusion_devx"
+  PERFORMANCE = "performance"
+  PRODUCTIVITY = "productivity"
 
 
 # XLML - TensorFlow
