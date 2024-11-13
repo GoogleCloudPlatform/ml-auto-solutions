@@ -31,7 +31,12 @@ SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="jax_stable_stack_gpu_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["sparsity_diffusion_devx", "multipod_team", "maxtext", "jax-stable-stack"],
+    tags=[
+        "sparsity_diffusion_devx",
+        "multipod_team",
+        "maxtext",
+        "jax-stable-stack",
+    ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
 ) as dag:

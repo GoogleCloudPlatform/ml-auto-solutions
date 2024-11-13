@@ -29,7 +29,13 @@ SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="project_bite_gpu_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["sparsity_diffusion_devx", "multipod_team", "gcp_gpu", "axlearn", "bite"],
+    tags=[
+        "sparsity_diffusion_devx",
+        "multipod_team",
+        "gcp_gpu",
+        "axlearn",
+        "bite",
+    ],
     start_date=datetime.datetime(2024, 11, 12),
     catchup=False,
 ) as dag:
@@ -38,6 +44,7 @@ with models.DAG(
   axlearn_test_configs = {
       # accelerator: list of slices to test
       "a3": [1],
+      "a3plus": [1, 2],
   }
 
   for accelerator, slices in axlearn_test_configs.items():
