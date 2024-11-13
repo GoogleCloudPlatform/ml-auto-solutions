@@ -39,7 +39,7 @@ def run_aotc_workload():
   )
 
   gpu_recipe_cmd = (
-      "git clone https://github.com/gunjanj007/gpu-recipes.git",
+      "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
       "cd gpu-recipes",
       "export REPO_ROOT=`git rev-parse --show-toplevel`",
       "export RECIPE_ROOT="
@@ -74,7 +74,6 @@ def run_aotc_workload():
     "=us-central1-docker.pkg.dev/"
     "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
     " --set workload.gcsBucketForDataCataPath=gunjanjalori-testing-xlml "
-    " --set workload.arguments='{trainer.max_steps=5}' "
     " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
   )
 
@@ -90,7 +89,7 @@ def run_aotc_workload():
   copy_bucket_contents = (
     "COMPLETE_JOB_NAME=$(gcloud storage ls "
     "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
-    "echo 'copying from $COMPLETE_JOB_NAME'",
+    "echo 'copying from ${COMPLETE_JOB_NAME}'",
     "cd $REPO_ROOT/src/utils/training_metrics",
     "gcloud storage cp ${COMPLETE_JOB_NAME}"
     "dllogger/rank-0/dllogger.json .",
