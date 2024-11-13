@@ -1,5 +1,5 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
-* @RissyRan @allenwang28
+* @mbzomowski @RissyRan @allenwang28
 
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
