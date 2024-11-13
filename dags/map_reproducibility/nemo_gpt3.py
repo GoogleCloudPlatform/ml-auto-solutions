@@ -125,7 +125,6 @@ def run_aotc_workload():
         + namespace_cmds
         + helm_cmds
         + wait_for_job
-        # + wait_for_bucket
         + copy_bucket_contents
         + get_metrics
         + cleanup
