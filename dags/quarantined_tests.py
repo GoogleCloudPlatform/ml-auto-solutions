@@ -193,21 +193,21 @@ class QuarantineTests:
       "chained_tests_llama2-70b_nightly": TestInfo(team.LLM_DEVX, "2024-11-12"),
       # DAG: jax_stable_stack_gpu_e2e
       "maxtext-stable-stack-train-c4-data-h100-80gb-8": TestInfo(
-          team.SPARCITY_DIFFUSION_DEVX, "2024-11-12"
+          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
       "maxtext-stable-stack-train-c4-data-h100-mega-80gb-8": TestInfo(
-          team.SPARCITY_DIFFUSION_DEVX, "2024-11-12"
+          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
       # DAG: jax_stable_tpu_stack_e2e
       "axlearn-jax-stable-stack-v4-16-1x-v4-16": TestInfo(
-          team.SPARCITY_DIFFUSION_DEVX, "2024-11-12"
+          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
       "axlearn-jax-stable-stack-v4-16-2x-2xv4-16": TestInfo(
-          team.SPARCITY_DIFFUSION_DEVX, "2024-11-12"
+          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
       # DAG: maxdiffusion_e2e
       "maxd-sdxl-nan-v6e-256-2x-2xv6e-256": TestInfo(
-          team.SPARCITY_DIFFUSION_DEVX, "2024-11-12"
+          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
       # DAG: maxtext_configs_aot
       "maxtext-aot-v5e-stable-v4-8": TestInfo(team.PERFORMANCE, "2024-11-12"),
