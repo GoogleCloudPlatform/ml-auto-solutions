@@ -18,7 +18,7 @@ import datetime
 from airflow import models
 from dags import composer_env
 from dags.vm_resource import TpuVersion, Zone, RuntimeVersion
-from dags.imagegen_devx.configs import project_bite_config as config
+from dags.sparsity_diffusion_devx.configs import project_bite_config as config
 
 
 # Run once a day at 6 pm UTC (11 am PST)
@@ -28,7 +28,7 @@ SCHEDULED_TIME = "0 18 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="project_bite_tpu_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["imagegen_devx", "jax", "nightly", "bite", "multipod_team"],
+    tags=["sparsity_diffusion_devx", "jax", "nightly", "bite", "multipod_team"],
     start_date=datetime.datetime(2024, 4, 4),
     catchup=False,
 ) as dag:
