@@ -42,7 +42,7 @@ with models.DAG(
   config_ver = "default,high_accuracy"
   test_mode = "PerformanceOnly"
   g2_configs = {
-      "model_name": "bert,3d-unet,dlrm-v2,gptj",
+      "model_name": "bert,3d-unet",
       "config_ver": config_ver,
       "test_mode": test_mode,
       "docker_config": "gs://yijiaj/mlperf/config.json",
@@ -214,7 +214,7 @@ with models.DAG(
       },
   }
   a3_configs = {
-      "model_name": "bert,3d-unet,dlrm-v2,gptj,resnet50,retinanet,stable-diffusion-xl,llama2-70b,mixtral-8x7b",
+      "model_name": "resnet50,retinanet,stable-diffusion-xl,llama2-70b,mixtral-8x7b",
       "config_ver": config_ver,
       "test_mode": test_mode,
       "docker_config": "gs://yijiaj/mlperf/config.json",
