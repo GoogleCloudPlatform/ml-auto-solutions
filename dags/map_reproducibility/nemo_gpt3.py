@@ -27,9 +27,8 @@ def run_aotc_workload():
       "export CLUSTER=a3plus-benchmark",
       "export CLUSTER_REGION=australia-southeast1",
       "NOW=$(date +%s)",
-      "export BUCKET_NAME=gunjanjalori-testing-xlml"
-      # "NAMESPACE=xlml-regression-tests-gpt3",
-      "JOB_NAME=gpt3-xlml-$NOW-175b-nemo"
+      "export BUCKET_NAME=gunjanjalori-testing-xlml",
+      "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
 
   set_project_command = (
@@ -56,107 +55,62 @@ def run_aotc_workload():
   )
 
   namespace_cmds = (
-      # "helm plugin install https://github.com/thomastaylor312/helm-namespace",
-      # TODO(gunjanjalori): add a check for if already exists.
       "kubectl get pods",
       "kubectl config view | grep namespace",
-      # "kubectl create namespace xlml-regression-tests-gpt3",
-      "kubectl config set-context helm --namespace=default",
-      # "kubectl config set-context helm --namespace xlml-regression-tests-gpt3",
-      # "sudo apt install nfs-common",
-      # "kubectl apply -f https://raw.githubusercontent.com/appscode/"
-      # "third-party-tools/master/storage/nfs/artifacts/nfs-server.yaml",
+      "kubectl config set-context --current --namespace=default",
+      "kubectl config set-context heml --namespace=default",
+      "kubectl get pods --namespace=defaults"
   )
 
   helm_cmds = (
-    "echo 'can I create?'",
-    "kubectl auth can-i create configmaps",
-    "echo 'can I create namespaces?'",
-    "kubectl auth can-i create namespaces",
-    "CONFIG_FILE=$REPO_ROOT/src/frameworks/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
-    # "kubectl create configmap $JOB_NAME --from-file=$CONFIG_FILE",
-    "echo $CONFIG_FILE",
-    "echo 'mid'",
-    "echo $REPO_ROOT/src/frameworks/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
+    "CONFIG_FILE=$REPO_ROOT/src/frameworks"
+    "/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
     " helm install -f values.yaml "
     "--namespace default "
-    # "--create-namespace "
     "--set namespace=default"
     " --set-file nemo_config"
     "=$CONFIG_FILE"
     " --set workload.image"
     "=us-central1-docker.pkg.dev/"
     "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-    " --set workload.gcsBucketForDataCataPath=reproducibility-demo"
+    " --set workload.gcsBucketForDataCataPath=gunjanjalori-testing-xlml "
+    " --set workload.arguments='{trainer.max_steps=5}' "
     " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
-    "kubectl get pods | grep $JOB_NAME",
-    # "kubectl create configmap $JOB_NAME --from-file=$CONFIG_FILE",
   )
 
-  # wait_for_job = (
-  #   "echo 'pwd'",
-  #   "pwd",
-  #   "ls",
-  #   "echo 'ls'",
-  #   "kubectl wait --for=condition=complete job/$JOB_NAME",
+  wait_for_job = (
+    "echo 'will wait for job to start running'",
+    "kubectl wait --for=condition=running job/$JOB_NAME"
+    " --namespace=default --timeout=10m",
+    "echo 'will wait for jobs to finish'",
+    "kubectl wait --for=condition=complete "
+    "job/$JOB_NAME --namespace=default --timeout=100m",
+  )
 
-  #   # wait till bucket has the run
-  #   "while true; do"
-  #   "OBJECTS=$(gsutil ls gs://$BUCKET_NAME)/nemo-experiments/"
-  #   "JOB_NAME"
-  #   "if [[ -n "$OBJECTS" ]]; then"
-  #   "echo 'Bucket $BUCKET_NAME has objects. Proceeding...'"
-  #   "break"
-  #   "else"
-  #   "echo 'Bucket $BUCKET_NAME is empty. Waiting...'"
-  #   "sleep 360" # Wait for 360 seconds before checking again
-  #   "fi"
-  #   "done"
-  # )
-
-
-  get_results = (
-    # copy logs from bucket
-    # "CURRENT_DIR=$(pwd)"
-    # "FILES=$(ls -U $CURRENT_DIR | head -n 2)"
-    "CURRENT_DIR=$(pwd)",
-    "FIRST_TWO_FOLDERS=$(echo $CURRENT_DIR | cut -d/ -f2,3)",
-    "echo $FIRST_TWO_FOLDERS",
-    "JOB_NAME=gunjanjalori-llama-3-70b-128-nemo-1729727194-fve3",
-    "COMPLETE_JOB_NAME=$(gcloud storage ls gs://reproducibility-demo/nemo-experiments | grep $JOB_NAME)",
-    "echo $COMPLETE_JOB_NAME",
-    "echo 'copying'",
-    "gcloud storage cp $COMPLETE_JOB_NAMEdllogger/rank-0/dllogger.json "
-    "/$FIRST_TWO_FOLDERS/",
-
-    # get metrics
+  copy_bucket_contents = (
+    "COMPLETE_JOB_NAME=$(gcloud storage ls "
+    "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
+    "echo 'copying from $COMPLETE_JOB_NAME'",
     "cd $REPO_ROOT/src/utils/training_metrics",
+    "gcloud storage cp ${COMPLETE_JOB_NAME}"
+    "dllogger/rank-0/dllogger.json .",
+  )
+
+  get_metrics = (
     "python3 process_training_results.py --file"
-    " /$FIRST_TWO_FOLDERS/dllogger.json --batch_size 2048 "
+    " dllogger.json --batch_size 2048 "
     "--num_accelerators 256 "
     "--precision fp8  "
     "--model_type gpt3-175b "
     "--accelerator_type h100 ",
   )
 
-  # get_results = (
-  #   # copy logs from bucket
-  #   "CURRENT_DIR=$(pwd)",
-  #   "FIRST_TWO_FOLDERS=$(echo $CURRENT_DIR | cut -d/ -f2,3)",
-  #   "COMPLETE_JOB_NAME=$(ls -d | grep $JOB_NAME)",
-  #   "gcloud storage cp gs://$BUCKET_NAME/nemo-experiments/"
-  #   "$COMPLETE_JOB_NAME/dllogger/rank-0/dllogger.json "
-  #   "/$FIRST_TWO_FOLDERS/",
-
-  #   # get metrics
-  #   "cd $REPO_ROOT/src/utils/training_metrics"
-  #   "python3 process_training_results.py --file"
-  #   " /$FIRST_TWO_FOLDERS/dllogger.json --batch_size 2048"
-  #   "--num_accelerators 256 "
-  #   "--precision fp8  "
-  #   "--model_type gpt3-175b "
-  #   "--accelerator_type h100"
-  # )
+  cleanup = (
+     "kubectl get pods "
+     "--no-headers=true | awk '{print $1}' "
+     "| grep $JOB_NAME |  xargs kubectl delete pods",
+     "helm uninstall $JOB_NAME",
+  )
 
   hook = SubprocessHook()
   result = hook.run_command(
@@ -170,8 +124,11 @@ def run_aotc_workload():
         + install_helm_cmd
         + namespace_cmds
         + helm_cmds
-        # + wait_for_job
-        # + get_results
+        + wait_for_job
+        # + wait_for_bucket
+        + copy_bucket_contents
+        + get_metrics
+        + cleanup
       ),
     ],
   )
@@ -191,4 +148,4 @@ with models.DAG(
     start_date=datetime.datetime(2024, 10, 22),
     catchup=False,
 ) as dag:
-    run_aotc_workload()
+  run_aotc_workload()
