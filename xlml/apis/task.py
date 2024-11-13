@@ -191,6 +191,16 @@ class XpkTask(BaseTask):
 
     return group
 
+  def run_with_name_gen_and_quarantine(
+      self, quarantine_task_group, use_pathways: bool = False
+  ) -> DAGNode:
+    test_name = self.task_test_config.benchmark_id
+    if QuarantineTests.is_quarantined(test_name):
+      with quarantine_task_group:
+        return self.run_with_run_name_generation(use_pathways)
+    else:
+      return self.run_with_run_name_generation(use_pathways)
+
   def run_with_run_name_generation(self, use_pathways: bool = False) -> DAGNode:
     """Generate a unique run name and tensorboard file location,
     then run a test job within a docker image.
