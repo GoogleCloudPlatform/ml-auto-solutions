@@ -38,6 +38,7 @@ with models.DAG(
   axlearn_test_configs = {
       # accelerator: list of slices to test
       "a3": [1],
+      "a3plus": [1, 2],
   }
 
   for accelerator, slices in axlearn_test_configs.items():
