@@ -19,7 +19,7 @@ import datetime
 from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import DockerImage, XpkClusters
-from dags.imagegen_devx.configs import gke_config as config
+from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 
 # Run once a day at 3 am UTC (7 pm PST)
@@ -29,7 +29,13 @@ SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="project_bite_gpu_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "gcp_gpu", "axlearn", "bite"],
+    tags=[
+        "sparsity_diffusion_devx",
+        "multipod_team",
+        "gcp_gpu",
+        "axlearn",
+        "bite",
+    ],
     start_date=datetime.datetime(2024, 11, 12),
     catchup=False,
 ) as dag:

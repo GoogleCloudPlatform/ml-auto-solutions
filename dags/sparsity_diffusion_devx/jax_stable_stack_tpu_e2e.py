@@ -20,7 +20,7 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
-from dags.imagegen_devx.configs import gke_config as config
+from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 
 # Run once a day at 3 am UTC (7 pm PST)
@@ -31,11 +31,13 @@ with models.DAG(
     dag_id="jax_stable_stack_tpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
+        "sparsity_diffusion_devx",
         "multipod_team",
         "maxtext",
         "maxdiffusion",
         "axlearn",
-        "tpu" "jax-stable-stack",
+        "tpu",
+        "jax-stable-stack",
     ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
