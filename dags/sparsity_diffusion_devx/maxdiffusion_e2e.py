@@ -17,9 +17,10 @@
 
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
-from dags.imagegen_devx.configs import gke_config as config
+from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -29,7 +30,7 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxdiffusion_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxdiffusion"],
+    tags=["sparsity_diffusion_devx", "multipod_team", "maxdiffusion"],
     start_date=datetime.datetime(2024, 9, 12),
     catchup=False,
 ) as dag:
@@ -38,6 +39,9 @@ with models.DAG(
       "v6e-256": [1, 2],
       "v4-8": [1, 2],
   }
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
   current_datetime = config.get_current_datetime()
   for accelerator, slices in maxdiffusion_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
@@ -60,7 +64,7 @@ with models.DAG(
           test_name=f"maxd-sdxl-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-      ).run()
+      ).run_with_quarantine(quarantine_task_group)
       maxdiffusion_sdxl_nan_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
@@ -76,5 +80,5 @@ with models.DAG(
           test_name=f"maxd-sdxl-nan-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-      ).run()
+      ).run_with_quarantine(quarantine_task_group)
       maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test

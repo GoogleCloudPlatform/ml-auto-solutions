@@ -367,7 +367,7 @@ with models.DAG(
   # Running on A100 GPU
   trt_llm_mlperf_v41_config.get_trt_llm_mlperf_gpu_config(
       machine_type=MachineVersion.A2_ULTRAGPU_8G,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_project=ImageProject.ML_IMAGES,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=GpuVersion.A100_80G,
       count=8,
@@ -386,7 +386,7 @@ with models.DAG(
   # Running on L4 GPU
   trt_llm_mlperf_v41_config.get_trt_llm_mlperf_gpu_config(
       machine_type=MachineVersion.G2_STAND_96,
-      image_project=ImageProject.DEEP_LEARNING_PLATFORM_RELEASE,
+      image_project=ImageProject.ML_IMAGES,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
       accelerator_type=GpuVersion.L4,
       count=8,

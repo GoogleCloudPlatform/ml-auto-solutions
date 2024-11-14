@@ -67,6 +67,7 @@ class ImageProject(enum.Enum):
   """Common image projects for GPU."""
 
   DEEP_LEARNING_PLATFORM_RELEASE = "deeplearning-platform-release"
+  ML_IMAGES = "ml-images"
 
 
 class ImageFamily(enum.Enum):
@@ -290,6 +291,14 @@ class DockerImage(enum.Enum):
       "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/"
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
+  AXLEARN_TPU_JAX_STABLE_STACK = (
+      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/tpu/jax0.4.35-rev1:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
+  AXLEARN_GPU_JAX_NIGHTLY = (
+      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/gpu/jax_nightly:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
   MAXTEXT_TPU_JAX_STABLE_STACK = (
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.35:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
@@ -312,6 +321,10 @@ class DockerImage(enum.Enum):
   )
   MAXTEXT_GPU_JAX_STABLE_STACK = (
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack_0.4.35:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
+  MAXTEXT_GPU_JAX_STABLE_STACK_NIGHTLY = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_JAX_NIGHTLY = (

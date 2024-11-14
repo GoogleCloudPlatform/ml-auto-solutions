@@ -17,6 +17,7 @@ A DAG to run AOT compilation tests for MaxText model configs.
 """
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner
 from dags.vm_resource import GpuVersion, TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
@@ -65,6 +66,10 @@ with models.DAG(
         run_model_cmds.append(cmd)
     run_model_cmds_dict[tpu] = run_model_cmds
 
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
+
   for mode, image in docker_images:
     maxtext_v4_configs_test = gke_config.get_gke_config(
         time_out_in_min=60,
@@ -72,7 +77,7 @@ with models.DAG(
         run_model_cmds=run_model_cmds_dict["v4"],
         docker_image=image.value,
         test_owner=test_owner.RAYMOND_Z,
-    ).run()
+    ).run_with_quarantine(quarantine_task_group)
 
     maxtext_v5e_configs_test = gke_config.get_gke_config(
         time_out_in_min=60,
@@ -80,7 +85,7 @@ with models.DAG(
         run_model_cmds=run_model_cmds_dict["v5e"],
         docker_image=image.value,
         test_owner=test_owner.RAYMOND_Z,
-    ).run()
+    ).run_with_quarantine(quarantine_task_group)
 
     maxtext_v5p_configs_test = gke_config.get_gke_config(
         time_out_in_min=60,
@@ -88,7 +93,7 @@ with models.DAG(
         run_model_cmds=run_model_cmds_dict["v5p"],
         docker_image=image.value,
         test_owner=test_owner.RAYMOND_Z,
-    ).run()
+    ).run_with_quarantine(quarantine_task_group)
 
     (
         maxtext_v4_configs_test
@@ -106,4 +111,4 @@ with models.DAG(
       cluster=XpkClusters.GPU_A3_CLUSTER,
       docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
       test_owner=test_owner.JON_B,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
