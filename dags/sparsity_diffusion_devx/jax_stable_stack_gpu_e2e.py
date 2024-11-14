@@ -20,7 +20,7 @@ from airflow import models
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
 from airflow.utils.task_group import TaskGroup
-from dags.imagegen_devx.configs import gke_config as config
+from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 from dags.multipod.configs.common import SetupMode
 
@@ -31,7 +31,12 @@ SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="jax_stable_stack_gpu_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "jax-stable-stack"],
+    tags=[
+        "sparsity_diffusion_devx",
+        "multipod_team",
+        "maxtext",
+        "jax-stable-stack",
+    ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
 ) as dag:

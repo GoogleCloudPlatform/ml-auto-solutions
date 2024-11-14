@@ -1,5 +1,5 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
-* @RissyRan @allenwang28
+* @mbzomowski @RissyRan @allenwang28
 
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
@@ -11,8 +11,8 @@ dags/multipod @jonb377 @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/imagegen_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh
-dags/imagegen_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
-dags/imagegen_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
+dags/sparsity_diffusion_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh
+dags/sparsity_diffusion_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
+dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
 
 dags/inference @yeandy @vipannalla @morgandu @mailvijayasingh @sixiang-google @joezijunzhou @singh-mitali
