@@ -69,6 +69,7 @@ class ImageProject(enum.Enum):
   DEEP_LEARNING_PLATFORM_RELEASE = "deeplearning-platform-release"
   ML_IMAGES = "ml-images"
 
+
 class ImageFamily(enum.Enum):
   """Common image families for GPU."""
 
