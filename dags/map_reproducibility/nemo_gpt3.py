@@ -18,25 +18,22 @@ import datetime
 from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
+from dags import composer_env
+from xlml.utils.aotc_reproducibility import get_metrics_cmds
+from xlml.utils.aotc_reproducibility import set_variables_cmds
+from xlml.utils.aotc_reproducibility import set_project_commands
+from xlml.utils.aotc_reproducibility import install_helm_cmds
+from xlml.utils.aotc_reproducibility import namespace_cmds
+from xlml.utils.aotc_reproducibility import wait_for_jobs_cmds
+from xlml.utils.aotc_reproducibility import copy_bucket_cmds
+from xlml.utils.aotc_reproducibility import cleanup_cmds
+
+# Run once a day at 2 pm UTC (6 am PST)
+SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
 
 @task
 def run_aotc_workload():
-  set_variables = (
-      "export PROJECT=supercomputer-testing",
-      "export CLUSTER=a3plus-benchmark",
-      "export CLUSTER_REGION=australia-southeast1",
-      "NOW=$(date +%s)",
-      "export BUCKET_NAME=gunjanjalori-testing-xlml",
-      "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
-  )
-
-  set_project_command = (
-      "gcloud config set project $PROJECT",
-      "sudo chown -R airflow:airflow /home/airflow/composer_kube_config",
-      "gcloud container clusters get-credentials "
-      "$CLUSTER --region $CLUSTER_REGION",
-  )
 
   gpu_recipe_cmd = (
       "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
@@ -45,21 +42,6 @@ def run_aotc_workload():
       "export RECIPE_ROOT="
       "$REPO_ROOT/training/a3mega/gpt3-175b/nemo-pretraining-gke",
       "cd $RECIPE_ROOT",
-  )
-
-  install_helm_cmd = (
-      "curl -fsSL -o get_helm.sh "
-      "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3",
-      "chmod 700 get_helm.sh",
-      "./get_helm.sh",
-  )
-
-  namespace_cmds = (
-      "kubectl get pods",
-      "kubectl config view | grep namespace",
-      "kubectl config set-context --current --namespace=default",
-      "kubectl config set-context heml --namespace=default",
-      "kubectl get pods --namespace=defaults"
   )
 
   helm_cmds = (
@@ -73,42 +55,8 @@ def run_aotc_workload():
     " --set workload.image"
     "=us-central1-docker.pkg.dev/"
     "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-    " --set workload.gcsBucketForDataCataPath=gunjanjalori-testing-xlml "
+    " --set workload.gcsBucketForDataCataPath= "
     " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
-  )
-
-  wait_for_job = (
-    "echo 'will wait for job to start running'",
-    "kubectl wait --for=condition=running job/$JOB_NAME"
-    " --namespace=default --timeout=10m",
-    "echo 'will wait for jobs to finish'",
-    "kubectl wait --for=condition=complete "
-    "job/$JOB_NAME --namespace=default --timeout=100m",
-  )
-
-  copy_bucket_contents = (
-    "COMPLETE_JOB_NAME=$(gcloud storage ls "
-    "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
-    "echo 'copying from ${COMPLETE_JOB_NAME}'",
-    "cd $REPO_ROOT/src/utils/training_metrics",
-    "gcloud storage cp ${COMPLETE_JOB_NAME}"
-    "dllogger/rank-0/dllogger.json .",
-  )
-
-  get_metrics = (
-    "python3 process_training_results.py --file"
-    " dllogger.json --batch_size 2048 "
-    "--num_accelerators 256 "
-    "--precision fp8  "
-    "--model_type gpt3-175b "
-    "--accelerator_type h100 ",
-  )
-
-  cleanup = (
-     "kubectl get pods "
-     "--no-headers=true | awk '{print $1}' "
-     "| grep $JOB_NAME |  xargs kubectl delete pods",
-     "helm uninstall $JOB_NAME",
   )
 
   hook = SubprocessHook()
@@ -117,16 +65,16 @@ def run_aotc_workload():
     "bash",
     "-c",
     ";".join(
-        set_variables
-        + set_project_command
+        set_variables_cmds()
+        + set_project_commands()
         + gpu_recipe_cmd
-        + install_helm_cmd
-        + namespace_cmds
+        + install_helm_cmds()
+        + namespace_cmds()
         + helm_cmds
-        + wait_for_job
-        + copy_bucket_contents
-        + get_metrics
-        + cleanup
+        + wait_for_jobs_cmds()
+        + copy_bucket_cmds()
+        + get_metrics_cmds()
+        + cleanup_cmds()
       ),
     ],
   )
@@ -135,7 +83,7 @@ def run_aotc_workload():
 
 with models.DAG(
     dag_id="reproducibility_nemo_gpt3_nighly_dag",
-    schedule=None,
+    schedule=SCHEDULED_TIME,
     tags=[
         "simple",
         "aotc",
