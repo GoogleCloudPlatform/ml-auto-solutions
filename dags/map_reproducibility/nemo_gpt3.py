@@ -35,63 +35,57 @@ SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 @task
 def run_aotc_workload():
 
-  gpu_recipe_cmd = (
-      "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
-      "cd gpu-recipes",
-      "export REPO_ROOT=`git rev-parse --show-toplevel`",
-      "export RECIPE_ROOT="
-      "$REPO_ROOT/training/a3mega/gpt3-175b/nemo-pretraining-gke",
-      "cd $RECIPE_ROOT",
-  )
+    gpu_recipe_cmd = (
+        "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
+        "cd gpu-recipes",
+        "export REPO_ROOT=`git rev-parse --show-toplevel`",
+        "export RECIPE_ROOT="
+        "$REPO_ROOT/training/a3mega/gpt3-175b/nemo-pretraining-gke",
+        "cd $RECIPE_ROOT",
+    )
 
-  helm_cmds = (
-    "CONFIG_FILE=$REPO_ROOT/src/frameworks"
-    "/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
-    " helm install -f values.yaml "
-    "--namespace default "
-    "--set namespace=default"
-    " --set-file nemo_config"
-    "=$CONFIG_FILE"
-    " --set workload.image"
-    "=us-central1-docker.pkg.dev/"
-    "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-    " --set workload.gcsBucketForDataCataPath= "
-    " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
-  )
+    helm_cmds = (
+        "CONFIG_FILE=$REPO_ROOT/src/frameworks"
+        "/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
+        " helm install -f values.yaml "
+        "--namespace default "
+        "--set namespace=default"
+        " --set-file nemo_config"
+        "=$CONFIG_FILE"
+        " --set workload.image"
+        "=us-central1-docker.pkg.dev/"
+        "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
+        " --set workload.gcsBucketForDataCataPath= "
+        " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
+    )
 
-  hook = SubprocessHook()
-  result = hook.run_command(
-  [
-    "bash",
-    "-c",
-    ";".join(
-        set_variables_cmds()
-        + set_project_commands()
-        + gpu_recipe_cmd
-        + install_helm_cmds()
-        + namespace_cmds()
-        + helm_cmds
-        + wait_for_jobs_cmds()
-        + copy_bucket_cmds()
-        + get_metrics_cmds()
-        + cleanup_cmds()
-      ),
-    ],
-  )
-  assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+    hook = SubprocessHook()
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                set_variables_cmds()
+                + set_project_commands()
+                + gpu_recipe_cmd
+                + install_helm_cmds()
+                + namespace_cmds()
+                + helm_cmds
+                + wait_for_jobs_cmds()
+                + copy_bucket_cmds()
+                + get_metrics_cmds()
+                + cleanup_cmds()
+            ),
+        ],
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
 
 with models.DAG(
     dag_id="reproducibility_nemo_gpt3_nighly_dag",
     schedule=SCHEDULED_TIME,
-    tags=[
-        "simple",
-        "aotc",
-        "nightly",
-        "reproducibility",
-        "experimental",
-        "xlml"],
+    tags=["simple", "aotc", "nightly", "reproducibility", "experimental", "xlml"],
     start_date=datetime.datetime(2024, 10, 22),
     catchup=False,
 ) as dag:
-  run_aotc_workload()
+    run_aotc_workload()
