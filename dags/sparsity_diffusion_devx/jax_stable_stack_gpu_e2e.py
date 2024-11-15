@@ -35,6 +35,7 @@ with models.DAG(
         "sparsity_diffusion_devx",
         "multipod_team",
         "maxtext",
+        "gpu",
         "jax-stable-stack",
     ],
     start_date=datetime.datetime(2024, 6, 7),

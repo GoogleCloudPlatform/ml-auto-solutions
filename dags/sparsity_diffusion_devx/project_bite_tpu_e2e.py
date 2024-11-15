@@ -28,7 +28,13 @@ SCHEDULED_TIME = "0 18 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="project_bite_tpu_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["sparsity_diffusion_devx", "jax", "nightly", "bite", "multipod_team"],
+    tags=[
+        "sparsity_diffusion_devx",
+        "multipod_team",
+        "tpu",
+        "axlearn",
+        "bite",
+    ],
     start_date=datetime.datetime(2024, 4, 4),
     catchup=False,
 ) as dag:
