@@ -44,7 +44,6 @@ def namespace_cmds():
       "kubectl config view | grep namespace",
       "kubectl config set-context --current --namespace=default",
       "kubectl config set-context heml --namespace=default",
-      "kubectl get pods --namespace=default",
   )
   return namespace
 
