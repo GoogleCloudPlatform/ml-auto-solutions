@@ -19,14 +19,14 @@ from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
-from xlml.utils.aotc_reproducibility import get_metrics_cmds
-from xlml.utils.aotc_reproducibility import set_variables_cmds
-from xlml.utils.aotc_reproducibility import set_project_commands
-from xlml.utils.aotc_reproducibility import install_helm_cmds
-from xlml.utils.aotc_reproducibility import namespace_cmds
-from xlml.utils.aotc_reproducibility import wait_for_jobs_cmds
-from xlml.utils.aotc_reproducibility import copy_bucket_cmds
-from xlml.utils.aotc_reproducibility import cleanup_cmds
+from dags.map_reproducibility.aotc_reproducibility import get_metrics_cmds
+from dags.map_reproducibility.aotc_reproducibility import set_variables_cmds
+from dags.map_reproducibility.aotc_reproducibility import set_project_commands
+from dags.map_reproducibility.aotc_reproducibility import install_helm_cmds
+from dags.map_reproducibility.aotc_reproducibility import namespace_cmds
+from dags.map_reproducibility.aotc_reproducibility import wait_for_jobs_cmds
+from dags.map_reproducibility.aotc_reproducibility import copy_bucket_cmds
+from dags.map_reproducibility.aotc_reproducibility import cleanup_cmds
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
@@ -55,7 +55,7 @@ def run_aotc_workload():
         " --set workload.image"
         "=us-central1-docker.pkg.dev/"
         "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-        " --set workload.gcsBucketForDataCataPath= "
+        " --set workload.gcsBucketForDataCataPath= $BUCKET_NAME"
         " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
     )
 
@@ -85,7 +85,7 @@ with models.DAG(
     dag_id="reproducibility_nemo_gpt3_nighly_dag",
     schedule=SCHEDULED_TIME,
     tags=["simple", "aotc", "nightly", "reproducibility", "experimental", "xlml"],
-    start_date=datetime.datetime(2024, 10, 22),
+    start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
     run_aotc_workload()

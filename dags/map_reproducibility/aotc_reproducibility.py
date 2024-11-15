@@ -9,7 +9,7 @@ def set_variables_cmds():
       "export CLUSTER=a3plus-benchmark",
       "export CLUSTER_REGION=australia-southeast1",
       "NOW=$(date +%s)",
-      "BUCKET_NAME=regression-testing-xlml",
+      "export BUCKET_NAME=regression-testing-xlml",
       "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
   return set_variables
