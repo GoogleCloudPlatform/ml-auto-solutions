@@ -29,7 +29,6 @@ class Team(enum.Enum):
   SPARSITY_DIFFUSION_DEVX = "sparsity_diffusion_devx"
   PERFORMANCE = "performance"
   PRODUCTIVITY = "productivity"
-  MAP_REPRODUCIBILITY = "map_reproducibility"
 
 
 # XLML - TensorFlow
