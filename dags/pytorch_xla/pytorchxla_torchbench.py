@@ -61,6 +61,7 @@ with models.DAG(
       reserved=False,
       preemptible=False,
       extraFlags=" ".join(torchbench_extra_flags),
+      simple_model_test=True,
   )
 
   # SD2 on V6E:
@@ -77,6 +78,7 @@ with models.DAG(
       reserved=False,
       preemptible=False,
       extraFlags=" ".join(torchbench_extra_flags),
+      simple_model_test=True,
   )
   
   # Running on V4-8:
