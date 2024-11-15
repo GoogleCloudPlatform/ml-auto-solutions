@@ -9,7 +9,7 @@ def set_variables_cmds():
       "export CLUSTER=a3plus-benchmark",
       "export CLUSTER_REGION=australia-southeast1",
       "NOW=$(date +%s)",
-      "export BUCKET_NAME=regression-testing-xlml",
+      "BUCKET_NAME=regression-testing-xlml",
       "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
   return set_variables
@@ -41,11 +41,10 @@ def install_helm_cmds():
 # change the namespace to default.
 def namespace_cmds():
   namespace = (
-      "kubectl get pods",
       "kubectl config view | grep namespace",
       "kubectl config set-context --current --namespace=default",
       "kubectl config set-context heml --namespace=default",
-      "kubectl get pods --namespace=defaults",
+      "kubectl get pods --namespace=default",
   )
   return namespace
 
