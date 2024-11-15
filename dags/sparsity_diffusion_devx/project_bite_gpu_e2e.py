@@ -32,7 +32,7 @@ with models.DAG(
     tags=[
         "sparsity_diffusion_devx",
         "multipod_team",
-        "gcp_gpu",
+        "gpu",
         "axlearn",
         "bite",
     ],
