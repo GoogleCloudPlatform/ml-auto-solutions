@@ -44,15 +44,10 @@ def set_up_axlearn(pinned_version) -> Tuple[str]:
       "pip install ml-dtypes==0.4.0",
   )
 
-def set_up_axlearn_head(pinned_version) -> Tuple[str]:
-  reset_version = ""
-  if pinned_version:
-    reset_version = f"cd axlearn && git reset --hard {pinned_version} && cd .."
-
+def set_up_axlearn_head() -> Tuple[str]:
   return (
       common.UPGRADE_PIP,
       "git clone https://github.com/apple/axlearn.git",
-      reset_version,
       "python -m pip install ./axlearn[core, dev, gcp]",
       *common.set_up_nightly_jax(),
   )
@@ -120,7 +115,7 @@ def get_bite_unit_test_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = set_up_axlearn()
+  set_up_cmds = set_up_axlearn_head()
   run_model_cmds = (
       (
           "cd axlearn && ./run_tests.sh"
