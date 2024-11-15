@@ -57,7 +57,23 @@ with models.DAG(
       network=resource.BM_NETWORKS,
       subnetwork=resource.V4_BM_SUBNETWORKS,
       time_out_in_min=1600,
-      model_name=model,
+      model_name="llama3",
+      reserved=False,
+      preemptible=False,
+      extraFlags=" ".join(torchbench_extra_flags),
+  )
+
+  # SD2 on V6E:
+  config.get_torchbench_tpu_config(
+      tpu_version=resource.TpuVersion.TRILLIUM,
+      tpu_cores=8,
+      project=resource.Project.CLOUD_ML_BENCHMARKING,
+      tpu_zone=resource.Zone.US_CENTRAL2_B,
+      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV6,
+      network=resource.BM_NETWORKS,
+      subnetwork=resource.V4_BM_SUBNETWORKS,
+      time_out_in_min=1600,
+      model_name="sd2",
       reserved=False,
       preemptible=False,
       extraFlags=" ".join(torchbench_extra_flags),
