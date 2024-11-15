@@ -55,7 +55,7 @@ def run_aotc_workload():
         " --set workload.image"
         "=us-central1-docker.pkg.dev/"
         "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-        " --set workload.gcsBucketForDataCataPath= $BUCKET_NAME"
+        " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
         " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
     )
 
