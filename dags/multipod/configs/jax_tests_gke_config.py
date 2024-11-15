@@ -27,7 +27,7 @@ def get_jax_distributed_initialize_config(
     num_slices: int = 1,
 ):
   run_model_cmds = [
-            "bash end_to_end/test_jdi.sh",
+      "bash end_to_end/test_jdi.sh",
   ]
 
   return gke_config.get_gke_config(
