@@ -17,6 +17,7 @@ A DAG to run MXLA MaxText tests.
 """
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner
 from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
 from dags.multipod.configs import gke_config
@@ -35,12 +36,16 @@ with models.DAG(
   jax_nightly_image = DockerImage.MAXTEXT_TPU_JAX_NIGHTLY
   default_test_name = "mxla-maxtext-nightly-gke"
 
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
+
   maxtext_nightly_1slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_2slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
       num_slices=2,
@@ -48,7 +53,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_4slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
       num_slices=4,
@@ -56,7 +61,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_8slice_v4_8 = gke_config.get_gke_maxtext_nightly_config(
       num_slices=8,
@@ -64,7 +69,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_1slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
       cluster=XpkClusters.TPU_V5P_8_CLUSTER,
@@ -72,7 +77,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_2slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
       num_slices=2,
@@ -81,7 +86,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_4slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
       num_slices=4,
@@ -90,7 +95,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_8slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
       num_slices=8,
@@ -99,7 +104,7 @@ with models.DAG(
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
       test_owner=test_owner.TONY_C,
-  ).run()
+  ).run_with_quarantine(quarantine_task_group)
 
   (
       maxtext_nightly_1slice_v4_8

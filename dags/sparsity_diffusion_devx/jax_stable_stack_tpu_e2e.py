@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run end-to-end MaxText JAX Stable Stack tests."""
+"""A DAG to run end-to-end JAX Stable Stack TPU tests."""
 
 
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
-from dags.imagegen_devx.configs import gke_config as config
+from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 
 # Run once a day at 3 am UTC (7 pm PST)
@@ -27,9 +28,17 @@ SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="jax_stable_stack_e2e",
+    dag_id="jax_stable_stack_tpu_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "jax-stable-stack"],
+    tags=[
+        "sparsity_diffusion_devx",
+        "multipod_team",
+        "maxtext",
+        "maxdiffusion",
+        "axlearn",
+        "tpu",
+        "jax-stable-stack",
+    ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
 ) as dag:
@@ -44,17 +53,14 @@ with models.DAG(
       "v4-8": [1],
       "v6e-256": [1],
   }
-  train_base = (
-      "python3 MaxText/train.py MaxText/configs/base.yml "
-      "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
-      "steps=2 enable_checkpointing=false attention=dot_product"
-  )
-  test_models_gpu = {
-      "train-c4-data": (
-          f"{train_base} run_name=runner-{current_datetime}-0",
-          1,
-      ),
+  axlearn_test_configs = {
+      # accelerator: list of slices to test
+      "v4-16": [1, 2],
   }
+
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
 
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
@@ -75,7 +81,7 @@ with models.DAG(
           test_name=f"maxtext-jax-stable-stack-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-      ).run()
+      ).run_with_quarantine(quarantine_task_group)
 
   for accelerator, slices in maxdiffusion_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
@@ -94,25 +100,24 @@ with models.DAG(
           test_name=f"maxdiffusion-jax-stable-stack-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-      ).run()
+      ).run_with_quarantine(quarantine_task_group)
 
-  # GCP GPU Tests
-  for model, (test_script, nnodes) in test_models_gpu.items():
-    stable_a3_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=300,
-        test_name=f"maxtext-stable-stack-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.NINA_C,
-    ).run()
-    stable_a3plus_gpu = config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=300,
-        test_name=f"maxtext-stable-stack-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.NINA_C,
-    ).run()
+  for accelerator, slices in axlearn_test_configs.items():
+    cores = accelerator.rsplit("-", maxsplit=1)[-1]
+    cluster = config.clusters[accelerator]
+    for slice_num in slices:
+      axlearn_jax_stable_stack_test = config.get_gke_config(
+          num_slices=slice_num,
+          cluster=cluster,
+          time_out_in_min=300,
+          run_model_cmds=(
+              "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
+              "cd axlearn && python -m axlearn.common.launch_trainer_main "
+              f"--module=text.gpt.c4_trainer --config=fuji-test-v1 "
+              f"--trainer_dir={gcs_bucket.BASE_OUTPUT_DIR}/bite/jax-stable-stack/automated/{current_datetime} "
+              f"--data_dir={gcs_bucket.AXLEARN_DIR} --jax_backend=tpu ",
+          ),
+          test_name=f"axlearn-jax-stable-stack-{accelerator}-{slice_num}x",
+          docker_image=DockerImage.AXLEARN_TPU_JAX_STABLE_STACK.value,
+          test_owner=test_owner.PARAM_B,
+      ).run_with_quarantine(quarantine_task_group)
