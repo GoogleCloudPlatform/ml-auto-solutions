@@ -26,6 +26,10 @@ class Team(enum.Enum):
   INFERENCE = "inference"
   FRAMEWORK = "framework3p"
   MAP_REPRODUCIBILITY = "map_reproducibility"
+  LLM_DEVX = "llm_devx"
+  SPARSITY_DIFFUSION_DEVX = "sparsity_diffusion_devx"
+  PERFORMANCE = "performance"
+  PRODUCTIVITY = "productivity"
 
 # XLML - TensorFlow
 ERIC_L = "Eric L."
