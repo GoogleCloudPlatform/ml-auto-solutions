@@ -60,7 +60,7 @@ with models.DAG(
 
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK),
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK_NIGHTLY),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_GPU_STABLE_STACK_NIGHTLY_JAX),
   ]
 
   for model, (test_script, nnodes) in test_models_gpu.items():
