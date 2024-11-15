@@ -89,7 +89,7 @@ with models.DAG(
         "nightly",
         "reproducibility",
         "experimental",
-        "xlml"
+        "xlml",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
