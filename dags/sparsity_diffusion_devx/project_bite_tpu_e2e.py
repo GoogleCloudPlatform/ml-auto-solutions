@@ -65,3 +65,11 @@ with models.DAG(
       time_out_in_min=180,
       task_owner=test_owner.Maggie_Z,
   )
+
+  jax_axlearn_unit_test_tpu = config.get_bite_unit_test_config(
+      tpu_version=TpuVersion.V4,
+      tpu_cores=8,
+      tpu_zone=Zone.US_CENTRAL2_B.value,
+      runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+      time_out_in_min=180,
+  )

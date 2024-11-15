@@ -44,6 +44,19 @@ def set_up_axlearn(pinned_version) -> Tuple[str]:
       "pip install ml-dtypes==0.4.0",
   )
 
+def set_up_axlearn_head(pinned_version) -> Tuple[str]:
+  reset_version = ""
+  if pinned_version:
+    reset_version = f"cd axlearn && git reset --hard {pinned_version} && cd .."
+
+  return (
+      common.UPGRADE_PIP,
+      "git clone https://github.com/apple/axlearn.git",
+      reset_version,
+      "python -m pip install ./axlearn[core, dev, gcp]",
+      *common.set_up_nightly_jax(),
+  )
+
 
 def get_bite_tpu_config(
     tpu_version: TpuVersion,
@@ -85,6 +98,48 @@ def get_bite_tpu_config(
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=task_owner,
+      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jax",
+  )
+
+  return task.run_queued_resource_test(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
+def get_bite_unit_test_config(
+    tpu_version: TpuVersion,
+    tpu_cores: int,
+    tpu_zone: str,
+    runtime_version: str,
+    time_out_in_min: int,
+    is_tpu_reserved: bool = False,
+):
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      zone=tpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+  )
+
+  set_up_cmds = set_up_axlearn()
+  run_model_cmds = (
+      (
+          "cd axlearn && ./run_tests.sh"
+      ),
+  )
+
+  test_name = f"bite_unit_test_tpu_v{tpu_version}_{tpu_cores}"
+  job_test_config = test_config.TpuVmTest(
+      test_config.Tpu(
+          version=tpu_version,
+          cores=tpu_cores,
+          runtime_version=runtime_version,
+          reserved=is_tpu_reserved,
+      ),
+      test_name=test_name,
+      set_up_cmds=set_up_cmds,
+      run_model_cmds=run_model_cmds,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
+      task_owner=test_owner.RAN_R,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jax",
   )
 
