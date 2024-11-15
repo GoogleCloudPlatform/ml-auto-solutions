@@ -34,7 +34,6 @@ SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
 @task
 def run_aotc_workload():
-
   gpu_recipe_cmd = (
       "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
       "cd gpu-recipes",
