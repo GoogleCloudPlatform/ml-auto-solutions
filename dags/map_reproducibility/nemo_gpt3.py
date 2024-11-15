@@ -85,12 +85,12 @@ with models.DAG(
     dag_id="reproducibility_nemo_gpt3_nighly_dag",
     schedule=SCHEDULED_TIME,
     tags=[
-       "simple",
-       "aotc",
-       "nightly",
-       "reproducibility",
-       "experimental",
-       "xlml"
+        "simple",
+        "aotc",
+        "nightly",
+        "reproducibility",
+        "experimental",
+        "xlml"
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
