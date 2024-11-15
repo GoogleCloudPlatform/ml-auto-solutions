@@ -211,12 +211,16 @@ def get_torchbench_tpu_config(
     test_version: VERSION = VERSION.NIGHTLY,
     model_name: str = "",
     extraFlags: str = "",
+    simple_model_test: str = "",
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project.value,
       zone=tpu_zone.value,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
+
+  if simple_model_test:
+  # else: ...
 
   set_up_cmds = set_up_torchbench_tpu(
       model_name, test_version, use_xla2=use_xla2
