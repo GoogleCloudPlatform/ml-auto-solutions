@@ -69,3 +69,18 @@ with models.DAG(
           docker_image=DockerImage.AXLEARN_GPU_JAX_NIGHTLY.value,
           test_owner=test_owner.PARAM_B,
       ).run()
+
+      # Only run unit tests on single slice
+      if slice_num == 1:
+        jax_axlearn_unit_test_gpu = config.get_gpu_gke_test_config(
+          num_slices=slice_num,
+          cluster=cluster,
+          time_out_in_min=300,
+          run_model_cmds=(
+              "cd axlearn && "
+              "./run_tests.sh"
+          ),
+          test_name=f"bite_unit_test_gpu_{accelerator}",
+          docker_image=DockerImage.AXLEARN_GPU_JAX_NIGHTLY.value,
+          test_owner=test_owner.PARAM_B,
+        ).run()
