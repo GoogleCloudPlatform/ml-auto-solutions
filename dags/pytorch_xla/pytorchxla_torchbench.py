@@ -24,6 +24,17 @@ import dags.vm_resource as resource
 SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 
+@task_group(prefix_group_id=False)
+def llama():
+  llama_3_train_trillium = task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-nightly-llama3-train-func-v6e-4-1vm",
+          network=V5_NETWORKS,
+          subnetwork=V6E_SUBNETWORKS,
+      ),
+      US_CENTRAL2_B_TPU_PROD_ENV,
+  )
+
 with models.DAG(
     dag_id="pytorchxla-torchbench",
     schedule=SCHEDULED_TIME,
@@ -31,6 +42,8 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
+  llama()
+
   model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
   torchbench_extra_flags = [f"--filter={model}"]
 
