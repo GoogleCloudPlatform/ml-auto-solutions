@@ -145,4 +145,4 @@ with models.DAG(
 
     # stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
     for i in range(len(tests) - 1):
-      tests[i] << tests[i + 1]
+      tests[i] >> tests[i + 1]
