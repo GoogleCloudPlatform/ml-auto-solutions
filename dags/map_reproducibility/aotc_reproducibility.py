@@ -24,7 +24,6 @@ def set_variables_cmds():
       "export CLUSTER_REGION=australia-southeast1",
       "NOW=$(date +%s)",
       "export BUCKET_NAME=regression-testing-xlml",
-      "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
   return set_variables
 
@@ -57,9 +56,19 @@ def namespace_cmds():
   namespace = (
       "kubectl config view | grep namespace",
       "kubectl config set-context --current --namespace=default",
-      "kubectl config set-context heml --namespace=default",
+      "kubectl config set-context helm --namespace=default",
   )
   return namespace
+
+def clone_gob_cmds():
+  gob_cmds = (
+    # "git clone https://gerrit.googlesource.com/gcompute-tools",
+    # "./gcompute-tools/git-cookie-authdaemon",
+    "sudo apt install git-remote-google",
+    "sudo apt-get install git-remote-google",
+    "git clone sso://ai-hypercomputer-benchmarks/reproducible-benchmark-recipes",
+  )
+  return gob_cmds
 
 
 def wait_for_jobs_cmds():

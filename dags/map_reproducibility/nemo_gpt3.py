@@ -35,7 +35,12 @@ SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 @task
 def run_aotc_workload():
   gpu_recipe_cmd = (
-      "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
+      # "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
+      # "sudo apt install git-remote-google",
+      "git config --global fetch.uriprotocols sso",
+      "sudo apt-get install git-remote-google",
+      "git clone https://ai-hypercomputer-benchmarks/reproducible-benchmark-recipes",
+      "cd projects",
       "cd gpu-recipes",
       "export REPO_ROOT=`git rev-parse --show-toplevel`",
       "export RECIPE_ROOT="
