@@ -28,7 +28,7 @@ def set_variables_cmds():
   return set_variables
 
 
-def set_project_commands():
+def configure_project_and_cluster():
   set_project_command = (
       "gcloud config set project $PROJECT",
       "sudo chown -R airflow:airflow /home/airflow/composer_kube_config",
@@ -36,6 +36,24 @@ def set_project_commands():
       "$CLUSTER --region $CLUSTER_REGION",
   )
   return set_project_command
+
+def git_cookie_authdaemon():
+  auth_cmds = (
+      "git clone https://gerrit.googlesource.com/gcompute-tools",
+      "echo 'trying to run git-cookie-authdaemon'",
+      "./gcompute-tools/git-cookie-authdaemon",
+  )
+  return auth_cmds
+
+def clone_gob():
+  gob_clone_cmds = (
+      "echo 'trying to clone GoB repo from outside'",
+      "git clone https://ai-hypercomputer-benchmarks.googlesource.com/"
+      "reproducible-benchmark-recipes",
+      "cd reproducible-benchmark-recipes/projects",
+      "cd gpu-recipes",
+  )
+  return gob_clone_cmds
 
 
 def install_helm_cmds():
