@@ -97,4 +97,4 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-    run_aotc_workload()
+  run_aotc_workload()
