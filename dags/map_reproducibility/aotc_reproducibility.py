@@ -24,6 +24,10 @@ def set_variables_cmds():
       "export CLUSTER_REGION=australia-southeast1",
       "NOW=$(date +%s)",
       "export BUCKET_NAME=regression-testing-xlml",
+<<<<<<< Updated upstream
+=======
+      "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
+>>>>>>> Stashed changes
   )
   return set_variables
 
