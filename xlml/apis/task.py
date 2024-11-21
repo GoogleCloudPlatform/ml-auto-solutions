@@ -171,6 +171,7 @@ class XpkTask(BaseTask):
       gcs_location: Optional[airflow.XComArg] = None,
       use_vertex_tensorboard: bool = False,
       use_pathways: bool = False,
+      skip_post_process: bool = False,
   ) -> DAGNode:
     """Run a test job within a docker image.
 
@@ -187,7 +188,8 @@ class XpkTask(BaseTask):
       run_model, gcs_path = self.run_model(
           gcs_location, use_vertex_tensorboard, use_pathways
       )
-      run_model >> self.post_process(gcs_path)
+      if not skip_post_process:
+        run_model >> self.post_process(gcs_path)
 
     return group
 
