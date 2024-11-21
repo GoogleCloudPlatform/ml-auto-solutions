@@ -37,6 +37,9 @@ def configure_project_and_cluster():
   )
   return set_project_command
 
+
+# This is required to the the authentication
+# to clone internal GoB recipe repo
 def git_cookie_authdaemon():
   auth_cmds = (
       "git clone https://gerrit.googlesource.com/gcompute-tools",
