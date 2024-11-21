@@ -113,7 +113,8 @@ def copy_bucket_cmds():
       "echo 'copying from' ",
       "echo $COMPLETE_JOB_NAME",
       "cd $REPO_ROOT/src/utils/training_metrics",
-      "gcloud storage cp ${COMPLETE_JOB_NAME}" "dllogger/rank-0/dllogger.json .",
+      "gcloud storage cp ${COMPLETE_JOB_NAME}"
+      "dllogger/rank-0/dllogger.json .",
   )
   return copy_bucket_contents
 

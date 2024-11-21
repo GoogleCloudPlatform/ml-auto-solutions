@@ -36,51 +36,51 @@ SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
 @task
 def run_aotc_workload():
-    gpu_recipe_cmd = (
-        "export REPO_ROOT=`pwd`",
-        "export RECIPE_ROOT="
-        "$REPO_ROOT/training/a3mega/gpt3-175b/nemo-pretraining-gke",
-        "cd $RECIPE_ROOT",
-    )
+  gpu_recipe_cmd = (
+      "export REPO_ROOT=`pwd`",
+      "export RECIPE_ROOT="
+      "$REPO_ROOT/training/a3mega/gpt3-175b/nemo-pretraining-gke",
+      "cd $RECIPE_ROOT",
+  )
 
-    helm_cmds = (
-        "CONFIG_FILE=$REPO_ROOT/src/frameworks"
-        "/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
-        "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
-        " helm install -f values.yaml "
-        "--namespace default "
-        "--set namespace=default"
-        " --set-file nemo_config"
-        "=$CONFIG_FILE"
-        " --set workload.image"
-        "=us-central1-docker.pkg.dev/"
-        "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-        " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
-        " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
-    )
+  helm_cmds = (
+      "CONFIG_FILE=$REPO_ROOT/src/frameworks"
+      "/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
+      "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
+      " helm install -f values.yaml "
+      "--namespace default "
+      "--set namespace=default"
+      " --set-file nemo_config"
+      "=$CONFIG_FILE"
+      " --set workload.image"
+      "=us-central1-docker.pkg.dev/"
+      "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
+      " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
+      " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
+  )
 
-    hook = SubprocessHook()
-    result = hook.run_command(
-        [
-            "bash",
-            "-c",
-            ";".join(
-                set_variables_cmds()
-                + configure_project_and_cluster()
-                + git_cookie_authdaemon()
-                + clone_gob()
-                + gpu_recipe_cmd
-                + install_helm_cmds()
-                + namespace_cmds()
-                + helm_cmds
-                + wait_for_jobs_cmds()
-                + copy_bucket_cmds()
-                + get_metrics_cmds()
-                + cleanup_cmds()
-            ),
-        ],
-    )
-    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+  hook = SubprocessHook()
+  result = hook.run_command(
+      [
+          "bash",
+          "-c",
+          ";".join(
+              set_variables_cmds()
+              + configure_project_and_cluster()
+              + git_cookie_authdaemon()
+              + clone_gob()
+              + gpu_recipe_cmd
+              + install_helm_cmds()
+              + namespace_cmds()
+              + helm_cmds
+              + wait_for_jobs_cmds()
+              + copy_bucket_cmds()
+              + get_metrics_cmds()
+              + cleanup_cmds()
+          ),
+      ],
+  )
+  assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
 
 with models.DAG(
