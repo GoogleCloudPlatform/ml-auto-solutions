@@ -19,8 +19,8 @@ gcloud composer environments run ml-automation-solutions \
   --project=cloud-ml-auto-solutions \
   --location=us-central1 dags trigger \
   -- \
-  mlcompass_maxtext_single_host \
-  --conf={\\\"uuid\\\":\\\"abc\\\"}
+  mlcompass_maxtext_gke \
+  --conf={\\\"uuid\\\":\\\"abc\\\"} 70
 """
 
 import datetime
@@ -34,7 +34,7 @@ from xlml.apis import gcp_config, metric_config, task as xlml_task, test_config
 import json
 
 
-def get_single_host_config(
+def get_config_gke(
     docker_image: str,
     model_name: str,
     base_output_directory: str,
@@ -60,7 +60,6 @@ def get_single_host_config(
       ),
       test_name="maxtext",
       run_model_cmds=[
-          "bash simple_jax_test.sh",
           f"source benchmark_run.sh;run {model_name} {base_output_directory}",
       ],
       set_up_cmds=None,
@@ -77,7 +76,7 @@ def get_single_host_config(
 
 
 with models.DAG(
-    dag_id="mlcompass_maxtext_single_host",
+    dag_id="mlcompass_maxtext_gke",
     schedule=None,
     tags=["mlcompass", "maxtext"],
     start_date=datetime.datetime(2024, 9, 1),
@@ -121,8 +120,8 @@ with models.DAG(
   model_name_arg = get_model_name(xlml_state)
   base_output_directory_arg = get_base_output_directory(xlml_state)
 
-  default_benchmark = get_single_host_config(
+  default_benchmark = get_config_gke(
       docker_image=docker_image_path,
       model_name=model_name_arg,
       base_output_directory=base_output_directory_arg,
-  ).run()
+  ).run(skip_post_process=True)
