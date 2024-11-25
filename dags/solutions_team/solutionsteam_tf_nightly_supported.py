@@ -112,7 +112,7 @@ with models.DAG(
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
   )
 
-  embedding_dim = 32
+  embedding_dim = 16
   tf_dlrm_v5p_8 = tf_config.get_tf_dlrm_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
       tpu_version=TpuVersion.V5P,
