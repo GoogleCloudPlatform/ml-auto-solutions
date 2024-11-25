@@ -34,46 +34,124 @@ create_mlperf_log_converter_script = r"""cat > convert_logs.py << 'EOL'
 import json
 import re
 import jsonlines
+import pkg_resources
+import os
+from typing import Optional
 
-def convert_mlperf_log_to_jsonlines(log_file_path: str, output_path: str):
-  dimension_keys = {
-    "loadgen_version", "test_datetime", "requested_scenario",
-    "requested_test_mode", "effective_scenario", "effective_test_mode",
-    "power_begin", "power_end", "result_validity",
-    "early_stopping_ttft_result", "early_stopping_tpot_result"
-  }
+def find_git_dir(start_path: str) -> Optional[str]:
+    current_path = os.path.abspath(start_path)
+    while current_path != '/':
+        git_path = os.path.join(current_path, '.git')
+        if os.path.exists(git_path) and os.path.isdir(git_path):
+            return current_path
+        current_path = os.path.dirname(current_path)
+    return None
 
-  metrics = {}
-  dimensions = {}
+def get_git_commit(repo_path: Optional[str] = None) -> str:
+    try:
+        # If no repo_path provided, try to find .git directory
+        if repo_path is None:
+            repo_path = find_git_dir(os.getcwd())
+            if repo_path is None:
+                return "unknown"
 
-  with open(log_file_path, "r") as f:
-    log_content = f.read()
+        head_path = os.path.join(repo_path, '.git', 'HEAD')
+        with open(head_path, 'r') as f:
+            head_content = f.read().strip()
 
-  log_pattern = r":::MLLOG ({.*})"
-  for line in log_content.split("\n"):
-    match = re.search(log_pattern, line)
-    if match:
-      try:
-        entry = json.loads(match.group(1))
-        key = entry.get("key", "")
-        value = entry.get("value")
+        if head_content.startswith('ref: '):
+            ref_path = head_content[5:]  # Remove 'ref: ' prefix
+            ref_full_path = os.path.join(repo_path, '.git', ref_path)
+            with open(ref_full_path, 'r') as f:
+                return f.read().strip()
+        return head_content
+    except Exception as e:
+        print(f"Warning: Could not get git commit: {str(e)}")
+        return "unknown"
 
-        if isinstance(value, (int, float)):
-          metrics[key] = value
-        elif key in dimension_keys:
-          dimensions[key] = value
-      except json.JSONDecodeError:
-        continue
+def get_package_version(package_name: str) -> str:
+    try:
+        return pkg_resources.get_distribution(package_name).version
+    except:
+        return "unknown"
 
-  result = {"metrics": metrics, "dimensions": dimensions}
+def convert_mlperf_log_to_jsonlines(
+    log_file_path: str,
+    output_path: str,
+    repo_path: Optional[str] = None
+) -> dict:
+    dimension_keys = {
+        "loadgen_version", "test_datetime", "requested_scenario",
+        "requested_test_mode", "effective_scenario", "effective_test_mode",
+        "power_begin", "power_end", "result_validity",
+        "early_stopping_ttft_result", "early_stopping_tpot_result"
+    }
 
-  with jsonlines.open(output_path, mode="w") as writer:
-    writer.write(result)
+    metrics = {}
+    dimensions = {}
 
-  return result
+    with open(log_file_path, "r") as f:
+        log_content = f.read()
+
+    log_pattern = r":::MLLOG ({.*})"
+    for line in log_content.split("\n"):
+        match = re.search(log_pattern, line)
+        if match:
+            try:
+                entry = json.loads(match.group(1))
+                key = entry.get("key", "")
+                value = entry.get("value")
+
+                if isinstance(value, (int, float)):
+                    metrics[key] = value
+                elif key in dimension_keys:
+                    dimensions[key] = value
+            except json.JSONDecodeError:
+                continue
+
+    # Add version information to dimensions
+    # If repo_path is None, it will search up the directory tree
+    dimensions["maxtext_commit_id"] = get_git_commit(repo_path)
+    dimensions["jax_version"] = get_package_version("jax")
+    dimensions["libtpu_version"] = get_package_version("libtpu")
+    dimensions["libtpu_nightly_version"] = get_package_version("libtpu-nightly")
+
+    result = {"metrics": metrics, "dimensions": dimensions}
+
+    # Handle directory creation only if output_path contains directories
+    output_dir = os.path.dirname(output_path)
+    if output_dir:  # Only create directories if there's actually a directory path
+        os.makedirs(output_dir, exist_ok=True)
+
+    with jsonlines.open(output_path, mode="w") as writer:
+        writer.write(result)
+
+    return result
 
 if __name__ == "__main__":
-    convert_mlperf_log_to_jsonlines("./mlperf_log_detail.txt", "metric_report.jsonl")
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Convert MLPerf log to jsonlines format')
+    parser.add_argument('--log-file', type=str, required=True,
+                      help='Path to the MLPerf log file')
+    parser.add_argument('--output-file', type=str, required=True,
+                      help='Path for the output jsonlines file')
+    parser.add_argument('--repo-path', type=str, default=None,
+                      help='Path to the git repository (optional, will auto-detect if not provided)')
+
+    args = parser.parse_args()
+
+    # Convert paths to absolute paths to handle relative paths properly
+    log_file = os.path.abspath(args.log_file)
+    output_file = os.path.abspath(args.output_file)
+    repo_path = os.path.abspath(args.repo_path) if args.repo_path else None
+
+    result = convert_mlperf_log_to_jsonlines(
+        log_file,
+        output_file,
+        repo_path
+    )
+    print(f"Conversion complete. Output written to: {output_file}")
 EOL"""
 
 
@@ -108,30 +186,37 @@ def maxtext_inference_offline_benchmark_config(
       "sudo apt-get -y install jq",
       "python -m venv .env",
       "source .env/bin/activate",
-      # Setup MaxText
-      git_clone_maxtext,
-      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
-      "pip install torch --index-url https://download.pytorch.org/whl/cpu",
       # Setup Loadgen
       "git clone https://github.com/mlcommons/inference.git",
       "cd inference/loadgen && pip install . && cd ../..",
-  )
-
-  run_model_cmds = (
       "source .env/bin/activate",
+      # Setup MaxText
+      git_clone_maxtext,
+      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
+      "pip install -r maxtext/MaxText/inference_mlperf/requirements.txt",
       "cd maxtext/MaxText/inference_mlperf/trillium",
+      # Copy Dataset
       "gsutil cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
+      # Create Environment Variables
       "export DATA_DISK_DIR=/tmp",
       "export CHECKPOINT=gs://inference-benchmarks/models/llama2-70b-chat/quant/int8_",
       "export TOKENIZER_PATH=/home/ml-auto-solutions/maxtext/assets/tokenizer.llama2",
-      "echo $TOKENIZER_PATH",
-      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -t -s",
-      "cp /tmp/logs/*/mlperf_log_detail.txt ./",
+  )
+
+  run_performance = (
+      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -b performance",
+      "cp /tmp/logs/*performance*/mlperf_log_detail.txt ./",
       create_mlperf_log_converter_script,
       "python3 convert_logs.py",
       "cat metric_report.jsonl",
       f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
+
+  run_accuracy = (
+      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -b accuracy",
+  )
+
+  run_model_cmds = run_performance + run_accuracy
 
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
@@ -195,5 +280,5 @@ with models.DAG(
       network=V6E_GCE_NETWORK,
       subnetwork=V6E_GCE_SUBNETWORK,
       is_tpu_reserved=True,
-      maxtext_branch="",
+      maxtext_branch="patemotter-offline-benchmark",
   )
