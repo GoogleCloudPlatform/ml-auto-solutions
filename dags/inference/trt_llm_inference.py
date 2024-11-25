@@ -12,43 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run TensorRT-LLM MLPerf4.0 Inference benchmarks."""
+"""A DAG to run TensorRT-LLM inference benchmarks with nightly version."""
 
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS
-from dags.inference.configs import trt_llm_mlperf_v40_config
+from dags.vm_resource import H100_INFERENCE_SUBNETWORKS, INFERENCE_NETWORKS, GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project
+from dags.inference.configs import trt_llm_inference_config
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="trt_llm_mlperf_v40",
+    dag_id="tensorrt_llm_inference",
     schedule=SCHEDULED_TIME,
-    tags=[
-        "inference_team",
-        "tensorrt_llm",
-        "mlperf_v40",
-        "nightly",
-        "benchmark",
-    ],
-    start_date=datetime.datetime(2024, 6, 17),
+    tags=["inference_team", "tensorrt_llm", "nightly", "benchmark"],
+    start_date=datetime.datetime(2024, 11, 5),
     catchup=False,
 ) as dag:
-  test_name_prefix = "tensorrt-llm-mlperf-v40-inference"
+  test_name_prefix = "tensorrt-llm-inference"
 
-  model_name = "llama2-70b,gptj,dlrm-v2,bert,resnet50,retinanet,rnnt,3d-unet,stable-diffusion-xl"
-  scenario = "Offline,Server"
-  config_ver = "default,high_accuracy"
-  model_configs = {
-      "model_name": model_name,
-      "scenario": scenario,
-      "config_ver": config_ver,
-  }
   # Running on H100 GPU
-  trt_llm_mlperf_v40_config.get_trt_llm_mlperf_v40_gpu_config(
+  trt_llm_inference_config.get_trt_llm_gpu_config(
       machine_type=MachineVersion.A3_HIGHGPU_8G,
       image_project=ImageProject.ML_IMAGES,
       image_family=ImageFamily.COMMON_CU121_DEBIAN_11,
@@ -56,9 +42,8 @@ with models.DAG(
       count=8,
       gpu_zone=Zone.US_CENTRAL1_A,
       time_out_in_min=1600,
-      test_name=f"{test_name_prefix}-nightly-multi-models-h100-8",
+      test_name=f"{test_name_prefix}-nightly-h100-8",
       project=Project.CLOUD_TPU_INFERENCE_TEST,
       network=INFERENCE_NETWORKS,
       subnetwork=H100_INFERENCE_SUBNETWORKS,
-      model_configs=model_configs,
   ).run()
