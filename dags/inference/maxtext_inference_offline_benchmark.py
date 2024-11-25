@@ -203,17 +203,30 @@ def maxtext_inference_offline_benchmark_config(
       "export TOKENIZER_PATH=/home/ml-auto-solutions/maxtext/assets/tokenizer.llama2",
   )
 
+  add_accuracy_to_metrics = (
+      """grep -o "{'rouge1.*}" evaluate_offline_accuracy_log.log | \
+      sed 's/^{/{"metrics":{/; s/}$/}}/' | \
+      sed "s/'/\"/g" | \
+      jq -s '.[0].metrics += .[1].metrics | .[0]' acc_metric_report.jsonl - > acc_combined_output.jsonl"""
+  )
+
   run_performance = (
       "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -b performance",
-      "cp /tmp/logs/*performance*/mlperf_log_detail.txt ./",
+      "cp /tmp/logs/*performance*/mlperf_log_detail.txt ./perf_log.txt",
       create_mlperf_log_converter_script,
-      "python3 convert_logs.py",
-      "cat metric_report.jsonl",
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      "python3 convert_logs.py --log-file perf_log.txt --output-file perf_metric_report.jsonl",
+      "cat perf_metric_report.jsonl",
   )
 
   run_accuracy = (
       "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -b accuracy",
+      "cp /tmp/logs/*performance*/mlperf_log_detail.txt ./acc_log.txt",
+      "cp evaluate_offline_accuracy_log.log ./",
+      "python3 convert_logs.py --log-file perf_log.txt --output-file acc_metric_report.jsonl",
+      add_accuracy_to_metrics,
+      "cat acc_combined_output.jsonl",
+      "cat perf_metric_report.jsonl acc_combined_output.jsonl > combined_results.jsonl",
+      f"gsutil cp combined_results.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   run_model_cmds = run_performance + run_accuracy
@@ -280,5 +293,5 @@ with models.DAG(
       network=V6E_GCE_NETWORK,
       subnetwork=V6E_GCE_SUBNETWORK,
       is_tpu_reserved=True,
-      maxtext_branch="patemotter-offline-benchmark",
+      maxtext_branch="",
   )
