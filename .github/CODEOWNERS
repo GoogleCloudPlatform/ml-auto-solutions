@@ -1,8 +1,8 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
 * @mbzomowski @RissyRan @allenwang28
 
-dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng
-dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng
+dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng @richardsliu
+dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng @richardsliu
 
 dags/pytorch_xla @JackCaoG @vanbasten23 @zpcore @ManfeiBai
 dags/legacy_test/tests/pytorch @JackCaoG @vanbasten23 @zpcore @ManfeiBai
