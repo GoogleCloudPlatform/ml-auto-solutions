@@ -94,8 +94,9 @@ def helm_install_cmds():
       "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
       " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
       " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
-   )
+  )
   return helm_cmds
+
 
 def wait_for_jobs_cmds():
   wait_for_job = (
