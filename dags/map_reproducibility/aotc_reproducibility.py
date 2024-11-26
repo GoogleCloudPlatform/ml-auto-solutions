@@ -82,17 +82,20 @@ def namespace_cmds():
   )
   return namespace
 
-
-def clone_gob_cmds():
-  gob_cmds = (
-      # "git clone https://gerrit.googlesource.com/gcompute-tools",
-      # "./gcompute-tools/git-cookie-authdaemon",
-      "sudo apt install git-remote-google",
-      "sudo apt-get install git-remote-google",
-      "git clone sso://ai-hypercomputer-benchmarks/reproducible-benchmark-recipes",
-  )
-  return gob_cmds
-
+def helm_install_cmds():
+  helm_cmds = (
+      " helm install -f values.yaml "
+      "--namespace default "
+      "--set namespace=default"
+      " --set-file nemo_config"
+      "=$CONFIG_FILE"
+      " --set workload.image"
+      "=us-central1-docker.pkg.dev/"
+      "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
+      " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
+      " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
+   )
+  return helm_cmds
 
 def wait_for_jobs_cmds():
   wait_for_job = (
