@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A Simple DAG.
+"""This Airflow DAG runs a maxtext machine learning benchmark on a GKE cluster
 
 Usage:
 gcloud composer environments run ml-automation-solutions \
