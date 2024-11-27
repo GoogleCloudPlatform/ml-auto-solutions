@@ -24,12 +24,11 @@ def set_variables_cmds():
       "export CLUSTER_REGION=australia-southeast1",
       "NOW=$(date +%s)",
       "export BUCKET_NAME=regression-testing-xlml",
-      "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
   return set_variables
 
 
-def set_project_commands():
+def configure_project_and_cluster():
   set_project_command = (
       "gcloud config set project $PROJECT",
       "sudo chown -R airflow:airflow /home/airflow/composer_kube_config",
@@ -37,6 +36,28 @@ def set_project_commands():
       "$CLUSTER --region $CLUSTER_REGION",
   )
   return set_project_command
+
+
+# This is required to get auth to access
+# internal GoB repo
+def git_cookie_authdaemon():
+  auth_cmds = (
+      "git clone https://gerrit.googlesource.com/gcompute-tools",
+      "echo 'trying to run git-cookie-authdaemon'",
+      "./gcompute-tools/git-cookie-authdaemon",
+  )
+  return auth_cmds
+
+
+def clone_gob():
+  gob_clone_cmds = (
+      "echo 'trying to clone GoB repo from outside'",
+      "git clone https://ai-hypercomputer-benchmarks.googlesource.com/"
+      "reproducible-benchmark-recipes",
+      "cd reproducible-benchmark-recipes/projects",
+      "cd gpu-recipes",
+  )
+  return gob_clone_cmds
 
 
 def install_helm_cmds():
@@ -57,9 +78,25 @@ def namespace_cmds():
   namespace = (
       "kubectl config view | grep namespace",
       "kubectl config set-context --current --namespace=default",
-      "kubectl config set-context heml --namespace=default",
+      "kubectl config set-context helm --namespace=default",
   )
   return namespace
+
+
+def helm_install_cmds():
+  helm_cmds = (
+      " helm install -f values.yaml "
+      "--namespace default "
+      "--set namespace=default"
+      " --set-file nemo_config"
+      "=$CONFIG_FILE"
+      " --set workload.image"
+      "=us-central1-docker.pkg.dev/"
+      "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
+      " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
+      " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
+  )
+  return helm_cmds
 
 
 def wait_for_jobs_cmds():
