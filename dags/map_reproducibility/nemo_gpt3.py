@@ -21,12 +21,15 @@ from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
 from dags.map_reproducibility.aotc_reproducibility import get_metrics_cmds
 from dags.map_reproducibility.aotc_reproducibility import set_variables_cmds
-from dags.map_reproducibility.aotc_reproducibility import set_project_commands
+from dags.map_reproducibility.aotc_reproducibility import configure_project_and_cluster
 from dags.map_reproducibility.aotc_reproducibility import install_helm_cmds
 from dags.map_reproducibility.aotc_reproducibility import namespace_cmds
 from dags.map_reproducibility.aotc_reproducibility import wait_for_jobs_cmds
 from dags.map_reproducibility.aotc_reproducibility import copy_bucket_cmds
 from dags.map_reproducibility.aotc_reproducibility import cleanup_cmds
+from dags.map_reproducibility.aotc_reproducibility import git_cookie_authdaemon
+from dags.map_reproducibility.aotc_reproducibility import clone_gob
+from dags.map_reproducibility.aotc_reproducibility import helm_install_cmds
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
@@ -35,27 +38,16 @@ SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 @task
 def run_aotc_workload():
   gpu_recipe_cmd = (
-      "git clone https://github.com/ai-hypercomputer/gpu-recipes.git",
-      "cd gpu-recipes",
-      "export REPO_ROOT=`git rev-parse --show-toplevel`",
+      "export REPO_ROOT=`pwd`",
       "export RECIPE_ROOT="
       "$REPO_ROOT/training/a3mega/gpt3-175b/nemo-pretraining-gke",
       "cd $RECIPE_ROOT",
   )
 
-  helm_cmds = (
+  workload_cmds = (
       "CONFIG_FILE=$REPO_ROOT/src/frameworks"
       "/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
-      " helm install -f values.yaml "
-      "--namespace default "
-      "--set namespace=default"
-      " --set-file nemo_config"
-      "=$CONFIG_FILE"
-      " --set workload.image"
-      "=us-central1-docker.pkg.dev/"
-      "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-      " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
-      " $JOB_NAME $REPO_ROOT/src/helm-charts/nemo-training",
+      "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
 
   hook = SubprocessHook()
@@ -65,11 +57,14 @@ def run_aotc_workload():
           "-c",
           ";".join(
               set_variables_cmds()
-              + set_project_commands()
+              + configure_project_and_cluster()
+              + git_cookie_authdaemon()
+              + clone_gob()
               + gpu_recipe_cmd
               + install_helm_cmds()
               + namespace_cmds()
-              + helm_cmds
+              + workload_cmds
+              + helm_install_cmds()
               + wait_for_jobs_cmds()
               + copy_bucket_cmds()
               + get_metrics_cmds()
