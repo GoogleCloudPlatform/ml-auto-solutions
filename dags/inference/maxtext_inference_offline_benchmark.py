@@ -189,7 +189,6 @@ def maxtext_inference_offline_benchmark_config(
       # Setup Loadgen
       "git clone https://github.com/mlcommons/inference.git",
       "cd inference/loadgen && pip install . && cd ../..",
-      "source .env/bin/activate",
       # Setup MaxText
       git_clone_maxtext,
       f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
@@ -197,29 +196,33 @@ def maxtext_inference_offline_benchmark_config(
       "cd maxtext/MaxText/inference_mlperf/trillium",
       # Copy Dataset
       "gsutil cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
-      # Create Environment Variables
-      "export DATA_DISK_DIR=/tmp",
-      "export CHECKPOINT=gs://inference-benchmarks/models/llama2-70b-chat/quant/int8_",
-      "export TOKENIZER_PATH=/home/ml-auto-solutions/maxtext/assets/tokenizer.llama2",
+      "cp ../user100.conf ./",
   )
 
-  add_accuracy_to_metrics = (
-      """grep -o "{'rouge1.*}" evaluate_offline_accuracy_log.log | \
+  add_accuracy_to_metrics = """grep -o "{'rouge1.*}" evaluate_offline_accuracy_log.log | \
       sed 's/^{/{"metrics":{/; s/}$/}}/' | \
       sed "s/'/\"/g" | \
       jq -s '.[0].metrics += .[1].metrics | .[0]' acc_metric_report.jsonl - > acc_combined_output.jsonl"""
-  )
 
   run_performance = (
-      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -b performance",
-      "cp /tmp/logs/*performance*/mlperf_log_detail.txt ./perf_log.txt",
+      "source .env/bin/activate",
+      "export DATA_DISK_DIR=/tmp",
+      "export CHECKPOINT=gs://inference-benchmarks/models/llama2-70b-chat/quant/int8_",
+      "export TOKENIZER_PATH=/home/ml-auto-solutions/maxtext/assets/tokenizer.llama2",
+      "export LOGLEVEL=WARNING",
+      "export test_run=true",
+      "cd maxtext/MaxText/inference_mlperf/trillium",
+      "ls",
+      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -t -b performance",  # todo: remove -t here
+      "cp '$(ls -t /tmp/logs/*performance*/mlperf_log_detail.txt | head -n1)' ./perf_log.txt",
       create_mlperf_log_converter_script,
       "python3 convert_logs.py --log-file perf_log.txt --output-file perf_metric_report.jsonl",
       "cat perf_metric_report.jsonl",
   )
 
   run_accuracy = (
-      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -b accuracy",
+      "export FAST_EVAL=true",  # todo: remove?
+      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -t -b accuracy",
       "cp /tmp/logs/*performance*/mlperf_log_detail.txt ./acc_log.txt",
       "cp evaluate_offline_accuracy_log.log ./",
       "python3 convert_logs.py --log-file perf_log.txt --output-file acc_metric_report.jsonl",
@@ -277,7 +280,7 @@ with models.DAG(
     dag_id=dag_id,
     tags=tags,
     start_date=datetime.datetime(2024, 1, 19),
-    schedule=None,
+    schedule=None,  # todo: add schedule
     catchup=False,
 ) as dag:
   test_name_prefix = dag_id
@@ -285,7 +288,7 @@ with models.DAG(
       tpu_version=TpuVersion.TRILLIUM,
       tpu_cores=8,
       tpu_zone=Zone.EUROPE_WEST4_A.value,
-      time_out_in_min=60,
+      time_out_in_min=300,
       test_name="maxtext_inference_offline_benchmark",
       test_mode=SetupMode.STABLE,
       project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
@@ -293,5 +296,5 @@ with models.DAG(
       network=V6E_GCE_NETWORK,
       subnetwork=V6E_GCE_SUBNETWORK,
       is_tpu_reserved=True,
-      maxtext_branch="",
+      maxtext_branch="patemotter_offline_benchmark",
   )
