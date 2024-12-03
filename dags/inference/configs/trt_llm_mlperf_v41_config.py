@@ -156,6 +156,7 @@ def get_trt_llm_mlperf_gpu_config(
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
       "pip install huggingface_hub==0.24.7",
+      "lscpu",
   ]
   if accelerator_type == GpuVersion.L4:
     docker_cmds.append(
