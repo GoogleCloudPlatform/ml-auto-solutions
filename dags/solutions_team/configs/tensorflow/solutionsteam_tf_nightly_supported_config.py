@@ -200,6 +200,7 @@ def get_tf_dlrm_config(
     criteo_dir: str = gcs_bucket.CRITEO_DIR,
     network: str = "default",
     subnetwork: str = "default",
+    global_batch_size=16384,
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -233,11 +234,11 @@ def get_tf_dlrm_config(
           "use_tf_record_reader": "true",
           "train_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/train/day_*/*",
-              "global_batch_size": 16384,
+              "global_batch_size": global_batch_size,
           },
           "validation_data": {
               "input_path": "gs://zyc_dlrm/dataset/tb_tf_record_train_val/eval/day_*/*",
-              "global_batch_size": 16384,
+              "global_batch_size": global_batch_size,
           },
           "model": {
               "interaction": "multi_layer_dcn",

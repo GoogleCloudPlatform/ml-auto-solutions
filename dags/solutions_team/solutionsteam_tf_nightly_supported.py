@@ -131,6 +131,7 @@ with models.DAG(
       network=V5_NETWORKS,
       subnetwork=V5P_SUBNETWORKS,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
+      global_batch_size=8196,
   )
 
   embedding_dim = 128
