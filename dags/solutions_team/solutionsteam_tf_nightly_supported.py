@@ -41,6 +41,7 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL1_C.value,
       time_out_in_min=60,
       global_batch_size=1024,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
   )
 
   tf_resnet_v3_8 = tf_config.get_tf_resnet_config(
@@ -48,6 +49,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=Zone.US_EAST1_D.value,
       time_out_in_min=60,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
   )
 
   tf_resnet_v4_8 = tf_config.get_tf_resnet_config(
@@ -55,6 +57,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
   )
 
   tf_resnet_v4_32 = tf_config.get_tf_resnet_config(
@@ -63,7 +66,7 @@ with models.DAG(
       tpu_zone=Zone.US_CENTRAL2_B.value,
       time_out_in_min=60,
       is_pod=True,
-      runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
   )
 
   tf_resnet_v5e_4 = tf_config.get_tf_resnet_config(
