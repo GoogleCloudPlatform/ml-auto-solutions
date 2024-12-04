@@ -19,7 +19,7 @@ import time
 
 
 CMD_PRINT_TF_VERSION = "python3 -c \"import tensorflow; print('Running using TensorFlow Version: ' + tensorflow.__version__)\""
-CMD_REMOVE_LIBTPU_LOCKFILE = "sudo rm /tmp/libtpu_lockfile"
+CMD_REMOVE_LIBTPU_LOCKFILE = "sudo rm -f /tmp/libtpu_lockfile"
 CMD_INSTALL_KERAS_NIGHTLY = (
     "pip install --upgrade --no-deps --force-reinstall tf-keras-nightly"
 )
