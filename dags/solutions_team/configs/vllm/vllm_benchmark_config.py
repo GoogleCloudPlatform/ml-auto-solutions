@@ -45,6 +45,7 @@ def get_vllm_gpu_setup_cmds():
       # Download dataset
       "wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
       # Download benchmark
+      "pip install --upgrade google-cloud-storage",
       "rm -rf ai-on-gke && git clone https://github.com/GoogleCloudPlatform/ai-on-gke",
   )
   return setup_cmds
@@ -65,21 +66,13 @@ def get_vllm_tpu_setup_cmds():
       "cd vllm",
       # From https://docs.vllm.ai/en/latest/getting_started/tpu-installation.html
       "pip uninstall torch torch-xla -y",
-      'export DATE="20240828"',
-      'export TORCH_VERSION="2.5.0"',
-      "pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch-${TORCH_VERSION}.dev${DATE}-cp310-cp310-linux_x86_64.whl",
-      "pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-${TORCH_VERSION}.dev${DATE}-cp310-cp310-linux_x86_64.whl",
-      # Install JAX and Pallas.
-      "pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html",
-      "pip install torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html",
-      # Install other build dependencies.
-      "pip install setuptools-scm>=8",
       "pip install -r requirements-tpu.txt",
       # Build vLLM
       'VLLM_TARGET_DEVICE="tpu" python setup.py develop',
       # Download dataset
       "cd .. && wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
       # Download benchmark
+      "pip install --upgrade google-cloud-storage",
       "rm -rf ai-on-gke && git clone https://github.com/GoogleCloudPlatform/ai-on-gke",
   )
 

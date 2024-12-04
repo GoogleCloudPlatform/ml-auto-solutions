@@ -57,7 +57,7 @@ with models.DAG(
           {
               "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
               "cluster": XpkClusters.TPU_V4_128_CLUSTER,
-              "time_out_in_min": 60,
+              "time_out_in_min": 90,
           },
       ],
       "mixtral-8x22b": [
@@ -68,7 +68,7 @@ with models.DAG(
           },
           {
               "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
-              "cluster": XpkClusters.TPU_V5E_256_CLUSTER,
+              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
