@@ -30,7 +30,10 @@ PROJECT_NAME = Project.CLOUD_TPU_INFERENCE_TEST.value
 RUNTIME_IMAGE = RuntimeVersion.V2_ALPHA_TPUV6.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
 
-create_mlperf_log_converter_script = r"""cat > convert_logs.py << 'EOL'
+
+def get_mlperf_converter_script():
+    # Using a heredoc style string to properly escape the Python script
+    return '''cat << 'EOL' > convert_logs.py
 import json
 import re
 import jsonlines
@@ -40,8 +43,8 @@ from typing import Optional
 
 def find_git_dir(start_path: str) -> Optional[str]:
     current_path = os.path.abspath(start_path)
-    while current_path != '/':
-        git_path = os.path.join(current_path, '.git')
+    while current_path != "/":
+        git_path = os.path.join(current_path, ".git")
         if os.path.exists(git_path) and os.path.isdir(git_path):
             return current_path
         current_path = os.path.dirname(current_path)
@@ -49,20 +52,19 @@ def find_git_dir(start_path: str) -> Optional[str]:
 
 def get_git_commit(repo_path: Optional[str] = None) -> str:
     try:
-        # If no repo_path provided, try to find .git directory
         if repo_path is None:
             repo_path = find_git_dir(os.getcwd())
             if repo_path is None:
                 return "unknown"
 
-        head_path = os.path.join(repo_path, '.git', 'HEAD')
-        with open(head_path, 'r') as f:
+        head_path = os.path.join(repo_path, ".git", "HEAD")
+        with open(head_path, "r") as f:
             head_content = f.read().strip()
 
-        if head_content.startswith('ref: '):
-            ref_path = head_content[5:]  # Remove 'ref: ' prefix
-            ref_full_path = os.path.join(repo_path, '.git', ref_path)
-            with open(ref_full_path, 'r') as f:
+        if head_content.startswith("ref: "):
+            ref_path = head_content[5:]
+            ref_full_path = os.path.join(repo_path, ".git", ref_path)
+            with open(ref_full_path, "r") as f:
                 return f.read().strip()
         return head_content
     except Exception as e:
@@ -94,7 +96,7 @@ def convert_mlperf_log_to_jsonlines(
         log_content = f.read()
 
     log_pattern = r":::MLLOG ({.*})"
-    for line in log_content.split("\n"):
+    for line in log_content.split("\\n"):
         match = re.search(log_pattern, line)
         if match:
             try:
@@ -109,8 +111,6 @@ def convert_mlperf_log_to_jsonlines(
             except json.JSONDecodeError:
                 continue
 
-    # Add version information to dimensions
-    # If repo_path is None, it will search up the directory tree
     dimensions["maxtext_commit_id"] = get_git_commit(repo_path)
     dimensions["jax_version"] = get_package_version("jax")
     dimensions["libtpu_version"] = get_package_version("libtpu")
@@ -118,9 +118,8 @@ def convert_mlperf_log_to_jsonlines(
 
     result = {"metrics": metrics, "dimensions": dimensions}
 
-    # Handle directory creation only if output_path contains directories
     output_dir = os.path.dirname(output_path)
-    if output_dir:  # Only create directories if there's actually a directory path
+    if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
     with jsonlines.open(output_path, mode="w") as writer:
@@ -131,17 +130,16 @@ def convert_mlperf_log_to_jsonlines(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='Convert MLPerf log to jsonlines format')
-    parser.add_argument('--log-file', type=str, required=True,
-                      help='Path to the MLPerf log file')
-    parser.add_argument('--output-file', type=str, required=True,
-                      help='Path for the output jsonlines file')
-    parser.add_argument('--repo-path', type=str, default=None,
-                      help='Path to the git repository (optional, will auto-detect if not provided)')
+    parser = argparse.ArgumentParser(description="Convert MLPerf log to jsonlines format")
+    parser.add_argument("--log-file", type=str, required=True,
+                        help="Path to the MLPerf log file")
+    parser.add_argument("--output-file", type=str, required=True,
+                        help="Path for the output jsonlines file")
+    parser.add_argument("--repo-path", type=str, default=None,
+                        help="Path to the git repository (optional, will auto-detect if not provided)")
 
     args = parser.parse_args()
 
-    # Convert paths to absolute paths to handle relative paths properly
     log_file = os.path.abspath(args.log_file)
     output_file = os.path.abspath(args.output_file)
     repo_path = os.path.abspath(args.repo_path) if args.repo_path else None
@@ -152,7 +150,7 @@ if __name__ == "__main__":
         repo_path
     )
     print(f"Conversion complete. Output written to: {output_file}")
-EOL"""
+EOL'''
 
 
 def maxtext_inference_offline_benchmark_config(
@@ -170,98 +168,101 @@ def maxtext_inference_offline_benchmark_config(
     num_slices: int = 1,
     maxtext_branch: str = "",
 ):
-  job_gcp_config = gcp_config.GCPConfig(
-      project_name=project_name,
-      zone=tpu_zone,
-      dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
-  )
-  git_clone_maxtext = "git clone https://github.com/google/maxtext.git"
-  if maxtext_branch:
-    git_clone_maxtext += f" -b {maxtext_branch}"
+    job_gcp_config = gcp_config.GCPConfig(
+        project_name=project_name,
+        zone=tpu_zone,
+        dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
+    )
 
-  set_up_cmds = (
-      "pip install --upgrade pip",
-      "sudo apt-get -y update",
-      "sudo apt-get -y install python3.10-venv",
-      "sudo apt-get -y install jq",
-      "python -m venv .env",
-      "source .env/bin/activate",
-      # Setup Loadgen
-      "git clone https://github.com/mlcommons/inference.git",
-      "cd inference/loadgen && pip install . && cd ../..",
-      # Setup MaxText
-      git_clone_maxtext,
-      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
-      "pip install -r maxtext/MaxText/inference_mlperf/requirements.txt",
-      "cd maxtext/MaxText/inference_mlperf/trillium",
-      # Copy Dataset
-      "gsutil cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
-      "cp ../user100.conf ./",
-  )
+    git_clone_maxtext = "git clone https://github.com/google/maxtext.git"
+    if maxtext_branch:
+        git_clone_maxtext += f" -b {maxtext_branch}"
 
-  add_accuracy_to_metrics = """grep -o "{'rouge1.*}" evaluate_offline_accuracy_log.log | \
-      sed 's/^{/{"metrics":{/; s/}$/}}/' | \
-      sed "s/'/\"/g" | \
-      jq -s '.[0].metrics += .[1].metrics | .[0]' acc_metric_report.jsonl - > acc_combined_output.jsonl"""
+    set_up_cmds = (
+        "pip install --upgrade pip",
+        "sudo apt-get -y update",
+        "sudo apt-get -y install python3.10-venv",
+        "sudo apt-get -y install jq",
+        "python -m venv .env",
+        "source .env/bin/activate",
+        # Setup Loadgen
+        "git clone https://github.com/mlcommons/inference.git",
+        "cd inference/loadgen && pip install . && cd ../..",
+        # Setup MaxText
+        git_clone_maxtext,
+        f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
+        "pip install -r maxtext/MaxText/inference_mlperf/requirements.txt",
+        "cd maxtext/MaxText/inference_mlperf/trillium",
+        # Copy Dataset
+        "gsutil cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
+        "cp ../user100.conf ./",
+    )
 
-  run_performance = (
-      "source .env/bin/activate",
-      "export DATA_DISK_DIR=/tmp",
-      "export CHECKPOINT=gs://inference-benchmarks/models/llama2-70b-chat/quant/int8_",
-      "export TOKENIZER_PATH=/home/ml-auto-solutions/maxtext/assets/tokenizer.llama2",
-      "export LOGLEVEL=WARNING",
-      "export test_run=true",
-      "cd maxtext/MaxText/inference_mlperf/trillium",
-      "ls",
-      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -t -b performance",  # todo: remove -t here
-      "cp '$(ls -t /tmp/logs/*performance*/mlperf_log_detail.txt | head -n1)' ./perf_log.txt",
-      create_mlperf_log_converter_script,
-      "python3 convert_logs.py --log-file perf_log.txt --output-file perf_metric_report.jsonl",
-      "cat perf_metric_report.jsonl",
-  )
+    add_accuracy_to_metrics = r'''tac evaluate_offline_accuracy_log.log | grep -m1 '{.*}' | \ #  read file in reverse, grep first json-like pattern
+        tr -d "'" | \  # Removes all single quotes from the output
+        tr -d '\000-\037' | \  # Removes all ASCII control characters (characters 0-31 in decimal)
+        sed 's/\([a-zA-Z0-9_]*\):/"\1":/g' | \  # Adds double quotes around JSON keys that aren't already quoted
+        sed 's/np\.[a-zA-Z0-9_]*(\([0-9.]*\))/\1/g' | \  # Converts numpy function calls with numbers (like np.float64(0.123)) to just the number
+        sed 's/{/{"metrics":{/; s/}/}}/' | \  # Wraps the JSON object in a "metrics" field
+        jq -sc '.[0].metrics += .[1].metrics | .[0]' acc_metric_report.jsonl - > acc_combined_output.jsonl'''  # Combines metrics objects
 
-  run_accuracy = (
-      "export FAST_EVAL=true",  # todo: remove?
-      "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -t -b accuracy",
-      "cp /tmp/logs/*performance*/mlperf_log_detail.txt ./acc_log.txt",
-      "cp evaluate_offline_accuracy_log.log ./",
-      "python3 convert_logs.py --log-file perf_log.txt --output-file acc_metric_report.jsonl",
-      add_accuracy_to_metrics,
-      "cat acc_combined_output.jsonl",
-      "cat perf_metric_report.jsonl acc_combined_output.jsonl > combined_results.jsonl",
-      f"gsutil cp combined_results.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
-  )
+    run_performance = (
+        'source .env/bin/activate',
+        'export DATA_DISK_DIR=/tmp',
+        'export CHECKPOINT=gs://inference-benchmarks/models/llama2-70b-chat/quant/int8_',
+        'export TOKENIZER_PATH=/home/ml-auto-solutions/maxtext/assets/tokenizer.llama2',
+        'export LOGLEVEL=WARNING',
+        'export test_run=true',
+        'cd maxtext/MaxText/inference_mlperf/trillium',
+        'bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -t -b performance',
+        'cp "$(ls -t /tmp/logs/*performance*/mlperf_log_detail.txt | head -n1)" ./perf_log.txt',
+        get_mlperf_converter_script(),
+        'python3 convert_logs.py --log-file perf_log.txt --output-file perf_metric_report.jsonl',
+    )
 
-  run_model_cmds = run_performance + run_accuracy
+    run_accuracy = (
+        'export FAST_EVAL=true',
+        'bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -t -b accuracy',
+        'cp "$(ls -t /tmp/logs/*accuracy*/mlperf_log_detail.txt | head -n1)" ./acc_log.txt',
+        'cp "$(ls -t /tmp/logs/*accuracy*/evaluate_offline_accuracy_log.log | head -n1)" ./evaluate_offline_accuracy_log.log',
+        'python3 convert_logs.py --log-file acc_log.txt --output-file acc_metric_report.jsonl',
+        add_accuracy_to_metrics,
+        'jq -c "." perf_metric_report.jsonl > temp_perf.jsonl',
+        'jq -c "." acc_combined_output.jsonl > temp_acc.jsonl',
+        'cat temp_perf.jsonl temp_acc.jsonl > combined_results.jsonl',
+        f'gsutil cp combined_results.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}',
+    )
 
-  job_test_config = test_config.TpuVmTest(
-      test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
-          runtime_version=runtime_version,
-          reserved=is_tpu_reserved,
-          network=network,
-          subnetwork=subnetwork,
-      ),
-      test_name=test_name,
-      set_up_cmds=set_up_cmds,
-      run_model_cmds=run_model_cmds,
-      timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.PATE_M,
-      num_slices=num_slices,
-      gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxtext",
-  )
+    run_model_cmds = run_performance + run_accuracy
 
-  job_metric_config = metric_config.MetricConfig(
-      json_lines=metric_config.JSONLinesConfig("metric_report.jsonl"),
-      use_runtime_generated_gcs_folder=True,
-  )
+    job_test_config = test_config.TpuVmTest(
+        test_config.Tpu(
+            version=tpu_version,
+            cores=tpu_cores,
+            runtime_version=runtime_version,
+            reserved=is_tpu_reserved,
+            network=network,
+            subnetwork=subnetwork,
+        ),
+        test_name=test_name,
+        set_up_cmds=set_up_cmds,
+        run_model_cmds=run_model_cmds,
+        timeout=datetime.timedelta(minutes=time_out_in_min),
+        task_owner=test_owner.PATE_M,
+        num_slices=num_slices,
+        gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxtext",
+    )
 
-  return task.run_queued_resource_test(
-      task_test_config=job_test_config,
-      task_gcp_config=job_gcp_config,
-      task_metric_config=job_metric_config,
-  )
+    job_metric_config = metric_config.MetricConfig(
+        json_lines=metric_config.JSONLinesConfig("combined_results.jsonl"),
+        use_runtime_generated_gcs_folder=True,
+    )
+
+    return task.run_queued_resource_test(
+        task_test_config=job_test_config,
+        task_gcp_config=job_gcp_config,
+        task_metric_config=job_metric_config,
+    )
 
 
 USER_PREFIX = ""
@@ -271,30 +272,30 @@ gcs_subfolder_prefix = test_owner.Team.INFERENCE.value
 tags = ["inference_team", "maxtext", "offline", "benchmark"]
 
 if USER_PREFIX:
-  dag_id = f"{USER_PREFIX}_maxtext_inference_offline_benchmark"
-  tags.append(USER_PREFIX)
+    dag_id = f"{USER_PREFIX}_maxtext_inference_offline_benchmark"
+    tags.append(USER_PREFIX)
 else:
-  dag_id = "maxtext_inference_offline_benchmark"
+    dag_id = "maxtext_inference_offline_benchmark"
 
 with models.DAG(
     dag_id=dag_id,
     tags=tags,
     start_date=datetime.datetime(2024, 1, 19),
-    schedule=None,  # todo: add schedule
+    schedule=None,
     catchup=False,
 ) as dag:
-  test_name_prefix = dag_id
-  maxtext_offline_benchmark = maxtext_inference_offline_benchmark_config(
-      tpu_version=TpuVersion.TRILLIUM,
-      tpu_cores=8,
-      tpu_zone=Zone.EUROPE_WEST4_A.value,
-      time_out_in_min=300,
-      test_name="maxtext_inference_offline_benchmark",
-      test_mode=SetupMode.STABLE,
-      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-      runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
-      network=V6E_GCE_NETWORK,
-      subnetwork=V6E_GCE_SUBNETWORK,
-      is_tpu_reserved=True,
-      maxtext_branch="patemotter_offline_benchmark",
-  )
+    test_name_prefix = dag_id
+    maxtext_offline_benchmark = maxtext_inference_offline_benchmark_config(
+        tpu_version=TpuVersion.TRILLIUM,
+        tpu_cores=8,
+        tpu_zone=Zone.EUROPE_WEST4_A.value,
+        time_out_in_min=300,
+        test_name="maxtext_inference_offline_benchmark",
+        test_mode=SetupMode.STABLE,
+        project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+        runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
+        network=V6E_GCE_NETWORK,
+        subnetwork=V6E_GCE_SUBNETWORK,
+        is_tpu_reserved=True,
+        maxtext_branch="patemotter_offline_benchmark",
+    )
