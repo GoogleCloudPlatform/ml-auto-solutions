@@ -15,12 +15,9 @@
 """Utilities to construct configs for maxtext offline benchmarks DAG."""
 
 import datetime
-import json
-import jsonlines
-import re
 
 from airflow import models
-from dags import test_owner
+from dags import test_owner, composer_env
 from dags.vm_resource import TpuVersion, Zone, Project, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.multipod.configs import common
 from dags.multipod.configs.common import SetupMode
@@ -29,6 +26,9 @@ from xlml.apis import gcp_config, metric_config, task, test_config
 PROJECT_NAME = Project.CLOUD_TPU_INFERENCE_TEST.value
 RUNTIME_IMAGE = RuntimeVersion.V2_ALPHA_TPUV6.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value
+
+# Run once a day at 5 am UTC (9 pm PST)
+SCHEDULED_TIME = "0 5 * * *" if composer_env.is_prod_env() else None
 
 
 def get_mlperf_converter_script():
@@ -265,7 +265,6 @@ def maxtext_inference_offline_benchmark_config(
 
 
 USER_PREFIX = ""
-
 gcs_subfolder_prefix = test_owner.Team.INFERENCE.value
 
 tags = ["inference_team", "maxtext", "offline", "benchmark"]
@@ -280,7 +279,7 @@ with models.DAG(
     dag_id=dag_id,
     tags=tags,
     start_date=datetime.datetime(2024, 1, 19),
-    schedule=None,
+    schedule=SCHEDULED_TIME,
     catchup=False,
 ) as dag:
   test_name_prefix = dag_id
