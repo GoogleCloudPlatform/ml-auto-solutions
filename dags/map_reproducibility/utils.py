@@ -65,12 +65,6 @@ def clone_gob():
   )
   return gob_clone_cmds
 
-
-def stop_git_daemon():
-  cmd = ("git config --global --unset credential.helper",)
-  return cmd
-
-
 def install_helm_cmds():
   install_helm_cmd = (
       "curl -fsSL -o get_helm.sh "
@@ -123,7 +117,8 @@ def copy_bucket_cmds():
   copy_bucket_contents = (
       "export COMPLETE_JOB_NAME=$(gcloud storage ls "
       "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
-      "echo 'COMPLETE_JOB_NAME=$COMPLETE_JOB_NAME'",
+      # "COMPLETE_JOB_NAME=gs://gunjanjalori-testing-xlml/nemo-experiments/gpt3-xlml-1731373474-175b-nemo-1731373494-ic5n/",
+      'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
       "cd $REPO_ROOT/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
       "dllogger/rank-0/dllogger.json .",
@@ -142,7 +137,7 @@ def get_metrics_cmds():
       "--model_type gpt3-175b "
       "--accelerator_type h100 | "
       "gsutil cp - $METRICS_FILE",
-      "echo 'METRICS_FILE=$METRICS_FILE'",
+      'echo "METRICS_FILE=${METRICS_FILE}"',
   )
   return get_metrics
 
@@ -154,7 +149,7 @@ def get_aotc_repo():
       "benchmark-automation",
       "cd benchmark-automation/aotc/src",
       "export PYTHONPATH=$PWD",
-      "echo 'PYTHONPATH=$PYTHONPATH'",
+      'echo "PYTHONPATH=$PYTHONPATH and METRICS_FILE=$METRICS_FILE"',
   )
   return gob_clone_cmds
 
@@ -163,10 +158,10 @@ def cleanup_cmds():
   cleanup = (
       "cd $REPO_ROOT",
       "cd ../../..",
-      "kubectl get pods "
-      "--no-headers=true | awk '{print $1}' "
-      "| grep $JOB_NAME |  xargs kubectl delete pods",
-      "helm uninstall $JOB_NAME",
+      # "kubectl get pods "
+      # "--no-headers=true | awk '{print $1}' "
+      # "| grep $JOB_NAME |  xargs kubectl delete pods",
+      # "helm uninstall $JOB_NAME",
   )
   return cleanup
 
@@ -196,12 +191,24 @@ def get_metrics_from_gcs(bucket_name, file_name):
   print(f"MFU: {mfu}")
 
 
-def extract_bucket_file_name(bash_result_output):
+def extract_bucket_file_name(last_line):
   metrics_file = None
-  for line in bash_result_output.splitlines():
-    if line.startswith("METRICS_FILE="):
-      metrics_file = line.split("=", 1)[1]
-      break
+  # for line in bash_result_output.splitlines():
+  #   print(f"Line: {line}")
+  #   if line.startswith("METRICS_FILE"):
+  #     print(f"Line: {line} with metrics file")
+  #     metrics_file = line.split("=", 1)[1]
+  #     break
+
+  match = re.search(r'PYTHONPATH=(.*?)\s+METRICS_FILE=(.*)', last_line)
+  if match:
+      python_path = match.group(1)
+      metrics_file = match.group(2)
+      print(f"PYTHONPATH in python: {python_path}")
+      print(f"METRICS_FILE: {metrics_file}")
+  else:
+      print("Error: Could not extract PYTHONPATH and METRICS_FILE")
+  print(f"Metrics file name: {metrics_file}")
   if metrics_file:
     # Extract bucket_name and file_name
     bucket_name = re.search(r"gs://([^/]+)/", metrics_file).group(1)
@@ -209,14 +216,16 @@ def extract_bucket_file_name(bash_result_output):
 
     print(f"Bucket name: {bucket_name}")
     print(f"File name: {file_name}")
+  else:
+    print("Metrics file not found in the output.")
 
-  return bucket_name, file_name
+  return bucket_name, file_name, python_path
 
 
 def extract_python_path(bash_result_output):
   python_path = None
   for line in bash_result_output.splitlines():
-    if line.startswith("PYTHONPATH="):
+    if line.startswith("PYTHONPATH"):
       python_path = line.split("=", 1)[1]
       break
 
