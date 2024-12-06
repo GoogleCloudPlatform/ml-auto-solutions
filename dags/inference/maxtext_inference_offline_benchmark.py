@@ -210,8 +210,7 @@ def maxtext_inference_offline_benchmark_config(
       "export DATA_DISK_DIR=/tmp",
       "export CHECKPOINT=gs://inference-benchmarks/models/llama2-70b-chat/quant/int8_",
       "export TOKENIZER_PATH=/home/ml-auto-solutions/maxtext/assets/tokenizer.llama2",
-      "export LOGLEVEL=WARNING",
-      "export test_run=true",
+      "export LOGLEVEL=WARNING",  # the logging at the INFO level was too much and hit some quotas
       "cd maxtext/MaxText/inference_mlperf/trillium",
       "bash benchmarks_llama2-70b-trillium_2x4.sh -x -s -t -b performance",
       'cp "$(ls -t /tmp/logs/*performance*/mlperf_log_detail.txt | head -n1)" ./perf_log.txt',
