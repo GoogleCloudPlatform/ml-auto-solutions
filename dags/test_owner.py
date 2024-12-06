@@ -22,11 +22,10 @@ class Team(enum.Enum):
   PYTORCH_XLA = "pytorch_xla"
   MULTIPOD = "multipod"
   MLCOMPASS = "mlcompass"
-  IMAGEGEN_DEVX = "imagegen_devx"
   INFERENCE = "inference"
   FRAMEWORK = "framework3p"
   LLM_DEVX = "llm_devx"
-  SPARCITY_DIFFUSION_DEVX = "sparcity_diffusion_devx"
+  SPARSITY_DIFFUSION_DEVX = "sparsity_diffusion_devx"
   PERFORMANCE = "performance"
   PRODUCTIVITY = "productivity"
 
@@ -54,7 +53,7 @@ ANISHA_M = "Anisha M."
 # MLCompass
 ORTI_B = "Orti B."
 
-# ImageGen DevX
+# Sparsity & Diffusion DevX
 RAN_R = "Ran R."
 PARAM_B = "Param B."
 
@@ -71,6 +70,8 @@ WENXIN_D = "Wenxin D."
 
 # FRAMEWORK
 QINY_Y = "Qinyi Y."
-
 # JAX
 AKANKSHA_G = "Akanksha G."
+
+# MAP_REPRODUCIBILITY
+GUNJAN_J = "Gunjan J."

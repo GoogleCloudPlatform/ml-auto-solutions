@@ -168,7 +168,7 @@ def set_up_torchbench_tpu(
           # "pip install torch_xla[pallas] -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html",
           "pip3 uninstall -y libtpu-nightly jax jaxlib",
           "cd ~/xla/experimental/torch_xla2/",
-          "pip3 install --user -e .[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html",
+          "pip3 install --user -e .[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html -f https://storage.googleapis.com/libtpu-wheels/index.html",
       )
       if use_xla2
       else ()
@@ -185,7 +185,7 @@ def set_up_torchbench_tpu(
           f"pip3 install --user --pre {version_mapping.TORCH.value} {version_mapping.TORCHVISION.value} {version_mapping.TORCHAUDIO.value} --index-url {version_mapping.TORCH_INDEX_CPU_URL.value}"
       ),
       (
-          f"pip3 install --user 'torch_xla[tpu] @{version_mapping.TORCH_XLA_TPU_WHEEL.value}' -f https://storage.googleapis.com/libtpu-releases/index.html"
+          f"pip3 install --user 'torch_xla[tpu] @{version_mapping.TORCH_XLA_TPU_WHEEL.value}' -f https://storage.googleapis.com/libtpu-releases/index.html -f https://storage.googleapis.com/libtpu-wheels/index.html"
       ),
       "pip3 install --user psutil",
       "cd; git clone https://github.com/pytorch/benchmark.git",
@@ -326,7 +326,7 @@ def set_up_torchbench_gpu(
           # TODO(piz): torch_xla2 only support nightly test at this time.
           "pip3 uninstall -y libtpu-nightly jax jaxlib",  # in case libtpu is installed from torch_xla
           "cd /tmp/xla/experimental/torch_xla2/",
-          "pip3 install --user -e .[cuda] -f https://storage.googleapis.com/libtpu-releases/index.html",
+          "pip3 install --user -e .[cuda] -f https://storage.googleapis.com/libtpu-releases/index.html -f https://storage.googleapis.com/libtpu-wheels/index.html",
       )
       if use_xla2
       else ()

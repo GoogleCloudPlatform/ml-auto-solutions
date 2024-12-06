@@ -17,6 +17,7 @@ A DAG to run perf tests for MaxText model configs on v5e.
 """
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner
 from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
@@ -49,6 +50,9 @@ with models.DAG(
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
 ) as dag:
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
   for mode, image in DOCKER_IMAGES:
     for model in MODEL_CONFIGS:
       base_run_model_cmds = [
@@ -72,9 +76,13 @@ with models.DAG(
       )
 
       chain_num = 4
-      prev = maxtext_sweep_gke_test[0].run_with_run_name_generation()
+      prev = maxtext_sweep_gke_test[0].run_with_name_gen_and_quarantine(
+          quarantine_task_group
+      )
       for i in range(1, len(maxtext_sweep_gke_test)):
-        curr = maxtext_sweep_gke_test[i].run_with_run_name_generation()
+        curr = maxtext_sweep_gke_test[i].run_with_name_gen_and_quarantine(
+            quarantine_task_group
+        )
         if i % chain_num != 0:
           prev >> curr
         prev = curr
@@ -90,6 +98,9 @@ with models.DAG(
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
 ) as dag:
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
   for mode, image in DOCKER_IMAGES:
     for model in MODEL_CONFIGS:
       base_run_model_cmds = [
@@ -113,12 +124,12 @@ with models.DAG(
       )
 
       chain_num = 4
-      prev = maxtext_sweep_gke_test[0].run_with_run_name_generation(
-          use_pathways=True
+      prev = maxtext_sweep_gke_test[0].run_with_name_gen_and_quarantine(
+          quarantine_task_group, use_pathways=True
       )
       for i in range(1, len(maxtext_sweep_gke_test)):
-        curr = maxtext_sweep_gke_test[i].run_with_run_name_generation(
-            use_pathways=True
+        curr = maxtext_sweep_gke_test[i].run_with_name_gen_and_quarantine(
+            quarantine_task_group, use_pathways=True
         )
         if i % chain_num != 0:
           prev >> curr

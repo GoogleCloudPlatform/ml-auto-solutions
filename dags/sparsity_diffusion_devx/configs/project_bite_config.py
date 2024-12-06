@@ -19,12 +19,12 @@ import datetime
 from typing import Tuple, Optional
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket, test_owner
-from dags.imagegen_devx.configs import common
+from dags.sparsity_diffusion_devx.configs import common
 from dags.vm_resource import TpuVersion, Project
 from airflow.models.taskmixin import DAGNode
 
 
-GCS_SUBFOLDER_PREFIX = test_owner.Team.IMAGEGEN_DEVX.value
+GCS_SUBFOLDER_PREFIX = test_owner.Team.SPARSITY_DIFFUSION_DEVX.value
 
 
 def set_up_axlearn(pinned_version) -> Tuple[str]:

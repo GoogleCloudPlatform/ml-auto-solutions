@@ -36,7 +36,7 @@ def get_trt_llm_mlperf_gpu_config(
     project: Project,
     network: str,
     subnetwork: str,
-    general_configs: Dict = {},
+    benchmark_configs: Dict = {},
     model_parameters: Dict = {},
     parameter_positions: Dict = {},
     binary_search_steps: int = 1,
@@ -59,10 +59,11 @@ def get_trt_llm_mlperf_gpu_config(
       "sudo chmod a+w /scratch",
       "cd /scratch",
       # Prepare data
-      f"gsutil -m cp -n -r gs://yijiaj/mlperf/v41/Google_GPU .",
-      f"gsutil -m cp -n -r {general_configs['models']} .",
-      f"gsutil -m cp -n -r {general_configs['preprocessed_data']} .",
-      f"gsutil -m cp -n -r {general_configs['docker_config']} .",
+      "gsutil -m cp -n -r gs://yijiaj/mlperf/v41/Google_GPU .",
+      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/mlperf_inf_dlrmv2 .",
+      f"gsutil -m cp -n -r {benchmark_configs['models']} .",
+      f"gsutil -m cp -n -r {benchmark_configs['preprocessed_data']} .",
+      f"gsutil -m cp -n -r {benchmark_configs['docker_config']} .",
       "curl -sSL https://get.docker.com/ | sh",
       "sudo mkdir -p /home/cloud-ml-auto-solutions/.docker",
       "sudo touch ~/.docker/config.json",
@@ -78,7 +79,7 @@ def get_trt_llm_mlperf_gpu_config(
       # Build and launch a docker container
       "PARTNER_DROP=1 make prebuild DOCKER_DETACH=1",
       "make docker_add_user",
-      f"make launch_docker DOCKER_NAME={docker_container_name} DOCKER_ARGS='-d'",
+      f"make launch_docker DOCKER_NAME={docker_container_name} DOCKER_ARGS='-v /scratch/mlperf_inf_dlrmv2:/home/mlperf_inf_dlrmv2 -d'",
   )
 
   jsonl_output_path = "metric_report.jsonl"
@@ -108,17 +109,18 @@ def get_trt_llm_mlperf_gpu_config(
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
 
   model_parameters_sweep_cmds = []
-  for model_name in general_configs["model_name"].split(","):
+  for model_name in benchmark_configs["model_name"].split(","):
+    scenario = ",".join(model_parameters[model_name])
     if accelerator_type == GpuVersion.L4:
       model_parameters_sweep_cmds.append(
-          f'CUDA_VISIBLE_DEVICES=0 make generate_engines RUN_ARGS=\'--benchmarks={model_name} --scenarios={general_configs["scenario"]}\''
+          f"CUDA_VISIBLE_DEVICES=0 make generate_engines RUN_ARGS='--benchmarks={model_name} --scenarios={scenario}'"
       )
     else:
       model_parameters_sweep_cmds.append(
-          f'make generate_engines RUN_ARGS=\'--benchmarks={model_name} --scenarios={general_configs["scenario"]}\''
+          f"make generate_engines RUN_ARGS='--benchmarks={model_name} --scenarios={scenario}'"
       )
 
-  for model_name in general_configs["model_name"].split(","):
+  for model_name in benchmark_configs["model_name"].split(","):
     for scenario in model_parameters[model_name]:
       for parameter in model_parameters[model_name][scenario]:
         steps = 2 ** (binary_search_steps - 1) + 1
@@ -153,6 +155,8 @@ def get_trt_llm_mlperf_gpu_config(
   docker_cmds = [
       "make link_dirs",
       "make build BUILD_TRTLLM=1",
+      "pip install huggingface_hub==0.24.7",
+      "lscpu",
   ]
   if accelerator_type == GpuVersion.L4:
     docker_cmds.append(
@@ -180,7 +184,9 @@ def get_trt_llm_mlperf_gpu_config(
           runtime_version=RUNTIME_IMAGE,
           network=network,
           subnetwork=subnetwork,
-          attach_local_ssd=True,
+          attach_local_ssd=True
+          if accelerator_type != GpuVersion.H100
+          else False,
           disk_size_gb=1000,
       ),
       test_name=test_name,

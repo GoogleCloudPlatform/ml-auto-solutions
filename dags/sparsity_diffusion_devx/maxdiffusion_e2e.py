@@ -20,7 +20,7 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env, test_owner, gcs_bucket
 from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
-from dags.imagegen_devx.configs import gke_config as config
+from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -30,7 +30,7 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxdiffusion_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxdiffusion"],
+    tags=["sparsity_diffusion_devx", "multipod_team", "maxdiffusion"],
     start_date=datetime.datetime(2024, 9, 12),
     catchup=False,
 ) as dag:

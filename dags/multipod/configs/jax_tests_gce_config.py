@@ -15,7 +15,7 @@
 """Utilities to construct configs for JAX tests for GCE."""
 
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import test_owner, gcs_bucket
+from dags import test_owner
 from dags.multipod.configs import common
 from dags.vm_resource import TpuVersion, Project, RuntimeVersion
 import datetime

@@ -171,6 +171,7 @@ class XpkTask(BaseTask):
       gcs_location: Optional[airflow.XComArg] = None,
       use_vertex_tensorboard: bool = False,
       use_pathways: bool = False,
+      skip_post_process: bool = False,
   ) -> DAGNode:
     """Run a test job within a docker image.
 
@@ -187,9 +188,20 @@ class XpkTask(BaseTask):
       run_model, gcs_path = self.run_model(
           gcs_location, use_vertex_tensorboard, use_pathways
       )
-      run_model >> self.post_process(gcs_path)
+      if not skip_post_process:
+        run_model >> self.post_process(gcs_path)
 
     return group
+
+  def run_with_name_gen_and_quarantine(
+      self, quarantine_task_group, use_pathways: bool = False
+  ) -> DAGNode:
+    test_name = self.task_test_config.benchmark_id
+    if QuarantineTests.is_quarantined(test_name):
+      with quarantine_task_group:
+        return self.run_with_run_name_generation(use_pathways)
+    else:
+      return self.run_with_run_name_generation(use_pathways)
 
   def run_with_run_name_generation(self, use_pathways: bool = False) -> DAGNode:
     """Generate a unique run name and tensorboard file location,
