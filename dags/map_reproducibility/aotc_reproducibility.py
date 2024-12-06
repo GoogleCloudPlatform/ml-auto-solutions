@@ -69,7 +69,6 @@ def clone_gob():
 def stop_git_daemon():
   cmd = (
       "git config --global --unset credential.helper",
-      "rm ~/.git-credentials",
   )
   return cmd
 

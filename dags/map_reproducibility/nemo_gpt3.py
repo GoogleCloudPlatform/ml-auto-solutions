@@ -15,7 +15,6 @@
 """DAGs to run Aotc reproducibility benchmarks."""
 
 import datetime
-import re
 import sys
 
 from airflow import models
