@@ -207,6 +207,7 @@ def extract_bucket_file_name(bash_result_output):
 
   return bucket_name, file_name
 
+
 def extract_python_path(bash_result_output):
   python_path = None
   for line in bash_result_output.splitlines():
