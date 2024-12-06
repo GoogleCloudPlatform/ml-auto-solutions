@@ -193,21 +193,15 @@ def get_metrics_from_gcs(bucket_name, file_name):
 
 def extract_bucket_file_name(last_line):
   metrics_file = None
-  # for line in bash_result_output.splitlines():
-  #   print(f"Line: {line}")
-  #   if line.startswith("METRICS_FILE"):
-  #     print(f"Line: {line} with metrics file")
-  #     metrics_file = line.split("=", 1)[1]
-  #     break
 
-  match = re.search(r'PYTHONPATH=(.*?)\s+METRICS_FILE=(.*)', last_line)
+  match = re.search(r"PYTHONPATH=(.*?)\s+METRICS_FILE=(.*)", last_line)
   if match:
-      python_path = match.group(1)
-      metrics_file = match.group(2)
-      print(f"PYTHONPATH in python: {python_path}")
-      print(f"METRICS_FILE: {metrics_file}")
+    python_path = match.group(1)
+    metrics_file = match.group(2)
+    print(f"PYTHONPATH in python: {python_path}")
+    print(f"METRICS_FILE: {metrics_file}")
   else:
-      print("Error: Could not extract PYTHONPATH and METRICS_FILE")
+    print("Error: Could not extract PYTHONPATH and METRICS_FILE")
   print(f"Metrics file name: {metrics_file}")
   if metrics_file:
     # Extract bucket_name and file_name
