@@ -15,6 +15,8 @@
 """DAGs to run Aotc reproducibility benchmarks."""
 
 import datetime
+import sys
+
 from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
@@ -30,6 +32,7 @@ from dags.map_reproducibility.aotc_reproducibility import cleanup_cmds
 from dags.map_reproducibility.aotc_reproducibility import git_cookie_authdaemon
 from dags.map_reproducibility.aotc_reproducibility import clone_gob
 from dags.map_reproducibility.aotc_reproducibility import helm_install_cmds
+from dags.map_reproducibility.aotc_reproducibility import print_metrics
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
@@ -67,12 +70,24 @@ def run_aotc_workload():
               + helm_install_cmds()
               + wait_for_jobs_cmds()
               + copy_bucket_cmds()
+              + copy_bucket_cmds_fake()
               + get_metrics_cmds()
               + cleanup_cmds()
+              + get_aotc_repo()
+              + stop_git_daemon()
           ),
       ],
   )
   assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+  print_metrics()
+
+  # Extract COMPLETE_JOB_NAME from the output
+  bucket_name, file_name = extract_bucket_file_name(result.output)
+  get_metrics_from_gcs(bucket_name, file_name)
+
+  # Extract PYTHONPATH from the output
+  python_path = extract_python_path(result.output)
+  sys.path.append(python_path)
 
 
 with models.DAG(
