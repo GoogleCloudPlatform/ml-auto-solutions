@@ -93,6 +93,7 @@ def namespace_cmds():
   )
   return namespace
 
+<<<<<<< Updated upstream
 
 def helm_install_cmds():
   helm_cmds = (
@@ -110,6 +111,8 @@ def helm_install_cmds():
   return helm_cmds
 
 
+=======
+>>>>>>> Stashed changes
 def wait_for_jobs_cmds():
   wait_for_job = (
       "echo 'will wait for jobs to finish'",
@@ -130,6 +133,17 @@ def copy_bucket_cmds():
   )
   return copy_bucket_contents
 
+def copy_bucket_cmds_fake():
+  cmds = (
+    "cd $REPO_ROOT/src/utils/training_metrics",
+    "pwd",
+    "gcloud storage cp gs://gunjanjalori-testing-xlml/nemo-experiments/gpt3-xlml-1731473831-175b-nemo-1731473851-vy8h/dllogger/rank-0/dllogger.json .",
+    "echo 'copied fake buck'",
+    "head dllogger.json",
+    "echo 'that was head'",
+  )
+  return cmds
+
 
 def get_metrics_cmds():
   # TODO(gunjanj007): get these parameters from the recipe
@@ -140,9 +154,18 @@ def get_metrics_cmds():
       "--num_accelerators 256 "
       "--precision fp8  "
       "--model_type gpt3-175b "
+<<<<<<< Updated upstream
       "--accelerator_type h100 | "
       "gsutil cp - $METRICS_FILE",
       "echo 'METRICS_FILE=$METRICS_FILE'",
+=======
+      "--accelerator_type h100 ",
+      # "| tee /dev/stderr "  # Print output to stderr for logging
+      # "| grep 'Average step time:' | awk '{print \"export AVERAGE_STEP_TIME=\"$4}' "
+      # "| grep 'TFLOPS/Accelerator' | awk '{print \"export TFLOPS_PER_ACCELERATOR=\"$3}' "
+      # "| grep 'MFU:' | awk '{print \"export MFU=\"$2}' ",
+      "echo 'got metrics'",
+>>>>>>> Stashed changes
   )
   return get_metrics
 
@@ -170,6 +193,7 @@ def cleanup_cmds():
   )
   return cleanup
 
+<<<<<<< Updated upstream
 
 def get_metrics_from_gcs(bucket_name, file_name):
   # bucket_name = 'gunjanjalori-testing-xlml'
@@ -190,10 +214,17 @@ def get_metrics_from_gcs(bucket_name, file_name):
   average_step_time = float(lines[0].split(": ")[1])
   tflops_per_accelerator = float(lines[1].split(": ")[1])
   mfu = float(lines[2].split(": ")[1])
+=======
+def print_metrics():
+  average_step_time = os.environ.get('AVERAGE_STEP_TIME')
+  tflops_per_accelerator = os.environ.get('TFLOPS_PER_ACCELERATOR')
+  mfu = os.environ.get('MFU')
+>>>>>>> Stashed changes
 
   print(f"Average Step Time: {average_step_time}")
   print(f"TFLOPS/Accelerator: {tflops_per_accelerator}")
   print(f"MFU: {mfu}")
+<<<<<<< Updated upstream
 
 
 def extract_bucket_file_name(bash_result_output):
@@ -223,3 +254,7 @@ def extract_python_path(bash_result_output):
     print(f"Pyhon path name: {python_path}")
 
   return python_path
+=======
+  # ... your code to analyze or use the metrics ...
+
+>>>>>>> Stashed changes

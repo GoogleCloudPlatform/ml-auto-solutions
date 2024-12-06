@@ -15,7 +15,10 @@
 """DAGs to run Aotc reproducibility benchmarks."""
 
 import datetime
+<<<<<<< Updated upstream
 import sys
+=======
+>>>>>>> Stashed changes
 
 from airflow import models
 from airflow.decorators import task
@@ -28,10 +31,14 @@ from dags.map_reproducibility.aotc_reproducibility import install_helm_cmds
 from dags.map_reproducibility.aotc_reproducibility import namespace_cmds
 from dags.map_reproducibility.aotc_reproducibility import wait_for_jobs_cmds
 from dags.map_reproducibility.aotc_reproducibility import copy_bucket_cmds
+from dags.map_reproducibility.aotc_reproducibility import copy_bucket_cmds_fake
 from dags.map_reproducibility.aotc_reproducibility import cleanup_cmds
 from dags.map_reproducibility.aotc_reproducibility import git_cookie_authdaemon
 from dags.map_reproducibility.aotc_reproducibility import clone_gob
+<<<<<<< Updated upstream
 from dags.map_reproducibility.aotc_reproducibility import helm_install_cmds
+=======
+>>>>>>> Stashed changes
 from dags.map_reproducibility.aotc_reproducibility import print_metrics
 
 # Run once a day at 2 pm UTC (6 am PST)
@@ -64,6 +71,7 @@ def run_aotc_workload():
               + git_cookie_authdaemon()
               + clone_gob()
               + gpu_recipe_cmd
+<<<<<<< Updated upstream
               + install_helm_cmds()
               + namespace_cmds()
               + workload_cmds
@@ -75,11 +83,22 @@ def run_aotc_workload():
               + cleanup_cmds()
               + get_aotc_repo()
               + stop_git_daemon()
+=======
+              # + install_helm_cmds()
+              # + namespace_cmds()
+              # + helm_cmds
+              # + wait_for_jobs_cmds()
+              # + copy_bucket_cmds()
+              + copy_bucket_cmds_fake()
+              + get_metrics_cmds()
+              # + cleanup_cmds()
+>>>>>>> Stashed changes
           ),
       ],
   )
   assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
   print_metrics()
+<<<<<<< Updated upstream
 
   # Extract COMPLETE_JOB_NAME from the output
   bucket_name, file_name = extract_bucket_file_name(result.output)
@@ -88,6 +107,8 @@ def run_aotc_workload():
   # Extract PYTHONPATH from the output
   python_path = extract_python_path(result.output)
   sys.path.append(python_path)
+=======
+>>>>>>> Stashed changes
 
 
 with models.DAG(
