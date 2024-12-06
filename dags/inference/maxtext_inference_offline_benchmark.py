@@ -294,5 +294,5 @@ with models.DAG(
       network=V6E_GCE_NETWORK,
       subnetwork=V6E_GCE_SUBNETWORK,
       is_tpu_reserved=True,
-      maxtext_branch="patemotter_offline_benchmark",
+      maxtext_branch="",
   )
