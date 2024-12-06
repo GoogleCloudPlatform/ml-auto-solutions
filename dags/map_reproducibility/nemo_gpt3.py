@@ -59,7 +59,6 @@ def run_aotc_workload():
   )
 
   with tempfile.TemporaryDirectory() as tmpdir:
-
     hook = SubprocessHook()
     result = hook.run_command(
         [

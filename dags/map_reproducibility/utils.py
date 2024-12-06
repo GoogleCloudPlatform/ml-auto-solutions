@@ -65,6 +65,7 @@ def clone_gob():
   )
   return gob_clone_cmds
 
+
 def install_helm_cmds():
   install_helm_cmd = (
       "curl -fsSL -o get_helm.sh "
