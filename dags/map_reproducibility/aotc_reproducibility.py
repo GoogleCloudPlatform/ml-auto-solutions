@@ -15,10 +15,17 @@
 "Bash helper commands for AOTC artifacts"
 
 import os
-
+import re
+import sys
+from google.cloud import storage
+import logging
+import uuid
+from typing import Type
+from airflow.hooks.subprocess import SubprocessHook
 
 def set_variables_cmds():
   set_variables = (
+      # "set -e",
       "export PROJECT=supercomputer-testing",
       "export CLUSTER=a3plus-benchmark",
       "export CLUSTER_REGION=australia-southeast1",
@@ -37,14 +44,16 @@ def configure_project_and_cluster():
   )
   return set_project_command
 
-
-# This is required to get auth to access
-# internal GoB repo
 def git_cookie_authdaemon():
   auth_cmds = (
       "git clone https://gerrit.googlesource.com/gcompute-tools",
       "echo 'trying to run git-cookie-authdaemon'",
-      "./gcompute-tools/git-cookie-authdaemon",
+      # Check if the daemon is already running
+      "if pgrep -f git-cookie-authdaemon; then "
+      "  echo 'git-cookie-authdaemon is already running'; "
+      "else "
+      "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'; "  # Run if not running
+      "fi"
   )
   return auth_cmds
 
@@ -56,8 +65,16 @@ def clone_gob():
       "reproducible-benchmark-recipes",
       "cd reproducible-benchmark-recipes/projects",
       "cd gpu-recipes",
+      "pwd",
   )
   return gob_clone_cmds
+
+def stop_git_daemon():
+  cmd = (
+      "git config --global --unset credential.helper",
+      "rm ~/.git-credentials",
+  )
+  return cmd
 
 
 def install_helm_cmds():
@@ -101,9 +118,6 @@ def helm_install_cmds():
 
 def wait_for_jobs_cmds():
   wait_for_job = (
-      "echo 'will wait for job to start running'",
-      "kubectl wait --for=condition=running job/$JOB_NAME"
-      " --namespace=default --timeout=10m",
       "echo 'will wait for jobs to finish'",
       "kubectl wait --for=condition=complete "
       "job/$JOB_NAME --namespace=default --timeout=100m",
@@ -113,16 +127,14 @@ def wait_for_jobs_cmds():
 
 def copy_bucket_cmds():
   copy_bucket_contents = (
-      "COMPLETE_JOB_NAME=$(gcloud storage ls "
+      "export COMPLETE_JOB_NAME=$(gcloud storage ls "
       "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
-      "echo 'copying from' ",
-      "echo $COMPLETE_JOB_NAME",
+      "echo 'COMPLETE_JOB_NAME=$COMPLETE_JOB_NAME'",
       "cd $REPO_ROOT/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
       "dllogger/rank-0/dllogger.json .",
   )
   return copy_bucket_contents
-
 
 def get_metrics_cmds():
   # TODO(gunjanj007): get these parameters from the recipe
@@ -132,16 +144,85 @@ def get_metrics_cmds():
       "--num_accelerators 256 "
       "--precision fp8  "
       "--model_type gpt3-175b "
-      "--accelerator_type h100 ",
+      "--accelerator_type h100 | "
+      "gsutil cp - ${COMPLETE_JOB_NAME}"
+      "/metrics.txt",
   )
   return get_metrics
 
+def get_aotc_repo():
+  gob_clone_cmds = (
+      "echo 'trying to clone GoB aotc repo'",
+      "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
+      "benchmark-automation",
+      "cd benchmark-automation/aotc/src",
+      "export PYTHONPATH=$PWD",
+      "echo 'PYTHONPATH=$PYTHONPATH'",
+  )
+  return gob_clone_cmds
 
 def cleanup_cmds():
   cleanup = (
+      "cd $REPO_ROOT",
+      "cd ../../..",
       "kubectl get pods "
       "--no-headers=true | awk '{print $1}' "
       "| grep $JOB_NAME |  xargs kubectl delete pods",
       "helm uninstall $JOB_NAME",
   )
   return cleanup
+
+def get_metrics_from_gcs(bucket_name, file_name):
+  # bucket_name = 'gunjanjalori-testing-xlml'
+  # file_name = 'nemo-experiments/gpt3-xlml-1731373474-175b-nemo-1731373494-ic5n/metrics.txt'
+
+  # Initialize GCS and BigQuery clients
+  storage_client = storage.Client()
+
+  # Get the bucket and file
+  bucket = storage_client.bucket(bucket_name)
+  blob = bucket.blob(file_name)
+
+  # Download the file content
+  metrics_output = blob.download_as_string().decode('utf-8')
+
+  # Parse the metrics (adjust based on your file format)
+  lines = metrics_output.splitlines()
+  average_step_time = float(lines[0].split(': ')[1])
+  tflops_per_accelerator = float(lines[1].split(': ')[1])
+  mfu = float(lines[2].split(': ')[1])
+
+
+  print(f"Average Step Time: {average_step_time}")
+  print(f"TFLOPS/Accelerator: {tflops_per_accelerator}")
+  print(f"MFU: {mfu}")
+
+
+def extract_bucket_file_name(bash_result_output):
+  complete_job_name = None
+  for line in bash_result_output.splitlines():
+    if line.startswith("COMPLETE_JOB_NAME="):
+      complete_job_name = line.split("=", 1)[1]
+      break
+  if complete_job_name:
+    # Extract bucket_name and file_name
+    bucket_name = re.search(r'gs://([^/]+)/', complete_job_name).group(1)
+    file_name = re.search(r'gs://[^/]+/(.+)', complete_job_name).group(1)
+
+    print(f"Bucket name: {bucket_name}")
+    print(f"File name: {file_name}")
+
+  return bucket_name, file_name
+
+def extract_python_path(bash_result_output):
+  python_path = None
+  for line in bash_result_output.splitlines():
+    if line.startswith("PYTHONPATH="):
+      python_path = line.split("=", 1)[1]
+      break
+
+    print(f"Pyhon path name: {python_path}")
+
+  return python_path
+
+
