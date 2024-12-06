@@ -87,7 +87,9 @@ def run_aotc_workload():
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
     # Extract COMPLETE_JOB_NAME from the output
-    bucket_name, file_name, python_path = extract_bucket_file_name(result.output)
+    bucket_name, file_name, python_path = extract_bucket_file_name(
+      result.output
+    )
     get_metrics_from_gcs(bucket_name, file_name)
 
     # # Extract PYTHONPATH from the output
