@@ -17,6 +17,7 @@
 import re
 from google.cloud import storage
 
+
 def set_variables_cmds():
   set_variables = (
       # "set -e",
@@ -37,6 +38,7 @@ def configure_project_and_cluster():
       "$CLUSTER --region $CLUSTER_REGION",
   )
   return set_project_command
+
 
 def git_cookie_authdaemon():
   auth_cmds = (
@@ -62,6 +64,7 @@ def clone_gob():
       "pwd",
   )
   return gob_clone_cmds
+
 
 def stop_git_daemon():
   cmd = (
@@ -130,6 +133,7 @@ def copy_bucket_cmds():
   )
   return copy_bucket_contents
 
+
 def get_metrics_cmds():
   # TODO(gunjanj007): get these parameters from the recipe
   get_metrics = (
@@ -145,6 +149,7 @@ def get_metrics_cmds():
   )
   return get_metrics
 
+
 def get_aotc_repo():
   gob_clone_cmds = (
       "echo 'trying to clone GoB aotc repo'",
@@ -156,6 +161,7 @@ def get_aotc_repo():
   )
   return gob_clone_cmds
 
+
 def cleanup_cmds():
   cleanup = (
       "cd $REPO_ROOT",
@@ -166,6 +172,7 @@ def cleanup_cmds():
       "helm uninstall $JOB_NAME",
   )
   return cleanup
+
 
 def get_metrics_from_gcs(bucket_name, file_name):
   # bucket_name = 'gunjanjalori-testing-xlml'
@@ -193,15 +200,15 @@ def get_metrics_from_gcs(bucket_name, file_name):
 
 
 def extract_bucket_file_name(bash_result_output):
-  complete_job_name = None
+  metrics_file = None
   for line in bash_result_output.splitlines():
-    if line.startswith("COMPLETE_JOB_NAME="):
-      complete_job_name = line.split("=", 1)[1]
+    if line.startswith("METRICS_FILE="):
+      metrics_file = line.split("=", 1)[1]
       break
-  if complete_job_name:
+  if metrics_file:
     # Extract bucket_name and file_name
-    bucket_name = re.search(r"gs://([^/]+)/", complete_job_name).group(1)
-    file_name = re.search(r"gs://[^/]+/(.+)", complete_job_name).group(1)
+    bucket_name = re.search(r"gs://([^/]+)/", metrics_file).group(1)
+    file_name = re.search(r"gs://[^/]+/(.+)", metrics_file).group(1)
 
     print(f"Bucket name: {bucket_name}")
     print(f"File name: {file_name}")
@@ -219,5 +226,3 @@ def extract_python_path(bash_result_output):
     print(f"Pyhon path name: {python_path}")
 
   return python_path
-
-
