@@ -14,14 +14,8 @@
 
 "Bash helper commands for AOTC artifacts"
 
-import os
 import re
-import sys
 from google.cloud import storage
-import logging
-import uuid
-from typing import Type
-from airflow.hooks.subprocess import SubprocessHook
 
 def set_variables_cmds():
   set_variables = (
@@ -53,7 +47,7 @@ def git_cookie_authdaemon():
       "  echo 'git-cookie-authdaemon is already running'; "
       "else "
       "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'; "  # Run if not running
-      "fi"
+      "fi",
   )
   return auth_cmds
 
@@ -184,14 +178,13 @@ def get_metrics_from_gcs(bucket_name, file_name):
   blob = bucket.blob(file_name)
 
   # Download the file content
-  metrics_output = blob.download_as_string().decode('utf-8')
+  metrics_output = blob.download_as_string().decode("utf-8")
 
   # Parse the metrics (adjust based on your file format)
   lines = metrics_output.splitlines()
-  average_step_time = float(lines[0].split(': ')[1])
-  tflops_per_accelerator = float(lines[1].split(': ')[1])
-  mfu = float(lines[2].split(': ')[1])
-
+  average_step_time = float(lines[0].split(": ")[1])
+  tflops_per_accelerator = float(lines[1].split(": ")[1])
+  mfu = float(lines[2].split(": ")[1])
 
   print(f"Average Step Time: {average_step_time}")
   print(f"TFLOPS/Accelerator: {tflops_per_accelerator}")
@@ -206,8 +199,8 @@ def extract_bucket_file_name(bash_result_output):
       break
   if complete_job_name:
     # Extract bucket_name and file_name
-    bucket_name = re.search(r'gs://([^/]+)/', complete_job_name).group(1)
-    file_name = re.search(r'gs://[^/]+/(.+)', complete_job_name).group(1)
+    bucket_name = re.search(r"gs://([^/]+)/", complete_job_name).group(1)
+    file_name = re.search(r"gs://[^/]+/(.+)", complete_job_name).group(1)
 
     print(f"Bucket name: {bucket_name}")
     print(f"File name: {file_name}")
