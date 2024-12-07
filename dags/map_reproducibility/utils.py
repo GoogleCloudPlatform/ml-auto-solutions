@@ -159,17 +159,15 @@ def cleanup_cmds():
   cleanup = (
       "cd $REPO_ROOT",
       "cd ../../..",
-      # "kubectl get pods "
-      # "--no-headers=true | awk '{print $1}' "
-      # "| grep $JOB_NAME |  xargs kubectl delete pods",
-      # "helm uninstall $JOB_NAME",
+      "kubectl get pods "
+      "--no-headers=true | awk '{print $1}' "
+      "| grep $JOB_NAME |  xargs kubectl delete pods",
+      "helm uninstall $JOB_NAME",
   )
   return cleanup
 
 
 def get_metrics_from_gcs(bucket_name, file_name):
-  # bucket_name = 'gunjanjalori-testing-xlml'
-  # file_name = 'nemo-experiments/gpt3-xlml-1731373474-175b-nemo-1731373494-ic5n/metrics.txt'
 
   # Initialize GCS and BigQuery clients
   storage_client = storage.Client()
