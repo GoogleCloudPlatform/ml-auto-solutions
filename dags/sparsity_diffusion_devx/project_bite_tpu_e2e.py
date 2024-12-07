@@ -34,6 +34,7 @@ with models.DAG(
         "tpu",
         "axlearn",
         "bite",
+        "mlscale_onduty",
     ],
     start_date=datetime.datetime(2024, 4, 4),
     catchup=False,
