@@ -168,7 +168,6 @@ def cleanup_cmds():
 
 
 def get_metrics_from_gcs(bucket_name, file_name):
-
   # Initialize GCS and BigQuery clients
   storage_client = storage.Client()
 
