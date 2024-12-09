@@ -96,7 +96,6 @@ def run_aotc_workload():
     sys.path.append(python_path)
 
 
-
 with models.DAG(
     dag_id="reproducibility_nemo_gpt3_nighly_dag",
     schedule=SCHEDULED_TIME,
