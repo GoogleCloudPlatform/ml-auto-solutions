@@ -20,7 +20,6 @@ from google.cloud import storage
 
 def set_variables_cmds():
   set_variables = (
-      # "set -e",
       "export PROJECT=supercomputer-testing",
       "export CLUSTER=a3plus-benchmark",
       "export CLUSTER_REGION=australia-southeast1",
@@ -118,7 +117,6 @@ def copy_bucket_cmds():
   copy_bucket_contents = (
       "export COMPLETE_JOB_NAME=$(gcloud storage ls "
       "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
-      # "COMPLETE_JOB_NAME=gs://gunjanjalori-testing-xlml/nemo-experiments/gpt3-xlml-1731373474-175b-nemo-1731373494-ic5n/",
       'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
       "cd $REPO_ROOT/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
