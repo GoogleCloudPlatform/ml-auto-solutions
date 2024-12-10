@@ -15,21 +15,29 @@
 """DAGs to run Aotc reproducibility benchmarks."""
 
 import datetime
+import sys
+import tempfile
+
 from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
-from dags.map_reproducibility.aotc_reproducibility import get_metrics_cmds
-from dags.map_reproducibility.aotc_reproducibility import set_variables_cmds
-from dags.map_reproducibility.aotc_reproducibility import configure_project_and_cluster
-from dags.map_reproducibility.aotc_reproducibility import install_helm_cmds
-from dags.map_reproducibility.aotc_reproducibility import namespace_cmds
-from dags.map_reproducibility.aotc_reproducibility import wait_for_jobs_cmds
-from dags.map_reproducibility.aotc_reproducibility import copy_bucket_cmds
-from dags.map_reproducibility.aotc_reproducibility import cleanup_cmds
-from dags.map_reproducibility.aotc_reproducibility import git_cookie_authdaemon
-from dags.map_reproducibility.aotc_reproducibility import clone_gob
-from dags.map_reproducibility.aotc_reproducibility import helm_install_cmds
+from dags.map_reproducibility.utils import get_metrics_cmds
+from dags.map_reproducibility.utils import set_variables_cmds
+from dags.map_reproducibility.utils import configure_project_and_cluster
+from dags.map_reproducibility.utils import install_helm_cmds
+from dags.map_reproducibility.utils import namespace_cmds
+from dags.map_reproducibility.utils import wait_for_jobs_cmds
+from dags.map_reproducibility.utils import copy_bucket_cmds
+from dags.map_reproducibility.utils import cleanup_cmds
+from dags.map_reproducibility.utils import git_cookie_authdaemon
+from dags.map_reproducibility.utils import clone_gob
+from dags.map_reproducibility.utils import helm_install_cmds
+from dags.map_reproducibility.utils import get_metrics_from_gcs
+from dags.map_reproducibility.utils import get_aotc_repo
+from dags.map_reproducibility.utils import extract_bucket_file_name
+from dags.map_reproducibility.utils import extract_python_path
+
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
@@ -50,29 +58,40 @@ def run_aotc_workload():
       "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
 
-  hook = SubprocessHook()
-  result = hook.run_command(
-      [
-          "bash",
-          "-c",
-          ";".join(
-              set_variables_cmds()
-              + configure_project_and_cluster()
-              + git_cookie_authdaemon()
-              + clone_gob()
-              + gpu_recipe_cmd
-              + install_helm_cmds()
-              + namespace_cmds()
-              + workload_cmds
-              + helm_install_cmds()
-              + wait_for_jobs_cmds()
-              + copy_bucket_cmds()
-              + get_metrics_cmds()
-              + cleanup_cmds()
-          ),
-      ],
-  )
-  assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                set_variables_cmds()
+                + configure_project_and_cluster()
+                + git_cookie_authdaemon()
+                + clone_gob()
+                + gpu_recipe_cmd
+                + install_helm_cmds()
+                + namespace_cmds()
+                + workload_cmds
+                + helm_install_cmds()
+                + wait_for_jobs_cmds()
+                + copy_bucket_cmds()
+                + get_metrics_cmds()
+                + cleanup_cmds()
+                + get_aotc_repo()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+    # Extract COMPLETE_JOB_NAME from the output
+    bucket_name, file_name, python_path = extract_bucket_file_name(
+        result.output
+    )
+    get_metrics_from_gcs(bucket_name, file_name)
+
+    sys.path.append(python_path)
 
 
 with models.DAG(
