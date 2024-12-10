@@ -69,8 +69,12 @@ WENXIN_D = "Wenxin D."
 
 # FRAMEWORK
 QINY_Y = "Qinyi Y."
+
 # JAX
 AKANKSHA_G = "Akanksha G."
 
 # MAP_REPRODUCIBILITY
 GUNJAN_J = "Gunjan J."
+
+# Bite
+Maggie_Z = "Maggie Z."

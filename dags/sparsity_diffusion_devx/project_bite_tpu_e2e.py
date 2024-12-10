@@ -16,7 +16,7 @@
 
 import datetime
 from airflow import models
-from dags import composer_env
+from dags import composer_env, test_owner
 from dags.vm_resource import TpuVersion, Zone, RuntimeVersion
 from dags.sparsity_diffusion_devx.configs import project_bite_config as config
 
@@ -47,6 +47,7 @@ with models.DAG(
       runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
       model_config="fuji-test-v1",
       time_out_in_min=180,
+      task_owner=test_owner.Maggie_Z,
   )
 
   # AXLearn pinned version against JAX head
@@ -61,4 +62,5 @@ with models.DAG(
       model_config="fuji-test-v1",
       pinned_version="e918d7c219d067dfcace8a25e619d90c5a54c36b",
       time_out_in_min=180,
+      task_owner=test_owner.Maggie_Z,
   )
