@@ -38,7 +38,7 @@ def configure_project_and_cluster():
   )
   return set_project_command
 
-
+# This is required to get auth to access
 def git_cookie_authdaemon():
   auth_cmds = (
       "git clone https://gerrit.googlesource.com/gcompute-tools",
@@ -190,6 +190,7 @@ def get_metrics_from_gcs(bucket_name, file_name):
 def extract_bucket_file_name(last_line):
   metrics_file = None
 
+  # We match here because subprocesshook only outputs the last line.
   match = re.search(r"PYTHONPATH=(.*?)\s+METRICS_FILE=(.*)", last_line)
   if match:
     python_path = match.group(1)
