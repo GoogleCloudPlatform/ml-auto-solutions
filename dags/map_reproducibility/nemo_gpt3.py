@@ -91,8 +91,6 @@ def run_aotc_workload():
     )
     get_metrics_from_gcs(bucket_name, file_name)
 
-    # # Extract PYTHONPATH from the output
-    # python_path = extract_python_path(result.output)
     sys.path.append(python_path)
 
 
