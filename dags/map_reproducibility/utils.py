@@ -38,6 +38,7 @@ def configure_project_and_cluster():
   )
   return set_project_command
 
+
 # This is required to get auth to access
 def git_cookie_authdaemon():
   auth_cmds = (
