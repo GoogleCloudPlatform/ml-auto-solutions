@@ -30,7 +30,7 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxtext_gpu_end_to_end",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable", "nightly"],
+    tags=["multipod_team", "maxtext", "stable", "nightly", "mlscale_onduty"],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:

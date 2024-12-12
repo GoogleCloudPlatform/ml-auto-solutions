@@ -35,6 +35,7 @@ with models.DAG(
         "gpu",
         "axlearn",
         "bite",
+        "mlscale_onduty",
     ],
     start_date=datetime.datetime(2024, 11, 12),
     catchup=False,

@@ -29,7 +29,7 @@ SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxtext_convergence",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable"],
+    tags=["multipod_team", "maxtext", "stable", "mlscale_onduty"],
     start_date=datetime.datetime(2024, 3, 1),
     catchup=False,
     concurrency=2,
