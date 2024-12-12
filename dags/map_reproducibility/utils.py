@@ -15,6 +15,7 @@
 "Bash helper commands for AOTC artifacts"
 
 import re
+import os
 from google.cloud import storage
 
 
@@ -116,8 +117,9 @@ def wait_for_jobs_cmds():
 
 def copy_bucket_cmds():
   copy_bucket_contents = (
-      "export COMPLETE_JOB_NAME=$(gcloud storage ls "
-      "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
+      # "export COMPLETE_JOB_NAME=$(gcloud storage ls "
+      # "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
+      "COMPLETE_JOB_NAME=gs://gunjanjalori-testing-xlml/nemo-experiments/gpt3-xlml-1731373474-175b-nemo-1731373494-ic5n/",
       'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
       "cd $REPO_ROOT/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
@@ -129,7 +131,8 @@ def copy_bucket_cmds():
 def get_metrics_cmds():
   # TODO(gunjanj007): get these parameters from the recipe
   get_metrics = (
-      "METRICS_FILE=$COMPLETE_JOB_NAME/metrics.txt",
+      # "METRICS_FILE=$COMPLETE_JOB_NAME/metrics.txt",
+      "METRICS_FILE=metrics.txt",
       "python3 process_training_results.py --file"
       " dllogger.json --batch_size 2048 "
       "--num_accelerators 256 "
@@ -141,15 +144,15 @@ def get_metrics_cmds():
   )
   return get_metrics
 
-
 def get_aotc_repo():
   gob_clone_cmds = (
       "echo 'trying to clone GoB aotc repo'",
+      "pip install dacite",
       "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
       "benchmark-automation",
-      "cd benchmark-automation/aotc/src",
+      "ls",
       "export PYTHONPATH=$PWD",
-      'echo "PYTHONPATH=$PYTHONPATH and METRICS_FILE=$METRICS_FILE"',
+      'echo "PYTHONPATH=$PYTHONPATH"',
   )
   return gob_clone_cmds
 
@@ -160,25 +163,29 @@ def cleanup_cmds():
       "cd ../../..",
       "kubectl get pods "
       "--no-headers=true | awk '{print $1}' "
-      "| grep $JOB_NAME |  xargs kubectl delete pods",
+      "| grep $JOB_NAME | xargs kubectl delete pods",
       "helm uninstall $JOB_NAME",
   )
   return cleanup
 
 
-def get_metrics_from_gcs(bucket_name, file_name):
-  # Initialize GCS and BigQuery clients
-  storage_client = storage.Client()
+def get_metrics(metrics_path):
+  # # Initialize GCS and BigQuery clients
+  # storage_client = storage.Client()
 
-  # Get the bucket and file
-  bucket = storage_client.bucket(bucket_name)
-  blob = bucket.blob(file_name)
+  # # Get the bucket and file
+  # bucket = storage_client.bucket(bucket_name)
+  # blob = bucket.blob(file_name)
 
-  # Download the file content
-  metrics_output = blob.download_as_string().decode("utf-8")
+  # # Download the file content
+  # metrics_output = blob.download_as_string().decode("utf-8")
+
+  file_content = ""
+  with open(metrics_path + "/metrics.txt", "r", encoding="utf-8") as file:
+    file_content = file.read()
 
   # Parse the metrics (adjust based on your file format)
-  lines = metrics_output.splitlines()
+  lines = file_content.splitlines()
   average_step_time = float(lines[0].split(": ")[1])
   tflops_per_accelerator = float(lines[1].split(": ")[1])
   mfu = float(lines[2].split(": ")[1])
@@ -187,40 +194,12 @@ def get_metrics_from_gcs(bucket_name, file_name):
   print(f"TFLOPS/Accelerator: {tflops_per_accelerator}")
   print(f"MFU: {mfu}")
 
-
-def extract_bucket_file_name(last_line):
-  metrics_file = None
-
-  # We match here because subprocesshook only outputs the last line.
-  match = re.search(r"PYTHONPATH=(.*?)\s+METRICS_FILE=(.*)", last_line)
-  if match:
-    python_path = match.group(1)
-    metrics_file = match.group(2)
-    print(f"PYTHONPATH in python: {python_path}")
-    print(f"METRICS_FILE: {metrics_file}")
-  else:
-    print("Error: Could not extract PYTHONPATH and METRICS_FILE")
-  print(f"Metrics file name: {metrics_file}")
-  if metrics_file:
-    # Extract bucket_name and file_name
-    bucket_name = re.search(r"gs://([^/]+)/", metrics_file).group(1)
-    file_name = re.search(r"gs://[^/]+/(.+)", metrics_file).group(1)
-
-    print(f"Bucket name: {bucket_name}")
-    print(f"File name: {file_name}")
-  else:
-    print("Metrics file not found in the output.")
-
-  return bucket_name, file_name, python_path
+  return average_step_time, tflops_per_accelerator, mfu
 
 
-def extract_python_path(bash_result_output):
-  python_path = None
-  for line in bash_result_output.splitlines():
-    if line.startswith("PYTHONPATH"):
-      python_path = line.split("=", 1)[1]
-      break
+def extract_python_path(last_line):
+  # metrics_file = None
+  python_path = last_line.split("=")[1]
+  python_path_to_bq_writer = python_path + "/benchmark-automation/aotc/src"
+  return python_path, python_path_to_bq_writer
 
-    print(f"Pyhon path name: {python_path}")
-
-  return python_path

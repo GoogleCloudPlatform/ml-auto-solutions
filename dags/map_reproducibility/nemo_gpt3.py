@@ -16,11 +16,13 @@
 
 import datetime
 import sys
+import os
 import tempfile
 
 from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
+import subprocess
 from dags import composer_env
 from dags.map_reproducibility.utils import get_metrics_cmds
 from dags.map_reproducibility.utils import set_variables_cmds
@@ -33,10 +35,10 @@ from dags.map_reproducibility.utils import cleanup_cmds
 from dags.map_reproducibility.utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils import clone_gob
 from dags.map_reproducibility.utils import helm_install_cmds
-from dags.map_reproducibility.utils import get_metrics_from_gcs
+from dags.map_reproducibility.utils import get_metrics
 from dags.map_reproducibility.utils import get_aotc_repo
-from dags.map_reproducibility.utils import extract_bucket_file_name
 from dags.map_reproducibility.utils import extract_python_path
+from dags.map_reproducibility.benchmarkdb_utils import write_benchmark_db
 
 
 # Run once a day at 2 pm UTC (6 am PST)
@@ -73,11 +75,11 @@ def run_aotc_workload():
                 + install_helm_cmds()
                 + namespace_cmds()
                 + workload_cmds
-                + helm_install_cmds()
-                + wait_for_jobs_cmds()
+                # + helm_install_cmds()
+                # + wait_for_jobs_cmds()
                 + copy_bucket_cmds()
                 + get_metrics_cmds()
-                + cleanup_cmds()
+                # + cleanup_cmds()
                 + get_aotc_repo()
             ),
         ],
@@ -85,13 +87,28 @@ def run_aotc_workload():
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
-    # Extract COMPLETE_JOB_NAME from the output
-    bucket_name, file_name, python_path = extract_bucket_file_name(
-        result.output
-    )
-    get_metrics_from_gcs(bucket_name, file_name)
+    # # Extract COMPLETE_JOB_NAME from the output
+    # bucket_name, file_name, python_path = extract_bucket_file_name(
+    #     result.output
+    # )
 
-    sys.path.append(python_path)
+    # # Extract PYTHONPATH from the output
+    # python_path = extract_python_path(result.output)
+    python_base_path, python_path_to_bq_writer = extract_python_path(
+        result.output.splitlines()[-1]
+    )
+    print(f"Base path in python: {python_base_path}")
+    print(f"python to bq: {python_path_to_bq_writer}")
+
+    average_step_time, tflops_per_accelerator, mfu = get_metrics(
+        python_base_path
+    )
+    write_benchmark_db(
+        average_step_time,
+        tflops_per_accelerator,
+        mfu,
+        python_path_to_bq_writer,
+    )
 
 
 with models.DAG(
