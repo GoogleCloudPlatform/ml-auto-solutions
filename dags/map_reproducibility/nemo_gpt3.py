@@ -53,8 +53,8 @@ def run_aotc_workload():
   )
 
   workload_cmds = (
-      "CONFIG_FILE=$REPO_ROOT/src/frameworks"
-      "/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
+      "CONFIG_FILE=$REPO_ROOT/src/frameworks/"
+      "a3mega/nemo-configs/gpt3-175b-256gpus-fp8.yaml",
       "export JOB_NAME=gpt3-xlml-$NOW-175b-nemo",
   )
 
