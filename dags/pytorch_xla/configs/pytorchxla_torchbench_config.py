@@ -32,13 +32,14 @@ class VERSION(enum.Enum):
   R2_4 = enum.auto()
   R2_5 = enum.auto()
   R2_5_1 = enum.auto()
+  R2_6 = enum.auto()
 
 
 class VERSION_MAPPING:
 
   class NIGHTLY(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0.dev-cp310-cp310-linux_x86_64.whl"
-    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.6.0.dev-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.7.0.dev-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch"
     TORCHVISION = "torchvision"
     TORCHAUDIO = "torchaudio"
@@ -109,6 +110,18 @@ class VERSION_MAPPING:
     TORCH_REPO_BRANCH = "-b v2.5.1"
     TORCH_XLA_REPO_BRANCH = "-b v2.5.1"
 
+  class R2_6(enum.Enum):
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc1-cp310-cp310-manylinux_2_28_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.6.0rc1-cp310-cp310-linux_x86_64.whl"
+    TORCH = "torch==2.6.0"
+    TORCHVISION = "torchvision==0.20.1"
+    TORCHAUDIO = "torchaudio==2.6.0"
+    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.6.0rc1_3.10_cuda_12.1"
+    TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
+    TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
+    TORCH_REPO_BRANCH = "-b release/2.6"
+    TORCH_XLA_REPO_BRANCH = "-b r2.6"
+
 
 def get_version_mapping(test_version):
   """Get version dependecies based on version type.
@@ -133,6 +146,8 @@ def get_version_mapping(test_version):
     version_mapping = VERSION_MAPPING.R2_5
   elif test_version == VERSION.R2_5_1:
     version_mapping = VERSION_MAPPING.R2_5_1
+  elif test_version == VERSION.R2_6:
+    version_mapping = VERSION_MAPPING.R2_6
   else:
     raise ValueError("version number does not exist in VERSION enum")
   return version_mapping
