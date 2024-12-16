@@ -10,3 +10,4 @@ tensorflow-cpu
 kubernetes
 pyarrow
 apache-airflow-providers-google
+dacite

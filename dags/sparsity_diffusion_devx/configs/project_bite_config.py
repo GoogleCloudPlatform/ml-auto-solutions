@@ -51,6 +51,7 @@ def get_bite_tpu_config(
     runtime_version: str,
     model_config: str,
     time_out_in_min: int,
+    task_owner: str,
     is_tpu_reserved: bool = False,
     pinned_version: Optional[str] = None,
 ):
@@ -82,7 +83,7 @@ def get_bite_tpu_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.RAN_R,
+      task_owner=task_owner,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/jax",
   )
 

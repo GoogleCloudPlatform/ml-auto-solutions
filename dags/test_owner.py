@@ -62,6 +62,7 @@ ANDY_Y = "Andy Y."
 XIANG_S = "Xiang S."
 MORGAN_D = "Morgan D."
 YIJIA_J = "Yijia J."
+PATE_M = "Pate M."
 
 # 3P Ecosystems
 RICHARD_L = "Richard L."
@@ -69,8 +70,12 @@ WENXIN_D = "Wenxin D."
 
 # FRAMEWORK
 QINY_Y = "Qinyi Y."
+
 # JAX
 AKANKSHA_G = "Akanksha G."
 
 # MAP_REPRODUCIBILITY
 GUNJAN_J = "Gunjan J."
+
+# Bite
+Maggie_Z = "Maggie Z."

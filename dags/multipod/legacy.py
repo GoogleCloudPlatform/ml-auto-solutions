@@ -48,7 +48,14 @@ tflop_thresholds = {
 with models.DAG(
     dag_id=f"multipod_legacy_xlml",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "xlml", "legacy", "stable", "nightly"],
+    tags=[
+        "multipod_team",
+        "xlml",
+        "legacy",
+        "stable",
+        "nightly",
+        "mlscale_onduty",
+    ],
     start_date=datetime.datetime(2024, 1, 10),
     catchup=False,
     concurrency=2,
