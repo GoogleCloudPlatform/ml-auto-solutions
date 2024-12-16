@@ -88,13 +88,6 @@ def run_aotc_workload():
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
-    # # Extract COMPLETE_JOB_NAME from the output
-    # bucket_name, file_name, python_path = extract_bucket_file_name(
-    #     result.output
-    # )
-
-    # # Extract PYTHONPATH from the output
-    # python_path = extract_python_path(result.output)
     python_base_path, python_path_to_bq_writer = extract_python_path(
         result.output.splitlines()[-1]
     )
@@ -120,6 +113,7 @@ def run_aotc_workload():
     model_id = "gpt3-175b"
     hardware_id = "a3mega"
     software_id = "pytorch_nemo"
+    image_version = "nemo_workload:24.07"
     number_of_chips = number_of_nodes * 8
 
     write_run(
@@ -128,7 +122,7 @@ def run_aotc_workload():
         software_id=software_id,
         number_of_nodes=number_of_nodes,
         number_of_chips=number_of_chips,
-        container_image_name="sample_docker",
+        container_image_name=image_version,
         global_batch_size=global_batch_size,
         precision=precision,
         optimizer=optimizer,
