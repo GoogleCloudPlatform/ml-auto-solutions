@@ -79,9 +79,7 @@ with models.DAG(
   workload_provision_timeout = datetime.timedelta(minutes=300).total_seconds()
   workload_run_timeout = datetime.timedelta(minutes=60).total_seconds()
 
-  run_workload = xpk.run_workload.override(
-      owner=test_owner.ORTI_B
-  )(
+  run_workload = xpk.run_workload.override(owner=test_owner.ORTI_B)(
       task_id="run_workload",
       cluster_project=cluster_project,
       zone=cluster_zone,
