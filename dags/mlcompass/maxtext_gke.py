@@ -62,7 +62,7 @@ with models.DAG(
 
   cluster_name = xlml_state["cluster_name"]
   cluster_project = xlml_state["cluster_project"]
-  cluster_region = xlml_state['cluster_region']
+  cluster_region = xlml_state["cluster_region"]
   cluster_zone = xlml_state["cluster_zone"]
   benchmark_id = xlml_state["test_name"]
 
@@ -79,7 +79,9 @@ with models.DAG(
   workload_provision_timeout = datetime.timedelta(minutes=300).total_seconds()
   workload_run_timeout = datetime.timedelta(minutes=60).total_seconds()
 
-  run_workload = xpk.run_workload.override(owner=test_owner.ORTI_B)(
+  run_workload = xpk.run_workload.override(
+      owner=test_owner.ORTI_B
+  )(
       task_id="run_workload",
       cluster_project=cluster_project,
       zone=cluster_zone,
@@ -95,14 +97,18 @@ with models.DAG(
       use_pathways=False,
   )
 
-  wait_for_workload_start = xpk.wait_for_workload_start.override(timeout=workload_provision_timeout)(
+  wait_for_workload_start = xpk.wait_for_workload_start.override(
+      timeout=workload_provision_timeout
+  )(
       workload_id=workload_id,
       project_id=cluster_project,
       region=cluster_region,
       cluster_name=cluster_name,
   )
 
-  wait_for_workload_completion = xpk.wait_for_workload_completion.override(timeout=workload_run_timeout)(
+  wait_for_workload_completion = xpk.wait_for_workload_completion.override(
+      timeout=workload_run_timeout
+  )(
       workload_id=workload_id,
       project_id=cluster_project,
       region=cluster_region,
