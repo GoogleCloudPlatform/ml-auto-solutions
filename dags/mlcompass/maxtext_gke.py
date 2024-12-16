@@ -32,12 +32,6 @@ from dags import test_owner
 from xlml.utils import xpk
 
 
-def extract_if_tuple(val):
-  if isinstance(val, tuple) and len(val) == 1:
-    return val[0]
-  return val
-
-
 with models.DAG(
     dag_id="mlcompass_maxtext_gke",
     schedule=None,
@@ -66,52 +60,58 @@ with models.DAG(
 
   xlml_state = load_xlml_state()
 
-  cluster_name = xlml_state["cluster_name"],
-  cluster_project = xlml_state["cluster_project"],
-  cluster_region = xlml_state['cluster_region'],
-  cluster_zone = xlml_state["cluster_zone"],
-  benchmark_id = xlml_state["test_name"],
+  cluster_name = xlml_state["cluster_name"]
+  cluster_project = xlml_state["cluster_project"]
+  cluster_region = xlml_state['cluster_region']
+  cluster_zone = xlml_state["cluster_zone"]
+  benchmark_id = xlml_state["test_name"]
 
   docker_image_path = xlml_state["docker_image_path"]
-  accelerator_type = xlml_state['accelerator_type']
-  num_slices = xlml_state['num_slices']
+  accelerator_type = xlml_state["accelerator_type"]
+  num_slices = xlml_state["num_slices"]
 
-  model_name = xlml_state['model_name']
+  model_name = xlml_state["model_name"]
   workdir_bucket = xlml_state["workdir_bucket"]
   workdir_path = xlml_state["workdir_path"]
-  gcs_path = f'gs://{workdir_bucket}/{workdir_path}'
+  gcs_path = f"gs://{workdir_bucket}/{workdir_path}"
   workload_id = f'mlc-{xlml_state["uuid"]}'
 
   workload_provision_timeout = datetime.timedelta(minutes=300).total_seconds()
   workload_run_timeout = datetime.timedelta(minutes=60).total_seconds()
 
   run_workload = xpk.run_workload.override(owner=test_owner.ORTI_B)(
-        task_id="run_workload",
-        cluster_project=extract_if_tuple(cluster_project),
-        zone=extract_if_tuple(cluster_zone),
-        cluster_name=extract_if_tuple(cluster_name),
-        benchmark_id=benchmark_id,
-        workload_id=workload_id,
-        gcs_path=gcs_path,
-        docker_image=docker_image_path,
-        accelerator_type=accelerator_type,
-        run_cmds=f"source benchmark_run.sh;run {model_name} {gcs_path}",
-        num_slices=num_slices,
-        use_vertex_tensorboard=False,
-        use_pathways=False,
-    )
+      task_id="run_workload",
+      cluster_project=cluster_project,
+      zone=cluster_zone,
+      cluster_name=cluster_name,
+      benchmark_id=benchmark_id,
+      workload_id=workload_id,
+      gcs_path=gcs_path,
+      docker_image=docker_image_path,
+      accelerator_type=accelerator_type,
+      run_cmds=f"source benchmark_run.sh;run {model_name} {gcs_path}",
+      num_slices=num_slices,
+      use_vertex_tensorboard=False,
+      use_pathways=False,
+  )
 
   wait_for_workload_start = xpk.wait_for_workload_start.override(timeout=workload_provision_timeout)(
-        workload_id=workload_id,
-        project_id=extract_if_tuple(cluster_project),
-        region=extract_if_tuple(cluster_region),
-        cluster_name=extract_if_tuple(cluster_name),
-    )
-  wait_for_workload_completion = xpk.wait_for_workload_completion.override(timeout=workload_run_timeout)(
-          workload_id=workload_id,
-          project_id=extract_if_tuple(cluster_project),
-          region=extract_if_tuple(cluster_region),
-          cluster_name=extract_if_tuple(cluster_name),
-      )
+      workload_id=workload_id,
+      project_id=cluster_project,
+      region=cluster_region,
+      cluster_name=cluster_name,
+  )
 
-  xlml_state >> run_workload >> wait_for_workload_start >> wait_for_workload_completion
+  wait_for_workload_completion = xpk.wait_for_workload_completion.override(timeout=workload_run_timeout)(
+      workload_id=workload_id,
+      project_id=cluster_project,
+      region=cluster_region,
+      cluster_name=cluster_name,
+  )
+
+  (
+      xlml_state
+      >> run_workload
+      >> wait_for_workload_start
+      >> wait_for_workload_completion
+  )
