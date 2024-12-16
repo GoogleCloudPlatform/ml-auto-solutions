@@ -15,175 +15,40 @@
 "Bash helper commands for AOTC artifacts"
 import sys
 import os
+import getpass
 
 
-def write_benchmark_db(
-    avergae_step_time, tflops_per_accelerator, mfu, writer_path
+def write_run(
+    model_id: str,
+    hardware_id: str,
+    software_id: str,
+    number_of_nodes: int,
+    number_of_chips: int,
+    container_image_name: str,
+    global_batch_size: int,
+    precision: str,
+    optimizer: str,
+    seq_length: int,
+    median_step_time: float,
+    e2e_time: float,
+    number_of_steps: int,
+    mfu: float,
+    tokens_per_second: float,
+    writer_path: str,
+    run_type: str = "perf_optimization",
+    run_release_status: str = "local",
+    other_metrics_in_json: str = "",
+    nccl_driver_nickname: str = None,
+    env_variables: str = "",
+    framework_config_in_json: str = "",
+    xla_flags: str = "",
+    topology: str = "",
+    dataset: str = "",
+    num_of_superblock: int = None,
+    update_person_ldap: str = getpass.getuser(),
+    comment: str = "",
+    is_test: bool = False
 ):
-  sys.path.append(writer_path)
-  for path in sys.path:
-    print("**path: " + path)
-  # sys.path.append("")
-  module_list = list(sys.modules.keys())
-
-  print(f"current dir: {os.getcwd()}")
-  for module in module_list:
-    if 'aotc' in module:
-      print("aotc module: " + module)
-  # for module in sys.modules.keys():
-  #   print("**modules: " + module)
-
-  # pylint: disable=import-outside-toplevel
-  import logging
-  import uuid
-  from typing import Type
-
-  from aotc.benchmark_db_writer import bq_writer_utils
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import workload_benchmark_v2_schema
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import model_info_schema
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import software_info_schema
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import hardware_info_schema
-  # pylint: enable=import-outside-toplevel
-  logging.basicConfig(
-      format="%(asctime)s %(levelname)-8s %(message)s",
-      level=logging.INFO,
-      datefmt="%Y-%m-%d %H:%M:%S",
-  )
-  logger = logging.getLogger(__name__)
-
-  def get_db_client(
-      table: str, dataclass_type: Type, is_test: bool = False
-  ) -> bq_writer_utils.create_bq_writer_object:
-    """Creates a BigQuery client object.
-
-    Args:
-      table: The name of the BigQuery table.
-      dataclass_type: The dataclass type corresponding to the table schema.
-      is_test: Whether to use the testing project or the production project.
-
-    Returns:
-      A BigQuery client object.
-    """
-
-    project = "supercomputer-testing" if is_test else "ml-workload-benchmarks"
-    dataset = "mantaray_v2" if is_test else "benchmark_dataset_v2"
-    return bq_writer_utils.create_bq_writer_object(
-        project=project,
-        dataset=dataset,
-        table=table,
-        dataclass_type=dataclass_type,
-    )
-
-  def _validate_id(
-      id_value: str,
-      table_name: str,
-      id_field: str,
-      dataclass_type: Type,
-      is_test: bool = False,
-  ) -> bool:
-    """Generic function to validate an ID against a BigQuery table.
-
-    Args:
-      id_value: The ID value to validate.
-      table_name: The name of the BigQuery table.
-      id_field: The name of the ID field in the table.
-      is_test: Whether to use the testing project or the production project.
-
-    Returns:
-      True if the ID is valid, False otherwise.
-    """
-
-    client = get_db_client(table_name, dataclass_type, is_test)
-    result = client.query(where={id_field: id_value})
-
-    if not result:
-      logger.info(
-          "%s: %s is not present in the %s table ",
-          id_field.capitalize(),
-          id_value,
-          table_name,
-      )
-      logger.info(
-          "Please add %s specific row in %s table before adding to run summary table",
-          id_value,
-          table_name,
-      )
-      return False
-    return True
-
-  def validate_model_id(model_id: str, is_test: bool = False) -> bool:
-    """Validates a model ID against the model_info table."""
-
-    id_val = _validate_id(
-        model_id, "model_info", "model_id", model_info_schema.ModelInfo, is_test
-    )
-    if not id_val:
-      print("model id validation failed")
-      return False
-    return True
-
-
-  def validate_hardware_id(hardware_id: str, is_test: bool = False) -> bool:
-    """Validates a hardware ID against the hardware_info table."""
-    id_val = _validate_id(
-        hardware_id,
-        "hardware_info",
-        "hardware_id",
-        hardware_info_schema.HardwareInfo,
-        is_test,
-    )
-    if not id_val:
-      print("hardware id validation failed")
-      return False
-    return True
-
-
-  def validate_software_id(software_id: str, is_test: bool = False) -> bool:
-    """Validates a software ID against the software_info table."""
-    id_val = _validate_id(
-        software_id,
-        "software_info",
-        "software_id",
-        software_info_schema.SoftwareInfo,
-        is_test,
-    )
-
-    if not id_val:
-      print("software id validation failed")
-      return False
-    return True
-
-
-  def write_run(
-      model_id: str,
-      hardware_id: str,
-      software_id: str,
-      number_of_nodes: int,
-      number_of_chips: int,
-      container_image_name: str,
-      global_batch_size: int,
-      precision: str,
-      optimizer: str,
-      seq_length: int,
-      median_step_time: float,
-      e2e_time: float,
-      number_of_steps: int,
-      mfu: float,
-      tokens_per_second: float,
-      run_type: str = "perf_optimization",
-      run_release_status: str = "local",
-      other_metrics_in_json: str = "",
-      nccl_driver_nickname: str = None,
-      env_variables: str = "",
-      framework_config_in_json: str = "",
-      xla_flags: str = "",
-      topology: str = "",
-      dataset: str = "",
-      num_of_superblock: int = None,
-      update_person_ldap: str = os.getenv("USER"),
-      comment: str = "",
-      is_test: bool = False,
-  ) -> None:
     """Writes a workload benchmark run manually to the database.
 
     This function validates the provided IDs and, if valid, constructs a
@@ -223,6 +88,143 @@ def write_benchmark_db(
     Raises:
       ValueError: If any of the IDs are invalid.
     """
+
+    sys.path.append(writer_path)
+    for path in sys.path:
+      print("**path: " + path)
+    # sys.path.append("")
+    module_list = list(sys.modules.keys())
+
+    print(f"current dir: {os.getcwd()}")
+    for module in module_list:
+      if 'aotc' in module:
+        print("aotc module: " + module)
+    # for module in sys.modules.keys():
+    #   print("**modules: " + module)
+
+    # pylint: disable=import-outside-toplevel
+    import logging
+    import uuid
+    from typing import Type
+
+    from aotc.benchmark_db_writer import bq_writer_utils
+    from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import workload_benchmark_v2_schema
+    from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import model_info_schema
+    from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import software_info_schema
+    from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import hardware_info_schema
+    # pylint: enable=import-outside-toplevel
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-8s %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger(__name__)
+
+    def get_db_client(
+        table: str, dataclass_type: Type, is_test: bool = False
+    ) -> bq_writer_utils.create_bq_writer_object:
+      """Creates a BigQuery client object.
+
+      Args:
+        table: The name of the BigQuery table.
+        dataclass_type: The dataclass type corresponding to the table schema.
+        is_test: Whether to use the testing project or the production project.
+
+      Returns:
+        A BigQuery client object.
+      """
+
+      project = "supercomputer-testing" if is_test else "ml-workload-benchmarks"
+      dataset = "mantaray_v2" if is_test else "benchmark_dataset_v2"
+      return bq_writer_utils.create_bq_writer_object(
+          project=project,
+          dataset=dataset,
+          table=table,
+          dataclass_type=dataclass_type,
+      )
+
+    def _validate_id(
+        id_value: str,
+        table_name: str,
+        id_field: str,
+        dataclass_type: Type,
+        is_test: bool = False,
+    ) -> bool:
+      """Generic function to validate an ID against a BigQuery table.
+
+      Args:
+        id_value: The ID value to validate.
+        table_name: The name of the BigQuery table.
+        id_field: The name of the ID field in the table.
+        is_test: Whether to use the testing project or the production project.
+
+      Returns:
+        True if the ID is valid, False otherwise.
+      """
+
+      client = get_db_client(table_name, dataclass_type, is_test)
+      result = client.query(where={id_field: id_value})
+
+      if not result:
+        logger.info(
+            "%s: %s is not present in the %s table ",
+            id_field.capitalize(),
+            id_value,
+            table_name,
+        )
+        logger.info(
+            "Please add %s specific row in %s table before adding to run summary table",
+            id_value,
+            table_name,
+        )
+        return False
+      return True
+
+    def validate_model_id(model_id: str, is_test: bool = False) -> bool:
+      """Validates a model ID against the model_info table."""
+
+      print("model id: " + model_id)
+      id_val = _validate_id(
+          model_id, "model_info", "model_id", model_info_schema.ModelInfo, is_test
+      )
+      if not id_val:
+        print("model id validation failed")
+        return False
+      return True
+
+
+    def validate_hardware_id(hardware_id: str, is_test: bool = False) -> bool:
+      """Validates a hardware ID against the hardware_info table."""
+      id_val = _validate_id(
+          hardware_id,
+          "hardware_info",
+          "hardware_id",
+          hardware_info_schema.HardwareInfo,
+          is_test,
+      )
+      if not id_val:
+        print("hardware id validation failed")
+        return False
+      return True
+
+
+    def validate_software_id(software_id: str, is_test: bool = False) -> bool:
+      """Validates a software ID against the software_info table."""
+      id_val = _validate_id(
+          software_id,
+          "software_info",
+          "software_id",
+          software_info_schema.SoftwareInfo,
+          is_test,
+      )
+
+      if not id_val:
+        print("software id validation failed")
+        return False
+      return True
+
+
+    print(model_id)
 
     if (
         validate_model_id(model_id, is_test)
@@ -274,25 +276,4 @@ def write_benchmark_db(
     else:
       raise ValueError("Could not upload data in run summary table")
 
-  write_run(
-      model_id="gpt3",
-      hardware_id="a3mega",
-      software_id="pytorch_nemo",
-      number_of_nodes=3,
-      number_of_chips=24,
-      container_image_name="sample_docker",
-      global_batch_size=1024,
-      precision="bf16",
-      optimizer="adam",
-      seq_length=12,
-      median_step_time=avergae_step_time,
-      e2e_time=0,
-      number_of_steps=1,
-      mfu=mfu,
-      tokens_per_second=1,
-      topology="2X2",
-      comment="Test run",
-      is_test=True,
-  )
-
-  logger.info("Wrote Benchmark DB, eureka!")
+    logger.info("Wrote Benchmark DB, eureka!")

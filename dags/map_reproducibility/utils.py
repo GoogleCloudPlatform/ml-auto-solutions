@@ -17,7 +17,7 @@
 import re
 import os
 from google.cloud import storage
-
+import yaml
 
 def set_variables_cmds():
   set_variables = (
@@ -147,7 +147,6 @@ def get_metrics_cmds():
 def get_aotc_repo():
   gob_clone_cmds = (
       "echo 'trying to clone GoB aotc repo'",
-      "pip install dacite",
       "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
       "benchmark-automation",
       "ls",
@@ -170,15 +169,6 @@ def cleanup_cmds():
 
 
 def get_metrics(metrics_path):
-  # # Initialize GCS and BigQuery clients
-  # storage_client = storage.Client()
-
-  # # Get the bucket and file
-  # bucket = storage_client.bucket(bucket_name)
-  # blob = bucket.blob(file_name)
-
-  # # Download the file content
-  # metrics_output = blob.download_as_string().decode("utf-8")
 
   file_content = ""
   with open(metrics_path + "/metrics.txt", "r", encoding="utf-8") as file:
@@ -194,7 +184,7 @@ def get_metrics(metrics_path):
   print(f"TFLOPS/Accelerator: {tflops_per_accelerator}")
   print(f"MFU: {mfu}")
 
-  return average_step_time, tflops_per_accelerator, mfu
+  return average_step_time, mfu
 
 
 def extract_python_path(last_line):
@@ -202,4 +192,30 @@ def extract_python_path(last_line):
   python_path = last_line.split("=")[1]
   python_path_to_bq_writer = python_path + "/benchmark-automation/aotc/src"
   return python_path, python_path_to_bq_writer
+
+def extract_gpus(tmpdir, yaml_file, config_path):
+  gpus = None
+  batch_size = None
+  optimizer = None
+  try:
+    yaml_file_path = os.path.join(tmpdir, yaml_file)
+    with open(yaml_file_path, "r", encoding="utf-8") as file:
+      config = yaml.safe_load(file)
+      gpus = config.get("workload", {}).get("gpus")
+  except (FileNotFoundError, yaml.YAMLError) as e:
+    print(f"Error: {e}")
+    return None
+  try:
+    config_path = os.path.join(tmpdir, config_path)
+    with open(config_path, "r", encoding="utf-8") as file:
+      config = yaml.safe_load(file)
+      batch_size = config.get("model", {}).get("global_batch_size")
+      precision = config.get("trainer", {}).get("precision")
+      optimizer = config.get("model", {}).get("optim", {}).get("name")
+      seq_length = config.get("model", {}).get("data", {}).get("seq_length")
+      max_steps = config.get("trainer", {}).get("max_steps")
+  except (FileNotFoundError, yaml.YAMLError) as e:
+    print(f"Error: {e}")
+    return None
+  return gpus, batch_size, optimizer, precision, seq_length, max_steps
 
