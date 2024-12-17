@@ -107,9 +107,7 @@ def run_aotc_workload():
     print(
         f"batch size: {global_batch_size}, number of nodes: {number_of_nodes}"
     )
-    average_step_time, mfu = get_metrics(
-        python_base_path
-    )
+    average_step_time, mfu = get_metrics(python_base_path)
     model_id = "gpt3-175b"
     hardware_id = "a3mega"
     software_id = "pytorch_nemo"

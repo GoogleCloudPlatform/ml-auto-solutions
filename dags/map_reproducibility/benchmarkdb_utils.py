@@ -182,7 +182,6 @@ def write_run(
       return False
     return True
 
-
   def validate_hardware_id(hardware_id: str, is_test: bool = False) -> bool:
     """Validates a hardware ID against the hardware_info table."""
     id_val = _validate_id(
@@ -196,7 +195,6 @@ def write_run(
       print("hardware id validation failed")
       return False
     return True
-
 
   def validate_software_id(software_id: str, is_test: bool = False) -> bool:
     """Validates a software ID against the software_info table."""
@@ -213,7 +211,6 @@ def write_run(
       return False
     return True
 
-
   print(model_id)
 
   if (
@@ -221,7 +218,6 @@ def write_run(
       and validate_hardware_id(hardware_id, is_test)
       and validate_software_id(software_id, is_test)
   ):
-
     summary = workload_benchmark_v2_schema.WorkloadBenchmarkV2Schema(
         run_id=f"run-{uuid.uuid4()}",
         model_id=model_id,

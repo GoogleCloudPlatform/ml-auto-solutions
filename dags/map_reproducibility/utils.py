@@ -91,7 +91,7 @@ def namespace_cmds():
   return namespace
 
 
-def helm_install_cmds():
+def helm_apply_cmds():
   helm_cmds = (
       " helm install -f values.yaml "
       "--namespace default "
@@ -130,7 +130,7 @@ def copy_bucket_cmds():
 
 def get_metrics_cmds():
   # TODO(gunjanj007): get these parameters from the recipe
-  get_metrics = (
+  cmds = (
       # "METRICS_FILE=$COMPLETE_JOB_NAME/metrics.txt",
       "METRICS_FILE=metrics.txt",
       "python3 process_training_results.py --file"
@@ -142,7 +142,7 @@ def get_metrics_cmds():
       "gsutil cp - $METRICS_FILE",
       'echo "METRICS_FILE=${METRICS_FILE}"',
   )
-  return get_metrics
+  return cmds
 
 
 def get_aotc_repo():
@@ -170,7 +170,6 @@ def cleanup_cmds():
 
 
 def get_metrics(metrics_path):
-
   file_content = ""
   with open(metrics_path + "/metrics.txt", "r", encoding="utf-8") as file:
     file_content = file.read()
@@ -195,7 +194,7 @@ def extract_python_path(last_line):
   return python_path, python_path_to_bq_writer
 
 
-def extract_gpus(tmpdir, yaml_file, config_path):
+def extract_run_details(tmpdir, yaml_file, config_path):
   gpus = None
   batch_size = None
   optimizer = None
