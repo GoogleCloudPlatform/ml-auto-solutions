@@ -30,7 +30,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       f"{mantaray.MANTARAY_G3_GS_BUCKET}/xlml_jobs/xlml_jobs.yaml"
   )
   xlml_jobs = yaml.safe_load(xlml_jobs_yaml)
-  
+
   # Create a DAG for PyTorch/XLA tests
   pattern = r"^(ptxla|pytorchxla).*"
   workload_file_name_list = []
