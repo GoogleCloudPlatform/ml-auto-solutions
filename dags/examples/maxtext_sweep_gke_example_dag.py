@@ -20,8 +20,8 @@ on 1xv4-128.
 
 import datetime
 from airflow import models
-from dags import test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 
 # Set concurrency to number of workers otherwise tasks may time out

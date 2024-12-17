@@ -14,7 +14,7 @@
 
 """A helper to generate maxtext model configs."""
 
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
+from dags.common.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.inference.configs import jetstream_benchmark_serving_gce_config
 from dags.multipod.configs.common import SetupMode
 

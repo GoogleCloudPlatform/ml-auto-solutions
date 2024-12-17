@@ -1,7 +1,8 @@
+from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import gcs_bucket, test_owner
+from dags import gcs_bucket
 import datetime
-import dags.vm_resource as resource
+import dags.common.vm_resource as resource
 
 
 def get_microbenchmark_config(

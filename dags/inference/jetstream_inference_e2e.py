@@ -16,7 +16,7 @@
 
 import datetime
 from airflow import models
-from dags.vm_resource import TpuVersion
+from dags.common.vm_resource import TpuVersion
 from dags.inference.maxtext_model_config_generator import generate_model_configs
 
 """A JetStream inference E2E test (JAX nightly, no schedule) DAG.

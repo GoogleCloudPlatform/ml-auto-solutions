@@ -27,7 +27,7 @@ from xlml.apis import metric_config, gcp_config, test_config
 from xlml.utils import bigquery, composer, metric
 import jsonlines
 import tensorflow as tf
-from dags.vm_resource import TpuVersion, RuntimeVersion
+from dags.common.vm_resource import TpuVersion, RuntimeVersion
 
 
 class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):

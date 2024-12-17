@@ -17,8 +17,9 @@
 import datetime
 
 from airflow import models
-from dags import test_owner, composer_env
-from dags.vm_resource import TpuVersion, Zone, Project, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
+from dags import composer_env
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, Project, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.multipod.configs import common
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import gcp_config, metric_config, task, test_config

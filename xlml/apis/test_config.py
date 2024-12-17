@@ -51,7 +51,7 @@ from typing import Any, Generic, Iterable, List, Optional, TypeVar
 
 import attrs
 import datetime
-from dags.vm_resource import TpuVersion, CpuVersion
+from dags.common.vm_resource import TpuVersion, CpuVersion
 
 
 class Accelerator(abc.ABC):

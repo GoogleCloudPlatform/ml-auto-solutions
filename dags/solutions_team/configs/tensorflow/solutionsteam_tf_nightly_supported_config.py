@@ -16,11 +16,12 @@
 
 import time
 import datetime
+from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import gcs_bucket, test_owner
+from dags import gcs_bucket
 from dags.solutions_team.configs.tensorflow import common
 from airflow.models import Variable
-from dags.vm_resource import TpuVersion, Project, RuntimeVersion
+from dags.common.vm_resource import TpuVersion, Project, RuntimeVersion
 from typing import List
 
 
