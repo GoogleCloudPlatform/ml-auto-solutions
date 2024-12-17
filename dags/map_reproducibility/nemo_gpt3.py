@@ -38,7 +38,7 @@ from dags.map_reproducibility.utils import get_metrics
 from dags.map_reproducibility.utils import get_aotc_repo
 from dags.map_reproducibility.utils import extract_python_path
 from dags.map_reproducibility.benchmarkdb_utils import write_run
-from dags.map_reproducibility.utils import extract_gpus
+from dags.map_reproducibility.utils import extract_run_details
 
 
 # Run once a day at 2 pm UTC (6 am PST)
@@ -95,6 +95,7 @@ def run_aotc_workload():
 
     yaml_file_path = "reproducible-benchmark-recipes/projects/gpu-recipes/training/a3mega/gpt3-175b/nemo-pretraining-gke/values.yaml"
     config_yaml_path = "reproducible-benchmark-recipes/projects/gpu-recipes/src/frameworks/a3mega/nemo-configs/gpt3-175b-256gpus-fp8.yaml"
+
     (
         number_of_nodes,
         global_batch_size,
@@ -102,7 +103,7 @@ def run_aotc_workload():
         precision,
         seq_length,
         max_steps,
-    ) = extract_gpus(tmpdir, yaml_file_path, config_yaml_path)
+    ) = extract_run_details(tmpdir, yaml_file_path, config_yaml_path)
     print(
         f"batch size: {global_batch_size}, number of nodes: {number_of_nodes}"
     )
