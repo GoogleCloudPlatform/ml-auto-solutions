@@ -16,6 +16,7 @@
 
 import datetime
 import sys
+import os
 import tempfile
 
 from airflow import models
@@ -32,15 +33,22 @@ from dags.map_reproducibility.utils import copy_bucket_cmds
 from dags.map_reproducibility.utils import cleanup_cmds
 from dags.map_reproducibility.utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils import clone_gob
-from dags.map_reproducibility.utils import helm_install_cmds
-from dags.map_reproducibility.utils import get_metrics_from_gcs
+from dags.map_reproducibility.utils import helm_apply_cmds
+from dags.map_reproducibility.utils import get_metrics
 from dags.map_reproducibility.utils import get_aotc_repo
-from dags.map_reproducibility.utils import extract_bucket_file_name
 from dags.map_reproducibility.utils import extract_python_path
+from dags.map_reproducibility.benchmarkdb_utils import write_run
+from dags.map_reproducibility.utils import extract_run_details
 
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
+
+MODEL_ID = "gpt3-175b"
+BATCH_SIZE = 2048
+NUM_ACCELERATORS = 256
+PRECISION = "fp8"
+ACCELERATOR_TYPE = "h100"
 
 
 @task
@@ -60,6 +68,7 @@ def run_aotc_workload():
 
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
+    # TODO(gunjanjalori): clone recipe first and extract params
     result = hook.run_command(
         [
             "bash",
@@ -73,10 +82,16 @@ def run_aotc_workload():
                 + install_helm_cmds()
                 + namespace_cmds()
                 + workload_cmds
-                + helm_install_cmds()
+                + helm_apply_cmds()
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds()
-                + get_metrics_cmds()
+                + get_metrics_cmds(
+                    BATCH_SIZE,
+                    NUM_ACCELERATORS,
+                    PRECISION,
+                    MODEL_ID,
+                    ACCELERATOR_TYPE,
+                )
                 + cleanup_cmds()
                 + get_aotc_repo()
             ),
@@ -85,13 +100,54 @@ def run_aotc_workload():
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
-    # Extract COMPLETE_JOB_NAME from the output
-    bucket_name, file_name, python_path = extract_bucket_file_name(
-        result.output
+    python_base_path, python_path_to_bq_writer = extract_python_path(
+        result.output.splitlines()[-1]
     )
-    get_metrics_from_gcs(bucket_name, file_name)
+    print(f"Base path in python: {python_base_path}")
+    print(f"python to bq: {python_path_to_bq_writer}")
 
-    sys.path.append(python_path)
+    value_yaml_path = "reproducible-benchmark-recipes/projects/gpu-recipes/training/a3mega/gpt3-175b/nemo-pretraining-gke/values.yaml"
+    config_yaml_path = "reproducible-benchmark-recipes/projects/gpu-recipes/src/frameworks/a3mega/nemo-configs/gpt3-175b-256gpus-fp8.yaml"
+
+    (
+        number_of_nodes,
+        global_batch_size,
+        optimizer,
+        precision,
+        seq_length,
+        max_steps,
+    ) = extract_run_details(tmpdir, value_yaml_path, config_yaml_path)
+    print(
+        f"batch size: {global_batch_size}, number of nodes: {number_of_nodes}"
+    )
+    average_step_time, mfu = get_metrics(python_base_path)
+    model_id = "gpt3-175b"
+    hardware_id = "a3mega"
+    software_id = "pytorch_nemo"
+    image_version = "nemo_workload:24.07"
+    number_of_chips = number_of_nodes * 8
+
+    write_run(
+        model_id=model_id,
+        hardware_id=hardware_id,
+        software_id=software_id,
+        number_of_nodes=number_of_nodes,
+        number_of_chips=number_of_chips,
+        container_image_name=image_version,
+        global_batch_size=global_batch_size,
+        precision=precision,
+        optimizer=optimizer,
+        seq_length=seq_length,
+        median_step_time=average_step_time,
+        e2e_time=0,
+        number_of_steps=max_steps,
+        mfu=mfu,
+        tokens_per_second=1,
+        writer_path=python_path_to_bq_writer,
+        topology="2X2",
+        comment="Regression tests",
+        is_test=True,
+    )
 
 
 with models.DAG(
