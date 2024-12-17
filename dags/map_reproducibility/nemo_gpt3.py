@@ -22,7 +22,6 @@ import tempfile
 from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
-import subprocess
 from dags import composer_env
 from dags.map_reproducibility.utils import get_metrics_cmds
 from dags.map_reproducibility.utils import set_variables_cmds
@@ -76,11 +75,11 @@ def run_aotc_workload():
                 + install_helm_cmds()
                 + namespace_cmds()
                 + workload_cmds
-                # + helm_install_cmds()
-                # + wait_for_jobs_cmds()
+                + helm_install_cmds()
+                + wait_for_jobs_cmds()
                 + copy_bucket_cmds()
                 + get_metrics_cmds()
-                # + cleanup_cmds()
+                + cleanup_cmds()
                 + get_aotc_repo()
             ),
         ],

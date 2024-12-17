@@ -19,6 +19,7 @@ import os
 from google.cloud import storage
 import yaml
 
+
 def set_variables_cmds():
   set_variables = (
       "export PROJECT=supercomputer-testing",
@@ -117,9 +118,8 @@ def wait_for_jobs_cmds():
 
 def copy_bucket_cmds():
   copy_bucket_contents = (
-      # "export COMPLETE_JOB_NAME=$(gcloud storage ls "
-      # "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
-      "COMPLETE_JOB_NAME=gs://gunjanjalori-testing-xlml/nemo-experiments/gpt3-xlml-1731373474-175b-nemo-1731373494-ic5n/",
+      "export COMPLETE_JOB_NAME=$(gcloud storage ls "
+      "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
       'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
       "cd $REPO_ROOT/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
@@ -143,6 +143,7 @@ def get_metrics_cmds():
       'echo "METRICS_FILE=${METRICS_FILE}"',
   )
   return get_metrics
+
 
 def get_aotc_repo():
   gob_clone_cmds = (
@@ -193,6 +194,7 @@ def extract_python_path(last_line):
   python_path_to_bq_writer = python_path + "/benchmark-automation/aotc/src"
   return python_path, python_path_to_bq_writer
 
+
 def extract_gpus(tmpdir, yaml_file, config_path):
   gpus = None
   batch_size = None
@@ -218,4 +220,3 @@ def extract_gpus(tmpdir, yaml_file, config_path):
     print(f"Error: {e}")
     return None
   return gpus, batch_size, optimizer, precision, seq_length, max_steps
-
