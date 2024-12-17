@@ -189,7 +189,6 @@ def get_metrics(metrics_path):
 
 
 def extract_python_path(last_line):
-  # metrics_file = None
   python_path = last_line.split("=")[1]
   python_path_to_bq_writer = python_path + "/benchmark-automation/aotc/src"
   return python_path, python_path_to_bq_writer
