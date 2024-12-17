@@ -33,7 +33,7 @@ from dags.map_reproducibility.utils import copy_bucket_cmds
 from dags.map_reproducibility.utils import cleanup_cmds
 from dags.map_reproducibility.utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils import clone_gob
-from dags.map_reproducibility.utils import helm_install_cmds
+from dags.map_reproducibility.utils import helm_apply_cmds
 from dags.map_reproducibility.utils import get_metrics
 from dags.map_reproducibility.utils import get_aotc_repo
 from dags.map_reproducibility.utils import extract_python_path
@@ -75,7 +75,7 @@ def run_aotc_workload():
                 + install_helm_cmds()
                 + namespace_cmds()
                 + workload_cmds
-                + helm_install_cmds()
+                + helm_apply_cmds()
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds()
                 + get_metrics_cmds()
