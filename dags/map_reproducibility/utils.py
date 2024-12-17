@@ -198,6 +198,7 @@ def extract_run_details(tmpdir, yaml_file, config_path):
   gpus = None
   batch_size = None
   optimizer = None
+
   try:
     yaml_file_path = os.path.join(tmpdir, yaml_file)
     with open(yaml_file_path, "r", encoding="utf-8") as file:
@@ -206,6 +207,7 @@ def extract_run_details(tmpdir, yaml_file, config_path):
   except (FileNotFoundError, yaml.YAMLError) as e:
     print(f"Error: {e}")
     return None
+
   try:
     config_path = os.path.join(tmpdir, config_path)
     with open(config_path, "r", encoding="utf-8") as file:
@@ -218,4 +220,5 @@ def extract_run_details(tmpdir, yaml_file, config_path):
   except (FileNotFoundError, yaml.YAMLError) as e:
     print(f"Error: {e}")
     return None
+
   return gpus, batch_size, optimizer, precision, seq_length, max_steps

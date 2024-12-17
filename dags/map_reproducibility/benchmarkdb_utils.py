@@ -35,7 +35,7 @@ def write_run(
     mfu: float,
     tokens_per_second: float,
     writer_path: str,
-    run_success: bool = True, #  True because if mfu is none, writing to db will fail anyway.
+    run_success: bool = True,  # True because if mfu is none, writing to db will fail anyway.
     run_type: str = "perf_regression",
     run_release_status: str = "local",
     other_metrics_in_json: str = "",
@@ -261,4 +261,3 @@ def write_run(
 
   else:
     raise ValueError("Could not upload data in run summary table")
-
