@@ -146,7 +146,7 @@ def run_aotc_workload():
         writer_path=python_path_to_bq_writer,
         topology="2X2",
         comment="Regression tests",
-        is_test=True,
+        is_test=False,
     )
 
 
