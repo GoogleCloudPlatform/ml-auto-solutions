@@ -40,7 +40,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
   # merge all PyTorch/XLA tests ino one Dag
   with models.DAG(
-      dag_id="PyTorch/XLA model regression test on Trillium",
+      dag_id="pytorch_xla_model_regression_test_on_trillium",
       schedule="0 0 * * *", # everyday at midnight # job["schedule"],
       tags=["mantaray", "pytorchxla", "xlml"],
       start_date=datetime.datetime(2024, 4, 22),
