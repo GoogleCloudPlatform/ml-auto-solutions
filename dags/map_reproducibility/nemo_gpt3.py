@@ -44,6 +44,12 @@ from dags.map_reproducibility.utils import extract_run_details
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
+MODEL_ID = "gpt3-175b"
+BATCH_SIZE = 2048
+NUM_ACCELERATORS = 256
+PRECISION = "fp8"
+ACCELERATOR_TYPE = "h100"
+
 
 @task
 def run_aotc_workload():
@@ -62,6 +68,7 @@ def run_aotc_workload():
 
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
+    # TODO(gunjanjalori): clone recipe first and extract params
     result = hook.run_command(
         [
             "bash",
@@ -78,7 +85,13 @@ def run_aotc_workload():
                 + helm_apply_cmds()
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds()
-                + get_metrics_cmds()
+                + get_metrics_cmds(
+                    BATCH_SIZE,
+                    NUM_ACCELERATORS,
+                    PRECISION,
+                    MODEL_ID,
+                    ACCELERATOR_TYPE,
+                )
                 + cleanup_cmds()
                 + get_aotc_repo()
             ),
@@ -93,7 +106,7 @@ def run_aotc_workload():
     print(f"Base path in python: {python_base_path}")
     print(f"python to bq: {python_path_to_bq_writer}")
 
-    yaml_file_path = "reproducible-benchmark-recipes/projects/gpu-recipes/training/a3mega/gpt3-175b/nemo-pretraining-gke/values.yaml"
+    value_yaml_path = "reproducible-benchmark-recipes/projects/gpu-recipes/training/a3mega/gpt3-175b/nemo-pretraining-gke/values.yaml"
     config_yaml_path = "reproducible-benchmark-recipes/projects/gpu-recipes/src/frameworks/a3mega/nemo-configs/gpt3-175b-256gpus-fp8.yaml"
 
     (
@@ -103,7 +116,7 @@ def run_aotc_workload():
         precision,
         seq_length,
         max_steps,
-    ) = extract_run_details(tmpdir, yaml_file_path, config_yaml_path)
+    ) = extract_run_details(tmpdir, value_yaml_path, config_yaml_path)
     print(
         f"batch size: {global_batch_size}, number of nodes: {number_of_nodes}"
     )

@@ -128,17 +128,18 @@ def copy_bucket_cmds():
   return copy_bucket_contents
 
 
-def get_metrics_cmds():
+def get_metrics_cmds(
+    batch_size, num_accelerators, precision, model_id, accelertator_type
+):
   # TODO(gunjanj007): get these parameters from the recipe
   cmds = (
-      # "METRICS_FILE=$COMPLETE_JOB_NAME/metrics.txt",
       "METRICS_FILE=metrics.txt",
       "python3 process_training_results.py --file"
-      " dllogger.json --batch_size 2048 "
-      "--num_accelerators 256 "
-      "--precision fp8  "
-      "--model_type gpt3-175b "
-      "--accelerator_type h100 | "
+      f" dllogger.json --batch_size {batch_size} "
+      f"--num_accelerators {num_accelerators} "
+      f"--precision {precision}  "
+      f"--model_type {model_id} "
+      f"--accelerator_type {accelertator_type} | "
       "gsutil cp - $METRICS_FILE",
       'echo "METRICS_FILE=${METRICS_FILE}"',
   )
