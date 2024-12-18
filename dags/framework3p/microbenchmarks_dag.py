@@ -1,6 +1,7 @@
 import datetime
 from airflow import models
-from dags import composer_env, vm_resource, test_owner
+from dags import composer_env
+from dags.common import test_owner, vm_resource
 from dags.framework3p.configs.microbenchmarks_config import get_microbenchmark_config, get_microbenchmark_xpk_config
 
 

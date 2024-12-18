@@ -15,7 +15,9 @@
 "Bash helper commands for AOTC artifacts"
 
 import re
+import os
 from google.cloud import storage
+import yaml
 
 
 def set_variables_cmds():
@@ -89,7 +91,7 @@ def namespace_cmds():
   return namespace
 
 
-def helm_install_cmds():
+def helm_apply_cmds():
   helm_cmds = (
       " helm install -f values.yaml "
       "--namespace default "
@@ -126,20 +128,22 @@ def copy_bucket_cmds():
   return copy_bucket_contents
 
 
-def get_metrics_cmds():
+def get_metrics_cmds(
+    batch_size, num_accelerators, precision, model_id, accelertator_type
+):
   # TODO(gunjanj007): get these parameters from the recipe
-  get_metrics = (
-      "METRICS_FILE=$COMPLETE_JOB_NAME/metrics.txt",
+  cmds = (
+      "METRICS_FILE=metrics.txt",
       "python3 process_training_results.py --file"
-      " dllogger.json --batch_size 2048 "
-      "--num_accelerators 256 "
-      "--precision fp8  "
-      "--model_type gpt3-175b "
-      "--accelerator_type h100 | "
+      f" dllogger.json --batch_size {batch_size} "
+      f"--num_accelerators {num_accelerators} "
+      f"--precision {precision}  "
+      f"--model_type {model_id} "
+      f"--accelerator_type {accelertator_type} | "
       "gsutil cp - $METRICS_FILE",
       'echo "METRICS_FILE=${METRICS_FILE}"',
   )
-  return get_metrics
+  return cmds
 
 
 def get_aotc_repo():
@@ -147,9 +151,9 @@ def get_aotc_repo():
       "echo 'trying to clone GoB aotc repo'",
       "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
       "benchmark-automation",
-      "cd benchmark-automation/aotc/src",
+      "ls",
       "export PYTHONPATH=$PWD",
-      'echo "PYTHONPATH=$PYTHONPATH and METRICS_FILE=$METRICS_FILE"',
+      'echo "PYTHONPATH=$PYTHONPATH"',
   )
   return gob_clone_cmds
 
@@ -160,25 +164,19 @@ def cleanup_cmds():
       "cd ../../..",
       "kubectl get pods "
       "--no-headers=true | awk '{print $1}' "
-      "| grep $JOB_NAME |  xargs kubectl delete pods",
+      "| grep $JOB_NAME | xargs kubectl delete pods",
       "helm uninstall $JOB_NAME",
   )
   return cleanup
 
 
-def get_metrics_from_gcs(bucket_name, file_name):
-  # Initialize GCS and BigQuery clients
-  storage_client = storage.Client()
-
-  # Get the bucket and file
-  bucket = storage_client.bucket(bucket_name)
-  blob = bucket.blob(file_name)
-
-  # Download the file content
-  metrics_output = blob.download_as_string().decode("utf-8")
+def get_metrics(metrics_path):
+  file_content = ""
+  with open(metrics_path + "/metrics.txt", "r", encoding="utf-8") as file:
+    file_content = file.read()
 
   # Parse the metrics (adjust based on your file format)
-  lines = metrics_output.splitlines()
+  lines = file_content.splitlines()
   average_step_time = float(lines[0].split(": ")[1])
   tflops_per_accelerator = float(lines[1].split(": ")[1])
   mfu = float(lines[2].split(": ")[1])
@@ -187,40 +185,40 @@ def get_metrics_from_gcs(bucket_name, file_name):
   print(f"TFLOPS/Accelerator: {tflops_per_accelerator}")
   print(f"MFU: {mfu}")
 
-
-def extract_bucket_file_name(last_line):
-  metrics_file = None
-
-  # We match here because subprocesshook only outputs the last line.
-  match = re.search(r"PYTHONPATH=(.*?)\s+METRICS_FILE=(.*)", last_line)
-  if match:
-    python_path = match.group(1)
-    metrics_file = match.group(2)
-    print(f"PYTHONPATH in python: {python_path}")
-    print(f"METRICS_FILE: {metrics_file}")
-  else:
-    print("Error: Could not extract PYTHONPATH and METRICS_FILE")
-  print(f"Metrics file name: {metrics_file}")
-  if metrics_file:
-    # Extract bucket_name and file_name
-    bucket_name = re.search(r"gs://([^/]+)/", metrics_file).group(1)
-    file_name = re.search(r"gs://[^/]+/(.+)", metrics_file).group(1)
-
-    print(f"Bucket name: {bucket_name}")
-    print(f"File name: {file_name}")
-  else:
-    print("Metrics file not found in the output.")
-
-  return bucket_name, file_name, python_path
+  return average_step_time, mfu
 
 
-def extract_python_path(bash_result_output):
-  python_path = None
-  for line in bash_result_output.splitlines():
-    if line.startswith("PYTHONPATH"):
-      python_path = line.split("=", 1)[1]
-      break
+def extract_python_path(last_line):
+  python_path = last_line.split("=")[1]
+  python_path_to_bq_writer = python_path + "/benchmark-automation/aotc/src"
+  return python_path, python_path_to_bq_writer
 
-    print(f"Pyhon path name: {python_path}")
 
-  return python_path
+def extract_run_details(tmpdir, yaml_file, config_path):
+  gpus = None
+  batch_size = None
+  optimizer = None
+
+  try:
+    yaml_file_path = os.path.join(tmpdir, yaml_file)
+    with open(yaml_file_path, "r", encoding="utf-8") as file:
+      config = yaml.safe_load(file)
+      gpus = config.get("workload", {}).get("gpus")
+  except (FileNotFoundError, yaml.YAMLError) as e:
+    print(f"Error: {e}")
+    return None
+
+  try:
+    config_path = os.path.join(tmpdir, config_path)
+    with open(config_path, "r", encoding="utf-8") as file:
+      config = yaml.safe_load(file)
+      batch_size = config.get("model", {}).get("global_batch_size")
+      precision = config.get("trainer", {}).get("precision")
+      optimizer = config.get("model", {}).get("optim", {}).get("name")
+      seq_length = config.get("model", {}).get("data", {}).get("seq_length")
+      max_steps = config.get("trainer", {}).get("max_steps")
+  except (FileNotFoundError, yaml.YAMLError) as e:
+    print(f"Error: {e}")
+    return None
+
+  return gpus, batch_size, optimizer, precision, seq_length, max_steps

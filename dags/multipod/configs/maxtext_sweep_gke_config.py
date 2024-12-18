@@ -16,7 +16,7 @@
 
 import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags.vm_resource import TpuVersion, XpkClusterConfig
+from dags.common.vm_resource import TpuVersion, XpkClusterConfig
 import itertools
 from typing import List, Iterable, Dict, Any
 

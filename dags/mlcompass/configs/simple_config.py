@@ -16,8 +16,8 @@
 
 import datetime
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, RuntimeVersion
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, Project, RuntimeVersion
 
 
 def get_simple_config():

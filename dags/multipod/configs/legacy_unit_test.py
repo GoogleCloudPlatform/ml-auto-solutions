@@ -20,9 +20,9 @@ from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from base64 import b64encode
 from collections.abc import Iterable
-from dags import test_owner
+from dags.common import test_owner
 from dags.multipod.configs import common
-from dags.vm_resource import TpuVersion, Project, RuntimeVersion, XpkClusters
+from dags.common.vm_resource import TpuVersion, Project, RuntimeVersion, XpkClusters
 
 
 def get_legacy_unit_test_config(

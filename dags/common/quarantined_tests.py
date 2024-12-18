@@ -15,7 +15,7 @@
 """Lists all currently broken tests."""
 
 import dataclasses
-from dags.test_owner import Team as team
+from dags.common.test_owner import Team as team
 
 
 @dataclasses.dataclass

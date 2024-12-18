@@ -16,7 +16,7 @@
 
 import dataclasses
 
-from dags.vm_resource import Project
+from dags.common.vm_resource import Project
 from xlml.apis import metric_config
 
 

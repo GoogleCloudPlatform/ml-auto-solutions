@@ -18,7 +18,7 @@ from airflow import models
 import datetime
 from dags import composer_env
 from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
-import dags.vm_resource as resource
+import dags.common.vm_resource as resource
 
 SCHEDULED_TIME = None
 

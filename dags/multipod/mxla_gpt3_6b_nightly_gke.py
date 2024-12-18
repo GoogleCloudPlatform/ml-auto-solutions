@@ -18,8 +18,9 @@ A DAG to run MXLA MaxText tests.
 import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
-from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
+from dags import composer_env
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
 from dags.multipod.configs import gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
