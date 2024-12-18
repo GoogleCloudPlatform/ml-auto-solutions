@@ -18,8 +18,8 @@ import datetime
 import enum
 from typing import Tuple
 from xlml.apis import gcp_config, metric_config, task, test_config
-import dags.vm_resource as resource
-from dags import test_owner
+import dags.common.vm_resource as resource
+from dags.common import test_owner
 
 
 GCS_SUBFOLDER_PREFIX = test_owner.Team.PYTORCH_XLA.value

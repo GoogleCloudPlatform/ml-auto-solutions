@@ -3,8 +3,9 @@
 import datetime
 from airflow import models
 from airflow.models.baseoperator import chain
-from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
+from dags import composer_env
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, Project, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
 from dags.inference.configs import jetstream_pytorch_gce_config
 from dags.multipod.configs.common import SetupMode, Platform
 import numpy as np

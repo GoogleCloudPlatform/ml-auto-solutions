@@ -17,8 +17,9 @@ A DAG to run MaxText profiling tests.
 """
 import datetime
 from airflow import models
-from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Zone, DockerImage
+from dags import composer_env, gcs_bucket
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, DockerImage
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 

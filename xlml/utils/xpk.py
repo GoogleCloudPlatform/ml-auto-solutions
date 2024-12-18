@@ -24,7 +24,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from kubernetes import client as k8s_client
 from xlml.apis import metric_config
 from xlml.utils import gke
-from dags.vm_resource import GpuVersion
+from dags.common.vm_resource import GpuVersion
 
 
 WORKLOAD_URL_FORMAT = "https://console.cloud.google.com/kubernetes/service/{region}/{cluster}/default/{workload_id}/details?project={project}"

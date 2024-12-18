@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dags.vm_resource import TpuVersion, Zone, DockerImage
+from dags.common.vm_resource import TpuVersion, Zone, DockerImage
 from dags.multipod.configs import gke_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from xlml.apis import task

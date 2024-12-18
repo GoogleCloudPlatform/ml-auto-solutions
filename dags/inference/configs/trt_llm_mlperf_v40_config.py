@@ -16,9 +16,10 @@
 
 import datetime
 from typing import Dict
+from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import test_owner, vm_resource
-from dags.vm_resource import Project, RuntimeVersion
+from dags.common import vm_resource
+from dags.common.vm_resource import Project, RuntimeVersion
 
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.INFERENCE.value

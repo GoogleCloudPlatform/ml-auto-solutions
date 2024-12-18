@@ -14,10 +14,11 @@
 
 """Utilities to construct configs for maxtext DAG on GKE."""
 
+from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
-from dags import test_owner, gcs_bucket
-from dags.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion
+from dags import gcs_bucket
+from dags.common.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion
 from typing import Iterable
 import datetime
 

@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import DockerImage, TpuVersion, Zone, Project, V5_NETWORKS, V5P_SUBNETWORKS, RuntimeVersion, XpkClusters
+from dags.common.vm_resource import DockerImage, TpuVersion, Zone, Project, V5_NETWORKS, V5P_SUBNETWORKS, RuntimeVersion, XpkClusters
 from dags.multipod.configs import jax_tests_gce_config, jax_tests_gke_config
 from dags.multipod.configs.common import SetupMode
 

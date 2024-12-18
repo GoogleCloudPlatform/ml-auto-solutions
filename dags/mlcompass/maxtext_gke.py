@@ -28,7 +28,7 @@ import json
 from airflow import models
 from airflow.decorators import task
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from dags import test_owner
+from dags.common import test_owner
 from xlml.utils import xpk
 
 
