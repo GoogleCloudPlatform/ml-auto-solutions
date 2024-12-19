@@ -23,16 +23,6 @@ PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
 
 
-# def set_variables_cmds(cluster: str, cluster_region: str):
-#   set_variables = (
-#       # f"export PROJECT={PROJECT}",
-#       # f"export CLUSTER={cluster}",
-#       # f"export CLUSTER_REGION={cluster_region}",
-
-#   )
-#   return set_variables
-
-
 # This is required to get auth to access
 def git_cookie_authdaemon():
   auth_cmds = (
@@ -61,8 +51,6 @@ def get_aotc_repo():
       "echo 'trying to clone GoB aotc repo'",
       "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
       "benchmark-automation",
-      # "export PYTHONPATH=$PWD",
-      # 'echo "PYTHONPATH=$PYTHONPATH"',
   )
   return gob_clone_cmds
 
