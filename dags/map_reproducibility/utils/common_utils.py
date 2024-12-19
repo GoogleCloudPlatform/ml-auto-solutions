@@ -46,6 +46,7 @@ def clone_recipes_gob():
   )
   return gob_clone_cmds
 
+
 def get_aotc_repo():
   gob_clone_cmds = (
       "echo 'trying to clone GoB aotc repo'",
@@ -68,7 +69,6 @@ def configure_project_and_cluster(cluster: str, cluster_region: str):
 def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
   gpu_recipe_cmd = (
       "cd reproducible-benchmark-recipes/projects/gpu-recipes",
-      "export REPO_ROOT=`pwd`",
       "export RECIPE_ROOT="
       f"{recipe_repo_root}/training/{hypercomputer}/{model_id}/{framework}-pretraining-gke",
       "cd $RECIPE_ROOT",
@@ -109,7 +109,9 @@ def namespace_cmds():
   return namespace
 
 
-def helm_apply_cmds(framework: str, hypercomputer: str, config_file):
+def helm_apply_cmds(
+    framework: str, hypercomputer: str, config_file, recipe_repo_root
+):
   helm_cmds = (
       " helm install -f values.yaml "
       "--namespace default "
@@ -119,7 +121,7 @@ def helm_apply_cmds(framework: str, hypercomputer: str, config_file):
       " --set workload.image"
       "=$DOCKER_IMAGE"
       f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
-      f" $JOB_NAME $REPO_ROOT/src/helm-charts/{hypercomputer}/{framework}-training",
+      f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
 
@@ -133,15 +135,14 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
-def copy_bucket_cmds():
+def copy_bucket_cmds(recipe_repo_root):
   copy_bucket_contents = (
       "export COMPLETE_JOB_NAME=$(gcloud storage ls "
       f"gs://{BUCKET_NAME}/nemo-experiments/ | grep $JOB_NAME)",
       'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
-      "cd $REPO_ROOT/src/utils/training_metrics",
+      f"cd {recipe_repo_root}/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
       "/dllogger/rank-0/dllogger.json .",
-
   )
   return copy_bucket_contents
 
