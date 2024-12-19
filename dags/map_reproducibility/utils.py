@@ -160,8 +160,6 @@ def get_aotc_repo():
 
 def cleanup_cmds():
   cleanup = (
-      "cd $REPO_ROOT",
-      "cd ../../..",
       "kubectl get pods "
       "--no-headers=true | awk '{print $1}' "
       "| grep $JOB_NAME | xargs kubectl delete pods",
