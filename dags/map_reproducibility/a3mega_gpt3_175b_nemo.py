@@ -115,9 +115,10 @@ def run_aotc_workload():
                     FRAMEWORK,
                     HYPERCOMPUTER,
                     full_config_yaml_path,
+                    recipe_repo_root
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds()
+                + copy_bucket_cmds(recipe_repo_root)
                 + get_metrics_cmds(
                     global_batch_size,
                     num_gpus,
