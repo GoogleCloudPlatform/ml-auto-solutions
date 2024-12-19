@@ -12,21 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-local accelerate = import 'accelerate-smoke.libsonnet';
 local ci = import 'ci.libsonnet';
-local hfBert = import 'hf-bert.libsonnet';
-local huggingfaceDiffusers = import 'hf-diffusers.libsonnet';
 local llama2 = import 'llama2-model.libsonnet';
 local mnist = import 'mnist.libsonnet';
 local resnet50_mp = import 'resnet50-mp.libsonnet';
 
 // Add new models here
 std.flattenArrays([
-  accelerate.configs,
   ci.configs,
-  hfBert.configs,
-  huggingfaceDiffusers.configs,
+  llama2.configs,
   mnist.configs,
   resnet50_mp.configs,
-  llama2.configs,
 ])
