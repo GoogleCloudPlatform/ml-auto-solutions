@@ -112,6 +112,11 @@ def namespace_cmds():
 def helm_apply_cmds(
     framework: str, hypercomputer: str, config_file, recipe_repo_root
 ):
+  gcs_cmd = ""
+  if hypercomputer == "a3ultra":
+    gcs_cmd = f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+  else:
+    gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
   helm_cmds = (
       " helm install -f values.yaml "
       "--namespace default "
@@ -120,7 +125,7 @@ def helm_apply_cmds(
       f"={config_file}"
       " --set workload.image"
       "=$DOCKER_IMAGE"
-      f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+      f"{gcs_cmd}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
@@ -142,7 +147,7 @@ def copy_bucket_cmds(recipe_repo_root):
       'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
       f"cd {recipe_repo_root}/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
-      "/dllogger/rank-0/dllogger.json .",
+      "dllogger/rank-0/dllogger.json .",
   )
   return copy_bucket_contents
 
