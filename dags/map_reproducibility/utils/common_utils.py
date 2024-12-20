@@ -28,12 +28,7 @@ def git_cookie_authdaemon():
   auth_cmds = (
       "git clone https://gerrit.googlesource.com/gcompute-tools",
       "echo 'trying to run git-cookie-authdaemon'",
-      # Check if the daemon is already running
-      "if pgrep -f git-cookie-authdaemon; then "
-      "  echo 'git-cookie-authdaemon is already running'; "
-      "else "
-      "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'; "  # Run if not running
-      "fi",
+      "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'",
   )
   return auth_cmds
 
@@ -175,6 +170,7 @@ def cleanup_cmds():
       "--no-headers=true | awk '{print $1}' "
       "| grep $JOB_NAME | xargs kubectl delete pods",
       "helm uninstall $JOB_NAME",
+      "pkill -f gcompute-tools/git-cookie-authdaemon",
   )
   return cleanup
 
