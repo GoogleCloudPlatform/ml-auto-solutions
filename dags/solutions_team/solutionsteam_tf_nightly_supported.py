@@ -115,7 +115,7 @@ with models.DAG(
       runtime_version=RuntimeVersion.TPU_VM_TF_NIGHTLY_POD.value,
   )
   embedding_dim = 8
-  tf_dlrm_v5p_8 = tf_config.get_tf_dlrmv1_config(
+  tf_dlrm_v5p_8 = tf_config.get_tf_dlrm_v1_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
       tpu_version=TpuVersion.V5P,
       tpu_cores=8,
@@ -133,7 +133,7 @@ with models.DAG(
       global_batch_size=4096,
   )
   embedding_dim = 128
-  tf_dlrm_v5p_32 = tf_config.get_tf_dlrmv2_config(
+  tf_dlrm_v5p_32 = tf_config.get_tf_dlrm_v2_config(
       project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
       tpu_version=TpuVersion.V5P,
       tpu_cores=32,

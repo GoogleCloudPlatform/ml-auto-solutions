@@ -188,7 +188,7 @@ def get_tf_resnet_config(
   )
 
 
-def get_tf_dlrmv1_config(
+def get_tf_dlrm_v1_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
@@ -352,7 +352,7 @@ def get_tf_dlrmv1_config(
   )
 
 
-def get_tf_dlrmv2_config(
+def get_tf_dlrm_v2_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
     tpu_zone: str,
