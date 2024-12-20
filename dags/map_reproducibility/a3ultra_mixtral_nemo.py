@@ -24,7 +24,6 @@ from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
 from dags.map_reproducibility.utils.common_utils import get_metrics_cmds
-# from dags.map_reproducibility.utils.common_utils import set_variables_cmds
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
@@ -32,7 +31,7 @@ from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
-# from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
+from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds
 from dags.map_reproducibility.utils.common_utils import get_metrics
 from dags.map_reproducibility.utils.common_utils import get_aotc_repo
@@ -42,8 +41,6 @@ from dags.map_reproducibility.utils.common_utils import extract_gpus
 from dags.map_reproducibility.utils.common_utils import get_accelerator_type
 from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
-####
-## reproducible-benchmark-recipes/projects/gpu-recipes -> gpu-recipes
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
@@ -65,14 +62,6 @@ IMAGE_VERSION = "nemo_workload:24.07"
 def run_aotc_workload():
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
-    def clone_recipes_gob():
-      gob_clone_cmds = (
-          "echo 'trying to clone GoB repo from outside'",
-          "git clone https://github.com/gunjanj007/gpu-recipes.git",
-          # "git clone https://ai-hypercomputer-benchmarks.googlesource.com/"
-          # "reproducible-benchmark-recipes",
-      )
-      return gob_clone_cmds
 
     result = hook.run_command(
         [
@@ -86,7 +75,7 @@ def run_aotc_workload():
     )
 
     recipe_repo_root = os.path.join(
-        tmpdir, "gpu-recipes"
+        tmpdir, "reproducible-benchmark-recipes/projects/gpu-recipes"
     )
     aotc_repo_root = os.path.join(tmpdir, "benchmark-automation/aotc/src")
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
