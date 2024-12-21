@@ -84,6 +84,7 @@ def run_workload(
     cmds = [
         "set -xue",
         f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+        "pip install ruamel.yaml docker",
     ]
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"

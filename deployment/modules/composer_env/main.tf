@@ -20,7 +20,7 @@ resource "google_composer_environment" "example_environment" {
         google-cloud-tpu                  = ">=1.16.0"
         jsonlines                         = ""
         ray                               = "[default]"
-        ruamel.yaml                       = ""
+        dacite                            = ""
         # These packages are already in the default composer environment.
         # See https://cloud.google.com/composer/docs/concepts/versioning/composer-versions
         # google-cloud-bigquery             = ""
