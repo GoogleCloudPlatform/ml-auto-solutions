@@ -56,9 +56,7 @@ CLUSTER = "gke-a3ultra-map"
 CLUSTER_REGION = "europe-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
-DOCKER_IMAGE = (
-    "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}",
-)
+DOCKER_IMAGE = "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}"
 
 
 @task
