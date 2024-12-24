@@ -56,6 +56,9 @@ CLUSTER = "gke-a3ultra-map"
 CLUSTER_REGION = "europe-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
+DOCKER_IMAGE = (
+    "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}",
+)
 
 
 @task
@@ -108,13 +111,14 @@ def run_aotc_workload():
                 + install_helm_cmds()
                 + namespace_cmds()
                 + get_pre_workload_cmds(
-                    MODEL_ID, FRAMEWORK, IMAGE_VERSION
+                    MODEL_ID, FRAMEWORK
                 )
                 + helm_apply_cmds(
                     FRAMEWORK,
                     HYPERCOMPUTER,
                     full_config_yaml_path,
-                    recipe_repo_root
+                    recipe_repo_root,
+                    DOCKER_IMAGE
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(recipe_repo_root)

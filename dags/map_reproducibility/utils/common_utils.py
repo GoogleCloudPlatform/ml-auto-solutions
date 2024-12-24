@@ -28,7 +28,14 @@ def git_cookie_authdaemon():
   auth_cmds = (
       "git clone https://gerrit.googlesource.com/gcompute-tools",
       "echo 'trying to run git-cookie-authdaemon'",
-      "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'",
+      # Check if the daemon is already running
+      "if (( $(pgrep -f 'gcompute-tools/git-cookie-authdaemon' | wc -l)>1 )) ; then "  # greater than one because one would be the main job
+      "  echo 'git-cookie-authdaemon is already running'; "
+      "else "
+      "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'; "  # Run if not running
+      "fi",
+      "sleep 2",
+      "ps aux | grep git-cookie-authdaemon",
   )
   return auth_cmds
 
@@ -71,12 +78,10 @@ def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
   return gpu_recipe_cmd
 
 
-def get_pre_workload_cmds(model_id, framework, image_version):
+def get_pre_workload_cmds(model_id, framework):
   prepare_workload_cmds = (
       "NOW=$(date +%s)",
       f"export JOB_NAME={model_id}-xlml-$NOW-{framework}",
-      "DOCKER_IMAGE=us-central1-docker.pkg.dev/"
-      f"supercomputer-testing/gunjanjalori/{framework}_test/{image_version}",
   )
   return prepare_workload_cmds
 
@@ -105,7 +110,11 @@ def namespace_cmds():
 
 
 def helm_apply_cmds(
-    framework: str, hypercomputer: str, config_file, recipe_repo_root
+    framework: str,
+    hypercomputer: str,
+    config_file,
+    recipe_repo_root,
+    docker_image,
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
@@ -119,7 +128,7 @@ def helm_apply_cmds(
       " --set-file nemo_config"
       f"={config_file}"
       " --set workload.image"
-      "=$DOCKER_IMAGE"
+      f"={docker_image}"
       f"{gcs_cmd}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
@@ -150,7 +159,6 @@ def copy_bucket_cmds(recipe_repo_root):
 def get_metrics_cmds(
     batch_size, num_accelerators, precision, model_id, accelertator_type, temdir
 ):
-  # TODO(gunjanj007): get these parameters from the recipe
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
@@ -170,7 +178,6 @@ def cleanup_cmds():
       "--no-headers=true | awk '{print $1}' "
       "| grep $JOB_NAME | xargs kubectl delete pods",
       "helm uninstall $JOB_NAME",
-      "pkill -f gcompute-tools/git-cookie-authdaemon",
   )
   return cleanup
 
