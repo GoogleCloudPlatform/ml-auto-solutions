@@ -9,7 +9,7 @@ resource "google_composer_environment" "example_environment" {
       image_version = "composer-2.10.1-airflow-2.10.2"
       airflow_config_overrides = {
         core-allowed_deserialization_classes_regexp = ".*"
-        core-dags_are_paused_at_creation = False
+        core-dags_are_paused_at_creation = false
         scheduler-min_file_process_interval  = "120"
       }
       # Note: keep this in sync with .github/requirements.txt
