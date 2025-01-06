@@ -46,6 +46,7 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
 MODEL_ID = "mixtral-8x7b"
+METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
@@ -122,7 +123,7 @@ def run_aotc_workload():
                     global_batch_size,
                     num_gpus,
                     PRECISION,
-                    MODEL_ID,
+                    METRICS_MODEL_ID,
                     accelerator_type,
                     tmpdir,
                 )
