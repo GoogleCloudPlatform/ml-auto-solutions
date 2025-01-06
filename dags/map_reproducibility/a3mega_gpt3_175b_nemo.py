@@ -58,7 +58,7 @@ CLUSTER = "a3plus-benchmark"
 CLUSTER_REGION = "australia-southeast1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
-DOCKER_IMAGE = "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}"
+DOCKER_IMAGE = f"us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}"
 
 
 @task

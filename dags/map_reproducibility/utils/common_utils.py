@@ -128,7 +128,7 @@ def helm_apply_cmds(
       " --set-file nemo_config"
       f"={config_file}"
       " --set workload.image"
-      f"={docker_image}"
+      f"={docker_image} "
       f"{gcs_cmd}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
