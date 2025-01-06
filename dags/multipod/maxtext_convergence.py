@@ -17,8 +17,9 @@ A DAG to run MaxText convergence tests for both bf16 and int8.
 """
 import datetime
 from airflow import models
-from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import XpkClusters, DockerImage, Project, TpuVersion, Zone
+from dags import composer_env, gcs_bucket
+from dags.common import test_owner
+from dags.common.vm_resource import XpkClusters, DockerImage, Project, TpuVersion, Zone
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import gcp_config, metric_config, task, test_config

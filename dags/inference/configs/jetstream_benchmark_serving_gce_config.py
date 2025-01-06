@@ -18,9 +18,9 @@ import datetime
 import json
 from typing import Dict
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import test_owner
+from dags.common import test_owner
 from dags.multipod.configs import common
-from dags.vm_resource import TpuVersion, Project, RuntimeVersion
+from dags.common.vm_resource import TpuVersion, Project, RuntimeVersion
 
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value

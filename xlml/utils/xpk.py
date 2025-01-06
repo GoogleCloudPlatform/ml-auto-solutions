@@ -24,7 +24,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from kubernetes import client as k8s_client
 from xlml.apis import metric_config
 from xlml.utils import gke
-from dags.vm_resource import GpuVersion
+from dags.common.vm_resource import GpuVersion
 
 
 WORKLOAD_URL_FORMAT = "https://console.cloud.google.com/kubernetes/service/{region}/{cluster}/default/{workload_id}/details?project={project}"
@@ -84,6 +84,7 @@ def run_workload(
     cmds = [
         "set -xue",
         f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+        "pip install ruamel.yaml docker",
     ]
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"

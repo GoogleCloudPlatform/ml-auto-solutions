@@ -17,10 +17,11 @@
 
 import datetime
 from typing import Tuple, Optional
+from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import gcs_bucket, test_owner
+from dags import gcs_bucket
 from dags.sparsity_diffusion_devx.configs import common
-from dags.vm_resource import TpuVersion, Project
+from dags.common.vm_resource import TpuVersion, Project
 from airflow.models.taskmixin import DAGNode
 
 

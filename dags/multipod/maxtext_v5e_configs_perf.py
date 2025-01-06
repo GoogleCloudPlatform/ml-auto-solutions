@@ -18,8 +18,9 @@ A DAG to run perf tests for MaxText model configs on v5e.
 import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
-from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags import composer_env
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config

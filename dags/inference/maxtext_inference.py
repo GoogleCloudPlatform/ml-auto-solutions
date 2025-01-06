@@ -18,7 +18,7 @@ import datetime
 import numpy as np
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import TpuVersion
+from dags.common.vm_resource import TpuVersion
 from dags.inference.maxtext_model_config_generator import generate_model_configs
 
 USER_PREFIX = ""

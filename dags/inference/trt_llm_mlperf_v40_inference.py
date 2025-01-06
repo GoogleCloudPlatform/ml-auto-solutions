@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS
+from dags.common.vm_resource import GpuVersion, Zone, ImageFamily, ImageProject, MachineVersion, Project, INFERENCE_NETWORKS, H100_INFERENCE_SUBNETWORKS
 from dags.inference.configs import trt_llm_mlperf_v40_config
 
 # Run once a day at 4 am UTC (8 pm PST)

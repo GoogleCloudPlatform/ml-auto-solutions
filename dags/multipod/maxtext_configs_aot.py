@@ -18,8 +18,9 @@ A DAG to run AOT compilation tests for MaxText model configs.
 import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
-from dags import composer_env, test_owner
-from dags.vm_resource import GpuVersion, TpuVersion, Zone, DockerImage, XpkClusters
+from dags import composer_env
+from dags.common import test_owner
+from dags.common.vm_resource import GpuVersion, TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 

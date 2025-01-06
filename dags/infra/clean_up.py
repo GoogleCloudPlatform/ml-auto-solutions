@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import Project, Zone
+from dags.common.vm_resource import Project, Zone
 from xlml.utils import tpu
 
 

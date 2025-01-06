@@ -18,7 +18,7 @@ import time
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.vm_resource import TpuVersion, Project, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
+from dags.common.vm_resource import TpuVersion, Project, Zone, RuntimeVersion, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS
 from dags.solutions_team.configs.tensorflow import solutionsteam_tf_release_supported_config as tf_config
 from dags.solutions_team.configs.tensorflow import common
 

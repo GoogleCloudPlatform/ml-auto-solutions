@@ -18,15 +18,16 @@ A DAG to run perf tests for MaxText model configs on v5e.
 import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
-from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags import composer_env
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config
 
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
-MODEL_CONFIGS = ["gpt3_175b", "llama2_70b_4096", "mixtral_8x7b"]
+MODEL_CONFIGS = ["gpt3_175b", "llama2_7b_4096", "mixtral_8x7b"]
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),

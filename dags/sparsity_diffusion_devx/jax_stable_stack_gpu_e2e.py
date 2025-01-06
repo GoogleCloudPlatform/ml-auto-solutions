@@ -17,8 +17,9 @@
 
 import datetime
 from airflow import models
-from dags import composer_env, test_owner, gcs_bucket
-from dags.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
+from dags import composer_env, gcs_bucket
+from dags.common import test_owner
+from dags.common.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
 from airflow.utils.task_group import TaskGroup
 from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format

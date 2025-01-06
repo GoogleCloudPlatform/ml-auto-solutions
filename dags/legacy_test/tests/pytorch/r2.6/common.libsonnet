@@ -24,7 +24,7 @@ local volumes = import 'templates/volumes.libsonnet';
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.6.0-rc1_3.10',
+    imageTag: 'r2.6.0-rc3_3.10',
   },
   PyTorchTest:: common.PyTorchTest + r2_6 {
     local config = self,
@@ -106,7 +106,7 @@ local volumes = import 'templates/volumes.libsonnet';
         pip install torch==2.6 --index-url https://download.pytorch.org/whl/test/cpu
         # torchvision commit reference: https://github.com/pytorch/pytorch/blob/release/2.6/.github/ci_commit_pins/vision.txt
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc1-cp310-cp310-manylinux_2_28_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc3-cp310-cp310-manylinux_2_28_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html -f https://storage.googleapis.com/libtpu-wheels/index.html
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
@@ -149,7 +149,7 @@ local volumes = import 'templates/volumes.libsonnet';
         pip uninstall -y torch torchvision
         pip install torch==2.6 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc1-cp310-cp310-manylinux_2_28_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc3-cp310-cp310-manylinux_2_28_x86_64.whl
 
         mkdir -p pytorch/xla
         git clone -b r2.6 https://github.com/pytorch/xla.git pytorch/xla
@@ -184,44 +184,6 @@ local volumes = import 'templates/volumes.libsonnet';
     },
   },
 
-
-  Accelerate:: {
-    local config = self,
-    tpuSettings+: {
-      tpuVmExports+: |||
-        export PATH=~/.local/bin:$PATH
-      |||,
-      tpuVmExtraSetup: |||
-        if [ -d "$HOME/.local/bin" ] ; then
-          export PATH="$HOME/.local/bin:$PATH"
-        fi
-        # Dependency of accelerate, unfortunately there is no requirements.txt in accelerate.
-        pip install pytest
-        git clone https://github.com/huggingface/accelerate.git
-        pip install ./accelerate
-
-        mkdir -p ~/.cache/huggingface/accelerate/
-        cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'
-        compute_environment: LOCAL_MACHINE
-        distributed_type: XLA
-        downcast_bf16: 'no'
-        machine_rank: 0
-        main_training_function: main
-        mixed_precision: 'no'
-        num_machines: 1
-        num_processes: %d
-        rdzv_backend: static
-        same_network: true
-        tpu_env: []
-        tpu_use_cluster: false
-        tpu_use_sudo: false
-        use_cpu: false
-        HF_CONFIG_EOF
-
-        accelerate env
-      ||| % [config.accelerator.numCores],
-    },
-  },
 
   // DEPRECATED: Use PyTorchTpuVmMixin instead
   tpu_vm_r2_6_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,

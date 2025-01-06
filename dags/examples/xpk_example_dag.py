@@ -16,9 +16,9 @@
 
 import datetime
 from airflow import models
-from dags.vm_resource import TpuVersion, Project, Zone, XpkClusters, DockerImage
+from dags.common.vm_resource import TpuVersion, Project, Zone, XpkClusters, DockerImage
 from dags.examples.configs import xpk_example_config as config
-from dags import test_owner
+from dags.common import test_owner
 from xlml.utils import name_format
 from airflow.utils.task_group import TaskGroup
 

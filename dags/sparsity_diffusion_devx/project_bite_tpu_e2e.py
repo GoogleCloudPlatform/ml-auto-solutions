@@ -16,8 +16,9 @@
 
 import datetime
 from airflow import models
-from dags import composer_env, test_owner
-from dags.vm_resource import TpuVersion, Zone, RuntimeVersion
+from dags import composer_env
+from dags.common import test_owner
+from dags.common.vm_resource import TpuVersion, Zone, RuntimeVersion
 from dags.sparsity_diffusion_devx.configs import project_bite_config as config
 
 

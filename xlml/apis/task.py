@@ -18,7 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
-from dags.quarantined_tests import QuarantineTests
+from dags.common.quarantined_tests import QuarantineTests
 from typing import Optional, Tuple, Union
 import airflow
 from airflow.models.taskmixin import DAGNode
