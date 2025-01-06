@@ -81,7 +81,7 @@ def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
 def get_pre_workload_cmds(model_id, framework):
   prepare_workload_cmds = (
       "NOW=$(date +%s)",
-      f"export JOB_NAME=gunjanjalori-{model_id}-xlml-$NOW-{framework}",
+      f"export JOB_NAME={model_id}-xlml-$NOW-{framework}",
   )
   return prepare_workload_cmds
 
