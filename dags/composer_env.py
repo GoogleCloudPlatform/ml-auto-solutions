@@ -27,7 +27,7 @@ COMPOSER_ENVIRONMENT = "COMPOSER_ENVIRONMENT"
 COMPOSER_LOCATION = "COMPOSER_LOCATION"
 
 DEV_COMPOSER_ENV_GS_BUCKET = "gs://us-central1-ml-automation-s-bc6c8818-bucket"
-PROD_COMPOSER_ENV_GS_BUCKET = "gs://us-central1-ml-automation-s-bc954647-bucket"
+PROD_COMPOSER_ENV_GS_BUCKET = "gs://us-central1-ml-automation-s-24b05597-bucket"
 
 
 def is_prod_env() -> bool:

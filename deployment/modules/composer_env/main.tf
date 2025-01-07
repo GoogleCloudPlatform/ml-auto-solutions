@@ -6,11 +6,10 @@ resource "google_composer_environment" "example_environment" {
   config {
     environment_size = "ENVIRONMENT_SIZE_MEDIUM"
     software_config {
-      image_version = "composer-2.6.1-airflow-2.6.3"
+      image_version = "composer-2.10.1-airflow-2.10.2"
       airflow_config_overrides = {
-        # TODO: Update this to allowed_deserialization_classes_regexp with Airflow 2.8.1
-        # https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#allowed-deserialization-classes-regexp
-        core-allowed_deserialization_classes = ".*"
+        core-allowed_deserialization_classes_regexp = ".*"
+        core-dags_are_paused_at_creation = false
         scheduler-min_file_process_interval  = "120"
       }
       # Note: keep this in sync with .github/requirements.txt
