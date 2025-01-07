@@ -36,6 +36,7 @@ def get_trt_llm_gpu_config(
     project: Project,
     network: str,
     subnetwork: str,
+    existed_instance_name: str = None,
 ) -> task.GpuCreateResourceTask:
   set_up_cmds = (
       "pip install --upgrade pip",
@@ -160,4 +161,5 @@ def get_trt_llm_gpu_config(
       job_test_config,
       job_gcp_config,
       job_metric_config,
+      existed_instance_name=existed_instance_name,
   )

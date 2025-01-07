@@ -37,6 +37,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
     project: Project,
     network: str,
     subnetwork: str,
+    existed_instance_name: str = None,
     model_configs: Dict = {},
 ) -> task.GpuCreateResourceTask:
   docker_container_name = "mlperf-inference"
@@ -152,4 +153,5 @@ def get_trt_llm_mlperf_v40_gpu_config(
       job_test_config,
       job_gcp_config,
       job_metric_config,
+      existed_instance_name=existed_instance_name,
   )
