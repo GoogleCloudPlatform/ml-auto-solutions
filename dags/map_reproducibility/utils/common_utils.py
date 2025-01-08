@@ -250,4 +250,3 @@ def get_recipe_repo_path(tmpdir):
       tmpdir, "reproducible-benchmark-recipes/projects/gpu-recipes"
   )
   return recipe_repo_root
-
