@@ -34,13 +34,15 @@ from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds
 from dags.map_reproducibility.utils.common_utils import get_metrics
-from dags.map_reproducibility.utils.common_utils import get_aotc_repo
+from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from dags.map_reproducibility.utils.common_utils import extract_run_details
 from dags.map_reproducibility.utils.common_utils import extract_gpus
 from dags.map_reproducibility.utils.common_utils import get_accelerator_type
 from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
+from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
+from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
@@ -70,16 +72,17 @@ def run_aotc_workload():
             "bash",
             "-c",
             ";".join(
-                git_cookie_authdaemon() + clone_recipes_gob() + get_aotc_repo()
+                git_cookie_authdaemon()
+                + clone_recipes_gob()
+                + get_bq_writer_repo()
             ),
         ],
         cwd=tmpdir,
     )
 
-    recipe_repo_root = os.path.join(
-        tmpdir, "reproducible-benchmark-recipes/projects/gpu-recipes"
-    )
-    aotc_repo_root = os.path.join(tmpdir, "benchmark-automation/aotc/src")
+    recipe_repo_root = get_recipe_repo_path(tmpdir)
+    bq_writer_repo_root = get_bq_writer_path(tmpdir)
+
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
     num_gpus_temp = 256
     config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3u-{PRECISION}.yaml"
@@ -152,7 +155,7 @@ def run_aotc_workload():
         number_of_steps=max_steps,
         mfu=mfu,
         tokens_per_second=1,
-        writer_path=aotc_repo_root,
+        writer_path=bq_writer_repo_root,
         topology="2X2",
         comment="Regression tests",
         is_test=False,

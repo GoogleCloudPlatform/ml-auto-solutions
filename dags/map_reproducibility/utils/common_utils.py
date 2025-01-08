@@ -29,13 +29,13 @@ def git_cookie_authdaemon():
       "git clone https://gerrit.googlesource.com/gcompute-tools",
       "echo 'trying to run git-cookie-authdaemon'",
       # Check if the daemon is already running
-      "if (( $(pgrep -f 'gcompute-tools/git-cookie-authdaemon' | wc -l)>1 )) ; then "  # greater than one because one would be the main job
-      "  echo 'git-cookie-authdaemon is already running'; "
+      "if (( $(ps aux | grep git-cookie-authdaemon | grep -v -E 'airflow|grep|bash' | wc -l)>0 )) ; then "  # greater than one because one would be the main job
+      " echo 'git-cookie-authdaemon is already running' ",
       "else "
-      "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'; "  # Run if not running
+      " (./gcompute-tools/git-cookie-authdaemon >/dev/null 2>&1 &) ",  # Run if not running
+      "sleep 4",
       "fi",
-      "sleep 2",
-      "ps aux | grep git-cookie-authdaemon",
+      "ps aux | grep git-cookie-authdaemon | grep -v -E 'airflow|grep|bash'",
   )
   return auth_cmds
 
@@ -49,9 +49,9 @@ def clone_recipes_gob():
   return gob_clone_cmds
 
 
-def get_aotc_repo():
+def get_bq_writer_repo():
   gob_clone_cmds = (
-      "echo 'trying to clone GoB aotc repo'",
+      "echo 'trying to clone GoB bq writer repo'",
       "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
       "benchmark-automation",
   )
@@ -239,3 +239,14 @@ def get_accelerator_type(hypercomputer: str):
     return "h200"
   elif hypercomputer == "a3mega":
     return "h100"
+
+
+def get_bq_writer_path(tempdir):
+  return os.path.join(tempdir, "benchmark-automation/benchmark_db_writer/src")
+
+
+def get_recipe_repo_path(tmpdir):
+  recipe_repo_root = os.path.join(
+      tmpdir, "reproducible-benchmark-recipes/projects/gpu-recipes"
+  )
+  return recipe_repo_root
