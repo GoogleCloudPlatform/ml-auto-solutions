@@ -21,4 +21,4 @@ dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy
 
 dags/inference @vipannalla @mailvijayasingh @sixiang-google @joezijunzhou @singh-mitali
 
-dags/map_reproducibility @crankshaw-google @polydier1 @gunjanj007 @stingram @utkarshsharma1
+dags/map_reproducibility @crankshaw-google @polydier1 @gunjanj007 @stingram @utkarshsharma1 @cneel8986
