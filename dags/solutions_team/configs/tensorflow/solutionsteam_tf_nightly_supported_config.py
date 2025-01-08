@@ -229,6 +229,7 @@ def get_tf_dlrm_v1_config(
       set_up_cmds += common.set_up_se()
     else:
       set_up_cmds += common.set_up_pjrt()
+  set_up_cmds += ("sudo apt-get install numactl",)
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
