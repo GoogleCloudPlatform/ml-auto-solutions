@@ -61,6 +61,7 @@ class Project(enum.Enum):
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
   TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
+  TPU_PROD_ENV_ONE_VM = "tpu-prod-env-one-vm"
 
 
 class ImageProject(enum.Enum):
@@ -105,6 +106,8 @@ class Zone(enum.Enum):
   US_EAST4_A = "us-east4-a"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
+  # reserved v6e in tpu-prod-env-one-vm
+  US_EAST5_B = "us-east5-b"
   # reserved v6e in tpu-prod-env-automated
   US_EAST5_C = "us-east5-c"
   # reserved v5e in tpu-prod-env-multipod
@@ -245,14 +248,14 @@ class XpkClusters:
       project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
       zone=Zone.US_CENTRAL2_B.value,
   )
-
   TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
-      name="bodaborg-v6e-256",
+      name="bodaborg-v6e-256-dnd-yucmhab",
       device_version=TpuVersion.TRILLIUM,
       core_count=256,
-      project=Project.TPU_PROD_ENV_AUTOMATED.value,
-      zone=Zone.US_EAST5_C.value,
+      project=Project.TPU_PROD_ENV_ONE_VM.value,
+      zone=Zone.US_EAST5_B.value,
   )
+
   GPU_A3_CLUSTER = XpkClusterConfig(
       name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
