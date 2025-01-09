@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to run workloads with xpk (https://github.com/google/xpk)."""
+"""Utilities to run workloads with xpk (https://github.com/AI-Hypercomputer/xpk)."""
 
 import os
 import tempfile
@@ -83,7 +83,7 @@ def run_workload(
     )
     cmds = [
         "set -xue",
-        f"git clone https://github.com/google/xpk {tmpdir}/xpk",
+        f"git clone --branch v0.4.1 https://github.com/AI-Hypercomputer/xpk {tmpdir}/xpk",
         "pip install ruamel.yaml docker",
     ]
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
