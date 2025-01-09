@@ -192,10 +192,11 @@ local volumes = import 'templates/volumes.libsonnet';
         if [ -d "$HOME/.local/bin" ] ; then
           export PATH="$HOME/.local/bin:$PATH"
         fi
-        # Dependency of accelerate, unfortunately there is no requirements.txt in accelerate.
-        pip install pytest
-        git clone https://github.com/huggingface/accelerate.git
-        pip install ./accelerate
+
+        cat > ~/hf-constraints.txt << 'HF_CONSTRAINTS_EOF'
+        %s
+        HF_CONSTRAINTS_EOF
+        pip install pytest accelerate -c ~/hf-constraints.txt
 
         mkdir -p ~/.cache/huggingface/accelerate/
         cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'
@@ -206,7 +207,7 @@ local volumes = import 'templates/volumes.libsonnet';
         main_training_function: main
         mixed_precision: 'no'
         num_machines: 1
-        num_processes: %d
+        num_processes: null
         rdzv_backend: static
         same_network: true
         tpu_env: []
@@ -216,9 +217,11 @@ local volumes = import 'templates/volumes.libsonnet';
         HF_CONFIG_EOF
 
         accelerate env
-      ||| % [config.accelerator.numCores],
+      ||| % common.HuggingfacePipVersionConstraints,
     },
   },
+
+  HuggingfacePipVersionConstraints:: common.HuggingfacePipVersionConstraints,
 
   // DEPRECATED: Use PyTorchTpuVmMixin instead
   tpu_vm_nightly_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,

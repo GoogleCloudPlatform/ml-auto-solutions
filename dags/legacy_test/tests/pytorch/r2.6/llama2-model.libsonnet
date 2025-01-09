@@ -108,6 +108,10 @@ local utils = import 'templates/utils.libsonnet';
         export TPU_MEGACORE=megacore_dense
       |||,
       tpuVmExtraSetup: |||
+        cat > ~/hf-constraints.txt << 'HF_CONSTRAINTS_EOF'
+        %s
+        HF_CONSTRAINTS_EOF
+
         # install tokenizer model
         gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
@@ -115,18 +119,15 @@ local utils = import 'templates/utils.libsonnet';
         git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.git
         cd transformers
         sudo pip3 uninstall transformers
-        sudo pip3 install -e .
-        pip3 install datasets
-        pip3 install evaluate
-        pip3 install scikit-learn
-        pip3 install accelerate
+        sudo pip3 install -e . -c ~/hf-constraints.txt
+        pip3 install datasets evaluate scikit-learn accelerate -c ~/hf-constraints.txt
 
         cd
         # 7B config
         mkdir 7B
         cd 7B/
         gsutil cp gs://manfei_public_experimental/2B.json .
-      |||,
+      ||| % common.HuggingfacePipVersionConstraints,
     },
   },
   local llama3_train = self.llama3_train,
@@ -161,6 +162,10 @@ local utils = import 'templates/utils.libsonnet';
         export XLA_USE_SPMD=1
       |||,
       tpuVmExtraSetup: |||
+        cat > ~/hf-constraints.txt << 'HF_CONSTRAINTS_EOF'
+        %s
+        HF_CONSTRAINTS_EOF
+
         git clone -b flash_attention https://github.com/pytorch-tpu/transformers.git
 
         # install tokenizer model
@@ -170,16 +175,10 @@ local utils = import 'templates/utils.libsonnet';
         google-cloud-sdk/bin/gsutil cp -r gs://pytorch-airflow/llama_3/ .
 
         cd transformers
-        sudo pip3 install -e .
-        pip3 install datasets
-        pip3 install evaluate
-        pip3 install scikit-learn
-        pip3 install accelerate
-        pip3 install transformers
-
-        pip install jax==0.4.33 -f https://storage.googleapis.com/jax-releases/jax_releases.html
-        pip install jaxlib==0.4.33 -f https://storage.googleapis.com/jax-releases/jaxlib_releases.html
-      |||,
+        sudo pip3 install -e . -c ~/hf-constraints.txt
+        pip3 install 'torch_xla[pallas]' -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html
+        pip3 install datasets evaluate scikit-learn accelerate -c ~/hf-constraints.txt
+      ||| % common.HuggingfacePipVersionConstraints,
     },
   },
 

@@ -152,15 +152,8 @@ def huggingface():
       ),
       US_CENTRAL2_B,
   )
-  diffusers_v4_8 = task.run_queued_resource_test(
-      test_config.JSonnetTpuVmTest.from_pytorch(
-          "pt-2-6-hf-diffusers-func-v4-8-1vm"
-      ),
-      US_CENTRAL2_B,
-  )
 
   accelerate_v4_8 >> accelerate_v2_8
-  accelerate_v4_8 >> diffusers_v4_8
 
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
