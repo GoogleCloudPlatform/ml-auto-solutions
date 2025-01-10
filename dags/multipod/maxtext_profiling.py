@@ -53,7 +53,7 @@ with models.DAG(
         "pip3 uninstall -y tensorflow",
         "pip3 install tf-nightly",
         "pip3 install tbp-nightly",
-        "python3 MaxText/tests/profiler_test.py",
+        "python3 end_to_end/test_profiler.py",
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
         time_out_in_min=60,
