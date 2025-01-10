@@ -27,10 +27,14 @@ from xlml.apis import metric_config
 
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
-MODEL_CONFIGS = ["gpt3_175b", "llama2_7b_4096", "mixtral_8x7b"]
+#MODEL_CONFIGS = ["gpt3_175b", "llama2_7b_4096", "mixtral_8x7b"]
+MODEL_CONFIGS = ["llama2_7b_4096"]
+# DOCKER_IMAGES = [
+#     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
+#     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+# ]
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
-    (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
 ]
 QUANTIZATION_SWEEP = {"M_QUANTIZATION": ["", "int8"]}
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
