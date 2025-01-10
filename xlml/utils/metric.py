@@ -616,9 +616,13 @@ def get_gce_job_status(
       )
     elif isinstance(task_test_config, test_config.GpuVmTest):
       if use_existed_instance:
-        wait_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.get_existed_resource")
+        wait_task = current_dag.get_task(
+            task_id=f"{benchmark_id}.provision.get_existed_resource"
+        )
       else:
-        wait_task = current_dag.get_task(task_id= f"{benchmark_id}.provision.create_resource.get_ip_address")
+        wait_task = current_dag.get_task(
+            task_id=f"{benchmark_id}.provision.create_resource.get_ip_address"
+        )
     else:
       raise NotImplementedError(
           f"Unable to get task for {type(task_test_config.accelerator)}."
@@ -634,7 +638,9 @@ def get_gce_job_status(
 
     # check setup status to see if setup step is successful
     if not use_existed_instance:
-      setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
+      setup_task = current_dag.get_task(
+          task_id=f"{benchmark_id}.provision.setup"
+      )
       setup_ti = TaskInstance(setup_task, execution_date)
       setup_state = setup_ti.current_state()
       if setup_state == TaskState.FAILED.value:
@@ -775,7 +781,9 @@ def process_metrics(
   elif isinstance(task_test_config, test_config.GpuGkeTest):
     test_job_status = get_gke_job_status(task_test_config)
   else:
-    test_job_status = get_gce_job_status(task_test_config, use_startup_script, use_existed_instance)
+    test_job_status = get_gce_job_status(
+        task_test_config, use_startup_script, use_existed_instance
+    )
 
   for index in range(len(metadata_history_rows_list)):
     job_history_row = bigquery.JobHistoryRow(
