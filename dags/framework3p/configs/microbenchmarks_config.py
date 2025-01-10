@@ -47,12 +47,12 @@ def get_microbenchmark_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-        # TODO(qinyiyan): Clone the project from google repo when ready.
-        (f"if [ -d /tmp/maxtext ]; then " f"rm -rf /tmp/maxtext; " "fi "),
-        "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
-        # Run the benchmark script (either all_reduce or all_gather)
-        f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
-        f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config}",
+      # TODO(qinyiyan): Clone the project from google repo when ready.
+      (f"if [ -d /tmp/maxtext ]; then " f"rm -rf /tmp/maxtext; " "fi "),
+      "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
+      # Run the benchmark script (either all_reduce or all_gather)
+      f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
+      f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config}",
   )
 
   # Check if the metrics report exists, and if so, upload it to GCS
@@ -117,7 +117,9 @@ def get_microbenchmark_xpk_config(
       ),
   )
 
-  benchmark_config = f"xlml_v{cluster.device_version.value}_{cluster.core_count}.yaml"
+  benchmark_config = (
+      f"xlml_v{cluster.device_version.value}_{cluster.core_count}.yaml"
+  )
   metrics_report = "/tmp/microbenchmarks/outputs/metrics_report.jsonl"
 
   # Initial commands
@@ -136,9 +138,9 @@ def get_microbenchmark_xpk_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-        # Run the benchmark script (either all_reduce or all_gather)
-        f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
-        f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config} ",
+      # Run the benchmark script (either all_reduce or all_gather)
+      f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
+      f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config} ",
   )
 
   # Check if the metrics report exists, and if so, upload it to GCS
@@ -151,7 +153,7 @@ def get_microbenchmark_xpk_config(
   job_test_config = test_config.TpuGkeTest(
       test_config.Tpu(
           version=cluster.device_version,
-            cores=cluster.core_count,
+          cores=cluster.core_count,
       ),
       test_name=test_name,
       set_up_cmds=None,
