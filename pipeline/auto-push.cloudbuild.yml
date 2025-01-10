@@ -21,7 +21,7 @@ steps:
 - name: google/cloud-sdk:slim
   args:
   - scripts/upload-tests.sh
-  - gs://us-central1-ml-automation-s-bc954647-bucket/dags
+  - gs://us-central1-ml-automation-s-24b05597-bucket/dags
   entrypoint: bash
 options:
   machineType: E2_HIGHCPU_32
