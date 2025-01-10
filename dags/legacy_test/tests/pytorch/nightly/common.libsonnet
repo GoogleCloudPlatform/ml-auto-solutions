@@ -181,6 +181,48 @@ local volumes = import 'templates/volumes.libsonnet';
     },
   },
 
+
+  Accelerate:: {
+    local config = self,
+    tpuSettings+: {
+      tpuVmExports+: |||
+        export PATH=~/.local/bin:$PATH
+      |||,
+      tpuVmExtraSetup: |||
+        if [ -d "$HOME/.local/bin" ] ; then
+          export PATH="$HOME/.local/bin:$PATH"
+        fi
+
+        cat > ~/hf-constraints.txt << 'HF_CONSTRAINTS_EOF'
+        %s
+        HF_CONSTRAINTS_EOF
+        pip install pytest accelerate -c ~/hf-constraints.txt
+
+        mkdir -p ~/.cache/huggingface/accelerate/
+        cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'
+        compute_environment: LOCAL_MACHINE
+        distributed_type: XLA
+        downcast_bf16: 'no'
+        machine_rank: 0
+        main_training_function: main
+        mixed_precision: 'no'
+        num_machines: 1
+        num_processes: null
+        rdzv_backend: static
+        same_network: true
+        tpu_env: []
+        tpu_use_cluster: false
+        tpu_use_sudo: false
+        use_cpu: false
+        HF_CONFIG_EOF
+
+        accelerate env
+      ||| % common.HuggingfacePipVersionConstraints,
+    },
+  },
+
+  HuggingfacePipVersionConstraints:: common.HuggingfacePipVersionConstraints,
+
   // DEPRECATED: Use PyTorchTpuVmMixin instead
   tpu_vm_nightly_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
 }

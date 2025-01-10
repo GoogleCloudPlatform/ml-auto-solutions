@@ -118,6 +118,8 @@ class Zone(enum.Enum):
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
+  # reserved v5e capacity in tpu-prod-env-multipod
+  EUROPE_WEST4_B = "europe-west4-b"
   # reserved l4 in cloud-tpu-inference-test
   ASIA_EAST1_A = "asia-east1-a"
   ASIA_EAST1_C = "asia-east1-c"
@@ -235,11 +237,11 @@ class XpkClusters:
       zone=Zone.US_EAST5_A.value,
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
-      name="v5e-256-bodaborg-us-west4",
+      name="v5e-256-bodaborg-europe-west4",
       device_version=TpuVersion.V5E,
       core_count=256,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
-      zone=Zone.US_WEST4_B.value,
+      zone=Zone.EUROPE_WEST4_B.value,
   )
   TPU_V6E_256_CLUSTER = XpkClusterConfig(
       name="bodaborg-v6e-256",
@@ -295,7 +297,7 @@ class DockerImage(enum.Enum):
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
   AXLEARN_TPU_JAX_STABLE_STACK = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/tpu/jax0.4.35-rev1:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/tpu/axlearn:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   AXLEARN_GPU_JAX_NIGHTLY = (
@@ -311,7 +313,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.35:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (
