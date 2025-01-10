@@ -153,11 +153,10 @@ def get_existed_resource(
   )
   instance = instance_client.get(request=instance_request)
   logging.info(
-      f"Resource get status: {instance.status}, {instance.status_message}"
+      f"Resource retrieve status: {instance.status}, {instance.status_message}"
   )
 
-  ip_address = instance.network_interfaces[0].access_configs[0].nat_i_p
-  logging.info(f"Resouce access: {instance.network_interfaces[0].access_configs[0]}")
+  ip_address = instance.network_interfaces[0].network_i_p
   metadata = instance.metadata
   items = metadata.items or []
   ssh_key_exist = False

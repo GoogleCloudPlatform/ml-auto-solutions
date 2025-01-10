@@ -46,5 +46,4 @@ with models.DAG(
       project=Project.CLOUD_TPU_INFERENCE_TEST,
       network=INFERENCE_NETWORKS,
       subnetwork=H100_INFERENCE_SUBNETWORKS,
-      existed_instance_name="yijiaj-auto-test-a3",
   ).run()

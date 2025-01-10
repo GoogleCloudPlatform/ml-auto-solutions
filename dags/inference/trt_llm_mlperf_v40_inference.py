@@ -61,5 +61,5 @@ with models.DAG(
       network=INFERENCE_NETWORKS,
       subnetwork=H100_INFERENCE_SUBNETWORKS,
       model_configs=model_configs,
-      existed_instance_name="yijiaj-auto-test-a3",
+      existed_instance_name="yijiaj-test-h100x8",
   ).run()

@@ -429,7 +429,7 @@ class GpuCreateResourceTask(BaseTask):
         }
       else:
         env_variable = None
-      post_process = self.post_process(gcs_location)
+      post_process = self.post_process(gcs_location, use_existed_instance=True)
       run_model = self.run_model(ip_address, ssh_keys, env_variable)
       clean_up = self.clean_up_existed_instance(ssh_keys)
       provision >> run_model >> post_process >> clean_up
@@ -534,7 +534,9 @@ class GpuCreateResourceTask(BaseTask):
     )
 
   def post_process(
-      self, result_location: Optional[airflow.XComArg] = None
+      self,
+      result_location: Optional[airflow.XComArg] = None,
+      use_existed_instance=False,
   ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
@@ -549,6 +551,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_metric_config,
           self.task_gcp_config,
           folder_location=result_location,
+          use_existed_instance=use_existed_instance,
       )
       return group
 

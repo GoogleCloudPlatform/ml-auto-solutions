@@ -591,6 +591,7 @@ def get_gke_job_status(
 def get_gce_job_status(
     task_test_config: test_config.TestConfig[test_config.Accelerator],
     use_startup_script: bool,
+    use_existed_instance: bool,
 ) -> bigquery.JobStatus:
   """Get job status for the GCE run.
 
@@ -614,9 +615,10 @@ def get_gce_job_status(
           task_id=f"{benchmark_id}.provision.create_queued_resource.wait_for_ready_queued_resource"
       )
     elif isinstance(task_test_config, test_config.GpuVmTest):
-      wait_task = current_dag.get_task(
-          task_id=f"{benchmark_id}.provision.create_resource.get_ip_address"
-      )
+      if use_existed_instance:
+        wait_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.get_existed_resource")
+      else:
+        wait_task = current_dag.get_task(task_id= f"{benchmark_id}.provision.create_resource.get_ip_address")
     else:
       raise NotImplementedError(
           f"Unable to get task for {type(task_test_config.accelerator)}."
@@ -631,12 +633,13 @@ def get_gce_job_status(
       return bigquery.JobStatus.MISSED
 
     # check setup status to see if setup step is successful
-    setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
-    setup_ti = TaskInstance(setup_task, execution_date)
-    setup_state = setup_ti.current_state()
-    if setup_state == TaskState.FAILED.value:
-      logging.info("The setup state is failed, and the job status is failed.")
-      return bigquery.JobStatus.FAILED
+    if not use_existed_instance:
+      setup_task = current_dag.get_task(task_id=f"{benchmark_id}.provision.setup")
+      setup_ti = TaskInstance(setup_task, execution_date)
+      setup_state = setup_ti.current_state()
+      if setup_state == TaskState.FAILED.value:
+        logging.info("The setup state is failed, and the job status is failed.")
+        return bigquery.JobStatus.FAILED
 
     # check run_model status to see if run_model step is successful
     run_model_task = current_dag.get_task(task_id=f"{benchmark_id}.run_model")
@@ -692,6 +695,7 @@ def process_metrics(
     task_metric_config: Optional[metric_config.MetricConfig],
     task_gcp_config: gcp_config.GCPConfig,
     use_startup_script: bool = False,
+    use_existed_instance: bool = False,
     folder_location: Optional[str] = None,
 ) -> None:
   benchmark_id = task_test_config.benchmark_id
@@ -771,7 +775,7 @@ def process_metrics(
   elif isinstance(task_test_config, test_config.GpuGkeTest):
     test_job_status = get_gke_job_status(task_test_config)
   else:
-    test_job_status = get_gce_job_status(task_test_config, use_startup_script)
+    test_job_status = get_gce_job_status(task_test_config, use_startup_script, use_existed_instance)
 
   for index in range(len(metadata_history_rows_list)):
     job_history_row = bigquery.JobHistoryRow(
