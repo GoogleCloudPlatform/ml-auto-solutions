@@ -198,7 +198,7 @@ def get_existed_resource(
   return ip_address
 
 
-@task
+@task(trigger_rule="all_done")
 def clean_up_ssh_keys(
     instance_name: str,
     ssh_keys: ssh.SshKeys,
