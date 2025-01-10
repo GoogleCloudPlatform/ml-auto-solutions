@@ -29,8 +29,8 @@ from xlml.apis import metric_config
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 MODEL_CONFIGS = ["gpt3_175b", "llama2_7b_4096", "mixtral_8x7b"]
 DOCKER_IMAGES = [
-     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
-     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
+    (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
 ]
 QUANTIZATION_SWEEP = {"M_QUANTIZATION": ["", "int8"]}
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
