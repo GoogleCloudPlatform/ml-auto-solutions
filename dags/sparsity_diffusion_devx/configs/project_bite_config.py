@@ -122,7 +122,7 @@ def get_bite_unit_test_config(
       ),
   )
 
-  test_name = f"bite_unit_test_tpu_v{tpu_version}_{tpu_cores}"
+  test_name = f"bite_unit_test_tpu_v{tpu_version.value}_{tpu_cores}"
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
