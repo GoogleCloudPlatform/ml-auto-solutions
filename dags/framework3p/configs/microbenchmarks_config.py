@@ -1,6 +1,6 @@
-from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket
+from dags.common import test_owner
 import datetime
 import dags.common.vm_resource as resource
 
@@ -30,31 +30,30 @@ def get_microbenchmark_config(
       ),
       "pip install --upgrade clu tensorflow tensorflow-datasets ",
       "pip install jsonlines ",
+      "pip install ray[default] ",
       "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true ",
-      # TODO(qinyiyan): Clone maxtext from google repo when code is merged.
-      "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
   )
 
-  # List of benchmark scripts to run
-  benchmark_scripts = ["all_reduce", "all_gather"]
-
-  metrics_report = "/tmp/microbenchmark/outputs/metrics_report.jsonl"
+  benchmark_config = f"xlml_v{tpu_version.value}_{tpu_cores}.yaml"
+  metrics_report = "/tmp/microbenchmarks/outputs/metrics_report.jsonl"
 
   # Initial commands
   run_model_cmds = (
       # Create the output directory
-      "mkdir -p /tmp/microbenchmark/outputs",
+      "mkdir -p /tmp/microbenchmarks/outputs ",
       # Remove any existing metrics report
       (f"if [ -f {metrics_report} ]; then " f"rm -rf {metrics_report}; " "fi"),
   )
 
-  # Loop through the benchmark scripts and create commands dynamically
-  for script in benchmark_scripts:
-    run_model_cmds += (
-        # Run the benchmark script (either all_reduce or all_gather)
-        f"python3 /tmp/maxtext/microbenchmarks/{script}.py "
-        "--metrics_jsonl_dir=/tmp/microbenchmark/outputs ",
-    )
+  # Run the benchmark tests.
+  run_model_cmds += (
+      # TODO(qinyiyan): Clone the project from google repo when ready.
+      (f"if [ -d /tmp/maxtext ]; then " f"rm -rf /tmp/maxtext; " "fi "),
+      "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
+      # Run the benchmark script (either all_reduce or all_gather)
+      f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
+      f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config}",
+  )
 
   # Check if the metrics report exists, and if so, upload it to GCS
   run_model_cmds += (
@@ -92,23 +91,19 @@ def get_microbenchmark_config(
 
 
 def get_microbenchmark_xpk_config(
-    tpu_version: resource.TpuVersion,
-    tpu_cores: int,
-    tpu_zone: resource.Zone,
     time_out_in_min: int,
     test_name: str,
     docker_image: str,
     test_owner: str,
     cluster: resource.XpkClusterConfig,
-    project: resource.Project,
     num_slices: int = 1,
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
     dataset_project: str = resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ) -> task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=project.value,
-      zone=tpu_zone.value,
+      project_name=cluster.project,
+      zone=cluster.zone,
       dataset_name=dataset_name,
       dataset_project=dataset_project,
       composer_project=composer_project,
@@ -120,32 +115,33 @@ def get_microbenchmark_xpk_config(
           "pip install jax[tpu] -f"
           " https://storage.googleapis.com/jax-releases/libtpu_releases.html"
       ),
-      "pip install --upgrade clu tensorflow tensorflow-datasets ",
-      "pip install jsonlines ",
-      "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true ",
-      # TODO(qinyiyan): clone from Google's maxtext when code is merged.
-      "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
   )
 
-  benchmark_scripts = ["all_reduce", "all_gather"]
-
-  metrics_report = "/tmp/microbenchmark/outputs/metrics_report.jsonl"
+  benchmark_config = (
+      f"xlml_v{cluster.device_version.value}_{cluster.core_count}.yaml"
+  )
+  metrics_report = "/tmp/microbenchmarks/outputs/metrics_report.jsonl"
 
   # Initial commands
   run_model_cmds = set_up_cmds + (
+      "pip install jsonlines ",
+      "pip install ray[default] ",
+      "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true ",
+      # TODO(qinyiyan): clone from Google's maxtext when code is merged.
+      (f"if [ -d /tmp/maxtext ]; then " f"rm -rf /tmp/maxtext; " "fi "),
+      "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
       # Create the output directory
-      "mkdir -p /tmp/microbenchmark/outputs",
+      "mkdir -p /tmp/microbenchmarks/outputs ",
       # Remove any existing metrics report
       (f"if [ -f {metrics_report} ]; then " f"rm -rf {metrics_report}; " "fi"),
   )
 
-  # Loop through the benchmark scripts and create commands dynamically
-  for script in benchmark_scripts:
-    run_model_cmds += (
-        # Run the benchmark script (either all_reduce or all_gather)
-        f"python3 /tmp/maxtext/microbenchmarks/{script}.py "
-        "--metrics_jsonl_dir=/tmp/microbenchmark/outputs ",
-    )
+  # Run the benchmark tests.
+  run_model_cmds += (
+      # Run the benchmark script (either all_reduce or all_gather)
+      f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
+      f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config} ",
+  )
 
   # Check if the metrics report exists, and if so, upload it to GCS
   run_model_cmds += (
@@ -156,11 +152,11 @@ def get_microbenchmark_xpk_config(
 
   job_test_config = test_config.TpuGkeTest(
       test_config.Tpu(
-          version=tpu_version,
-          cores=tpu_cores,
+          version=cluster.device_version,
+          cores=cluster.core_count,
       ),
       test_name=test_name,
-      set_up_cmds=set_up_cmds,
+      set_up_cmds=None,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner,
