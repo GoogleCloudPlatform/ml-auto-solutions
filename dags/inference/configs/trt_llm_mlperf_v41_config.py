@@ -37,7 +37,7 @@ def get_trt_llm_mlperf_gpu_config(
     project: Project,
     network: str,
     subnetwork: str,
-    existed_instance_name: str = None,
+    existing_instance_name: str = None,
     benchmark_configs: Dict = {},
     model_parameters: Dict = {},
     parameter_positions: Dict = {},
@@ -216,5 +216,5 @@ def get_trt_llm_mlperf_gpu_config(
       job_test_config,
       job_gcp_config,
       job_metric_config,
-      existed_instance_name=existed_instance_name,
+      existing_instance_name=existing_instance_name,
   )

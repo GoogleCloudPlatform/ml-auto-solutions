@@ -130,7 +130,7 @@ def generate_gpu_name() -> str:
 
 
 @task
-def get_existed_resource(
+def get_existing_resource(
     instance_name: str,
     ssh_keys: ssh.SshKeys,
     gcp: gcp_config.GCPConfig,
@@ -138,7 +138,7 @@ def get_existed_resource(
   """Reach a resource node that is already created.
 
   Args:
-    instance_name: name of the existed instance.
+    instance_name: name of the existing instance.
     ssh_keys: airflow.XComArg,
     gcp: GCP project/zone configuration.
 
@@ -204,10 +204,10 @@ def clean_up_ssh_keys(
     ssh_keys: ssh.SshKeys,
     gcp: gcp_config.GCPConfig,
 ) -> airflow.XComArg:
-  """Remove the generated ssh_keys from existed instance.
+  """Remove the generated one-time use ssh_keys from existing instance.
 
   Args:
-    instance_name: name of the existed instance.
+    instance_name: name of the existing instance.
     ssh_keys: airflow.XComArg,
     gcp: GCP project/zone configuration.
   """

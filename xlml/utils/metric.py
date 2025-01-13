@@ -591,7 +591,7 @@ def get_gke_job_status(
 def get_gce_job_status(
     task_test_config: test_config.TestConfig[test_config.Accelerator],
     use_startup_script: bool,
-    use_existed_instance: bool,
+    use_existing_instance: bool,
 ) -> bigquery.JobStatus:
   """Get job status for the GCE run.
 
@@ -615,9 +615,9 @@ def get_gce_job_status(
           task_id=f"{benchmark_id}.provision.create_queued_resource.wait_for_ready_queued_resource"
       )
     elif isinstance(task_test_config, test_config.GpuVmTest):
-      if use_existed_instance:
+      if use_existing_instance:
         wait_task = current_dag.get_task(
-            task_id=f"{benchmark_id}.provision.get_existed_resource"
+            task_id=f"{benchmark_id}.provision.get_existing_resource"
         )
       else:
         wait_task = current_dag.get_task(
@@ -637,7 +637,16 @@ def get_gce_job_status(
       return bigquery.JobStatus.MISSED
 
     # check setup status to see if setup step is successful
-    if not use_existed_instance:
+    if use_existing_instance:
+      get_instance_task = current_dag.get_task(
+          task_id=f"{benchmark_id}.provision.get_existing_resource"
+      )
+      get_instance_ti = TaskInstance(get_instance_task, execution_date)
+      get_instance_state = get_instance_ti.current_state()
+      if get_instance_state == TaskState.FAILED.value:
+        logging.info("The getting existing instance state is failed, and the job status is failed.")
+        return bigquery.JobStatus.FAILED
+    else:
       setup_task = current_dag.get_task(
           task_id=f"{benchmark_id}.provision.setup"
       )
@@ -701,7 +710,7 @@ def process_metrics(
     task_metric_config: Optional[metric_config.MetricConfig],
     task_gcp_config: gcp_config.GCPConfig,
     use_startup_script: bool = False,
-    use_existed_instance: bool = False,
+    use_existing_instance: bool = False,
     folder_location: Optional[str] = None,
 ) -> None:
   benchmark_id = task_test_config.benchmark_id
@@ -782,7 +791,7 @@ def process_metrics(
     test_job_status = get_gke_job_status(task_test_config)
   else:
     test_job_status = get_gce_job_status(
-        task_test_config, use_startup_script, use_existed_instance
+        task_test_config, use_startup_script, use_existing_instance
     )
 
   for index in range(len(metadata_history_rows_list)):
