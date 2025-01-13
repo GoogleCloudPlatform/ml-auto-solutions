@@ -644,7 +644,9 @@ def get_gce_job_status(
       get_instance_ti = TaskInstance(get_instance_task, execution_date)
       get_instance_state = get_instance_ti.current_state()
       if get_instance_state == TaskState.FAILED.value:
-        logging.info("The getting existing instance state is failed, and the job status is failed.")
+        logging.info(
+            "The getting existing instance state is failed, and the job status is failed."
+        )
         return bigquery.JobStatus.FAILED
     else:
       setup_task = current_dag.get_task(
