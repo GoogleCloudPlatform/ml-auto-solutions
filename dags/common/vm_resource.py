@@ -297,7 +297,7 @@ class DockerImage(enum.Enum):
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
   AXLEARN_TPU_JAX_STABLE_STACK = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/tpu/jax0.4.35-rev1:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/tpu/axlearn:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   AXLEARN_GPU_JAX_NIGHTLY = (
@@ -313,7 +313,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.35:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (
