@@ -21,6 +21,24 @@ import itertools
 from typing import List, Iterable, Dict, Any
 
 
+def update_run_name_from_quantization_config(run_name, configs):
+  """Updates the run name based on quantization configuration.
+
+  Args:
+    run_name: The original run name.
+    configs: A dictionary of configurations.
+
+  Returns:
+    The updated run name.
+  """
+  quantization_value = configs.get("M_QUANTIZATION")
+  if quantization_value is not None:
+    run_name += "_" + (
+        "bf16" if quantization_value == "" else quantization_value
+    )
+  return run_name
+
+
 def get_maxtext_sweep_gke_config(
     test_owner: str,
     cluster: XpkClusterConfig,
@@ -73,12 +91,15 @@ def get_maxtext_sweep_gke_config(
     for cmd in base_run_model_cmds:
       run_model_cmds.append(cmd)
 
+    updated_run_name_prefix = update_run_name_from_quantization_config(
+        run_name_prefix, config_dict
+    )
     job_test_config = test_config.TpuGkeTest(
         test_config.Tpu(
             version=cluster.device_version,
             cores=cluster.core_count,
         ),
-        test_name=f"{run_name_prefix}-{idx}",
+        test_name=f"{updated_run_name_prefix}-{idx}",
         set_up_cmds=None,
         run_model_cmds=run_model_cmds,
         timeout=datetime.timedelta(minutes=time_out_in_min),
