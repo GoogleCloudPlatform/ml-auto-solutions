@@ -48,7 +48,41 @@ with models.DAG(
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
+  docker_image = {
+      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+      "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
+  }
 
+  # Unchained tests
+  # TODO(ranran): add back ckpt conversation after b/384580048
+  test_models_tpu = {
+      "mixtral-8x22b": {
+          "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
+          "cluster": XpkClusters.TPU_V4_128_CLUSTER,
+          "time_out_in_min": 60,
+      },
+  }
+
+  unchained_tests = []
+  for model, test_scripts_details in test_models_tpu.items():
+    for image in docker_image.keys():
+      training_tpu = gke_config.get_gke_config(
+          time_out_in_min=test_scripts_details["time_out_in_min"],
+          test_name=f"{test_name_prefix}_{image}_{model}",
+          run_model_cmds=(
+              f"bash end_to_end/{test_scripts_details['script_name']}.sh",
+          ),
+          docker_image=docker_image[image],
+          test_owner=test_owner.RAN_R,
+          cluster=test_scripts_details["cluster"],
+      ).run_with_quarantine(quarantine_task_group)
+      unchained_tests.append(training_tpu)
+
+  # stable_tpu >> nightly_tpu
+  for i in range(len(unchained_tests) - 1):
+    unchained_tests[i] >> unchained_tests[i + 1]
+
+  # Chained tests
   multicluster_test_models = {
       "mixtral-8x7b": [
           {
@@ -62,30 +96,18 @@ with models.DAG(
               "time_out_in_min": 90,
           },
       ],
-      "mixtral-8x22b": [
-          {
-              "script_name": "tpu/mixtral/8x22b/1_test_mixtral",
-              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
-              "time_out_in_min": 360,
-          },
-          {
-              "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
-              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
-              "time_out_in_min": 60,
-          },
-      ],
   }
 
   def convert_checkpoint_and_run_training(
       test_group_id,
       test_name_prefix,
-      type,
+      image,
       docker_image,
       model,
       test_scripts_details,
   ):
     with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
-      test_name = f"{test_name_prefix}-{type}-{model}"
+      test_name = f"{test_name_prefix}_{image}_{model}"
       shared_gcs_location = name_format.generate_gcs_folder_location.override(
           task_id=f"{test_group_id}_generate_gcs_folder_location"
       )(
@@ -114,22 +136,18 @@ with models.DAG(
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu
 
-  docker_image = {
-      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-      "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-  }
   tests = []
   for model, test_scripts_details in multicluster_test_models.items():
     gcs_subfolder = f"{test_owner.Team.SPARSITY_DIFFUSION_DEVX.value}/maxtext"
-    for type in docker_image.keys():
-      test_group_id = "chained_tests" + "_" + model + "_" + type
+    for image in docker_image.keys():
+      test_group_id = "chained_tests" + "_" + model + "_" + image
       if QuarantineTests.is_quarantined(test_group_id):
         with quarantine_task_group:
           mode_cpu, mode_tpu = convert_checkpoint_and_run_training(
               test_group_id,
               test_name_prefix,
-              type,
-              docker_image[type],
+              image,
+              docker_image[image],
               model,
               test_scripts_details,
           )
@@ -137,8 +155,8 @@ with models.DAG(
         mode_cpu, mode_tpu = convert_checkpoint_and_run_training(
             test_group_id,
             test_name_prefix,
-            type,
-            docker_image[type],
+            image,
+            docker_image[image],
             model,
             test_scripts_details,
         )
