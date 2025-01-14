@@ -65,6 +65,18 @@ scripts/local-airflow.sh path/to/dag_file.py
 
 Comment out any test cases in the DAG that you do not want to run, or create a temporary DAG file to avoid running all tests.
 
+#### Testing changes in a staging server
+
+If you're in the PyTorch/XLA team, you may test the DAG changes using a staging
+Airflow instance:
+
+```sh
+scripts/gen-configs.sh
+scripts/upload-tests.sh gs://us-central1-ptxla-team-b851831a-bucket/dags
+```
+
+Then go to http://shortn/_1OASLXUCHS (Composer UI) or http://shortn/_cIsy3Grl5u
+(Airflow UI), wait a few minutes, then refresh the DAGs.
 
 ##### XPK-based tests
 
