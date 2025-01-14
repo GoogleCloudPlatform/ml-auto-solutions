@@ -86,6 +86,7 @@ with models.DAG(
                 "dataset_type=synthetic async_checkpointing=false "
                 f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-stable-stack/automated/{current_datetime}",
             ),
+            test_name=f"maxtext-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
             docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
             test_owner=test_owner.PARAM_B,
         ).run_with_quarantine(quarantine_task_group)
