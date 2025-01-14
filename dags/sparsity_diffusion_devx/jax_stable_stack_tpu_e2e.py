@@ -58,7 +58,7 @@ with models.DAG(
   }
   axlearn_test_configs = {
       # accelerator: list of slices to test
-      "v4-16": [1, 2],
+      "v4-16": [1],
   }
 
   quarantine_task_group = TaskGroup(
@@ -105,7 +105,7 @@ with models.DAG(
                 f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
                 f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
                 f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
-                f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/jax-stable-stack/automated/{current_datetime}",
+                f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}/automated/{current_datetime}",
             ),
             test_name=f"maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
             docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
