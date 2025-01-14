@@ -51,6 +51,7 @@ SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
 MODEL_ID = "llama-3.1-70b"
 METRICS_MODEL = "llama3.1-70b"
+JOB_MODEL_NAME = "llama-3-1-70b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
@@ -113,7 +114,7 @@ def run_aotc_workload():
                 )
                 + install_helm_cmds()
                 + namespace_cmds()
-                + get_pre_workload_cmds(MODEL_ID, FRAMEWORK)
+                + get_pre_workload_cmds(JOB_MODEL_NAME, FRAMEWORK)
                 + helm_apply_cmds(
                     FRAMEWORK,
                     HYPERCOMPUTER,
