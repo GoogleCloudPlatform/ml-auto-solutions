@@ -62,6 +62,7 @@ class Project(enum.Enum):
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
   TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
   TPU_PROD_ENV_ONE_VM = "tpu-prod-env-one-vm"
+  TPU_PROD_ENV_LARGE_CONT = "tpu-prod-env-large-cont"
 
 
 class ImageProject(enum.Enum):
@@ -233,7 +234,7 @@ class XpkClusters:
       name="v5p-8-bodaborg-us-east5-a",
       device_version=TpuVersion.V5P,
       core_count=8,
-      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      project=Project.TPU_PROD_ENV_LARGE_CONT.value,
       zone=Zone.US_EAST5_A.value,
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
