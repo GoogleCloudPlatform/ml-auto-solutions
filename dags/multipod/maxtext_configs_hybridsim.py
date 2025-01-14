@@ -38,7 +38,7 @@ def hybridsim_compile_and_run(test_group_id):
     shared_gcs_location = name_format.generate_gcs_folder_location.override(
         task_id=f"{test_group_id}_generate_gcs_folder_location"
     )(
-        f"{gcs_subfolder}/maxtext_configs_aot_hybridsim/v{tpu.value}",
+        f"{gcs_subfolder}/maxtext_configs_hybridsim/v{tpu.value}",
         test_group_id,
     )
 
@@ -83,7 +83,7 @@ def hybridsim_compile_and_run(test_group_id):
 
 
 with models.DAG(
-    dag_id="maxtext_configs_aot_hybridsim",
+    dag_id="maxtext_configs_hybridsim",
     schedule=SCHEDULED_TIME,
     tags=["multipod_team", "maxtext", "nightly", "mlscale_onduty"],
     start_date=datetime.datetime(2024, 2, 19),

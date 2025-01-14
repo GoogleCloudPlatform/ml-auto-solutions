@@ -212,7 +212,7 @@ class QuarantineTests:
       # DAG: maxtext_configs_aot
       "maxtext-aot-v5e-stable-v4-8": TestInfo(team.PERFORMANCE, "2024-11-12"),
       "maxtext-aot-v5e-nightly-v4-8": TestInfo(team.PERFORMANCE, "2024-11-12"),
-      # DAG: maxtext_configs_aot_hybridsim
+      # DAG: maxtext_configs_hybridsim
       "16b-1xv5litepod-256-aot-hybridsim": TestInfo(
           team.PERFORMANCE, "2024-11-12"
       ),
