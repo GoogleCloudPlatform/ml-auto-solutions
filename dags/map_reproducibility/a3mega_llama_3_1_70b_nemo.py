@@ -24,7 +24,6 @@ from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
 from dags.map_reproducibility.utils.common_utils import get_metrics_cmds
-# from dags.map_reproducibility.utils.common_utils import set_variables_cmds
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
@@ -47,7 +46,7 @@ from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 
 
 # Run once a day at 2 pm UTC (6 am PST)
-SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 MODEL_ID = "llama-3.1-70b"
 METRICS_MODEL = "llama3.1-70b"
