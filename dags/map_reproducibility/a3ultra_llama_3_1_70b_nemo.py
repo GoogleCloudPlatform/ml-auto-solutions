@@ -23,7 +23,7 @@ from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_metrics_cmds
+from dags.map_reproducibility.utils.common_utils import get_nemo_metrics_cmds
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
@@ -33,7 +33,7 @@ from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds
-from dags.map_reproducibility.utils.common_utils import get_metrics
+from dags.map_reproducibility.utils.common_utils import get_nemo_metrics
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from dags.map_reproducibility.utils.common_utils import extract_run_details
@@ -47,9 +47,11 @@ from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
-MODEL_ID = "mixtral-8x7b"
-METRICS_MODEL_ID = "mixtral-7b"
-PRECISION = "bf16"
+MODEL_ID = "llama-3.1-70b"
+METRICS_MODEL_ID = "llama3.1-70b"
+DATASET_MODEL_ID = "llama3-1-70b"
+HELM_NAME_MODEL_ID = "llama-3-1-70b"
+PRECISION = "fp8"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
 VALUE_YAML_PATH = (
@@ -60,6 +62,7 @@ CLUSTER_REGION = "europe-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
 DOCKER_IMAGE = f"us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}"
+AOTC_IMAGE = "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo@sha256:7a84264e71f82f225be639dd20fcf9104c80936c0f4f38f94b88dfb60303c70e"
 
 
 @task
@@ -85,7 +88,7 @@ def run_aotc_workload():
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
     num_gpus_temp = 256
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3u-{PRECISION}.yaml"
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3ultra-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
@@ -112,17 +115,18 @@ def run_aotc_workload():
                 )
                 + install_helm_cmds()
                 + namespace_cmds()
-                + get_pre_workload_cmds(MODEL_ID, FRAMEWORK)
+                + get_pre_workload_cmds(HELM_NAME_MODEL_ID, FRAMEWORK)
                 + helm_apply_cmds(
                     FRAMEWORK,
                     HYPERCOMPUTER,
                     full_config_yaml_path,
                     recipe_repo_root,
-                    DOCKER_IMAGE,
+                    AOTC_IMAGE,
+                    True,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(recipe_repo_root)
-                + get_metrics_cmds(
+                + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
                     PRECISION,
@@ -137,10 +141,10 @@ def run_aotc_workload():
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
-    average_step_time, mfu = get_metrics(tmpdir)
+    average_step_time, mfu = get_nemo_metrics(tmpdir)
 
     write_run(
-        model_id=MODEL_ID,
+        model_id=DATASET_MODEL_ID,
         hardware_id=HYPERCOMPUTER,
         software_id=SOFTWARE_ID,
         number_of_nodes=num_gpus / 8,
