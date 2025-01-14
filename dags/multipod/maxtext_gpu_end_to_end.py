@@ -31,6 +31,9 @@ from xlml.utils import gke
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 
+# Number of nodes on A3 cluster to be scaled up to
+A3_NUM_NODES = 8
+
 
 def configure_project_and_cluster(project: str, cluster_name: str, zone: str):
   region = gke.zone_to_region(zone)
@@ -75,14 +78,14 @@ def scale_up_a3_cluster():
             "-c",
             ";".join(
                 configure_project_and_cluster(
-                    "supercomputer-testing",
+                    Project.SUPERCOMPUTER_TESTING,
                     XpkClusters.GPU_A3_CLUSTER.name,
                     XpkClusters.GPU_A3_CLUSTER.zone
                 )
                 + resize_a3_cluster(
                     XpkClusters.GPU_A3_CLUSTER.name,
                     XpkClusters.GPU_A3_CLUSTER.zone,
-                    8
+                    A3_NUM_NODES
                 )
                 + wait_for_cluster_ready()
             ),
@@ -228,7 +231,7 @@ def run_maxtext_tests(dag):
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.NINA_C,
     ).run_with_quarantine(quarantine_task_group)
-    pinned_a3_gpu >> stable_a3_gpu
+    pinned_a3_gpu >> stable_a3_gpu >> pinned_a3plus_gpu >> stable_a3plus_gpu
 
 
 with models.DAG(
