@@ -44,7 +44,7 @@ def hybridsim_compile_and_run(test_group_id):
 
     # Run AOT workload: generate HLO, upload to GCS
     aot_cmd = (
-        'export XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/"',
+        'export XLA_FLAGS="--xla_dump_to=/tmp/xla_dump/ --xla_dump_large_constants"',
         f"bash MaxText/configs/v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=v{v5e_alt if tpu.value == TpuVersion.V5E.value else tpu.value}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}",
         "gsutil -m cp -r /tmp/xla_dump/ ${GCS_OUTPUT}",
     )
