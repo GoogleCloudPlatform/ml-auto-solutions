@@ -30,7 +30,14 @@ SCHEDULED_TIME = None
 with models.DAG(
     dag_id="mxla_gpt_6b_nightly_gke",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "gke", "nightly", "gpt_6b"],
+    tags=[
+        "multipod_team",
+        "mlscale_onduty",
+        "maxtext",
+        "gke",
+        "nightly",
+        "gpt_6b",
+    ],
     start_date=datetime.datetime(2024, 3, 18),
     catchup=False,
 ) as dag:
