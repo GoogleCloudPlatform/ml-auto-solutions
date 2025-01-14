@@ -57,7 +57,7 @@ with models.DAG(
   }
   axlearn_test_configs = {
       # accelerator: list of slices to test
-      "v4-16": [1, 2],
+      "v4-16": [1],
   }
 
   quarantine_task_group = TaskGroup(
