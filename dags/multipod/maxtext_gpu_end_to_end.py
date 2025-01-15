@@ -32,7 +32,7 @@ from xlml.utils import gke
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 
 # Number of nodes on A3 cluster to be scaled up to
-A3_NUM_NODES = 8
+A3_NUM_NODES = 16
 
 
 def configure_project_and_cluster(project: str, cluster_name: str, zone: str):
@@ -117,7 +117,7 @@ def scale_down_a3_cluster():
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
 
-def run_maxtext_tests(dag):
+def run_maxtext_tests(dag: models.DAG):
   test_name_prefix = "maxtext"
 
   timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
@@ -241,13 +241,13 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
-  with TaskGroup(group_id="scale_up") as scale_up:
+  with TaskGroup(group_id="scale_up", dag=dag) as scale_up:
     scale_up_a3_cluster()
 
-  with TaskGroup(group_id="run_tests") as run_tests:
+  with TaskGroup(group_id="run_tests", dag=dag, prefix_group_id=False) as run_tests:
     run_maxtext_tests(dag)
 
-  with TaskGroup(group_id="scale_down") as scale_down:
+  with TaskGroup(group_id="scale_down", dag=dag) as scale_down:
     scale_down_a3_cluster()
 
   scale_up >> run_tests >> scale_down
