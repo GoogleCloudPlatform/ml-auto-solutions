@@ -101,7 +101,7 @@ with models.DAG(
             zone = Zone.US_WEST4_B
             machine_version, gpu_version, count = accelerator_spec
             image_project = ImageProject.DEEP_LEARNING_PLATFORM_RELEASE
-            image_family = ImageFamily.COMMON_CU121_DEBIAN_11
+            image_family = ImageFamily.COMMON_CU124_DEBIAN_11
             network = BM_NETWORKS
             subnetwork = A100_BM_SUBNETWORKS
 
