@@ -68,15 +68,6 @@ with models.DAG(
 
   for model, (test_script, nnodes) in test_models_gpu.items():
     for mode, image in docker_images:
-      stable_a3_gpu = config.get_gpu_gke_test_config(
-          time_out_in_min=300,
-          test_name=f"maxtext-stable-stack-{mode.value}-{model}",
-          run_model_cmds=(test_script,),
-          num_slices=nnodes,
-          cluster=XpkClusters.GPU_A3_CLUSTER,
-          docker_image=image.value,
-          test_owner=test_owner.PARAM_B,
-      ).run_with_quarantine(quarantine_task_group)
       stable_a3plus_gpu = config.get_gpu_gke_test_config(
           time_out_in_min=300,
           test_name=f"maxtext-stable-stack-{mode.value}-{model}",
