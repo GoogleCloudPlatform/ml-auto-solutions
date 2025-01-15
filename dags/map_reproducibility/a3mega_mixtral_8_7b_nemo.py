@@ -33,7 +33,7 @@ from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds
-from dags.map_reproducibility.utils.common_utils import get_metrics
+from dags.map_reproducibility.utils.common_utils import get_nemo_metrics
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from dags.map_reproducibility.utils.common_utils import extract_run_details
@@ -138,7 +138,7 @@ def run_aotc_workload():
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
-    average_step_time, mfu = get_metrics(tmpdir)
+    average_step_time, mfu = get_nemo_metrics(tmpdir)
 
     write_run(
         model_id=MODEL_ID,
