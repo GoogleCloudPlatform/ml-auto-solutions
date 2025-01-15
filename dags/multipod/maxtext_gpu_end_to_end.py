@@ -80,12 +80,12 @@ def scale_up_a3_cluster():
                 configure_project_and_cluster(
                     Project.SUPERCOMPUTER_TESTING.value,
                     XpkClusters.GPU_A3_CLUSTER.name,
-                    XpkClusters.GPU_A3_CLUSTER.zone
+                    XpkClusters.GPU_A3_CLUSTER.zone,
                 )
                 + resize_a3_cluster(
                     XpkClusters.GPU_A3_CLUSTER.name,
                     XpkClusters.GPU_A3_CLUSTER.zone,
-                    A3_NUM_NODES
+                    A3_NUM_NODES,
                 )
                 + wait_for_cluster_ready()
             ),
@@ -108,7 +108,7 @@ def scale_down_a3_cluster():
                 resize_a3_cluster(
                     XpkClusters.GPU_A3_CLUSTER.name,
                     XpkClusters.GPU_A3_CLUSTER.zone,
-                    0
+                    0,
                 )
             ),
         ],
@@ -244,7 +244,9 @@ with models.DAG(
   with TaskGroup(group_id="scale_up", dag=dag) as scale_up:
     scale_up_a3_cluster()
 
-  with TaskGroup(group_id="run_tests", dag=dag, prefix_group_id=False) as run_tests:
+  with TaskGroup(
+    group_id="run_tests", dag=dag, prefix_group_id=False
+  ) as run_tests:
     run_maxtext_tests(dag)
 
   with TaskGroup(group_id="scale_down", dag=dag) as scale_down:

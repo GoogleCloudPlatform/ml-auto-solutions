@@ -202,5 +202,3 @@ def run_job(
 def zone_to_region(zone: str) -> str:
   zone_terms = zone.split('-')
   return zone_terms[0] + '-' + zone_terms[1]
-
-
