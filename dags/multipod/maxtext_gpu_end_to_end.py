@@ -78,7 +78,7 @@ def scale_up_a3_cluster():
             "-c",
             ";".join(
                 configure_project_and_cluster(
-                    Project.SUPERCOMPUTER_TESTING,
+                    Project.SUPERCOMPUTER_TESTING.value,
                     XpkClusters.GPU_A3_CLUSTER.name,
                     XpkClusters.GPU_A3_CLUSTER.zone
                 )
