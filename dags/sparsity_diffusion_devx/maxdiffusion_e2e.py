@@ -31,7 +31,12 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxdiffusion_e2e",
     schedule=SCHEDULED_TIME,
-    tags=["sparsity_diffusion_devx", "multipod_team", "maxdiffusion"],
+    tags=[
+        "sparsity_diffusion_devx",
+        "multipod_team",
+        "mlscale_onduty",
+        "maxdiffusion",
+    ],
     start_date=datetime.datetime(2024, 9, 12),
     catchup=False,
 ) as dag:
