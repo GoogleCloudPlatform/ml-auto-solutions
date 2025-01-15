@@ -75,7 +75,7 @@ class ImageProject(enum.Enum):
 class ImageFamily(enum.Enum):
   """Common image families for GPU."""
 
-  COMMON_CU121_DEBIAN_11 = "common-cu121-debian-11"
+  COMMON_CU124_DEBIAN_11 = "common-cu124-debian-11"
 
 
 class Region(enum.Enum):
