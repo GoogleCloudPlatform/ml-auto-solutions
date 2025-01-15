@@ -253,5 +253,3 @@ with models.DAG(
     scale_down_a3_cluster()
 
   scale_up >> run_tests >> scale_down
-
-
