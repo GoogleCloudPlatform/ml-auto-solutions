@@ -141,7 +141,7 @@ def run_aotc_workload():
     average_step_time, mfu = get_metrics(tmpdir)
 
     write_run(
-        model_id=METRICS_MODEL,
+        model_id=MODEL_ID,
         hardware_id=HYPERCOMPUTER,
         software_id=SOFTWARE_ID,
         number_of_nodes=num_gpus / 8,
