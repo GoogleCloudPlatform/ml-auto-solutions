@@ -245,7 +245,7 @@ with models.DAG(
     scale_up_a3_cluster()
 
   with TaskGroup(
-    group_id="run_tests", dag=dag, prefix_group_id=False
+      group_id="run_tests", dag=dag, prefix_group_id=False
   ) as run_tests:
     run_maxtext_tests(dag)
 
