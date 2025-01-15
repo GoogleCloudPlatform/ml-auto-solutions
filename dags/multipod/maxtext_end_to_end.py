@@ -27,6 +27,7 @@ from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+HF_TOKEN = models.Variable.get("HF_TOKEN", None)
 
 
 with models.DAG(
@@ -52,14 +53,18 @@ with models.DAG(
     stable_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
-        run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
+        run_model_cmds=(
+            f"export HF_TOKEN={HF_TOKEN} bash end_to_end/{test_script}.sh",
+        ),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.JON_B,
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-nightly-{model}",
-        run_model_cmds=(f"bash end_to_end/{test_script}.sh",),
+        run_model_cmds=(
+            f"export HF_TOKEN={HF_TOKEN} bash end_to_end/{test_script}.sh",
+        ),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         test_owner=test_owner.JON_B,
     ).run_with_quarantine(quarantine_task_group)
