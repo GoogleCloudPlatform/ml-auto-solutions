@@ -162,6 +162,31 @@ def huggingface():
       US_CENTRAL2_B,
   )
 
+  # Stable Diffusion 2
+  task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-2-6-stable-diffusion-2-train-func-v6e-4-1vm",
+          network=V5_NETWORKS,
+          subnetwork=V6E_SUBNETWORKS,
+      ),
+      US_CENTRAL2_B_TPU_PROD_ENV,
+  )
+  task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-2-6-stable-diffusion-2-train-func-v5p-8-1vm",
+          reserved=True,
+          network=V5_NETWORKS,
+          subnetwork=V5P_SUBNETWORKS,
+      ),
+      US_EAST5_A_TPU_PROD_ENV_AUTOMATED,
+  )
+  task.run_queued_resource_test(
+      test_config.JSonnetTpuVmTest.from_pytorch(
+          "pt-2-6-stable-diffusion-2-train-func-v4-8-1vm"
+      ),
+      US_CENTRAL2_B,
+  )
+
 
 @task_group(prefix_group_id=False)
 def llama():
@@ -225,7 +250,7 @@ with models.DAG(
   huggingface()
   llama()
 
-  resnet_v5lp_4 = task.run_queued_resource_test(
+  ci_v5lp_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-6-ci-func-v5litepod-4-1vm",
           network=V5_NETWORKS,

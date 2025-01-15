@@ -183,10 +183,10 @@ class QuarantineTests:
       "chained_tests_mixtral-8x7b_nightly": TestInfo(
           team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
-      "chained_tests_mixtral-8x22b_stable": TestInfo(
+      "maxtext_stable_mixtral-8x22b-v4-128": TestInfo(
           team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
-      "chained_tests_mixtral-8x22b_nightly": TestInfo(
+      "maxtext_nightly_mixtral-8x22b-v4-128": TestInfo(
           team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
       "chained_tests_llama2-70b_stable": TestInfo(team.LLM_DEVX, "2024-11-12"),

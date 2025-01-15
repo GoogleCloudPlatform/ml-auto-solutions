@@ -29,7 +29,14 @@ SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxtext_profiling_vertex_ai_tensorboard",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable", "nightly", "vertex_ai"],
+    tags=[
+        "multipod_team",
+        "mlscale_onduty",
+        "maxtext",
+        "stable",
+        "nightly",
+        "vertex_ai",
+    ],
     start_date=datetime.datetime(2024, 6, 1),
     catchup=False,
     concurrency=2,

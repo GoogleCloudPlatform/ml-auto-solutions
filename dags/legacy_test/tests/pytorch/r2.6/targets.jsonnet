@@ -18,6 +18,7 @@ local hfBert = import 'hf-bert.libsonnet';
 local llama2 = import 'llama2-model.libsonnet';
 local mnist = import 'mnist.libsonnet';
 local resnet50_mp = import 'resnet50-mp.libsonnet';
+local stable_diffusion_2 = import 'stable-diffusion-2.libsonnet';
 
 // Add new models here
 std.flattenArrays([
@@ -27,4 +28,5 @@ std.flattenArrays([
   mnist.configs,
   resnet50_mp.configs,
   llama2.configs,
+  stable_diffusion_2.configs,
 ])
