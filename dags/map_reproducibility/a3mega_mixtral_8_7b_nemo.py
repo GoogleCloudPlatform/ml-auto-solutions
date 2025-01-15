@@ -23,7 +23,7 @@ from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_metrics_cmds
+from dags.map_reproducibility.utils.common_utils import get_nemo_metrics_cmds
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
@@ -123,7 +123,7 @@ def run_aotc_workload():
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(recipe_repo_root)
-                + get_metrics_cmds(
+                + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
                     PRECISION,

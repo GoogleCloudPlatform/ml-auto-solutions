@@ -23,7 +23,7 @@ from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_metrics_cmds
+from dags.map_reproducibility.utils.common_utils import get_nemo_metrics_cmds
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
@@ -33,7 +33,7 @@ from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds
-from dags.map_reproducibility.utils.common_utils import get_metrics
+from dags.map_reproducibility.utils.common_utils import get_nemo_metrics
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from dags.map_reproducibility.utils.common_utils import extract_run_details
@@ -122,7 +122,7 @@ def run_aotc_workload():
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(recipe_repo_root)
-                + get_metrics_cmds(
+                + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
                     PRECISION,
@@ -137,7 +137,7 @@ def run_aotc_workload():
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
-    average_step_time, mfu = get_metrics(tmpdir)
+    average_step_time, mfu = get_nemo_metrics(tmpdir)
 
     write_run(
         model_id=METRICS_MODEL,
