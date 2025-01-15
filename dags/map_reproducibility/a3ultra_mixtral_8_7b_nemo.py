@@ -44,19 +44,19 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 
-
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
-MODEL_ID = "gpt3-175b"
-PRECISION = "fp8"
-HYPERCOMPUTER = "a3mega"
+MODEL_ID = "mixtral-8x7b"
+METRICS_MODEL_ID = "mixtral-7b"
+PRECISION = "bf16"
+HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
-CLUSTER = "a3plus-benchmark"
-CLUSTER_REGION = "australia-southeast1"
+CLUSTER = "gke-a3ultra-map"
+CLUSTER_REGION = "europe-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
 DOCKER_IMAGE = f"us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}"
@@ -84,7 +84,8 @@ def run_aotc_workload():
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus}gpus-{PRECISION}.yaml"
+    num_gpus_temp = 256
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3u-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
@@ -125,7 +126,7 @@ def run_aotc_workload():
                     global_batch_size,
                     num_gpus,
                     PRECISION,
-                    MODEL_ID,
+                    METRICS_MODEL_ID,
                     accelerator_type,
                     tmpdir,
                 )
