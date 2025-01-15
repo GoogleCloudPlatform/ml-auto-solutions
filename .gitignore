@@ -20,6 +20,7 @@ webserver_config.py
 logs
 
 # Misc
+swp
 tmp
 
 # Build artifacts

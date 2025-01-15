@@ -97,11 +97,11 @@ def write_run(
   import uuid
   from typing import Type
 
-  from aotc.benchmark_db_writer import bq_writer_utils
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import workload_benchmark_v2_schema
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import model_info_schema
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import software_info_schema
-  from aotc.benchmark_db_writer.schema.workload_benchmark_v2 import hardware_info_schema
+  from benchmark_db_writer import bq_writer_utils
+  from benchmark_db_writer.schema.workload_benchmark_v2 import workload_benchmark_v2_schema
+  from benchmark_db_writer.schema.workload_benchmark_v2 import model_info_schema
+  from benchmark_db_writer.schema.workload_benchmark_v2 import software_info_schema
+  from benchmark_db_writer.schema.workload_benchmark_v2 import hardware_info_schema
   # pylint: enable=import-outside-toplevel
   logging.basicConfig(
       format="%(asctime)s %(levelname)-8s %(message)s",

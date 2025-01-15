@@ -35,6 +35,7 @@ with models.DAG(
     tags=[
         "sparsity_diffusion_devx",
         "multipod_team",
+        "mlscale_onduty",
         "maxtext",
         "gpu",
         "jax-stable-stack",

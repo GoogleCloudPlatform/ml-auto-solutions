@@ -19,26 +19,8 @@ import os
 from google.cloud import storage
 import yaml
 
-
-def set_variables_cmds():
-  set_variables = (
-      "export PROJECT=supercomputer-testing",
-      "export CLUSTER=a3plus-benchmark",
-      "export CLUSTER_REGION=australia-southeast1",
-      "NOW=$(date +%s)",
-      "export BUCKET_NAME=regression-testing-xlml",
-  )
-  return set_variables
-
-
-def configure_project_and_cluster():
-  set_project_command = (
-      "gcloud config set project $PROJECT",
-      "sudo chown -R airflow:airflow /home/airflow/composer_kube_config",
-      "gcloud container clusters get-credentials "
-      "$CLUSTER --region $CLUSTER_REGION",
-  )
-  return set_project_command
+PROJECT = "supercomputer-testing"
+BUCKET_NAME = "regression-testing-xlml"
 
 
 # This is required to get auth to access
@@ -47,25 +29,61 @@ def git_cookie_authdaemon():
       "git clone https://gerrit.googlesource.com/gcompute-tools",
       "echo 'trying to run git-cookie-authdaemon'",
       # Check if the daemon is already running
-      "if pgrep -f git-cookie-authdaemon; then "
-      "  echo 'git-cookie-authdaemon is already running'; "
+      "if (( $(ps aux | grep git-cookie-authdaemon | grep -v -E 'airflow|grep|bash' | wc -l)>0 )) ; then "  # greater than one because one would be the main job
+      " echo 'git-cookie-authdaemon is already running' ",
       "else "
-      "  ./gcompute-tools/git-cookie-authdaemon || echo 'Error running git-cookie-authdaemon'; "  # Run if not running
+      " (./gcompute-tools/git-cookie-authdaemon >/dev/null 2>&1 &) ",  # Run if not running
+      "sleep 4",
       "fi",
+      "ps aux | grep git-cookie-authdaemon | grep -v -E 'airflow|grep|bash'",
   )
   return auth_cmds
 
 
-def clone_gob():
+def clone_recipes_gob():
   gob_clone_cmds = (
       "echo 'trying to clone GoB repo from outside'",
       "git clone https://ai-hypercomputer-benchmarks.googlesource.com/"
       "reproducible-benchmark-recipes",
-      "cd reproducible-benchmark-recipes/projects",
-      "cd gpu-recipes",
-      "pwd",
   )
   return gob_clone_cmds
+
+
+def get_bq_writer_repo():
+  gob_clone_cmds = (
+      "echo 'trying to clone GoB bq writer repo'",
+      "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
+      "benchmark-automation",
+  )
+  return gob_clone_cmds
+
+
+def configure_project_and_cluster(cluster: str, cluster_region: str):
+  set_project_command = (
+      f"gcloud config set project {PROJECT}",
+      "sudo chown -R airflow:airflow /home/airflow/composer_kube_config",
+      "gcloud container clusters get-credentials "
+      f"{cluster} --region {cluster_region}",
+  )
+  return set_project_command
+
+
+def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
+  gpu_recipe_cmd = (
+      "cd reproducible-benchmark-recipes/projects/gpu-recipes",
+      "export RECIPE_ROOT="
+      f"{recipe_repo_root}/training/{hypercomputer}/{model_id}/{framework}-pretraining-gke",
+      "cd $RECIPE_ROOT",
+  )
+  return gpu_recipe_cmd
+
+
+def get_pre_workload_cmds(model_id, framework):
+  prepare_workload_cmds = (
+      "NOW=$(date +%s)",
+      f"export JOB_NAME=regression-test-{model_id}-$NOW-{framework}",
+  )
+  return prepare_workload_cmds
 
 
 def install_helm_cmds():
@@ -91,18 +109,32 @@ def namespace_cmds():
   return namespace
 
 
-def helm_apply_cmds():
+def helm_apply_cmds(
+    framework: str,
+    hypercomputer: str,
+    config_file,
+    recipe_repo_root,
+    docker_image,
+    aotc: bool = False,
+):
+  gcs_cmd = ""
+  if hypercomputer == "a3ultra":
+    gcs_cmd = f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+  else:
+    gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+  set_aotc = ""
+  if aotc is True:
+    set_aotc = " --set-string workload.aotc=true "
   helm_cmds = (
       " helm install -f values.yaml "
       "--namespace default "
       "--set namespace=default"
       " --set-file nemo_config"
-      "=$CONFIG_FILE"
+      f"={config_file}"
       " --set workload.image"
-      "=us-central1-docker.pkg.dev/"
-      "supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07"
-      " --set workload.gcsBucketForDataCataPath=$BUCKET_NAME"
-      " $JOB_NAME $REPO_ROOT/src/helm-charts/a3mega/nemo-training",
+      f"={docker_image} "
+      f"{gcs_cmd} {set_aotc}"
+      f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
 
@@ -116,24 +148,23 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
-def copy_bucket_cmds():
+def copy_bucket_cmds(recipe_repo_root):
   copy_bucket_contents = (
       "export COMPLETE_JOB_NAME=$(gcloud storage ls "
-      "gs://$BUCKET_NAME/nemo-experiments/ | grep $JOB_NAME)",
+      f"gs://{BUCKET_NAME}/nemo-experiments/ | grep $JOB_NAME)",
       'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
-      "cd $REPO_ROOT/src/utils/training_metrics",
+      f"cd {recipe_repo_root}/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
       "dllogger/rank-0/dllogger.json .",
   )
   return copy_bucket_contents
 
 
-def get_metrics_cmds(
-    batch_size, num_accelerators, precision, model_id, accelertator_type
+def get_nemo_metrics_cmds(
+    batch_size, num_accelerators, precision, model_id, accelertator_type, temdir
 ):
-  # TODO(gunjanj007): get these parameters from the recipe
   cmds = (
-      "METRICS_FILE=metrics.txt",
+      f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
       f" dllogger.json --batch_size {batch_size} "
       f"--num_accelerators {num_accelerators} "
@@ -141,21 +172,8 @@ def get_metrics_cmds(
       f"--model_type {model_id} "
       f"--accelerator_type {accelertator_type} | "
       "gsutil cp - $METRICS_FILE",
-      'echo "METRICS_FILE=${METRICS_FILE}"',
   )
   return cmds
-
-
-def get_aotc_repo():
-  gob_clone_cmds = (
-      "echo 'trying to clone GoB aotc repo'",
-      "git clone https://cmcs-perf-tooling-internal.googlesource.com/"
-      "benchmark-automation",
-      "ls",
-      "export PYTHONPATH=$PWD",
-      'echo "PYTHONPATH=$PYTHONPATH"',
-  )
-  return gob_clone_cmds
 
 
 def cleanup_cmds():
@@ -168,9 +186,9 @@ def cleanup_cmds():
   return cleanup
 
 
-def get_metrics(metrics_path):
+def get_nemo_metrics(temdir):
   file_content = ""
-  with open(metrics_path + "/metrics.txt", "r", encoding="utf-8") as file:
+  with open(temdir + "/metrics.txt", "r", encoding="utf-8") as file:
     file_content = file.read()
 
   # Parse the metrics (adjust based on your file format)
@@ -186,17 +204,8 @@ def get_metrics(metrics_path):
   return average_step_time, mfu
 
 
-def extract_python_path(last_line):
-  python_path = last_line.split("=")[1]
-  python_path_to_bq_writer = python_path + "/benchmark-automation/aotc/src"
-  return python_path, python_path_to_bq_writer
-
-
-def extract_run_details(tmpdir, yaml_file, config_path):
+def extract_gpus(tmpdir, yaml_file):
   gpus = None
-  batch_size = None
-  optimizer = None
-
   try:
     yaml_file_path = os.path.join(tmpdir, yaml_file)
     with open(yaml_file_path, "r", encoding="utf-8") as file:
@@ -206,8 +215,15 @@ def extract_run_details(tmpdir, yaml_file, config_path):
     print(f"Error: {e}")
     return None
 
+  return gpus
+
+
+def extract_run_details(root, config_path):
+  batch_size = None
+  optimizer = None
+
   try:
-    config_path = os.path.join(tmpdir, config_path)
+    config_path = os.path.join(root, config_path)
     with open(config_path, "r", encoding="utf-8") as file:
       config = yaml.safe_load(file)
       batch_size = config.get("model", {}).get("global_batch_size")
@@ -219,4 +235,22 @@ def extract_run_details(tmpdir, yaml_file, config_path):
     print(f"Error: {e}")
     return None
 
-  return gpus, batch_size, optimizer, precision, seq_length, max_steps
+  return batch_size, optimizer, precision, seq_length, max_steps
+
+
+def get_accelerator_type(hypercomputer: str):
+  if hypercomputer == "a3ultra":
+    return "h200"
+  elif hypercomputer == "a3mega":
+    return "h100"
+
+
+def get_bq_writer_path(tempdir):
+  return os.path.join(tempdir, "benchmark-automation/benchmark_db_writer/src")
+
+
+def get_recipe_repo_path(tmpdir):
+  recipe_repo_root = os.path.join(
+      tmpdir, "reproducible-benchmark-recipes/projects/gpu-recipes"
+  )
+  return recipe_repo_root

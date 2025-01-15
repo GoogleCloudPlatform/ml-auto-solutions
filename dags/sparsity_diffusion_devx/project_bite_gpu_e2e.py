@@ -36,7 +36,6 @@ with models.DAG(
         "gpu",
         "axlearn",
         "bite",
-        "mlscale_onduty",
     ],
     start_date=datetime.datetime(2024, 11, 12),
     catchup=False,
@@ -67,5 +66,5 @@ with models.DAG(
           ),
           test_name=f"axlearn-jax-nightly-{accelerator}-{slice_num}x",
           docker_image=DockerImage.AXLEARN_GPU_JAX_NIGHTLY.value,
-          test_owner=test_owner.PARAM_B,
+          test_owner=test_owner.Maggie_Z,
       ).run()

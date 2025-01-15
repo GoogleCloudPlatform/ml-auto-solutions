@@ -24,13 +24,12 @@ from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, 
 from dags.multipod.configs import gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
-# Pause test on GKE
-SCHEDULED_TIME = None
+SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="mxla_maxtext_nightly_gke",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "gke", "nightly"],
+    tags=["multipod_team", "mlscale_onduty", "maxtext", "gke", "nightly"],
     start_date=datetime.datetime(2024, 3, 12),
     catchup=False,
 ) as dag:

@@ -18,13 +18,15 @@ local mixins = import 'templates/mixins.libsonnet';
 local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
+local rcVersion = 'rc3';
+
 {
   local r2_6 = {
     frameworkPrefix: 'pt-2-6',
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.6.0-rc3_3.10',
+    imageTag: 'r2.6.0-%(rc)s_3.10' % {rc: rcVersion},
   },
   PyTorchTest:: common.PyTorchTest + r2_6 {
     local config = self,
@@ -106,13 +108,13 @@ local volumes = import 'templates/volumes.libsonnet';
         pip install torch==2.6 --index-url https://download.pytorch.org/whl/test/cpu
         # torchvision commit reference: https://github.com/pytorch/pytorch/blob/release/2.6/.github/ci_commit_pins/vision.txt
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc3-cp310-cp310-manylinux_2_28_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0%(rc)s-cp310-cp310-manylinux_2_28_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html -f https://storage.googleapis.com/libtpu-wheels/index.html
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
         cd pytorch
-        git clone -b r2.6 https://github.com/pytorch/xla.git
-      |||,
+        git clone -b v2.6.0-%(rc)s https://github.com/pytorch/xla.git
+      ||| % {rc: rcVersion},
     },
     podTemplate+:: {
       spec+: {
@@ -149,16 +151,16 @@ local volumes = import 'templates/volumes.libsonnet';
         pip uninstall -y torch torchvision
         pip install torch==2.6 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc3-cp310-cp310-manylinux_2_28_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0%(rc)s-cp310-cp310-manylinux_2_28_x86_64.whl
 
         mkdir -p pytorch/xla
-        git clone -b r2.6 https://github.com/pytorch/xla.git pytorch/xla
+        git clone -b v2.6.0-%(rc)s https://github.com/pytorch/xla.git pytorch/xla
 
-        %s
+        %(cmd)s
 
         # Run whatever is in `command` here
         "${@:0}"
-      ||| % config.tpuSettings.tpuVmExports,
+      ||| % {cmd: config.tpuSettings.tpuVmExports, rc: rcVersion},
     ],
     command: [
       'torchrun',
@@ -184,6 +186,47 @@ local volumes = import 'templates/volumes.libsonnet';
     },
   },
 
+
+  Accelerate:: {
+    local config = self,
+    tpuSettings+: {
+      tpuVmExports+: |||
+        export PATH=~/.local/bin:$PATH
+      |||,
+      tpuVmExtraSetup: |||
+        if [ -d "$HOME/.local/bin" ] ; then
+          export PATH="$HOME/.local/bin:$PATH"
+        fi
+
+        cat > ~/hf-constraints.txt << 'HF_CONSTRAINTS_EOF'
+        %s
+        HF_CONSTRAINTS_EOF
+        pip install pytest accelerate -c ~/hf-constraints.txt
+
+        mkdir -p ~/.cache/huggingface/accelerate/
+        cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'
+        compute_environment: LOCAL_MACHINE
+        distributed_type: XLA
+        downcast_bf16: 'no'
+        machine_rank: 0
+        main_training_function: main
+        mixed_precision: 'no'
+        num_machines: 1
+        num_processes: null
+        rdzv_backend: static
+        same_network: true
+        tpu_env: []
+        tpu_use_cluster: false
+        tpu_use_sudo: false
+        use_cpu: false
+        HF_CONFIG_EOF
+
+        accelerate env
+      ||| % common.HuggingfacePipVersionConstraints,
+    },
+  },
+
+  HuggingfacePipVersionConstraints:: common.HuggingfacePipVersionConstraints,
 
   // DEPRECATED: Use PyTorchTpuVmMixin instead
   tpu_vm_r2_6_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,

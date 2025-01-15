@@ -61,6 +61,8 @@ class Project(enum.Enum):
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
   TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
+  TPU_PROD_ENV_ONE_VM = "tpu-prod-env-one-vm"
+  TPU_PROD_ENV_LARGE_CONT = "tpu-prod-env-large-cont"
 
 
 class ImageProject(enum.Enum):
@@ -105,6 +107,8 @@ class Zone(enum.Enum):
   US_EAST4_A = "us-east4-a"
   # reserved v5p in tpu-prod-env-automated
   US_EAST5_A = "us-east5-a"
+  # reserved v6e in tpu-prod-env-one-vm
+  US_EAST5_B = "us-east5-b"
   # reserved v6e in tpu-prod-env-automated
   US_EAST5_C = "us-east5-c"
   # reserved v5e in tpu-prod-env-multipod
@@ -115,6 +119,8 @@ class Zone(enum.Enum):
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
+  # reserved v5e capacity in tpu-prod-env-multipod
+  EUROPE_WEST4_B = "europe-west4-b"
   # reserved l4 in cloud-tpu-inference-test
   ASIA_EAST1_A = "asia-east1-a"
   ASIA_EAST1_C = "asia-east1-c"
@@ -228,15 +234,15 @@ class XpkClusters:
       name="v5p-8-bodaborg-us-east5-a",
       device_version=TpuVersion.V5P,
       core_count=8,
-      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      project=Project.TPU_PROD_ENV_LARGE_CONT.value,
       zone=Zone.US_EAST5_A.value,
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
-      name="v5e-256-bodaborg-us-west4",
+      name="v5e-256-bodaborg-europe-west4",
       device_version=TpuVersion.V5E,
       core_count=256,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
-      zone=Zone.US_WEST4_B.value,
+      zone=Zone.EUROPE_WEST4_B.value,
   )
   TPU_V6E_256_CLUSTER = XpkClusterConfig(
       name="bodaborg-v6e-256",
@@ -245,14 +251,14 @@ class XpkClusters:
       project=Project.TPU_PROD_ENV_LARGE_ADHOC.value,
       zone=Zone.US_CENTRAL2_B.value,
   )
-
   TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
-      name="bodaborg-v6e-256",
+      name="bodaborg-v6e-256-dnd-yucmhab",
       device_version=TpuVersion.TRILLIUM,
       core_count=256,
-      project=Project.TPU_PROD_ENV_AUTOMATED.value,
-      zone=Zone.US_EAST5_C.value,
+      project=Project.TPU_PROD_ENV_ONE_VM.value,
+      zone=Zone.US_EAST5_B.value,
   )
+
   GPU_A3_CLUSTER = XpkClusterConfig(
       name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
@@ -292,7 +298,7 @@ class DockerImage(enum.Enum):
       f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
   )
   AXLEARN_TPU_JAX_STABLE_STACK = (
-      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/tpu/jax0.4.35-rev1:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/bite/tpu/axlearn:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   AXLEARN_GPU_JAX_NIGHTLY = (
@@ -300,7 +306,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack_0.4.35:"
+      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX = (
@@ -308,7 +314,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_0.4.35:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_NIGHTLY = (

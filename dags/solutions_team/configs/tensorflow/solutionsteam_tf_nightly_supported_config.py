@@ -229,6 +229,7 @@ def get_tf_dlrm_v1_config(
       set_up_cmds += common.set_up_se()
     else:
       set_up_cmds += common.set_up_pjrt()
+  set_up_cmds += ("sudo apt-get install numactl",)
   params_override = {
       "runtime": {"distribution_strategy": "tpu"},
       "task": {
@@ -246,7 +247,11 @@ def get_tf_dlrm_v1_config(
               "bottom_mlp": [512, 256, 16],
               "embedding_dim": 16,
               "top_mlp": [1024, 1024, 512, 256, 1],
+              "use_partial_tpu_embedding": False,
               "interaction": "dot",
+              "max_ids_per_chip_per_sample": 128,
+              "max_ids_per_table": 4096,
+              "max_unique_ids_per_table": 2048,
               "vocab_sizes": [
                   39884406,
                   39043,
@@ -321,7 +326,7 @@ def get_tf_dlrm_v1_config(
   # Clean out the prior checkpoint if it exists
   run_model_cmds = (
       (
-          f'cd /usr/share/tpu/models && {env_variable} && LIBTPU_INIT_ARGS="--xla_sc_splitting_along_feature_dimension=auto  --copy_with_dynamic_shape_op_output_pjrt_buffer=true   --xla_tpu_embedding_table_oblongness_threshold=1 --xla_tpu_enable_all_experimental_scheduler_features=true"'
+          f'cd /usr/share/tpu/models && {env_variable} && TF_XLA_FLAGS="--tf_mlir_enable_mlir_bridge=true  --tf_xla_sparse_core_disable_table_stacking=true --tf_mlir_enable_tpu_variable_runtime_reformatting_pass=false --tf_mlir_enable_convert_control_to_data_outputs_pass=true --tf_mlir_enable_merge_control_flow_pass=true --tf_xla_disable_full_embedding_pipelining=true" LIBTPU_INIT_ARGS="--xla_sc_splitting_along_feature_dimension=auto  --copy_with_dynamic_shape_op_output_pjrt_buffer=true"'
           " numactl --cpunodebind=0  --membind=0 python3 official/recommendation/ranking/train.py"
           f" --model_dir={model_dir} {extraFlags}"
           f" --params_override='{params_override}'"
