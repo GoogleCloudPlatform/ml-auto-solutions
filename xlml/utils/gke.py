@@ -197,3 +197,8 @@ def run_job(
 
   name = deploy_job(gcs_location)
   wait_all_pods_ready(name) >> stream_logs(name)
+
+
+def zone_to_region(zone: str) -> str:
+  zone_terms = zone.split('-')
+  return zone_terms[0] + '-' + zone_terms[1]

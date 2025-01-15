@@ -81,7 +81,7 @@ def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
 def get_pre_workload_cmds(model_id, framework):
   prepare_workload_cmds = (
       "NOW=$(date +%s)",
-      f"export JOB_NAME={model_id}-xlml-$NOW-{framework}",
+      f"export JOB_NAME=regression-test-{model_id}-$NOW-{framework}",
   )
   return prepare_workload_cmds
 
@@ -115,12 +115,16 @@ def helm_apply_cmds(
     config_file,
     recipe_repo_root,
     docker_image,
+    aotc: bool = False,
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
     gcs_cmd = f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+  set_aotc = ""
+  if aotc is True:
+    set_aotc = " --set-string workload.aotc=true "
   helm_cmds = (
       " helm install -f values.yaml "
       "--namespace default "
@@ -129,7 +133,7 @@ def helm_apply_cmds(
       f"={config_file}"
       " --set workload.image"
       f"={docker_image} "
-      f"{gcs_cmd}"
+      f"{gcs_cmd} {set_aotc}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
@@ -156,7 +160,7 @@ def copy_bucket_cmds(recipe_repo_root):
   return copy_bucket_contents
 
 
-def get_metrics_cmds(
+def get_nemo_metrics_cmds(
     batch_size, num_accelerators, precision, model_id, accelertator_type, temdir
 ):
   cmds = (
@@ -182,7 +186,7 @@ def cleanup_cmds():
   return cleanup
 
 
-def get_metrics(temdir):
+def get_nemo_metrics(temdir):
   file_content = ""
   with open(temdir + "/metrics.txt", "r", encoding="utf-8") as file:
     file_content = file.read()

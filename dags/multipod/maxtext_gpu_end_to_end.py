@@ -16,25 +16,108 @@
 
 
 import datetime
+import tempfile
+
 from airflow import models
+from airflow.decorators import task
+from airflow.hooks.subprocess import SubprocessHook
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, CpuVersion, DockerImage, GpuVersion, Project, TpuVersion, Zone
 from dags.multipod.configs import gke_config
-from xlml.utils import name_format
+from xlml.utils import gke
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 
+# Number of nodes on A3 cluster to be scaled up to
+A3_NUM_NODES = 10
 
-with models.DAG(
-    dag_id="maxtext_gpu_end_to_end",
-    schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable", "nightly", "mlscale_onduty"],
-    start_date=datetime.datetime(2024, 1, 19),
-    catchup=False,
-) as dag:
+
+def configure_project_and_cluster(project: str, cluster_name: str, zone: str):
+  region = gke.zone_to_region(zone)
+
+  gcloud_command = (
+      f"gcloud config set project {project}",
+      "sudo chown -R airflow:airflow /home/airflow/composer_kube_config",
+      f"gcloud container clusters get-credentials {cluster_name}"
+      f"  --region {region}",
+  )
+  return gcloud_command
+
+
+def resize_a3_cluster(cluster_name: str, zone: str, num_nodes: int):
+  region = gke.zone_to_region(zone)
+  node_pool = f"{cluster_name}-np-0"
+
+  gcloud_command = (
+      f"gcloud container clusters resize {cluster_name}"
+      f"  --quiet --region {region}"
+      f"  --node-pool {node_pool}"
+      f"  --num-nodes {num_nodes}",
+  )
+  return gcloud_command
+
+
+def wait_for_cluster_ready():
+  kubectl_command = (
+      "kubectl wait --for=condition=Ready nodes --all --timeout=5m",
+  )
+  return kubectl_command
+
+
+@task
+def scale_up_a3_cluster():
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                configure_project_and_cluster(
+                    Project.SUPERCOMPUTER_TESTING.value,
+                    XpkClusters.GPU_A3_CLUSTER.name,
+                    XpkClusters.GPU_A3_CLUSTER.zone,
+                )
+                + resize_a3_cluster(
+                    XpkClusters.GPU_A3_CLUSTER.name,
+                    XpkClusters.GPU_A3_CLUSTER.zone,
+                    A3_NUM_NODES,
+                )
+                + wait_for_cluster_ready()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+
+@task
+def scale_down_a3_cluster():
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                resize_a3_cluster(
+                    XpkClusters.GPU_A3_CLUSTER.name,
+                    XpkClusters.GPU_A3_CLUSTER.zone,
+                    0,
+                )
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+
+def run_maxtext_tests(dag: models.DAG):
   test_name_prefix = "maxtext"
 
   timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
@@ -119,7 +202,7 @@ with models.DAG(
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
-        test_owner=test_owner.NINA_C,
+        test_owner=test_owner.YUWEI_Y,
     ).run_with_quarantine(quarantine_task_group)
     stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=300,
@@ -128,7 +211,7 @@ with models.DAG(
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.NINA_C,
+        test_owner=test_owner.YUWEI_Y,
     ).run_with_quarantine(quarantine_task_group)
     pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=300,
@@ -137,7 +220,7 @@ with models.DAG(
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
-        test_owner=test_owner.NINA_C,
+        test_owner=test_owner.YUWEI_Y,
     ).run_with_quarantine(quarantine_task_group)
     stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=300,
@@ -146,6 +229,27 @@ with models.DAG(
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.NINA_C,
+        test_owner=test_owner.YUWEI_Y,
     ).run_with_quarantine(quarantine_task_group)
     pinned_a3_gpu >> stable_a3_gpu >> pinned_a3plus_gpu >> stable_a3plus_gpu
+
+
+with models.DAG(
+    dag_id="maxtext_gpu_end_to_end",
+    schedule=SCHEDULED_TIME,
+    tags=["multipod_team", "maxtext", "stable", "nightly", "mlscale_onduty"],
+    start_date=datetime.datetime(2024, 1, 19),
+    catchup=False,
+) as dag:
+  with TaskGroup(group_id="scale_up", dag=dag) as scale_up:
+    scale_up_a3_cluster()
+
+  with TaskGroup(
+      group_id="run_tests", dag=dag, prefix_group_id=False
+  ) as run_tests:
+    run_maxtext_tests(dag)
+
+  with TaskGroup(group_id="scale_down", dag=dag) as scale_down:
+    scale_down_a3_cluster()
+
+  scale_up >> run_tests >> scale_down
