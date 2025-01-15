@@ -135,6 +135,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.YIJIA_J,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm_mlperf_v40",
+      use_existing_instance=existing_instance_name is not None,
   )
 
   job_gcp_config = gcp_config.GCPConfig(

@@ -475,6 +475,7 @@ def get_torchbench_gpu_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.PEI_Z,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
+      use_existing_instance=False,
   )
 
   job_metric_config = metric_config.MetricConfig(

@@ -349,7 +349,7 @@ class GpuCreateResourceTask(BaseTask):
     task_metric_config: metric configuration (e.g., result gcs path).
     gpu_create_timeout: timeout when waiting for the GPU vm creation.
     install_nvidia_drivers: whether to install Nvidia drivers.
-    existing_instance_name: whether a existing GPU instance shall be used.
+    existing_instance_name: whether an existing GPU instance shall be used.
   """
 
   image_project: str
@@ -428,7 +428,7 @@ class GpuCreateResourceTask(BaseTask):
         }
       else:
         env_variable = None
-      post_process = self.post_process(gcs_location, use_existing_instance=True)
+      post_process = self.post_process(gcs_location)
       run_model = self.run_model(ip_address, ssh_keys, env_variable)
       clean_up = self.clean_up_existing_instance(ssh_keys)
       provision >> run_model >> post_process >> clean_up
@@ -535,7 +535,6 @@ class GpuCreateResourceTask(BaseTask):
   def post_process(
       self,
       result_location: Optional[airflow.XComArg] = None,
-      use_existing_instance=False,
   ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
@@ -550,7 +549,6 @@ class GpuCreateResourceTask(BaseTask):
           self.task_metric_config,
           self.task_gcp_config,
           folder_location=result_location,
-          use_existing_instance=use_existing_instance,
       )
       return group
 
