@@ -56,6 +56,7 @@ ORTI_B = "Orti B."
 # Sparsity & Diffusion DevX
 RAN_R = "Ran R."
 PARAM_B = "Param B."
+MICHELLE_Y = "Michelle Y."
 
 # Inference
 ANDY_Y = "Andy Y."
