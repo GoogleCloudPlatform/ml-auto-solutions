@@ -105,7 +105,12 @@ def scale_down_a3_cluster():
             "bash",
             "-c",
             ";".join(
-                resize_a3_cluster(
+                configure_project_and_cluster(
+                    Project.SUPERCOMPUTER_TESTING.value,
+                    XpkClusters.GPU_A3_CLUSTER.name,
+                    XpkClusters.GPU_A3_CLUSTER.zone,
+                )
+                + resize_a3_cluster(
                     XpkClusters.GPU_A3_CLUSTER.name,
                     XpkClusters.GPU_A3_CLUSTER.zone,
                     0,
