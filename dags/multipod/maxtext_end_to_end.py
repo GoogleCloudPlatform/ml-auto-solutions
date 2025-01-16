@@ -54,7 +54,8 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(
-            f"export HF_TOKEN={HF_TOKEN} bash end_to_end/{test_script}.sh",
+            f"export HF_TOKEN={HF_TOKEN}",
+            f"bash end_to_end/{test_script}.sh",
         ),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.JON_B,
@@ -63,7 +64,8 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=(
-            f"export HF_TOKEN={HF_TOKEN} bash end_to_end/{test_script}.sh",
+            f"export HF_TOKEN={HF_TOKEN}",
+            f"bash end_to_end/{test_script}.sh",
         ),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         test_owner=test_owner.JON_B,
