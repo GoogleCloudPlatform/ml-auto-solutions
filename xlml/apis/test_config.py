@@ -224,11 +224,13 @@ class GpuVmTest(TestConfig[Gpu]):
     test_name: Unique name for this test/model.
     set_up_cmds: List of commands to run once when GPU is created.
     run_model_cmds: List of commands to run the model under test.
+    use_existing_instance: Whether to use an existing GPU instance.
   """
 
   test_name: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
+  use_existing_instance: bool
 
   @property
   def benchmark_id(self) -> str:

@@ -37,6 +37,7 @@ def get_trt_llm_mlperf_gpu_config(
     project: Project,
     network: str,
     subnetwork: str,
+    existing_instance_name: str = None,
     benchmark_configs: Dict = {},
     model_parameters: Dict = {},
     parameter_positions: Dict = {},
@@ -196,6 +197,7 @@ def get_trt_llm_mlperf_gpu_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.YIJIA_J,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/trt_llm_mlperf_v41",
+      use_existing_instance=existing_instance_name is not None,
   )
 
   job_gcp_config = gcp_config.GCPConfig(
@@ -215,4 +217,5 @@ def get_trt_llm_mlperf_gpu_config(
       job_test_config,
       job_gcp_config,
       job_metric_config,
+      existing_instance_name=existing_instance_name,
   )

@@ -81,7 +81,7 @@ with models.DAG(
   # Running on V100 GPU
   config.get_torchbench_gpu_gke_config(
       machine_type=resource.MachineVersion.N1_STANDARD_16,
-      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.V100,
       count=2,
       use_xla2=True,
@@ -96,7 +96,7 @@ with models.DAG(
   # Running on A100 GPU
   config.get_torchbench_gpu_gke_config(
       machine_type=resource.MachineVersion.A2_HIGHGPU_1G,
-      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.A100,
       count=1,
       use_xla2=True,
@@ -111,7 +111,7 @@ with models.DAG(
   # Running on H100 GPU
   config.get_torchbench_gpu_gke_config(
       machine_type=resource.MachineVersion.A3_HIGHGPU_8G,
-      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.H100,
       count=8,
       use_xla2=True,
@@ -126,7 +126,7 @@ with models.DAG(
   # Running on L4 GPU
   config.get_torchbench_gpu_gke_config(
       machine_type=resource.MachineVersion.G2_STAND_16,
-      image_family=resource.ImageFamily.COMMON_CU121_DEBIAN_11,
+      image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.L4,
       count=1,
       use_xla2=True,
