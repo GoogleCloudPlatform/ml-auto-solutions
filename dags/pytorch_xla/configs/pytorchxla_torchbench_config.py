@@ -111,12 +111,12 @@ class VERSION_MAPPING:
     TORCH_XLA_REPO_BRANCH = "-b v2.5.1"
 
   class R2_6(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc5-cp310-cp310-manylinux_2_28_x86_64.whl"
-    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.6.0rc5-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc6-cp310-cp310-manylinux_2_28_x86_64.whl"
+    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.6.0rc6-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch==2.6.0"
     TORCHVISION = "torchvision==0.20.1"
     TORCHAUDIO = "torchaudio==2.6.0"
-    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.6.0rc5_3.10_cuda_12.1"
+    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.6.0rc6_3.10_cuda_12.1"
     TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
     TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
     TORCH_REPO_BRANCH = "-b release/2.6"
@@ -475,6 +475,7 @@ def get_torchbench_gpu_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.PEI_Z,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
+      use_existing_instance=False,
   )
 
   job_metric_config = metric_config.MetricConfig(

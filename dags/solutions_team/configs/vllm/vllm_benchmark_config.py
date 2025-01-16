@@ -186,6 +186,7 @@ def get_gpu_vllm_gce_config(
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RICHARD_L,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/vllm_benchmark",
+      use_existing_instance=False,
   )
 
   job_gcp_config = gcp_config.GCPConfig(
