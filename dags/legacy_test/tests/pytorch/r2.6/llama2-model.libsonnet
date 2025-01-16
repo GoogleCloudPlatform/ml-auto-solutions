@@ -122,11 +122,6 @@ local utils = import 'templates/utils.libsonnet';
         sudo pip3 install -e . -c ~/hf-constraints.txt
         pip3 install datasets evaluate scikit-learn accelerate -c ~/hf-constraints.txt
 
-        echo "run uninstall libtpu"
-        pip uninstall libtpu -y
-        pip install https://storage.googleapis.com/libtpu-nightly-releases/wheels/libtpu-nightly/libtpu_nightly-0.1.dev20250101+nightly-py3-none-linux_x86_64.whl
-        pip list | grep libtpu
-
         cd
         # 7B config
         mkdir 7B
@@ -212,7 +207,7 @@ local utils = import 'templates/utils.libsonnet';
     llama2 + v4_8 + infer + timeouts.Hours(3),
     llama2 + v4_8 + spmd + timeouts.Hours(3),
     llama2 + v5p_8 + infer + timeouts.Hours(3),
-    llama2 + v5p_8 + spmd + timeouts.Hours(3),
+    llama2 + spmd + v5p_8 + timeouts.Hours(3),
     llama3_train + v5p_8 + timeouts.Hours(3),
     llama3_train + trillium_4 + timeouts.Hours(3),
   ],
