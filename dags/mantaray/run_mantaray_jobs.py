@@ -47,7 +47,9 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       catchup=False,
   ) as dag:
     for workload_file_name in workload_file_name_list:
-      run_workload = mantaray.run_workload.override(task_id=workload_file_name[:-3])(
+      run_workload = mantaray.run_workload.override(
+                 task_id=workload_file_name[:-3]
+      )(
           workload_file_name=workload_file_name,
       )
       run_workload
