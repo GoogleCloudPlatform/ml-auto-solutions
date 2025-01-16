@@ -129,6 +129,128 @@ def generate_gpu_name() -> str:
   return f"gpu-{str(uuid.uuid4())}"
 
 
+@task
+def get_existing_resource(
+    instance_name: str,
+    ssh_keys: ssh.SshKeys,
+    gcp: gcp_config.GCPConfig,
+) -> airflow.XComArg:
+  """Reach a resource node that is already created.
+
+  Args:
+    instance_name: name of the existing instance.
+    ssh_keys: airflow.XComArg,
+    gcp: GCP project/zone configuration.
+
+  Returns:
+    The ip address of the GPU VM.
+  """
+  instance_client = compute_v1.InstancesClient()
+  instance_request = compute_v1.GetInstanceRequest(
+      instance=instance_name,
+      project=gcp.project_name,
+      zone=gcp.zone,
+  )
+  instance = instance_client.get(request=instance_request)
+  logging.info(
+      f"Resource retrieve status: {instance.status}, {instance.status_message}"
+  )
+
+  ip_address = instance.network_interfaces[0].network_i_p
+  metadata = instance.metadata
+  items = metadata.items or []
+  ssh_key_exist = False
+  for item in metadata.items:
+    if item.key == "ssh-keys":
+      ssh_key_exist = True
+      item.value = (
+          item.value + "\n" + f"cloud-ml-auto-solutions:{ssh_keys.public}"
+      )
+      break
+  if not ssh_key_exist:
+    items.append({
+        "key": "ssh-keys",
+        "value": f"cloud-ml-auto-solutions:{ssh_keys.public}",
+    })
+    metadata.items = items
+  metadata_request = compute_v1.SetMetadataInstanceRequest(
+      instance=instance_name,
+      project=gcp.project_name,
+      zone=gcp.zone,
+      metadata_resource=metadata,
+  )
+  operation = instance_client.set_metadata(request=metadata_request)
+  if operation.error:
+    logging.error(
+        (
+            "Error during instance set metadata: [Code:"
+            f" {operation.http_error_status_code}]:"
+            f" {operation.http_error_message}"
+            f" {operation.error}"
+        ),
+    )
+    raise operation.exception() or RuntimeError(operation.http_error_message)
+  elif operation.warnings:
+    logging.warning("Warnings during instance set metadata:\n")
+    for warning in operation.warnings:
+      logging.warning(f" - {warning.code}: {warning.message}")
+
+  return ip_address
+
+
+@task(trigger_rule="all_done")
+def clean_up_ssh_keys(
+    instance_name: str,
+    ssh_keys: ssh.SshKeys,
+    gcp: gcp_config.GCPConfig,
+) -> airflow.XComArg:
+  """Remove the generated one-time use ssh_keys from existing instance.
+
+  Args:
+    instance_name: name of the existing instance.
+    ssh_keys: airflow.XComArg,
+    gcp: GCP project/zone configuration.
+  """
+  instance_client = compute_v1.InstancesClient()
+  instance_request = compute_v1.GetInstanceRequest(
+      instance=instance_name,
+      project=gcp.project_name,
+      zone=gcp.zone,
+  )
+  instance = instance_client.get(request=instance_request)
+  logging.info(
+      f"Resource get status: {instance.status}, {instance.status_message}"
+  )
+  metadata = instance.metadata
+  for item in metadata.items:
+    if item.key == "ssh-keys":
+      item.value = item.value.replace(
+          f"\ncloud-ml-auto-solutions:{ssh_keys.public}", ""
+      )
+      break
+  metadata_request = compute_v1.SetMetadataInstanceRequest(
+      instance=instance_name,
+      project=gcp.project_name,
+      zone=gcp.zone,
+      metadata_resource=metadata,
+  )
+  operation = instance_client.set_metadata(request=metadata_request)
+  if operation.error:
+    logging.error(
+        (
+            "Error during instance set metadata: [Code:"
+            f" {operation.http_error_status_code}]:"
+            f" {operation.http_error_message}"
+            f" {operation.error}"
+        ),
+    )
+    raise operation.exception() or RuntimeError(operation.http_error_message)
+  elif operation.warnings:
+    logging.warning("Warnings during instance set metadata:\n")
+    for warning in operation.warnings:
+      logging.warning(f" - {warning.code}: {warning.message}")
+
+
 @task_group
 def create_resource(
     gpu_name: airflow.XComArg,

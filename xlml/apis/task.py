@@ -349,6 +349,7 @@ class GpuCreateResourceTask(BaseTask):
     task_metric_config: metric configuration (e.g., result gcs path).
     gpu_create_timeout: timeout when waiting for the GPU vm creation.
     install_nvidia_drivers: whether to install Nvidia drivers.
+    existing_instance_name: whether an existing GPU instance shall be used.
   """
 
   image_project: str
@@ -358,6 +359,7 @@ class GpuCreateResourceTask(BaseTask):
   task_metric_config: Optional[metric_config.MetricConfig] = None
   gpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   install_nvidia_drivers: bool = False
+  existing_instance_name: str = None
 
   def run(self) -> DAGNode:
     """Run a test job.
@@ -368,6 +370,9 @@ class GpuCreateResourceTask(BaseTask):
     """
     # piz: We skip the queued resource for GPU for now since there is no queued
     # resource command for GPU.
+    if self.existing_instance_name is not None:
+      return self.run_with_existing_instance()
+
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
     ) as group:
@@ -398,6 +403,58 @@ class GpuCreateResourceTask(BaseTask):
       )
       provision >> run_model >> post_process >> clean_up
     return group
+
+  def run_with_existing_instance(self) -> DAGNode:
+    """Run a test job via existing instance.
+
+    Returns:
+      A task group with the following tasks chained:  provision, run_model and post_process, clean_up.
+    """
+    with TaskGroup(
+        group_id=self.task_test_config.benchmark_id, prefix_group_id=True
+    ) as group:
+      (
+          provision,
+          ip_address,
+          ssh_keys,
+          gcs_location,
+      ) = self.provision_via_existing_instance()
+      if (
+          self.task_metric_config
+          and self.task_metric_config.use_runtime_generated_gcs_folder
+      ):
+        env_variable = {
+            f"{metric_config.SshEnvVars.GCS_OUTPUT.name}": gcs_location
+        }
+      else:
+        env_variable = None
+      post_process = self.post_process(gcs_location)
+      run_model = self.run_model(ip_address, ssh_keys, env_variable)
+      clean_up = self.clean_up_existing_instance(ssh_keys)
+      provision >> run_model >> post_process >> clean_up
+    return group
+
+  def provision_via_existing_instance(
+      self,
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg,]:
+    """Provision an existing GPU accelerator.
+
+    Returns:
+      A DAG node that will provision a GPU, an XCome value of the ip address
+      for the host,an XCom value for the SSH keys.
+    """
+    with TaskGroup(group_id="provision") as group:
+      ssh_keys = ssh.generate_ssh_keys()
+      ip_address = gpu.get_existing_resource(
+          instance_name=self.existing_instance_name,
+          ssh_keys=ssh_keys,
+          gcp=self.task_gcp_config,
+      )
+      gcs_location = name_format.generate_gcs_folder_location(
+          self.task_test_config.gcs_subfolder,
+          self.task_test_config.benchmark_id,
+      )
+      return group, ip_address, ssh_keys, gcs_location
 
   def provision(
       self,
@@ -476,7 +533,8 @@ class GpuCreateResourceTask(BaseTask):
     )
 
   def post_process(
-      self, result_location: Optional[airflow.XComArg] = None
+      self,
+      result_location: Optional[airflow.XComArg] = None,
   ) -> DAGNode:
     """Process metrics and metadata, and insert them into BigQuery tables.
 
@@ -511,6 +569,20 @@ class GpuCreateResourceTask(BaseTask):
     """
     return gpu.delete_resource.override(group_id="clean_up")(
         resource, project_id, zone
+    )
+
+  def clean_up_existing_instance(self, ssh_keys: airflow.XComArg) -> DAGNode:
+    """Clean up existing GPU resources - remove the one-time use generated ssh_keys.
+
+    Args:
+      ssh_keys: generated GPU's one-time use SSH keys to be removed.
+    Returns:
+      A DAG node that cleaned up the ssh_keys.
+    """
+    return gpu.clean_up_ssh_keys(
+        instance_name=self.existing_instance_name,
+        ssh_keys=ssh_keys,
+        gcp=self.task_gcp_config,
     )
 
 
