@@ -23,8 +23,8 @@ from dags.solutions_team.configs.tensorflow import solutionsteam_tf_nightly_supp
 from dags.solutions_team.configs.tensorflow import common
 
 
-# Run once a day at 6 am UTC (10 pm PST)
-SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 8 am UTC (12 am PST)
+SCHEDULED_TIME = "0 8 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
