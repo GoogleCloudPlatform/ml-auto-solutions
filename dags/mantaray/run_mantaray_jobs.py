@@ -52,6 +52,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       )(
           workload_file_name=workload_file_name,
       )
+      run_workload.override(task_id=workload_file_name)()
       run_workload
 
   # Create a DAG for each job from maxtext
