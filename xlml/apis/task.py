@@ -278,7 +278,19 @@ class XpkTask(BaseTask):
           cluster_name=self.task_test_config.cluster_name,
       )
 
-      (workload_id, gcs_path) >> launch_workload >> wait_for_workload_completion
+      clean_up_workload = xpk.clean_up_workload(
+          workload_id=workload_id,
+          project_id=self.task_gcp_config.project_name,
+          zone=self.task_gcp_config.zone,
+          cluster_name=self.task_test_config.cluster_name,
+      )
+
+      (
+          (workload_id, gcs_path)
+          >> launch_workload
+          >> wait_for_workload_completion
+          >> clean_up_workload
+      )
       return group, gcs_path
 
   def launch_workload(
