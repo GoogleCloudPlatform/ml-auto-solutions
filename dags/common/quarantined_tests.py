@@ -32,147 +32,32 @@ class QuarantineTests:
 
   tests = {
       # DAG: maxtext_gpu_end_to_end
-      "maxtext-pinned-train-c4-data-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-c4-data-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-train-c4-data-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-synthetic-data-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-synthetic-data-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-train-synthetic-data-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-flash-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-flash-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-train-flash-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-quarter-batch-size-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-quarter-batch-size-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-train-quarter-batch-size-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-int8-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-int8-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-train-int8-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-fp8-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-train-fp8-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-train-fp8-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-decode-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-decode-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-decode-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-decode-quarter-batch-size-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-decode-quarter-batch-size-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-decode-quarter-batch-size-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-generate-param-only-checkpoint-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-generate-param-only-checkpoint"
-      "-h100-mega-80gb-8": TestInfo(team.LLM_DEVX, "2024-11-11"),
-      "maxtext-stable-generate-param-only-checkpoint"
-      "-h100-mega-80gb-8": TestInfo(team.LLM_DEVX, "2024-11-11"),
-      "maxtext-pinned-generate-param-only-checkpoint"
-      "-int8-h100-80gb-8": TestInfo(team.LLM_DEVX, "2024-11-11"),
-      "maxtext-pinned-generate-param-only-checkpoint"
-      "-int8-h100-mega-80gb-8": TestInfo(team.LLM_DEVX, "2024-11-11"),
-      "maxtext-stable-generate-param-only-checkpoint"
-      "-int8-h100-mega-80gb-8": TestInfo(team.LLM_DEVX, "2024-11-11"),
-      "maxtext-pinned-grain-checkpoint-determinism-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-grain-checkpoint-determinism-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-grain-checkpoint-determinism-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
       "maxtext-pinned-checkpoint-compatibility-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-stable-checkpoint-compatibility-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-pinned-checkpoint-compatibility-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-stable-checkpoint-compatibility-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-pinned-llama2-7b-train-1node-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-llama2-7b-train-1node-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-llama2-7b-train-1node-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-llama2-7b-train-1node-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-pinned-llama2-7b-train-2node-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-stable-llama2-7b-train-2node-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-llama2-7b-train-2node-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-stable-llama2-7b-train-2node-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       "maxtext-pinned-llama2-7b-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-llama2-7b-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-pinned-llama2-7b-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
-      ),
-      "maxtext-stable-llama2-7b-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2024-11-11"
+          team.LLM_DEVX, "2025-01-17"
       ),
       # DAG: maxtext_end_to_end
       "chained_tests_gemma-7b_stable": TestInfo(team.LLM_DEVX, "2024-11-12"),
