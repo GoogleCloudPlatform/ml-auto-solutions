@@ -46,7 +46,7 @@ def get_vllm_gpu_setup_cmds():
       "wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
       # Download benchmark
       "pip install --upgrade google-cloud-storage",
-      "rm -rf ai-on-gke && git clone https://github.com/GoogleCloudPlatform/ai-on-gke",
+      "rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark",
   )
   return setup_cmds
 
@@ -73,7 +73,7 @@ def get_vllm_tpu_setup_cmds():
       "cd .. && wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
       # Download benchmark
       "pip install --upgrade google-cloud-storage",
-      "rm -rf ai-on-gke && git clone https://github.com/GoogleCloudPlatform/ai-on-gke",
+      "rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark",
   )
 
   return setup_cmds
@@ -106,7 +106,7 @@ def get_vllm_benchmark_cmds(
       "num_accelerators": num_chips,
   }
   for request_rate in request_rates:
-    benchmark_cmd_fmt = "python ai-on-gke/benchmarks/benchmark/tools/profile-generator/container/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
+    benchmark_cmd_fmt = "python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
 
     benchmark_cmds = [
         # Run benchmark
