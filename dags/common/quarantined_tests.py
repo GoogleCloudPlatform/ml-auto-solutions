@@ -33,31 +33,49 @@ class QuarantineTests:
   tests = {
       # DAG: maxtext_gpu_end_to_end
       "maxtext-pinned-checkpoint-compatibility-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-stable-checkpoint-compatibility-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-pinned-checkpoint-compatibility-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-stable-checkpoint-compatibility-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-pinned-llama2-7b-train-1node-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-pinned-llama2-7b-train-2node-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-stable-llama2-7b-train-2node-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-stable-llama2-7b-train-2node-h100-mega-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       "maxtext-pinned-llama2-7b-h100-80gb-8": TestInfo(
-          team.LLM_DEVX, "2025-01-17", "b/390738384",
+          team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
       ),
       # DAG: maxtext_end_to_end
       "chained_tests_gemma-7b_stable": TestInfo(team.LLM_DEVX, "2024-11-12"),
