@@ -31,17 +31,21 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
   )
   xlml_jobs = yaml.safe_load(xlml_jobs_yaml)
 
-  # Create a DAG for PyTorch/XLA tests
-  pattern = r"^(ptxla|pytorchxla).*"
+  # Create two DAG for PyTorch/XLA tests
+  pattern = r"^(ptxla|pytorchxla_part1).*"
+  pattern2 = r"^(pytorchxla_part2).*"
   workload_file_name_list = []
+  workload_file_name_list_2 = []
   for job in xlml_jobs:
     if re.match(pattern, job["task_name"]):
       workload_file_name_list.append(job["file_name"])
+    elif re.match(pattern2, job["task_name"]):
+      workload_file_name_list_2.append(job["file_name"])
 
   # merge all PyTorch/XLA tests ino one Dag
   with models.DAG(
       dag_id="pytorch_xla_model_regression_test_on_trillium",
-      schedule="0 0 * * *",  # everyday at midnight # job["schedule"],
+      schedule="0 0 * * *",  # everyday at midnight
       tags=["mantaray", "pytorchxla", "xlml"],
       start_date=datetime.datetime(2024, 4, 22),
       catchup=False,
@@ -54,9 +58,25 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       )
       run_workload
 
+  # split out sd2 model test
+  with models.DAG(
+      dag_id="pytorch_xla_model_regression_test_on_trillium_sd2",
+      schedule="0 0 * * *",  # everyday at midnight # job["schedule"],
+      tags=["mantaray", "pytorchxla", "xlml"],
+      start_date=datetime.datetime(2024, 4, 22),
+      catchup=False,
+  ) as dag:
+    for workload_file_name in workload_file_name_list_2:
+      run_workload = mantaray.run_workload.override(
+          task_id=workload_file_name.split(".")[0]
+      )(
+          workload_file_name=workload_file_name,
+      )
+      run_workload
+
   # Create a DAG for each job from maxtext
   for job in xlml_jobs:
-    if not re.match(pattern, job["task_name"]):
+    if (not re.match(pattern, job["task_name"])) and (not re.match(pattern2, job["task_name"])):
       with models.DAG(
           dag_id=job["task_name"],
           schedule=job["schedule"],
