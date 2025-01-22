@@ -32,7 +32,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
   xlml_jobs = yaml.safe_load(xlml_jobs_yaml)
 
   # Create two DAG for PyTorch/XLA tests
-  pattern = r"^(ptxla|pytorchxla_part1).*"
+  pattern = r"^(ptxla|pytorchxla).*"
   workload_file_name_list = []
   workload_file_name_list_2 = []
   for job in xlml_jobs:
