@@ -58,9 +58,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
   # Create a DAG for each job from maxtext
   for job in xlml_jobs:
-    if (not re.match(pattern, job["task_name"])) and (
-        not re.match(pattern2, job["task_name"])
-    ):
+    if not re.match(pattern, job["task_name"]) :
       with models.DAG(
           dag_id=job["task_name"],
           schedule=job["schedule"],
