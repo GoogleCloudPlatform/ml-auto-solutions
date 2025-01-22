@@ -34,7 +34,6 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
   # Create a DAG for PyTorch/XLA tests
   pattern = r"^(ptxla|pytorchxla).*"
   workload_file_name_list = []
-  workload_file_name_list_2 = []
   for job in xlml_jobs:
     if re.match(pattern, job["task_name"]):
       workload_file_name_list.append(job["file_name"])
