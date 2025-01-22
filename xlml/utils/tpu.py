@@ -118,7 +118,7 @@ def create_queued_resource(
     if task_test_config.timeout:
       run_model_timeout_in_sec = int(task_test_config.timeout.total_seconds())
     else:
-      run_model_timeout_in_sec = 0
+      run_model_timeout_in_sec = 7200  # Assume a default timeout of 2 hours
     # Time to live (ttl) is combination of:
     # 1) tpu provision timeout
     # 2) tpu run model timeout
