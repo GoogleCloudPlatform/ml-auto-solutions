@@ -94,8 +94,9 @@ local volumes = import 'templates/volumes.libsonnet';
         sudo systemctl stop unattended-upgrades || true
         sudo systemctl disable unattended-upgrades || true
         sudo killall --signal SIGKILL unattended-upgrades || true
-        sudo rm /var/lib/dpkg/lock-frontend || true
         sudo dpkg --configure -a || true
+        sudo apt purge unattended-upgrades -y || true
+        sudo rm /var/lib/dpkg/lock-frontend || true
         echo "unattended-upgrades stopped."
 
         sudo apt-get -y update
