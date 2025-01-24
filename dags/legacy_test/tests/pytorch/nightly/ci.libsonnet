@@ -1,6 +1,7 @@
 local experimental = import '../experimental.libsonnet';
 local common = import 'common.libsonnet';
 local tpus = import 'templates/tpus.libsonnet';
+local timeouts = import 'templates/timeouts.libsonnet';
 
 // Runs the same script we use in our TPU CI, nightly.
 // TODO: Remove this and run all tests in CI.
@@ -18,7 +19,7 @@ local tpus = import 'templates/tpus.libsonnet';
       |||,
     ],
 
-  },
+  } + timeouts.Hours(3),
   local pjrt = self.pjrt,
   pjrt:: common.PyTorchTpuVmMixin {
     tpuSettings+: {
