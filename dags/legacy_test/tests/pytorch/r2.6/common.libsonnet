@@ -18,7 +18,7 @@ local mixins = import 'templates/mixins.libsonnet';
 local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
-local rcVersion = 'rc8';
+local rcVersion = 'rc9';
 
 {
   local r2_6 = {
