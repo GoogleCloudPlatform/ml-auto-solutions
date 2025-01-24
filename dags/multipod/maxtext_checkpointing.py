@@ -55,8 +55,8 @@ with models.DAG(
     for accelerator, slices in test_configs.items():
       cores = accelerator.rsplit("-", maxsplit=1)[-1]
       for slice_num in slices:
-        for chkpt_mode in ['sync', 'async']:
-          async_checkpointing = chkpt_mode == 'async'
+        for chkpt_mode in ["sync", "async"]:
+          async_checkpointing = chkpt_mode == "async"
           command = (
               "bash end_to_end/test_checkpointing.sh"
               f" checkpointing-{mode.value}-{slice_num}x-{accelerator}-{chkpt_mode}"
