@@ -45,7 +45,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       tags=["mantaray", "pytorchxla", "xlml"],
       start_date=datetime.datetime(2024, 4, 22),
       catchup=False,
-      concurrency=2,
+      concurrency=1,
   ) as dag:
     for workload_file_name in workload_file_name_list:
       run_workload = mantaray.run_workload.override(
