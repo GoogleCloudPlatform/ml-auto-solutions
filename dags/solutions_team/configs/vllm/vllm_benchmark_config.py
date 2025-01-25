@@ -62,7 +62,7 @@ def get_vllm_tpu_setup_cmds():
       "pip install --upgrade google-cloud-storage",
       "rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark",
       # Download Google Cloud SDK, which is needed for the gsutil command.
-      'echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list'，
+      'echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list',
       "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -",
       "apt-get update && apt-get install -y google-cloud-sdk",
   )
