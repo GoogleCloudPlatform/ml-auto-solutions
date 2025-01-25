@@ -53,33 +53,24 @@ def get_vllm_gpu_setup_cmds():
 
 def get_vllm_tpu_setup_cmds():
   setup_cmds = (
-      # Update environment and installs basic deps
-      "pip install --upgrade pip",
-      "sudo apt-get -y update",
-      "sudo apt install -y libopenblas-base libopenblas-dev",
-      "sudo apt-get -y install python3.10-venv",
-      "sudo apt-get -y install jq",
-      "python -m venv .env",
-      "source .env/bin/activate",
-      # Install vllm at head
-      "rm -rf vllm && git clone https://github.com/vllm-project/vllm",
-      "cd vllm",
-      # From https://docs.vllm.ai/en/latest/getting_started/tpu-installation.html
-      "pip uninstall torch torch-xla -y",
-      "pip install -r requirements-tpu.txt",
-      # Build vLLM
-      'VLLM_TARGET_DEVICE="tpu" python setup.py develop',
+      # Download, start, and enter the vLLM TPU Docker container
+      "CONTAINER_ID=$(sudo docker run --name vllm-tpu -d --privileged --network host -v /dev/shm:/dev/shm gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest tail -f /dev/null)",
+      "sudo docker exec -it $CONTAINER_ID /bin/bash",
       # Download dataset
-      "cd .. && wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
       # Download benchmark
       "pip install --upgrade google-cloud-storage",
       "rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark",
+      # Download Google Cloud SDK, which is needed for the gsutil command.
+      'echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list'，
+      "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -",
+      "apt-get update && apt-get install -y google-cloud-sdk",
   )
 
   return setup_cmds
 
 
-def get_vllm_benchmark_cmds(
+def get_gpu_vllm_benchmark_cmds(
     model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
   base_model_id = model_id.split("/")[-1]
@@ -137,6 +128,60 @@ def get_vllm_benchmark_cmds(
 
   return tuple(run_cmds)
 
+def get_tpu_vllm_benchmark_cmds(
+    model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
+):
+  base_model_id = model_id.split("/")[-1]
+  request_rates = model_configs["request_rates"].split(",")
+  instance_type = model_configs["instance_type"]
+  num_prompts = 1000
+
+  run_cmds = [
+      # HF_TOKEN is set in Composer environment variables
+      f"export HF_TOKEN={HF_TOKEN}",
+      # Start vllm in the background
+      f"vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 &",
+      # Wait for server to come up
+      "sleep 600",
+  ]
+
+  # Group metrics together using test_run_id.
+  metadata = {
+      "test_run_id": test_run_id,
+      "instance_type": instance_type,
+      "num_accelerators": num_chips,
+  }
+  for request_rate in request_rates:
+    benchmark_cmd_fmt = "python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
+
+    benchmark_cmds = [
+        # Run benchmark
+        benchmark_cmd_fmt.format(
+            num_prompts=num_prompts,
+            model_id=model_id,
+            request_rate=request_rate,
+            additional_metadata=json.dumps(metadata),
+        ),
+        # Process result json files
+        f'export OUTPUT_FORMAT="*vllm*{base_model_id}*"',
+        "export BENCHMARK_OUTPUT=$(find . -name $OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\n\" | sort -n | head -1 | awk 'NF>1{print $NF}')",
+        # Log output file contest
+        "cat ${BENCHMARK_OUTPUT}",
+        # Append output file contents to final metrics report
+        "cat ${BENCHMARK_OUTPUT} >> metric_report.jsonl",
+        "echo '' >> metric_report.jsonl",
+        "rm ${BENCHMARK_OUTPUT}",
+    ]
+    run_cmds.extend(benchmark_cmds)
+
+  run_cmds.extend([
+      # Kill background process
+      "pkill -P $$",
+      # Copy metrics as the last step
+      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+  ])
+
+  return tuple(run_cmds)
 
 def get_gpu_vllm_gce_config(
     machine_version: MachineVersion,
@@ -163,7 +208,7 @@ def get_gpu_vllm_gce_config(
   set_up_cmds = get_vllm_gpu_setup_cmds()
   model_configs["instance_type"] = machine_version.value
 
-  run_model_cmds = get_vllm_benchmark_cmds(
+  run_model_cmds = get_gpu_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
       num_chips=count,
       test_run_id=test_run_id,
@@ -235,7 +280,7 @@ def get_tpu_vllm_gce_config(
   set_up_cmds = get_vllm_tpu_setup_cmds()
   model_configs["instance_type"] = tpu_version.value
 
-  run_model_cmds = get_vllm_benchmark_cmds(
+  run_model_cmds = get_tpu_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
       num_chips=tpu_cores,
       test_run_id=test_run_id,
