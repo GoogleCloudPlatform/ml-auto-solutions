@@ -175,9 +175,13 @@ def set_up_torchbench_tpu(
     install_cmds = ["pip install -r requirements.txt"]
     pipe_file_cmd = f" > {output_file}" if output_file else ""
     if not model_name or model_name.lower() == "all":
-      install_cmds.append(f"python install.py --continue_on_fail {pipe_file_cmd}")
+      install_cmds.append(
+          f"python install.py --continue_on_fail {pipe_file_cmd}"
+      )
     else:
-      install_cmds.append(f"python install.py models {model_name} {pipe_file_cmd}")
+      install_cmds.append(
+          f"python install.py models {model_name} {pipe_file_cmd}"
+      )
     return " && ".join(install_cmds)
 
   install_torch_xla2_dependency = (
@@ -200,7 +204,7 @@ def set_up_torchbench_tpu(
       "sudo dpkg --configure -a || true",
       "sudo apt purge unattended-upgrades -y || true",
       "sudo rm /var/lib/dpkg/lock-frontend || true",
-      "echo \"unattended-upgrades stopped.\"",
+      'echo "unattended-upgrades stopped."',
       "sudo apt-get -y update",
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",
@@ -331,9 +335,13 @@ def set_up_torchbench_gpu(
     install_cmds = ["pip install -r requirements.txt"]
     pipe_file_cmd = f" > {output_file}" if output_file else ""
     if not model_name or model_name.lower() == "all":
-      install_cmds.append(f"python install.py --continue_on_fail {pipe_file_cmd}")
+      install_cmds.append(
+          f"python install.py --continue_on_fail {pipe_file_cmd}"
+      )
     else:
-      install_cmds.append(f"python install.py models {model_name} {pipe_file_cmd}")
+      install_cmds.append(
+          f"python install.py models {model_name} {pipe_file_cmd}"
+      )
     return " && ".join(install_cmds)
 
   def get_nvidia_driver_install_cmd(driver_version: str) -> str:
