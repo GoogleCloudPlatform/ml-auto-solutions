@@ -60,7 +60,7 @@ with models.DAG(
           command = (
               "bash end_to_end/test_checkpointing.sh"
               f" checkpointing-{mode.value}-{slice_num}x-{accelerator}-{chkpt_mode}"
-              f" {base_output_directory} {dataset_path} true '' '' {async_checkpointing}",
+              f" {base_output_directory} {dataset_path} true tfds autoselected {async_checkpointing}"
           )
           maxtext_v4_configs_test = gke_config.get_gke_config(
               num_slices=slice_num,
