@@ -30,6 +30,7 @@ PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
 HF_TOKEN = Variable.get("HF_TOKEN", None)
+VLLM_TPU_DOCKER_IMAGE = "gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest"
 
 
 def get_vllm_gpu_setup_cmds():
@@ -51,20 +52,20 @@ def get_vllm_gpu_setup_cmds():
   return setup_cmds
 
 
-def get_vllm_tpu_setup_cmds():
+def get_vllm_tpu_setup_cmds(test_run_id: str):
   setup_cmds = (
-      # Download, start, and enter the vLLM TPU Docker container
-      "CONTAINER_ID=$(sudo docker run --name vllm-tpu -d --privileged --network host -v /dev/shm:/dev/shm gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest tail -f /dev/null)",
-      "sudo docker exec -it $CONTAINER_ID /bin/bash",
-      # Download dataset
-      "wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
-      # Download benchmark
-      "pip install --upgrade google-cloud-storage",
-      "rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark",
-      # Download Google Cloud SDK, which is needed for the gsutil command.
-      'echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list',
-      "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -",
-      "apt-get update && apt-get install -y google-cloud-sdk",
+      # Download and start the vLLM TPU Docker container
+      f"export CONTAINER_NAME=vllm-tpu-container-{test_run_id}",
+      f"sudo docker run --name $CONTAINER_NAME -d --privileged --network host -v /dev/shm:/dev/shm {VLLM_TPU_DOCKER_IMAGE} tail -f /dev/null",
+      # Download dataset inside the container
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json'",
+      # Download benchmark inside the container
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'pip install --upgrade google-cloud-storage'",
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark'",
+      # Download Google Cloud SDK inside the container, which is needed for the gsutil command.
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'echo \"deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main\" > /etc/apt/sources.list.d/google-cloud-sdk.list'",
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -'",
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'apt-get update && apt-get install -y google-cloud-sdk'",
   )
 
   return setup_cmds
@@ -137,12 +138,9 @@ def get_tpu_vllm_benchmark_cmds(
   num_prompts = 1000
 
   run_cmds = [
-      # HF_TOKEN is set in Composer environment variables
-      f"export HF_TOKEN={HF_TOKEN}",
-      # Start vllm in the background
-      f"vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 &",
-      # Wait for server to come up
-      "sleep 600",
+      f"export CONTAINER_NAME=vllm-tpu-container-{test_run_id}",
+      # Start vllm in the background and wait for server to come up
+      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'export HF_TOKEN={HF_TOKEN} && vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 & sleep 600'",
   ]
 
   # Group metrics together using test_run_id.
@@ -152,33 +150,27 @@ def get_tpu_vllm_benchmark_cmds(
       "num_accelerators": num_chips,
   }
   for request_rate in request_rates:
-    benchmark_cmd_fmt = "python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
+    benchmark_cmd_fmt = "sudo docker exec $CONTAINER_NAME /bin/bash -c 'export HF_TOKEN={HF_TOKEN} && python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}''"
 
     benchmark_cmds = [
-        # Run benchmark
+        # Run benchmark inside the container
         benchmark_cmd_fmt.format(
             num_prompts=num_prompts,
             model_id=model_id,
             request_rate=request_rate,
             additional_metadata=json.dumps(metadata),
         ),
-        # Process result json files
-        f'export OUTPUT_FORMAT="*vllm*{base_model_id}*"',
-        "export BENCHMARK_OUTPUT=$(find . -name $OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\n\" | sort -n | head -1 | awk 'NF>1{print $NF}')",
-        # Log output file contest
-        "cat ${BENCHMARK_OUTPUT}",
-        # Append output file contents to final metrics report
-        "cat ${BENCHMARK_OUTPUT} >> metric_report.jsonl",
-        "echo '' >> metric_report.jsonl",
-        "rm ${BENCHMARK_OUTPUT}",
+       # Process result json files inside the container
+       f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\$(find . -name \$OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\n\" | sort -n | head -1 | awk 'NF>1{{print \$NF}}') && cat \$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \$BENCHMARK_OUTPUT\"",
+       "sudo docker exec $CONTAINER_NAME /bin/bash -c \"echo '' >> metric_report.jsonl\"",
     ]
     run_cmds.extend(benchmark_cmds)
 
   run_cmds.extend([
-      # Kill background process
-      "pkill -P $$",
-      # Copy metrics as the last step
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      # Copy metrics
+      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}'",
+      # Stop the container
+      "sudo docker stop $CONTAINER_NAME",
   ])
 
   return tuple(run_cmds)
@@ -277,7 +269,7 @@ def get_tpu_vllm_gce_config(
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
-  set_up_cmds = get_vllm_tpu_setup_cmds()
+  set_up_cmds = get_vllm_tpu_setup_cmds(test_run_id=test_run_id)
   model_configs["instance_type"] = tpu_version.value
 
   run_model_cmds = get_tpu_vllm_benchmark_cmds(
