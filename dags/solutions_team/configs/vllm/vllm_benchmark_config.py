@@ -155,6 +155,7 @@ def get_tpu_vllm_benchmark_cmds(
     benchmark_cmds = [
         # Run benchmark inside the container
         benchmark_cmd_fmt.format(
+            HF_TOKEN=HF_TOKEN,
             num_prompts=num_prompts,
             model_id=model_id,
             request_rate=request_rate,
