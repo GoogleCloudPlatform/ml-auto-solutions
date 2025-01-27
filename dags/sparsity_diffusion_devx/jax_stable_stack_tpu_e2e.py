@@ -71,8 +71,14 @@ with models.DAG(
   ]
 
   maxdiffusion_docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE),
-      (SetupMode.NIGHTLY, DockerImage.MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX),
+      (
+          SetupMode.STABLE,
+          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
+      ),
+      (
+          SetupMode.NIGHTLY,
+          DockerImage.MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX,
+      ),
   ]
 
   for accelerator, slices in maxtext_test_configs.items():
