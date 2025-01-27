@@ -271,7 +271,7 @@ def get_tpu_vllm_gce_config(
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
 
-  set_up_cmds = get_vllm_tpu_setup_cmds(test_run_id=test_run_id)
+  set_up_cmds = get_vllm_tpu_setup_cmds()
   model_configs["instance_type"] = tpu_version.value
 
   run_model_cmds = get_tpu_vllm_benchmark_cmds(
