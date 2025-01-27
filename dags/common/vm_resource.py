@@ -75,7 +75,7 @@ class ImageProject(enum.Enum):
 class ImageFamily(enum.Enum):
   """Common image families for GPU."""
 
-  COMMON_CU121_DEBIAN_11 = "common-cu121-debian-11"
+  COMMON_CU124_DEBIAN_11 = "common-cu124-debian-11"
 
 
 class Region(enum.Enum):
@@ -330,7 +330,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_JAX_STABLE_STACK = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack_0.4.35:"
+      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_STABLE_STACK_NIGHTLY_JAX = (

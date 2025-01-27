@@ -42,7 +42,7 @@ with models.DAG(
           "backend": ["vllm"],
           "model_id": ["meta-llama/Meta-Llama-3.1-8B"],
           "dataset": "ShareGPT_V3_unfiltered_cleaned_split.json",
-          "request_rates": "1,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32",
+          "request_rates": "1,2,4,8,16,32",
           "num_prompts": 1000,
           "max_output_length": 1024,
           "max_cache_length": 2048,
@@ -101,7 +101,7 @@ with models.DAG(
             zone = Zone.US_WEST4_B
             machine_version, gpu_version, count = accelerator_spec
             image_project = ImageProject.DEEP_LEARNING_PLATFORM_RELEASE
-            image_family = ImageFamily.COMMON_CU121_DEBIAN_11
+            image_family = ImageFamily.COMMON_CU124_DEBIAN_11
             network = BM_NETWORKS
             subnetwork = A100_BM_SUBNETWORKS
 

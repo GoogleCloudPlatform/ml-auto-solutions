@@ -26,8 +26,27 @@ from xlml.apis import metric_config
 from xlml.utils import gke
 from dags.common.vm_resource import GpuVersion
 
+# Duration = past 7 days
+LOGGING_URL_FORMAT = (
+    "https://pantheon.corp.google.com/logs/query;"
+    + "query=resource.type%3D%22k8s_container%22%0A"
+    + "resource.labels.project_id%3D%22{project}%22%0A"
+    + "resource.labels.location%3D%22{region}%22%0A"
+    + "resource.labels.cluster_name%3D%22{cluster}%22%0A"
+    + "resource.labels.namespace_name%3D%22default%22%0A"
+    + "labels.k8s-pod%2Fjobset_sigs_k8s_io%2F"
+    + "jobset-name%3D%22{workload_id}%22%20severity%3E%3DDEFAULT;"
+    + "storageScope=project;duration=P7D?e=13803378&"
+    + "mods=allow_workbench_image_override&project={project}"
+)
 
-WORKLOAD_URL_FORMAT = "https://console.cloud.google.com/kubernetes/service/{region}/{cluster}/default/{workload_id}/details?project={project}"
+
+def get_xpk_setup_cmd(tmpdir):
+  return [
+      "set -xue",
+      f"git clone --branch v0.4.1 https://github.com/AI-Hypercomputer/xpk {tmpdir}/xpk",
+      "pip install ruamel.yaml docker",
+  ]
 
 
 @task
@@ -81,11 +100,7 @@ def run_workload(
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
         " --restart-on-user-code-failure"
     )
-    cmds = [
-        "set -xue",
-        f"git clone --branch v0.4.1 https://github.com/AI-Hypercomputer/xpk {tmpdir}/xpk",
-        "pip install ruamel.yaml docker",
-    ]
+    cmds = get_xpk_setup_cmd(tmpdir)
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
     if use_vertex_tensorboard:
@@ -174,13 +189,37 @@ def wait_for_workload_completion(
       logging.info(f"Logs for pod {pod.metadata.name}:")
       for line in logs.split("\n"):
         logging.info(line)
-    url = WORKLOAD_URL_FORMAT.format(
+    url = LOGGING_URL_FORMAT.format(
+        project=project_id,
         region=region,
         cluster=cluster_name,
         workload_id=workload_id,
-        project=project_id,
     )
-    logging.info(f"Link to workload: {url}")
+    logging.info(f"Link to logs: {url}")
 
   logging.info("All pod(s) phase are succeeded.")
   return True
+
+
+@task(trigger_rule="all_done")
+def clean_up_workload(
+    workload_id: str, project_id: str, zone: str, cluster_name: str
+) -> bool:
+  """Delete workload."""
+  with tempfile.TemporaryDirectory() as tmpdir:
+    workload_delete_cmd = (
+        f"python {tmpdir}/xpk/xpk.py workload delete"
+        f" --cluster={cluster_name} --workload={workload_id}"
+        f" --project={project_id} --zone={zone}"
+    )
+
+    cmds = get_xpk_setup_cmd(tmpdir)
+    cmds.append(workload_delete_cmd)
+    hook = SubprocessHook()
+    result = hook.run_command(
+        ["bash", "-c", ";".join(cmds)],
+        env={**os.environ, "KUBECONFIG": os.path.join(tmpdir, "xpk.conf")},
+    )
+    assert (
+        result.exit_code == 0
+    ), f"XPK clean-up failed with code {result.exit_code}"

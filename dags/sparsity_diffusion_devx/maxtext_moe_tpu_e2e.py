@@ -25,8 +25,8 @@ from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import gke_config
 from xlml.utils import name_format
 
-# Run once a day at 5 am UTC (9 pm PST)
-SCHEDULED_TIME = "0 5 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 1 am UTC (5 pm PST)
+SCHEDULED_TIME = "0 1 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(

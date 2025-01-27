@@ -94,8 +94,9 @@ local volumes = import 'templates/volumes.libsonnet';
         sudo systemctl stop unattended-upgrades || true
         sudo systemctl disable unattended-upgrades || true
         sudo killall --signal SIGKILL unattended-upgrades || true
-        sudo rm /var/lib/dpkg/lock-frontend || true
         sudo dpkg --configure -a || true
+        sudo apt purge unattended-upgrades -y || true
+        sudo rm /var/lib/dpkg/lock-frontend || true
         echo "unattended-upgrades stopped."
 
         sudo apt-get -y update
@@ -104,7 +105,7 @@ local volumes = import 'templates/volumes.libsonnet';
         sudo apt install -y libsndfile-dev
         pip3 install --user --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu
         pip install --user \
-          'torch_xla[tpu] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev-cp310-cp310-linux_x86_64.whl' \
+          'torch_xla[tpu] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev+cxx11-cp310-cp310-linux_x86_64.whl' \
           -f https://storage.googleapis.com/libtpu-releases/index.html \
           -f https://storage.googleapis.com/libtpu-wheels/index.html
         pip3 install pillow

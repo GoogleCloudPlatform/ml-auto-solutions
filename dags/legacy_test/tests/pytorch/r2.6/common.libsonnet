@@ -18,7 +18,7 @@ local mixins = import 'templates/mixins.libsonnet';
 local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
-local rcVersion = 'rc3';
+local rcVersion = 'rc9';
 
 {
   local r2_6 = {
@@ -96,8 +96,9 @@ local rcVersion = 'rc3';
         sudo systemctl stop unattended-upgrades || true
         sudo systemctl disable unattended-upgrades || true
         sudo killall --signal SIGKILL unattended-upgrades || true
-        sudo rm /var/lib/dpkg/lock-frontend || true
         sudo dpkg --configure -a || true
+        sudo apt purge unattended-upgrades -y || true
+        sudo rm /var/lib/dpkg/lock-frontend || true
         echo "unattended-upgrades stopped."
 
         sudo apt-get -y update

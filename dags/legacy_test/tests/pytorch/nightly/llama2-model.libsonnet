@@ -137,7 +137,7 @@ local utils = import 'templates/utils.libsonnet';
   },
 
   configs: [
-    llama2 + v4_8 + infer + timeouts.Hours(3),
-    llama2 + v4_8 + spmd + timeouts.Hours(3),
+    llama2 + infer + v4_8 + timeouts.Hours(3),
+    llama2 + spmd + v4_8 + timeouts.Hours(3),
   ],
 }

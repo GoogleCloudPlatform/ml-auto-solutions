@@ -44,11 +44,11 @@ JON_B = "Jon B."
 RAYMOND_Z = "Raymond Z."
 MATT_D = "Matt D."
 PRIYANKA_G = "Priyanka G."
-NINA_C = "Nina C."
 SURBHI_J = "Surbhi J."
 ZHIYU_L = "Zhiyu L."
 MOHIT_K = "Mohit K."
 ANISHA_M = "Anisha M."
+YUWEI_Y = "Yuwei Y."
 
 # MLCompass
 ORTI_B = "Orti B."
@@ -56,6 +56,7 @@ ORTI_B = "Orti B."
 # Sparsity & Diffusion DevX
 RAN_R = "Ran R."
 PARAM_B = "Param B."
+MICHELLE_Y = "Michelle Y."
 
 # Inference
 ANDY_Y = "Andy Y."
