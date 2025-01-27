@@ -31,6 +31,7 @@ RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
 HF_TOKEN = Variable.get("HF_TOKEN", None)
 VLLM_TPU_DOCKER_IMAGE = "gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest"
+VLLM_TPU_CONTAINER = "vllm-tpu-container"
 
 
 def get_vllm_gpu_setup_cmds():
@@ -52,10 +53,10 @@ def get_vllm_gpu_setup_cmds():
   return setup_cmds
 
 
-def get_vllm_tpu_setup_cmds(test_run_id: str):
+def get_vllm_tpu_setup_cmds():
   setup_cmds = (
       # Download and start the vLLM TPU Docker container
-      f"export CONTAINER_NAME=vllm-tpu-container-{test_run_id}",
+      f"export CONTAINER_NAME={VLLM_TPU_CONTAINER}",
       f"sudo docker run --name $CONTAINER_NAME -d --privileged --network host -v /dev/shm:/dev/shm {VLLM_TPU_DOCKER_IMAGE} tail -f /dev/null",
       # Download dataset inside the container
       "sudo docker exec $CONTAINER_NAME /bin/bash -c 'wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json'",
@@ -138,7 +139,7 @@ def get_tpu_vllm_benchmark_cmds(
   num_prompts = 1000
 
   run_cmds = [
-      f"export CONTAINER_NAME=vllm-tpu-container-{test_run_id}",
+      f"export CONTAINER_NAME={VLLM_TPU_CONTAINER}",
       # Start vllm in the background and wait for server to come up
       f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'export HF_TOKEN={HF_TOKEN} && vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 & sleep 600'",
   ]
