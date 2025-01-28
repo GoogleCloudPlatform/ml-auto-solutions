@@ -38,7 +38,7 @@ class VERSION(enum.Enum):
 class VERSION_MAPPING:
 
   class NIGHTLY(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev+cxx11-cp310-cp310-linux_x86_64.whl"
     TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.7.0.dev-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch"
     TORCHVISION = "torchvision"
