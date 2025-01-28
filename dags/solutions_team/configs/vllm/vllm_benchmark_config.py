@@ -152,7 +152,7 @@ def get_tpu_vllm_benchmark_cmds(
       "num_accelerators": num_chips,
   }
   for request_rate in request_rates:
-    benchmark_cmd_fmt = "sudo docker exec $CONTAINER_NAME /bin/bash -c 'export HF_TOKEN={HF_TOKEN} && python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}''"
+    benchmark_cmd_fmt = "sudo docker exec $CONTAINER_NAME /bin/bash -c \"export HF_TOKEN={HF_TOKEN} && python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'\""
 
     benchmark_cmds = [
         # Run benchmark inside the container
@@ -161,7 +161,7 @@ def get_tpu_vllm_benchmark_cmds(
             num_prompts=num_prompts,
             model_id=model_id,
             request_rate=request_rate,
-            additional_metadata=json.dumps(metadata).replace('"', '\\"'),
+            additional_metadata=json.dumps(metadata).replace('"', '\"'),
         ),
        # Process result json files inside the container
        f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\$(find . -name \$OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\n\" | sort -n | head -1 | awk 'NF>1{{print \$NF}}') && cat \$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \$BENCHMARK_OUTPUT\"",
