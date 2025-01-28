@@ -38,7 +38,7 @@ class VERSION(enum.Enum):
 class VERSION_MAPPING:
 
   class NIGHTLY(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev-cp310-cp310-linux_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev+cxx11-cp310-cp310-linux_x86_64.whl"
     TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.7.0.dev-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch"
     TORCHVISION = "torchvision"
@@ -111,11 +111,11 @@ class VERSION_MAPPING:
     TORCH_XLA_REPO_BRANCH = "-b v2.5.1"
 
   class R2_6(enum.Enum):
-    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc9-cp310-cp310-manylinux_2_28_x86_64.whl"
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.6.0rc9+cxx11-cp311-cp311-manylinux_2_28_x86_64.whl"
     TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.6.0rc9-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch==2.6.0"
-    TORCHVISION = "torchvision==0.20.1"
-    TORCHAUDIO = "torchaudio==2.6.0"
+    TORCHVISION = "torchvision"
+    TORCHAUDIO = "torchaudio"
     TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.6.0rc9_3.10_cuda_12.1"
     TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
     TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu121"
@@ -172,10 +172,17 @@ def set_up_torchbench_tpu(
     Returns:
       Command to install the model.
     """
+    install_cmds = ["pip install -r requirements.txt"]
     pipe_file_cmd = f" > {output_file}" if output_file else ""
     if not model_name or model_name.lower() == "all":
-      return f"python install.py --continue_on_fail {pipe_file_cmd}"
-    return f"python install.py models {model_name} {pipe_file_cmd}"
+      install_cmds.append(
+          f"python install.py --continue_on_fail {pipe_file_cmd}"
+      )
+    else:
+      install_cmds.append(
+          f"python install.py models {model_name} {pipe_file_cmd}"
+      )
+    return " && ".join(install_cmds)
 
   install_torch_xla2_dependency = (
       (
@@ -191,6 +198,13 @@ def set_up_torchbench_tpu(
 
   return (
       "pip3 install -U 'setuptools>=70.0.0,<71.0.0'",
+      "sudo systemctl stop unattended-upgrades || true",
+      "sudo systemctl disable unattended-upgrades || true",
+      "sudo killall --signal SIGKILL unattended-upgrades || true",
+      "sudo dpkg --configure -a || true",
+      "sudo apt purge unattended-upgrades -y || true",
+      "sudo rm /var/lib/dpkg/lock-frontend || true",
+      'echo "unattended-upgrades stopped."',
       "sudo apt-get -y update",
       "sudo apt install -y libopenblas-base",
       "sudo apt install -y libsndfile-dev",
@@ -318,10 +332,17 @@ def set_up_torchbench_gpu(
     Returns:
       Command to install the model.
     """
+    install_cmds = ["pip install -r requirements.txt"]
     pipe_file_cmd = f" > {output_file}" if output_file else ""
     if not model_name or model_name.lower() == "all":
-      return f"python install.py --continue_on_fail {pipe_file_cmd}"
-    return f"python install.py models {model_name} {pipe_file_cmd}"
+      install_cmds.append(
+          f"python install.py --continue_on_fail {pipe_file_cmd}"
+      )
+    else:
+      install_cmds.append(
+          f"python install.py models {model_name} {pipe_file_cmd}"
+      )
+    return " && ".join(install_cmds)
 
   def get_nvidia_driver_install_cmd(driver_version: str) -> str:
     nvidia_driver_install = (
