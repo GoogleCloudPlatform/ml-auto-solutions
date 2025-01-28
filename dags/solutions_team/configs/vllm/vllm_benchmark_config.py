@@ -161,7 +161,7 @@ def get_tpu_vllm_benchmark_cmds(
             num_prompts=num_prompts,
             model_id=model_id,
             request_rate=request_rate,
-            additional_metadata=json.dumps(metadata),
+            additional_metadata=json.dumps(metadata).replace('"', '\\"'),
         ),
        # Process result json files inside the container
        f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\$(find . -name \$OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\n\" | sort -n | head -1 | awk 'NF>1{{print \$NF}}') && cat \$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \$BENCHMARK_OUTPUT\"",
