@@ -164,7 +164,7 @@ def get_tpu_vllm_benchmark_cmds(
             additional_metadata=json.dumps(metadata).replace('"', '\\"'),
         ),
        # Process result json files inside the container
-       f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\$(find . -name \$OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\\\n\" | sort -n | head -1 | awk 'NF>1{{print \$NF}}') && cat \$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \$BENCHMARK_OUTPUT\"",
+       f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\\$(find . -name \\$OUTPUT_FORMAT -type f -printf \"%T@ %Tc %p\n\" | sort -n | head -1 | awk 'NF>1{{print \\$NF}}') && cat \\$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \\$BENCHMARK_OUTPUT\"",
        "sudo docker exec $CONTAINER_NAME /bin/bash -c \"echo '' >> metric_report.jsonl\"",
     ]
     run_cmds.extend(benchmark_cmds)
