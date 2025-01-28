@@ -55,7 +55,7 @@ FRAMEWORK = "nemo"
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
-CLUSTER = "gke-a3ultra-map"
+CLUSTER = "gke-a3u-map-01-31"
 CLUSTER_REGION = "europe-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
@@ -130,7 +130,9 @@ def run_aotc_workload():
                     accelerator_type,
                     tmpdir,
                 )
-                + cleanup_cmds()
+                # DEBUG: to clean-up, get manifest by doing: helm list | grep regression | awk '{print $1}'
+                # + cleanup_cmds()
+
             ),
         ],
         cwd=tmpdir,
