@@ -169,11 +169,15 @@ def get_tpu_vllm_benchmark_cmds(
     ]
     run_cmds.extend(benchmark_cmds)
 
-  # Get the GCS destination path *before* constructing the command.  OUTSIDE the list.
+  # Get the GCS destination path *before* constructing the command, OUTSIDE the list.
   gcs_destination = metric_config.SshEnvVars.GCS_OUTPUT.value
+  if not gcs_destination:
+    raise ValueError("GCS_OUTPUT environment variable is not set or is empty.")
+  # Debug Print
+  print(f"DEBUG: GCS Destination: {gcs_destination}")
   run_cmds.extend([
       # Copy metrics
-      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl {gcs_destination}'",
+      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl \"{gcs_destination}\"'",
       # Stop the container
       "sudo docker stop $CONTAINER_NAME",
   ])
