@@ -176,6 +176,8 @@ def get_tpu_vllm_benchmark_cmds(
   # Debug Print
   print(f"DEBUG: GCS Destination: {gcs_destination}")
   run_cmds.extend([
+      # Kill background process
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'pkill vllm'",
       # Copy metrics
       f"sudo docker exec -e GCS=\"{gcs_destination}\" $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl $GCS'",
       # Stop the container
