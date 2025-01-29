@@ -72,14 +72,34 @@ def get_vllm_tpu_setup_cmds():
 
   return setup_cmds
 
-
-def get_gpu_vllm_benchmark_cmds(
-    model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
+def _get_vllm_benchmark_parameters(
+  model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
   base_model_id = model_id.split("/")[-1]
   request_rates = model_configs["request_rates"].split(",")
   instance_type = model_configs["instance_type"]
   num_prompts = 1000
+
+  # Group metrics together using test_run_id.
+  metadata = {
+      "test_run_id": test_run_id,
+      "instance_type": instance_type,
+      "num_accelerators": num_chips,
+  }
+
+  # Get the GCS destination path *before* constructing the command, OUTSIDE the list.
+  gcs_destination = metric_config.SshEnvVars.GCS_OUTPUT.value
+  if not gcs_destination:
+    raise ValueError("GCS_OUTPUT environment variable is not set or is empty.")
+  # Debug Print
+  print(f"DEBUG: GCS Destination: {gcs_destination}")
+
+  return base_model_id, request_rates, num_prompts, metadata, gcs_destination
+
+def get_gpu_vllm_benchmark_cmds(
+    model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
+):
+  base_model_id, request_rates, num_prompts, metadata, gcs_destination = _get_vllm_benchmark_parameters(model_id=model_id, num_chips=num_chips, test_run_id=test_run_id, model_configs=model_configs)
 
   run_cmds = [
       "export PATH=$PATH:/home/cloud-ml-auto-solutions/vllm:/home/cloud-ml-auto-solutions/.local/bin",
@@ -93,12 +113,6 @@ def get_gpu_vllm_benchmark_cmds(
       "sleep 600",
   ]
 
-  # Group metrics together using test_run_id.
-  metadata = {
-      "test_run_id": test_run_id,
-      "instance_type": instance_type,
-      "num_accelerators": num_chips,
-  }
   for request_rate in request_rates:
     benchmark_cmd_fmt = "python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
 
@@ -126,7 +140,7 @@ def get_gpu_vllm_benchmark_cmds(
       # Kill background process
       "pkill -P $$",
       # Copy metrics as the last step
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gsutil cp metric_report.jsonl {gcs_destination}",
   ])
 
   return tuple(run_cmds)
@@ -134,10 +148,7 @@ def get_gpu_vllm_benchmark_cmds(
 def get_tpu_vllm_benchmark_cmds(
     model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
-  base_model_id = model_id.split("/")[-1]
-  request_rates = model_configs["request_rates"].split(",")
-  instance_type = model_configs["instance_type"]
-  num_prompts = 1000
+  base_model_id, request_rates, num_prompts, metadata, gcs_destination = _get_vllm_benchmark_parameters(model_id=model_id, num_chips=num_chips, test_run_id=test_run_id, model_configs=model_configs)
 
   run_cmds = [
       f"export CONTAINER_NAME={VLLM_TPU_CONTAINER}",
@@ -145,12 +156,6 @@ def get_tpu_vllm_benchmark_cmds(
       f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'export HF_TOKEN={HF_TOKEN} && vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 & sleep 600'",
   ]
 
-  # Group metrics together using test_run_id.
-  metadata = {
-      "test_run_id": test_run_id,
-      "instance_type": instance_type,
-      "num_accelerators": num_chips,
-  }
   for request_rate in request_rates:
     benchmark_cmd_fmt = "sudo docker exec $CONTAINER_NAME /bin/bash -c \"export HF_TOKEN={HF_TOKEN} && python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model {model_id} --tokenizer {model_id} --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'\""
 
@@ -169,12 +174,6 @@ def get_tpu_vllm_benchmark_cmds(
     ]
     run_cmds.extend(benchmark_cmds)
 
-  # Get the GCS destination path *before* constructing the command, OUTSIDE the list.
-  gcs_destination = metric_config.SshEnvVars.GCS_OUTPUT.value
-  if not gcs_destination:
-    raise ValueError("GCS_OUTPUT environment variable is not set or is empty.")
-  # Debug Print
-  print(f"DEBUG: GCS Destination: {gcs_destination}")
   run_cmds.extend([
       # Kill background process
       "sudo docker exec $CONTAINER_NAME /bin/bash -c 'pkill vllm'",
