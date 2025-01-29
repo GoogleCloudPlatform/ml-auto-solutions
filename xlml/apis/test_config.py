@@ -396,6 +396,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
       reserved: bool,
       network: str,
       subnetwork: str,
+      num_slices: int = 1,
   ):
     return JSonnetTpuVmTest(
         test_name=test['testName'],
@@ -414,6 +415,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         exports=exports,
         test_command=test_command,
         timeout=datetime.timedelta(seconds=test['timeout']),
+        num_slices=num_slices,
     )
 
   @staticmethod
@@ -442,6 +444,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
       reserved: bool = False,
       network='default',
       subnetwork='default',
+      num_slices: int = 1,
   ):
     """Parses a compiled legacy JSonnet test config from `tests/pytorch`."""
     test = _load_compiled_jsonnet(test_name)
@@ -455,6 +458,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         reserved=reserved,
         network=network,
         subnetwork=subnetwork,
+        num_slices=num_slices,
     )
 
   @property

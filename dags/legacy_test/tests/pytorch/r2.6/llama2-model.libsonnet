@@ -138,7 +138,7 @@ local utils = import 'templates/utils.libsonnet';
       'transformers/examples/pytorch/language-modeling/run_clm.py',
       '--dataset_name=wikitext',
       '--dataset_config_name=wikitext-2-raw-v1',
-      '--per_device_train_batch_size=2',
+      '--per_device_train_batch_size=4',
       '--do_train',
       '--output_dir=./tmp/test-clm',
       '--overwrite_output_dir',
@@ -182,6 +182,34 @@ local utils = import 'templates/utils.libsonnet';
     },
   },
 
+  local llama3_train_2_slice = self.llama3_train_2_slice,
+  llama3_train_2_slice:: llama3_train {
+    modelName: 'llama3-train-2-slice',
+    command: [
+      'python',
+      'transformers/examples/pytorch/language-modeling/run_clm.py',
+      '--dataset_name=wikitext',
+      '--dataset_config_name=wikitext-2-raw-v1',
+      '--per_device_train_batch_size=8',
+      '--do_train',
+      '--output_dir=./tmp/test-clm',
+      '--overwrite_output_dir',
+      '--config_name=./llama_3/config.json',
+      '--cache_dir=./cache',
+      '--tokenizer_name=./llama_3/tokenizer/',
+      '--block_size=8192',
+      '--optim=adafactor',
+      '--save_strategy=no',
+      '--logging_strategy=no',
+      '--fsdp=full_shard',
+      '--fsdp_config=./llama_3/fsdp_config.json',
+      '--torch_dtype=bfloat16',
+      '--dataloader_drop_last=yes',
+      '--flash_attention',
+      '--max_steps=10',
+    ]
+  },
+
   local v4_8 = self.v4_8,
   v4_8:: {
     accelerator: tpus.v4_8,
@@ -210,5 +238,6 @@ local utils = import 'templates/utils.libsonnet';
     llama2 + spmd + v5p_8 + timeouts.Hours(3),
     llama3_train + v5p_8 + timeouts.Hours(3),
     llama3_train + trillium_4 + timeouts.Hours(3),
+    llama3_train_2_slice + v5p_8 + timeouts.Hours(3),
   ],
 }
