@@ -171,7 +171,8 @@ def get_tpu_vllm_benchmark_cmds(
 
   run_cmds.extend([
       # Copy metrics
-      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}'",
+      gcs_destination = metric_config.SshEnvVars.GCS_OUTPUT.value
+      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl {gcs_destination}'",
       # Stop the container
       "sudo docker stop $CONTAINER_NAME",
   ])
