@@ -72,8 +72,9 @@ def get_vllm_tpu_setup_cmds():
 
   return setup_cmds
 
+
 def _get_vllm_benchmark_parameters(
-  model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
+    model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
   base_model_id = model_id.split("/")[-1]
   request_rates = model_configs["request_rates"].split(",")
@@ -96,10 +97,22 @@ def _get_vllm_benchmark_parameters(
 
   return base_model_id, request_rates, num_prompts, metadata, gcs_destination
 
+
 def get_gpu_vllm_benchmark_cmds(
     model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
-  base_model_id, request_rates, num_prompts, metadata, gcs_destination = _get_vllm_benchmark_parameters(model_id=model_id, num_chips=num_chips, test_run_id=test_run_id, model_configs=model_configs)
+  (
+      base_model_id,
+      request_rates,
+      num_prompts,
+      metadata,
+      gcs_destination,
+  ) = _get_vllm_benchmark_parameters(
+      model_id=model_id,
+      num_chips=num_chips,
+      test_run_id=test_run_id,
+      model_configs=model_configs,
+  )
 
   run_cmds = [
       "export PATH=$PATH:/home/cloud-ml-auto-solutions/vllm:/home/cloud-ml-auto-solutions/.local/bin",
@@ -145,10 +158,22 @@ def get_gpu_vllm_benchmark_cmds(
 
   return tuple(run_cmds)
 
+
 def get_tpu_vllm_benchmark_cmds(
     model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
-  base_model_id, request_rates, num_prompts, metadata, gcs_destination = _get_vllm_benchmark_parameters(model_id=model_id, num_chips=num_chips, test_run_id=test_run_id, model_configs=model_configs)
+  (
+      base_model_id,
+      request_rates,
+      num_prompts,
+      metadata,
+      gcs_destination,
+  ) = _get_vllm_benchmark_parameters(
+      model_id=model_id,
+      num_chips=num_chips,
+      test_run_id=test_run_id,
+      model_configs=model_configs,
+  )
 
   run_cmds = [
       f"export CONTAINER_NAME={VLLM_TPU_CONTAINER}",
@@ -168,9 +193,9 @@ def get_tpu_vllm_benchmark_cmds(
             request_rate=request_rate,
             additional_metadata=json.dumps(metadata).replace('"', '\\"'),
         ),
-       # Process result json files inside the container
-       f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\\$(find . -name \\$OUTPUT_FORMAT -type f -printf \\\"%T@ %Tc %p\n\\\" | sort -n | head -1 | awk 'NF>1{{print \\$NF}}') && cat \\$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \\$BENCHMARK_OUTPUT\"",
-       "sudo docker exec $CONTAINER_NAME /bin/bash -c \"echo '' >> metric_report.jsonl\"",
+        # Process result json files inside the container
+        f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\\$(find . -name \\$OUTPUT_FORMAT -type f -printf \\\"%T@ %Tc %p\n\\\" | sort -n | head -1 | awk 'NF>1{{print \\$NF}}') && cat \\$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \\$BENCHMARK_OUTPUT\"",
+        "sudo docker exec $CONTAINER_NAME /bin/bash -c \"echo '' >> metric_report.jsonl\"",
     ]
     run_cmds.extend(benchmark_cmds)
 
@@ -184,6 +209,7 @@ def get_tpu_vllm_benchmark_cmds(
   ])
 
   return tuple(run_cmds)
+
 
 def get_gpu_vllm_gce_config(
     machine_version: MachineVersion,
