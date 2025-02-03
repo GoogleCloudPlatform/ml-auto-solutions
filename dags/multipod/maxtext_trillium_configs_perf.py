@@ -21,18 +21,17 @@ from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags.common.model_configs import MaxTextTrilliumModelConfigs
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config
 
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
-MODEL_CONFIGS = ["gpt3_175b", "llama2_7b_4096", "mixtral_8x7b"]
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
 ]
-QUANTIZATION_SWEEP = {"M_QUANTIZATION": ["", "int8"]}
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 
 with models.DAG(
@@ -46,10 +45,15 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
   for mode, image in DOCKER_IMAGES:
-    for model in MODEL_CONFIGS:
+    for model in MaxTextTrilliumModelConfigs:
       base_run_model_cmds = [
-          f"bash MaxText/configs/trillium/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue",
+          f"python3 benchmarks/benchmark_runner.py on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
+      num_slices = (
+          [2]
+          if model == MaxTextTrilliumModelConfigs.LLAMA3_1_405B_8192
+          else [1, 2]
+      )
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               test_owner=test_owner.RAYMOND_Z,
@@ -59,11 +63,11 @@ with models.DAG(
               cluster=XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
               time_out_in_min=360,
               base_output_directory=BASE_OUTPUT_DIRECTORY,
-              num_slices=[1, 2],
+              num_slices=num_slices,
               docker_image=image.value,
-              run_name_prefix=f"maxtext-{model}-{mode.value}",
+              run_name_prefix=f"maxtext-{model.name.lower()}-{mode.value}",
               base_run_model_cmds=base_run_model_cmds,
-              sweep_params=QUANTIZATION_SWEEP,
+              sweep_params={},
           )
       )
 
