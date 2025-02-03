@@ -165,19 +165,6 @@ class QuarantineTests:
       "mxla-gpt3-6b-nightly-gke-8xv5p-8": TestInfo(
           team.PERFORMANCE, "2024-11-12"
       ),
-      # DAG: mxla_maxtext_nightly_gke
-      "mxla-maxtext-nightly-gke-v5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
-      "mxla-maxtext-nightly-gke-2xv5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
-      "mxla-maxtext-nightly-gke-4xv5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
-      "mxla-maxtext-nightly-gke-8xv5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
       # DAG: maxtext_trillium_configs_perf
       "maxtext-llama2_70b_4096-stable-3-2xv6e-256": TestInfo(
           team.PERFORMANCE, "2024-11-12"
