@@ -44,8 +44,8 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 
-# Run once a day at 2 pm UTC (6 am PST)
-SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 12 pm UTC (4 am PST)
+SCHEDULED_TIME = "0 12 * * *" if composer_env.is_prod_env() else None
 
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
@@ -166,12 +166,11 @@ with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
-        "simple",
-        "aotc",
-        "nightly",
-        "reproducibility",
+       "reproducibility",
         "experimental",
         "xlml",
+        "regressiontests",
+        "a3ultra",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,

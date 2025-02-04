@@ -45,7 +45,7 @@ from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 
 
-# Run once a day at 2 pm UTC (6 am PST)
+# Run once a day at 11 am UTC (3 am PST)
 SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 MODEL_ID = "llama-3.1-70b"
@@ -167,12 +167,11 @@ with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
-        "simple",
-        "aotc",
-        "nightly",
         "reproducibility",
         "experimental",
         "xlml",
+        "regressiontests",
+        "a3mega",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
