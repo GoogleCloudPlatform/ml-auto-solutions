@@ -56,7 +56,7 @@ def get_trtllm_bench_config(
       "sudo chmod a+w /scratch",
       "cd /scratch",
       "pip install jsonlines",
-      "gsutil cp gs://yijiaj/temp/trtllm_bench_jsonl_converter.py .",
+      "wget https://raw.githubusercontent.com/GoogleCloudPlatform/ml-auto-solutions/refs/heads/master/dags/inference/utils/trtllm_bench_jsonl_converter.py",
       # Install TensorRT-LLM.
       "sudo apt-get update",
       "sudo apt-get -y install git git-lfs",
