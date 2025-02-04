@@ -102,9 +102,9 @@ def get_trt_llm_mlperf_v40_gpu_config(
   make_jsonl_converter_cmd = f'echo "{py_script}" > jsonl_converter.py'
 
   docker_cmds = (
-      #"make link_dirs",
-      #"make build BUILD_TRTLLM=1",
-      #"pip install huggingface_hub==0.24.7",
+      # "make link_dirs",
+      # "make build BUILD_TRTLLM=1",
+      # "pip install huggingface_hub==0.24.7",
       f'make run RUN_ARGS="--benchmarks={model_configs["model_name"]} --scenarios={model_configs["scenario"]} --config_ver={model_configs["config_ver"]} --test_mode=PerformanceOnly"',
   )
   docker_cmd = " && ".join(docker_cmds)
