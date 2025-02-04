@@ -55,7 +55,7 @@ FRAMEWORK = "nemo"
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
-CLUSTER = "gke-a3ultra-map"
+CLUSTER = "gke-a3u-map-01-31"
 CLUSTER_REGION = "europe-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
@@ -119,6 +119,7 @@ def run_aotc_workload():
                     full_config_yaml_path,
                     recipe_repo_root,
                     DOCKER_IMAGE,
+                    cluster_name=CLUSTER,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(recipe_repo_root)
