@@ -238,11 +238,11 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   TPU_V5P_8_CLUSTER = XpkClusterConfig(
-      name="v5p-8-bodaborg-us-east5-a",
+      name="v5p-8-bodaborg-europe-west4-b",
       device_version=TpuVersion.V5P,
       core_count=8,
-      project=Project.TPU_PROD_ENV_LARGE_CONT.value,
-      zone=Zone.US_EAST5_A.value,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.EUROPE_WEST4_B.value,
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
       name="v5e-256-bodaborg-europe-west4",

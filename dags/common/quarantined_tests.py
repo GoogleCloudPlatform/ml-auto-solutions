@@ -80,18 +80,6 @@ class QuarantineTests:
       # DAG: maxtext_end_to_end
       "chained_tests_gemma-7b_stable": TestInfo(team.LLM_DEVX, "2024-11-12"),
       "chained_tests_gemma-7b_nightly": TestInfo(team.LLM_DEVX, "2024-11-12"),
-      "chained_tests_mixtral-8x7b_stable": TestInfo(
-          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
-      ),
-      "chained_tests_mixtral-8x7b_nightly": TestInfo(
-          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
-      ),
-      "maxtext_stable_mixtral-8x22b-v4-128": TestInfo(
-          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
-      ),
-      "maxtext_nightly_mixtral-8x22b-v4-128": TestInfo(
-          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
-      ),
       "chained_tests_llama2-70b_stable": TestInfo(team.LLM_DEVX, "2024-11-12"),
       "chained_tests_llama2-70b_nightly": TestInfo(team.LLM_DEVX, "2024-11-12"),
       # DAG: jax_stable_stack_gpu_e2e
@@ -175,19 +163,6 @@ class QuarantineTests:
           team.PERFORMANCE, "2024-11-12"
       ),
       "mxla-gpt3-6b-nightly-gke-8xv5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
-      # DAG: mxla_maxtext_nightly_gke
-      "mxla-maxtext-nightly-gke-v5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
-      "mxla-maxtext-nightly-gke-2xv5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
-      "mxla-maxtext-nightly-gke-4xv5p-8": TestInfo(
-          team.PERFORMANCE, "2024-11-12"
-      ),
-      "mxla-maxtext-nightly-gke-8xv5p-8": TestInfo(
           team.PERFORMANCE, "2024-11-12"
       ),
       # DAG: maxtext_trillium_configs_perf

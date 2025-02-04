@@ -116,7 +116,7 @@ def get_gke_maxtext_nightly_config(
           f" python3 MaxText/train.py MaxText/configs/base.yml run_name={run_name}"
           f" base_output_directory={base_output_directory}"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
-          " per_device_batch_size=12 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
+          " model_name=llama3-8b per_device_batch_size=12 reuse_example_batch=1 metrics_file='metrics.txt'"
           " steps=50 enable_checkpointing=false profiler=xplane upload_all_profiler_results=true skip_first_n_steps_for_profiler=10 profiler_steps=10 gcs_metrics=true"
       ),
   )
