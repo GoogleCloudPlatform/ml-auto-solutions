@@ -116,12 +116,12 @@ def helm_apply_cmds(
     recipe_repo_root,
     docker_image,
     aotc: bool = False,
+    cluster_name: str = "a3plus-benchmark",
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
-    gcs_cmd = f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
-    network_prefix = "gke-a3-ultra-map"
-    gcs_cmd += f" --set clusterName={network_prefix}"
+    gcs_cmd = f" --set clusterName={cluster_name}"
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
   set_aotc = ""
@@ -180,10 +180,10 @@ def get_nemo_metrics_cmds(
 
 def cleanup_cmds():
   cleanup = (
+      "helm uninstall $JOB_NAME",
       "kubectl get pods "
       "--no-headers=true | awk '{print $1}' "
       "| grep $JOB_NAME | xargs kubectl delete pods",
-      "helm uninstall $JOB_NAME",
   )
   return cleanup
 
