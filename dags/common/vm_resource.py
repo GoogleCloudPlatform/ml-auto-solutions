@@ -49,7 +49,7 @@ L4_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
 H200_INFERENCE_SUBNETWORKS = (
-    "regions/europe-west1/subnetworks/mas-test-eurpoe-west1	"
+    "regions/europe-west1/subnetworks/mas-test-europe-west1	"
 )
 
 

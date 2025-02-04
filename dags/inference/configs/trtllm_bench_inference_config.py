@@ -72,7 +72,7 @@ def get_trtllm_bench_config(
   jsonl_output_path = "metric_report.jsonl"
   docker_container_name = "tensorrt_llm-release-yijiaj"
   docker_cmds = (
-      "cp /scratch/trtllm-bench-test.sh trtllm-bench-test.sh",
+      "cp /scratch/trtllm-bench-test.sh trtllm-bench.sh",
       "chmod +x trtllm-bench.sh",
       "./trtllm-bench.sh",
   )
