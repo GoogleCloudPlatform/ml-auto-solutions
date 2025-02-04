@@ -120,8 +120,8 @@ def helm_apply_cmds(
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
-    gcs_cmd = f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
-    gcs_cmd += f" --set clusterName={cluster_name}"
+    gcs_cmd = f" --set clusterName={cluster_name}"
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
   set_aotc = ""
