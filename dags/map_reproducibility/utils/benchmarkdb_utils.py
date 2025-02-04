@@ -244,7 +244,7 @@ def write_run(
         metrics_mfu=mfu,
         metrics_step_time=median_step_time,
         metrics_tokens_per_second=tokens_per_second,
-        metrics_steps_for_convergence=number_of_steps,
+        metrics_num_steps=number_of_steps,
         metrics_other=other_metrics_in_json,
         hardware_nccl_driver_nickname=nccl_driver_nickname,
         hardware_topology=topology,
