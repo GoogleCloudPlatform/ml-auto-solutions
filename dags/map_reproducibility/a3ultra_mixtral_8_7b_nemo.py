@@ -166,7 +166,7 @@ with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
-       "reproducibility",
+        "reproducibility",
         "experimental",
         "xlml",
         "regressiontests",
