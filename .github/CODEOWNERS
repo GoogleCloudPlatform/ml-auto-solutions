@@ -1,7 +1,7 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
 * @richardsliu @yixinshi @RissyRan @allenwang28
 
-dags/common @richardsliu @yixinshi @RissyRan @allenwang28 @zpcore @ManfeiBai @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1
+dags/common @richardsliu @yixinshi @RissyRan @allenwang28 @zpcore @ManfeiBai @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1 @yangyuwei @khatwanimohit @a9isha @hengtaoguo @surbhijainusc @bvandermoon
 
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng @richardsliu
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng @richardsliu
@@ -11,7 +11,7 @@ dags/legacy_test/tests/pytorch @vanbasten23 @zpcore @ManfeiBai
 
 dags/mantaray @ManfeiBai @tengyifei @zpcore
 
-dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982
+dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @yangyuwei @khatwanimohit @a9isha @hengtaoguo @surbhijainusc @bvandermoon @RissyRan @jiangjy1982
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
