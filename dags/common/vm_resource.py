@@ -48,6 +48,9 @@ A100_INFERENCE_SUBNETWORKS = (
 L4_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
+H200_INFERENCE_SUBNETWORKS = (
+    "regions/europe-west1/subnetworks/mas-test-europe-west1	"
+)
 
 
 class Project(enum.Enum):
@@ -117,6 +120,8 @@ class Zone(enum.Enum):
   US_WEST1_C = "us-west1-c"
   # reserved a3+ cluster in supercomputer-testing
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
+  # reserved H200 capacity in cloud-tpu-inference-test
+  EUROPE_WEST1_B = "europe-west1-b"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
   # reserved v5e capacity in tpu-prod-env-multipod
@@ -139,6 +144,7 @@ class MachineVersion(enum.Enum):
   A2_ULTRAGPU_4G = "a2-ultragpu-4g"
   A2_ULTRAGPU_8G = "a2-ultragpu-8g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
+  A3_ULTRAGPU_8G = "a3-ultragpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
   G2_STAND_32 = "g2-standard-32"  # 128GB memroy
@@ -170,6 +176,7 @@ class GpuVersion(enum.Enum):
   A100 = "nvidia-tesla-a100"
   A100_80G = "nvidia-a100-80gb"
   H100 = "nvidia-h100-80gb"
+  H200 = "nvidia-h200-80gb"
   XPK_H100 = "h100-80gb-8"
   XPK_H100_MEGA = "h100-mega-80gb-8"
   V100 = "nvidia-tesla-v100"
@@ -231,11 +238,11 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   TPU_V5P_8_CLUSTER = XpkClusterConfig(
-      name="v5p-8-bodaborg-us-east5-a",
+      name="v5p-8-bodaborg-europe-west4-b",
       device_version=TpuVersion.V5P,
       core_count=8,
-      project=Project.TPU_PROD_ENV_LARGE_CONT.value,
-      zone=Zone.US_EAST5_A.value,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.EUROPE_WEST4_B.value,
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
       name="v5e-256-bodaborg-europe-west4",
