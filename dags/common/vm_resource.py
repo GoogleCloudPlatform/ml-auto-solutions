@@ -121,6 +121,7 @@ class Zone(enum.Enum):
   # reserved a3+ cluster in supercomputer-testing
   AUSTRALIA_SOUTHEAST1_C = "australia-southeast1-c"
   # reserved H200 capacity in cloud-tpu-inference-test
+  # & reserved a3u cluster in supercomputer-testing
   EUROPE_WEST1_B = "europe-west1-b"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
@@ -179,6 +180,7 @@ class GpuVersion(enum.Enum):
   H200 = "nvidia-h200-80gb"
   XPK_H100 = "h100-80gb-8"
   XPK_H100_MEGA = "h100-mega-80gb-8"
+  XPK_H200 = "h200-141gb-8"
   V100 = "nvidia-tesla-v100"
 
 
@@ -279,6 +281,13 @@ class XpkClusters:
       core_count=8,
       project=Project.SUPERCOMPUTER_TESTING.value,
       zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
+  )
+  GPU_A3ULTRA_CLUSTER = XpkClusterConfig(
+      name="gke-a3u-map-01-31",
+      device_version=GpuVersion.XPK_H200,
+      core_count=8,
+      project=Project.SUPERCOMPUTER_TESTING.value,
+      zone=Zone.EUROPE_WEST1_B.value,
   )
   CPU_M1_MEGAMEM_96_CLUSTER = XpkClusterConfig(
       name="m1-megamem-96-shared",
