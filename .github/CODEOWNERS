@@ -1,7 +1,7 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
-* @richardsliu @yixinshi @RissyRan @allenwang28
+* @richardsliu @yixinshi @RissyRan @hyeygit
 
-dags/common @richardsliu @yixinshi @RissyRan @allenwang28 @zpcore @ManfeiBai @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1
+dags/common @richardsliu @yixinshi @RissyRan @hyeygit @zpcore @ManfeiBai @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1
 
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng @richardsliu
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng @richardsliu
