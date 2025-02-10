@@ -24,7 +24,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from kubernetes import client as k8s_client
 from xlml.apis import metric_config
 from xlml.utils import gke
-from dags.common.vm_resource import GpuVersion
+from dags.common.vm_resource import GpuVersion, XpkVersions
 
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
@@ -41,10 +41,10 @@ LOGGING_URL_FORMAT = (
 )
 
 
-def get_xpk_setup_cmd(tmpdir):
+def get_xpk_setup_cmd(tmpdir, version=XpkVersions.V0_4_1.value):
   return [
       "set -xue",
-      f"git clone --branch v0.4.1 https://github.com/AI-Hypercomputer/xpk {tmpdir}/xpk",
+      f"git clone --branch {version} https://github.com/AI-Hypercomputer/xpk {tmpdir}/xpk",
       "pip install ruamel.yaml docker",
   ]
 
@@ -76,6 +76,7 @@ def run_workload(
     num_slices: int = 1,
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
+    xpk_version: str = XpkVersions.V0_4_1.value,
 ):
   """Run workload through xpk tool."""
 
@@ -100,7 +101,7 @@ def run_workload(
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
         " --restart-on-user-code-failure"
     )
-    cmds = get_xpk_setup_cmd(tmpdir)
+    cmds = get_xpk_setup_cmd(tmpdir, xpk_version)
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
     if use_vertex_tensorboard:
@@ -260,7 +261,11 @@ def wait_for_workload_completion(
 
 @task(trigger_rule="all_done")
 def clean_up_workload(
-    workload_id: str, project_id: str, zone: str, cluster_name: str
+    workload_id: str,
+    project_id: str,
+    zone: str,
+    cluster_name: str,
+    xpk_version: str = XpkVersions.V0_4_1.value,
 ) -> bool:
   """Delete workload."""
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -270,7 +275,7 @@ def clean_up_workload(
         f" --project={project_id} --zone={zone}"
     )
 
-    cmds = get_xpk_setup_cmd(tmpdir)
+    cmds = get_xpk_setup_cmd(tmpdir, xpk_version)
     cmds.append(workload_delete_cmd)
     hook = SubprocessHook()
     result = hook.run_command(
