@@ -23,14 +23,10 @@ from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import gke_config
-from xlml.utils.gpu import scale_up_a3_cluster, scale_down_a3_cluster
 
 
 # Run once a day at 11 am UTC (3 am PST)
 SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
-
-# Number of nodes on A3 cluster to be scaled up to
-A3_NUM_NODES = 3
 
 SCANNED_CHECKPOINT = "gs://ml-auto-solutions/output/sparsity_diffusion_devx/maxtext/chained_tests_mixtral-8x7b_nightly-2025-01-09-05-00-18//8x7b/scanned_ckpt/0/items"
 UNSCANNED_CKPT_PATH = "gs://ml-auto-solutions/output/sparsity_diffusion_devx/maxtext/chained_tests_mixtral-8x7b_nightly-2025-01-09-05-00-18//unscanned_ckpt/checkpoints/0/items"
@@ -55,15 +51,6 @@ def run_maxtext_tests():
   }
 
   for model, (test_script, nnodes) in test_models_gpu.items():
-    pinned_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=90,
-        test_name=f"{test_name_prefix}-pinned-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
-        test_owner=test_owner.MICHELLE_Y,
-    ).run()
     pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=90,
         test_name=f"{test_name_prefix}-pinned-{model}",
@@ -71,15 +58,6 @@ def run_maxtext_tests():
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
-        test_owner=test_owner.MICHELLE_Y,
-    ).run()
-    stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=90,
-        test_name=f"{test_name_prefix}-stable-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.MICHELLE_Y,
     ).run()
     stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
@@ -91,7 +69,7 @@ def run_maxtext_tests():
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.MICHELLE_Y,
     ).run()
-    pinned_a3_gpu >> pinned_a3plus_gpu >> stable_a3_gpu >> stable_a3plus_gpu
+    pinned_a3plus_gpu >> stable_a3plus_gpu
 
 
 with models.DAG(
@@ -108,15 +86,9 @@ with models.DAG(
     start_date=datetime.datetime(2024, 12, 11),
     catchup=False,
 ) as dag:
-  with TaskGroup(group_id="scale_up", dag=dag) as scale_up:
-    scale_up_a3_cluster(A3_NUM_NODES)
-
   with TaskGroup(
       group_id="run_tests", dag=dag, prefix_group_id=False
   ) as run_tests:
     run_maxtext_tests()
 
-  with TaskGroup(group_id="scale_down", dag=dag) as scale_down:
-    scale_down_a3_cluster()
-
-  scale_up >> run_tests >> scale_down
+  run_tests

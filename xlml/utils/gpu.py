@@ -20,21 +20,17 @@ from __future__ import annotations
 from absl import logging
 import airflow
 from airflow.decorators import task, task_group
-from airflow.hooks.subprocess import SubprocessHook
 import datetime
 import fabric
 from google.cloud import compute_v1
 import io
 import paramiko
 import re
-import tempfile
 import time
 from typing import Dict, Iterable
 import uuid
 from xlml.apis import gcp_config, test_config
-from xlml.utils import ssh, gke
-from dags.common.vm_resource import XpkClusters
-from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
+from xlml.utils import ssh
 
 
 def get_image_from_family(project: str, family: str) -> compute_v1.Image:
@@ -557,76 +553,3 @@ def delete_resource(instance_name: airflow.XComArg, project_id: str, zone: str):
 
   op = delete_resource_request(instance_name, project_id, zone)
   wait_for_resource_deletion(op)
-
-
-def resize_a3_cluster(cluster_name: str, zone: str, num_nodes: int):
-  region = gke.zone_to_region(zone)
-  node_pool = f"{cluster_name}-np-0"
-
-  gcloud_command = (
-      f"gcloud container clusters resize {cluster_name}"
-      f"  --quiet --region {region}"
-      f"  --node-pool {node_pool}"
-      f"  --num-nodes {num_nodes}",
-  )
-  return gcloud_command
-
-
-def wait_for_cluster_ready():
-  kubectl_command = (
-      "kubectl wait --for=condition=Ready nodes --all --timeout=5m",
-  )
-  return kubectl_command
-
-
-@task
-def scale_up_a3_cluster(num_nodes):
-  with tempfile.TemporaryDirectory() as tmpdir:
-    hook = SubprocessHook()
-
-    result = hook.run_command(
-        [
-            "bash",
-            "-c",
-            ";".join(
-                configure_project_and_cluster(
-                    XpkClusters.GPU_A3_CLUSTER.name,
-                    gke.zone_to_region(XpkClusters.GPU_A3_CLUSTER.zone),
-                )
-                + resize_a3_cluster(
-                    XpkClusters.GPU_A3_CLUSTER.name,
-                    XpkClusters.GPU_A3_CLUSTER.zone,
-                    num_nodes,
-                )
-                + wait_for_cluster_ready()
-            ),
-        ],
-        cwd=tmpdir,
-    )
-    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
-
-
-@task
-def scale_down_a3_cluster():
-  with tempfile.TemporaryDirectory() as tmpdir:
-    hook = SubprocessHook()
-
-    result = hook.run_command(
-        [
-            "bash",
-            "-c",
-            ";".join(
-                configure_project_and_cluster(
-                    XpkClusters.GPU_A3_CLUSTER.name,
-                    gke.zone_to_region(XpkClusters.GPU_A3_CLUSTER.zone),
-                )
-                + resize_a3_cluster(
-                    XpkClusters.GPU_A3_CLUSTER.name,
-                    XpkClusters.GPU_A3_CLUSTER.zone,
-                    0,
-                )
-            ),
-        ],
-        cwd=tmpdir,
-    )
-    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
