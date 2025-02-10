@@ -295,6 +295,11 @@ class XpkClusters:
       zone=Zone.US_CENTRAL1_B.value,
   )
 
+class XpkVersions(enum.Enum):
+  """Supported XPK versions."""
+
+  V0_4_1 = 'v0.4.1'
+  V0_6_0 = 'v0.6.0'
 
 class DockerImage(enum.Enum):
   """Common docker images."""
