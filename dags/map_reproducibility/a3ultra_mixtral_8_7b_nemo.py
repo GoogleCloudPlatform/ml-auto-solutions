@@ -62,6 +62,7 @@ IMAGE_VERSION = "nemo24.07"
 DOCKER_IMAGE = "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U"
 KUEUE_NAME = "a3-ultra"
 
+
 @task
 def run_aotc_workload():
   with tempfile.TemporaryDirectory() as tmpdir:
