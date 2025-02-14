@@ -96,10 +96,6 @@ class QuarantineTests:
       "axlearn-jax-stable-stack-v4-16-2x-2xv4-16": TestInfo(
           team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
-      # DAG: maxdiffusion_e2e
-      "maxd-sdxl-nan-v6e-256-2x-2xv6e-256": TestInfo(
-          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
-      ),
       # DAG: maxtext_configs_aot
       "maxtext-aot-v5e-stable-v4-8": TestInfo(team.PERFORMANCE, "2024-11-12"),
       "maxtext-aot-v5e-nightly-v4-8": TestInfo(team.PERFORMANCE, "2024-11-12"),
