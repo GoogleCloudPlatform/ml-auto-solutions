@@ -59,7 +59,7 @@ CLUSTER = "a3ultra-benchmark"
 CLUSTER_REGION = "us-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo24.07"
-DOCKER_IMAGE = "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U"
+DOCKER_IMAGE = f"us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:{IMAGE_VERSION}-gib1.0.3-A3U"
 KUEUE_NAME = "a3-ultra"
 
 
@@ -124,7 +124,7 @@ def run_aotc_workload():
                     kueue_name=KUEUE_NAME,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(recipe_repo_root, hypercomputer="a3ultra")
+                + copy_bucket_cmds(recipe_repo_root, hypercomputer=HYPERCOMPUTER)
                 + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
