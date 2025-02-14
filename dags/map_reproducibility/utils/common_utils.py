@@ -117,7 +117,7 @@ def helm_apply_cmds(
     docker_image,
     aotc: bool = False,
     cluster_name: str = "a3plus-benchmark",
-    kueue_name: str = "a3-ultra"
+    kueue_name: str = "a3-ultra",
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
@@ -154,7 +154,7 @@ def wait_for_jobs_cmds():
 
 def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
   gcs_location = ""
-  if(hypercomputer == "a3ultra"):
+  if hypercomputer == "a3ultra":
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/megatron_gpt/"
   else:
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/"
