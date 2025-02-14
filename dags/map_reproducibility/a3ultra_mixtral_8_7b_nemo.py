@@ -127,7 +127,7 @@ def run_aotc_workload():
                 + copy_bucket_cmds(
                     recipe_repo_root,
                     hypercomputer=HYPERCOMPUTER,
-                  )
+                )
                 + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
