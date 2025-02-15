@@ -117,10 +117,12 @@ def helm_apply_cmds(
     docker_image,
     aotc: bool = False,
     cluster_name: str = "a3plus-benchmark",
+    kueue_name: str = "a3-ultra",
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
     gcs_cmd = f" --set clusterName={cluster_name}"
+    gcs_cmd += f" --set queue={kueue_name}"
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
@@ -150,10 +152,16 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
-def copy_bucket_cmds(recipe_repo_root):
+def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
+  gcs_location = ""
+  if hypercomputer == "a3ultra":
+    gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/megatron_gpt/"
+  else:
+    gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/"
+
   copy_bucket_contents = (
       "export COMPLETE_JOB_NAME=$(gcloud storage ls "
-      f"gs://{BUCKET_NAME}/nemo-experiments/ | grep $JOB_NAME)",
+      f"{gcs_location} | grep $JOB_NAME)",
       'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
       f"cd {recipe_repo_root}/src/utils/training_metrics",
       "gcloud storage cp ${COMPLETE_JOB_NAME}"
