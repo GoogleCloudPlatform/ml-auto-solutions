@@ -89,15 +89,7 @@ class QuarantineTests:
       "maxtext-stable-stack-train-c4-data-h100-mega-80gb-8": TestInfo(
           team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
-      # DAG: jax_stable_tpu_stack_e2e
-      "axlearn-jax-stable-stack-v4-16-1x-v4-16": TestInfo(
-          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
-      ),
       "axlearn-jax-stable-stack-v4-16-2x-2xv4-16": TestInfo(
-          team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
-      ),
-      # DAG: maxdiffusion_e2e
-      "maxd-sdxl-nan-v6e-256-2x-2xv6e-256": TestInfo(
           team.SPARSITY_DIFFUSION_DEVX, "2024-11-12"
       ),
       # DAG: maxtext_configs_aot
