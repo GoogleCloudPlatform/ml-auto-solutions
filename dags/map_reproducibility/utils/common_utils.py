@@ -187,9 +187,7 @@ def get_nemo_metrics_cmds(
 
 
 def cleanup_cmds():
-  cleanup = (
-      "helm uninstall $JOB_NAME",
-  )
+  cleanup = ("helm uninstall $JOB_NAME",)
   return cleanup
 
 
