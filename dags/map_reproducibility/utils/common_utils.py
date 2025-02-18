@@ -187,12 +187,7 @@ def get_nemo_metrics_cmds(
 
 
 def cleanup_cmds():
-  cleanup = (
-      "helm uninstall $JOB_NAME",
-      "kubectl get pods "
-      "--no-headers=true | awk '{print $1}' "
-      "| grep $JOB_NAME | xargs kubectl delete pods",
-  )
+  cleanup = ("helm uninstall $JOB_NAME",)
   return cleanup
 
 
