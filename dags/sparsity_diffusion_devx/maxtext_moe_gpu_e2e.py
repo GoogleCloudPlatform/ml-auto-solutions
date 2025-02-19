@@ -21,7 +21,7 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import XpkClusters, DockerImage
+from dags.common.vm_resource import XpkClusters, DockerImage, XpkVersions
 from dags.multipod.configs import gke_config
 
 
@@ -69,7 +69,27 @@ def run_maxtext_tests():
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.MICHELLE_Y,
     ).run()
-    pinned_a3plus_gpu >> stable_a3plus_gpu
+    pinned_a3ultra_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+        time_out_in_min=90,
+        test_name=f"{test_name_prefix}-pinned-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster=XpkClusters.GPU_A3ULTRA_CLUSTER,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
+        test_owner=test_owner.MICHELLE_Y,
+        xpk_version=XpkVersions.V0_6_0.value,
+    ).run()
+    stable_a3ultra_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+        time_out_in_min=90,
+        test_name=f"{test_name_prefix}-stable-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster=XpkClusters.GPU_A3ULTRA_CLUSTER,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
+        test_owner=test_owner.MICHELLE_Y,
+        xpk_version=XpkVersions.V0_6_0.value,
+    ).run()
+    pinned_a3plus_gpu >> stable_a3plus_gpu >> pinned_a3ultra_gpu >> stable_a3ultra_gpu
 
 
 with models.DAG(
