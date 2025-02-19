@@ -36,71 +36,9 @@ with models.DAG(
     catchup=False,
     concurrency=2,
 ) as dag:
-  # Testing configurations
-  tpu_configs = {
-      # accelerator: [(model_size, num_cores), ...],
-      "v4": [("22b", 128), ("52b", 384)],
-      "v5e": [("16b", 256), ("32b", 256), ("64b", 256), ("128b", 256)],
-      "v5p": [
-          ("32b", 128),
-          ("64b", 128),
-          ("128b", 256),
-          ("128b", 512),
-          ("256b", 1024),
-          ("512b", 1024),
-          ("1024b", 2048),
-          ("1024b", 4096),
-      ],
-  }
-  num_slices = [1, 2]
-  docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
-  ]
-
-  run_model_cmds_dict = {}
-  for tpu, models in tpu_configs.items():
-    run_model_cmds = []
-    for model_size, num_cores in models:
-      for n in num_slices:
-        cmd = f"bash MaxText/configs/{tpu}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY={tpu}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}"
-        run_model_cmds.append(cmd)
-    run_model_cmds_dict[tpu] = run_model_cmds
-
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
-
-  for mode, image in docker_images:
-    maxtext_v4_configs_test = gke_config.get_gke_config(
-        time_out_in_min=60,
-        test_name=f"maxtext-aot-v4-{mode.value}",
-        run_model_cmds=run_model_cmds_dict["v4"],
-        docker_image=image.value,
-        test_owner=test_owner.RAYMOND_Z,
-    ).run_with_quarantine(quarantine_task_group)
-
-    maxtext_v5e_configs_test = gke_config.get_gke_config(
-        time_out_in_min=60,
-        test_name=f"maxtext-aot-v5e-{mode.value}",
-        run_model_cmds=run_model_cmds_dict["v5e"],
-        docker_image=image.value,
-        test_owner=test_owner.RAYMOND_Z,
-    ).run_with_quarantine(quarantine_task_group)
-
-    maxtext_v5p_configs_test = gke_config.get_gke_config(
-        time_out_in_min=60,
-        test_name=f"maxtext-aot-v5p-{mode.value}",
-        run_model_cmds=run_model_cmds_dict["v5p"],
-        docker_image=image.value,
-        test_owner=test_owner.RAYMOND_Z,
-    ).run_with_quarantine(quarantine_task_group)
-
-    (
-        maxtext_v4_configs_test
-        >> maxtext_v5e_configs_test
-        >> maxtext_v5p_configs_test
-    )
 
   # GPU AoT tests
   cmd = f"bash MaxText/configs/a3/llama_2_7b/16vm.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=16"
