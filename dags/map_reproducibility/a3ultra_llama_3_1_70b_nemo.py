@@ -57,13 +57,11 @@ FRAMEWORK = "nemo"
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
-CLUSTER = "gke-a3ultra-map"
+CLUSTER = "a3ultra-bmark72"
 CLUSTER_REGION = "europe-west1"
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
-DOCKER_IMAGE = f"us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}"
-AOTC_IMAGE = "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo@sha256:7a84264e71f82f225be639dd20fcf9104c80936c0f4f38f94b88dfb60303c70e"
-
+DOCKER_IMAGE = f"us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:{IMAGE_VERSION}-gib1.0.3-A3U"
 
 @task
 def run_aotc_workload():
@@ -121,7 +119,7 @@ def run_aotc_workload():
                     HYPERCOMPUTER,
                     full_config_yaml_path,
                     recipe_repo_root,
-                    AOTC_IMAGE,
+                    DOCKER_IMAGE,
                     True,
                 )
                 + wait_for_jobs_cmds()
