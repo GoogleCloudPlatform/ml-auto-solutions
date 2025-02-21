@@ -169,6 +169,15 @@ def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
   )
   return copy_bucket_contents
 
+def copy_dummy_bucket(tmpdir):
+  cmd = (
+      f"METRICS_FILE={tmpdir}/metrics.txt",
+      f"cd {tmpdir}",
+      "mkdir -p tflog",
+      "gcloud storage cp gs://reproducibility-demo/maxtext/gunjanjalori--mixtral-8x7b-maxtext-1736527683-wbg4/"
+      "tensorboard/gunjanjalori--mixtral-8x7b-maxtext-1736527683-wbg4/"
+      "events.out.tfevents.1736527894.gke-gke-a3ultra-map-a3-ultragpu-8g-a3-90fadfb2-6fkq $METRICS_FILE",
+  )
 
 def get_nemo_metrics_cmds(
     batch_size, num_accelerators, precision, model_id, accelertator_type, temdir
