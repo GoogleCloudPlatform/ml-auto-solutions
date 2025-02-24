@@ -60,8 +60,8 @@ CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo24.07"
 DOCKER_IMAGE = f"us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:{IMAGE_VERSION}-gib1.0.3-A3U"
-
 KUEUE_NAME = "a3-ultra"
+
 
 @task
 def run_aotc_workload():

@@ -266,6 +266,7 @@ def get_recipe_repo_path(tmpdir):
   )
   return recipe_repo_root
 
+
 def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3mega":
     return "a3plus-benchmark", "australia-southeast1"
