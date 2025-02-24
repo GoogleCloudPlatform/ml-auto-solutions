@@ -265,3 +265,9 @@ def get_recipe_repo_path(tmpdir):
       tmpdir, "reproducible-benchmark-recipes/projects/gpu-recipes"
   )
   return recipe_repo_root
+
+def get_cluster(hardware: str = "a3ultra"):
+  if hardware == "a3mega":
+    return "a3plus-benchmark", "australia-southeast1"
+  if hardware == "a3ultra":
+    return "a3ultra-bmark72", "europe-west1"

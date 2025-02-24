@@ -43,25 +43,25 @@ from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
+from dags.map_reproducibility.utils.common_utils import get_cluster
 
-# Run once a day at 2 pm UTC (6 am PST)
-SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 12 pm UTC (4 am PST)
+SCHEDULED_TIME = "0 12 * * *" if composer_env.is_prod_env() else None
 
-MODEL_ID = "llama-3.1-70b"
-METRICS_MODEL_ID = "llama3.1-70b"
-DATASET_MODEL_ID = "llama3-1-70b"
-HELM_NAME_MODEL_ID = "llama-3-1-70b"
-PRECISION = "fp8"
+MODEL_ID = "mixtral-8x7b"
+METRICS_MODEL_ID = "mixtral-7b"
+PRECISION = "bf16"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
-CLUSTER = "a3ultra-bmark72"
-CLUSTER_REGION = "europe-west1"
+CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
-IMAGE_VERSION = "nemo_workload:24.07"
+IMAGE_VERSION = "nemo24.07"
 DOCKER_IMAGE = f"us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:{IMAGE_VERSION}-gib1.0.3-A3U"
+
+KUEUE_NAME = "a3-ultra"
 
 @task
 def run_aotc_workload():
@@ -86,7 +86,7 @@ def run_aotc_workload():
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
     num_gpus_temp = 256
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3ultra-{PRECISION}.yaml"
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3u-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
@@ -113,17 +113,21 @@ def run_aotc_workload():
                 )
                 + install_helm_cmds()
                 + namespace_cmds()
-                + get_pre_workload_cmds(HELM_NAME_MODEL_ID, FRAMEWORK)
+                + get_pre_workload_cmds(MODEL_ID, FRAMEWORK)
                 + helm_apply_cmds(
                     FRAMEWORK,
                     HYPERCOMPUTER,
                     full_config_yaml_path,
                     recipe_repo_root,
                     DOCKER_IMAGE,
-                    True,
+                    cluster_name=CLUSTER,
+                    kueue_name=KUEUE_NAME,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(recipe_repo_root)
+                + copy_bucket_cmds(
+                    recipe_repo_root,
+                    hypercomputer=HYPERCOMPUTER,
+                )
                 + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
@@ -142,7 +146,7 @@ def run_aotc_workload():
     average_step_time, mfu = get_nemo_metrics(tmpdir)
 
     write_run(
-        model_id=DATASET_MODEL_ID,
+        model_id=MODEL_ID,
         hardware_id=HYPERCOMPUTER,
         software_id=SOFTWARE_ID,
         number_of_nodes=num_gpus / 8,
@@ -172,8 +176,7 @@ with models.DAG(
         "experimental",
         "xlml",
         "regressiontests",
-        "a3mega",
-        "aotc",
+        "a3ultra",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,

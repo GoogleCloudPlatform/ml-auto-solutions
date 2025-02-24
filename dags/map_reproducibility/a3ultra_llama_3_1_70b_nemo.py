@@ -43,6 +43,7 @@ from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
+from dags.map_reproducibility.utils.common_utils import get_cluster
 
 # Run once a day at 2 pm UTC (6 am PST)
 SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
@@ -57,11 +58,10 @@ FRAMEWORK = "nemo"
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
-CLUSTER = "a3ultra-bmark72"
-CLUSTER_REGION = "europe-west1"
+CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
-DOCKER_IMAGE = f"us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:{IMAGE_VERSION}-gib1.0.3-A3U"
+DOCKER_IMAGE = "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U"
 
 @task
 def run_aotc_workload():
@@ -120,7 +120,7 @@ def run_aotc_workload():
                     full_config_yaml_path,
                     recipe_repo_root,
                     DOCKER_IMAGE,
-                    True,
+                    cluster_name=CLUSTER
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(recipe_repo_root)
