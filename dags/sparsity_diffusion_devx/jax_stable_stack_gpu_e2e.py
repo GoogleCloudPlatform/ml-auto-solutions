@@ -46,21 +46,21 @@ with models.DAG(
   current_datetime = config.get_current_datetime()
 
   train_base = (
-    "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-    "python3 MaxText/train.py MaxText/configs/base.yml "
-    "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
-    "steps=2 enable_checkpointing=false attention=dot_product"
+      "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
+      "python3 MaxText/train.py MaxText/configs/base.yml "
+      "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
+      "steps=2 enable_checkpointing=false attention=dot_product"
   )
 
   test_models_gpu = {
-    "train-c4-data-1node": (
-      f"{train_base} run_name=runner-{current_datetime}-0",
+      "train-c4-data-1node": (
+          f"{train_base} run_name=runner-{current_datetime}-0",
           1,
-    ),
-    "train-c4-data-2node": (
-      f"{train_base} run_name=runner-{current_datetime}-0",
+      ),
+      "train-c4-data-2node": (
+          f"{train_base} run_name=runner-{current_datetime}-0",
           2,
-    ),
+      ),
   }
 
   quarantine_task_group = TaskGroup(
