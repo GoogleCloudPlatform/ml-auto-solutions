@@ -124,7 +124,9 @@ def run_aotc_workload():
                     cluster_name=CLUSTER,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(recipe_repo_root, hypercomputer=HYPERCOMPUTER)
+                + copy_bucket_cmds(
+                    recipe_repo_root, hypercomputer=HYPERCOMPUTER
+                )
                 + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
