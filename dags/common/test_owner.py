@@ -49,6 +49,7 @@ ZHIYU_L = "Zhiyu L."
 MOHIT_K = "Mohit K."
 ANISHA_M = "Anisha M."
 YUWEI_Y = "Yuwei Y."
+ABHINAV_S = "ABHINAV S."
 
 # MLCompass
 ORTI_B = "Orti B."

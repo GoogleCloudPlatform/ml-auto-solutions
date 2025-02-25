@@ -76,6 +76,7 @@ def run_workload(
     num_slices: int = 1,
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
+    ramdisk_directory: str = "",
 ):
   """Run workload through xpk tool."""
 
@@ -98,7 +99,7 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
-        " --restart-on-user-code-failure"
+        f" --restart-on-user-code-failure --ramdisk-directory={ramdisk_directory}"
     )
     cmds = get_xpk_setup_cmd(tmpdir)
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
