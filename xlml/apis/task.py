@@ -172,6 +172,7 @@ class XpkTask(BaseTask):
       use_vertex_tensorboard: bool = False,
       use_pathways: bool = False,
       skip_post_process: bool = False,
+      ramdisk_directory = "",
   ) -> DAGNode:
     """Run a test job within a docker image.
 
@@ -186,7 +187,7 @@ class XpkTask(BaseTask):
     """
     with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
       run_model, gcs_path = self.run_model(
-          gcs_location, use_vertex_tensorboard, use_pathways
+          gcs_location, use_vertex_tensorboard, use_pathways, ramdisk_directory
       )
       if not skip_post_process:
         run_model >> self.post_process(gcs_path)
@@ -246,6 +247,7 @@ class XpkTask(BaseTask):
       gcs_location: Optional[airflow.XComArg] = None,
       use_vertex_tensorboard: bool = False,
       use_pathways: bool = False,
+      ramdisk_directory = "",
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
 
@@ -267,7 +269,7 @@ class XpkTask(BaseTask):
             self.task_test_config.benchmark_id,
         )
       launch_workload = self.launch_workload(
-          workload_id, gcs_path, use_vertex_tensorboard, use_pathways
+          workload_id, gcs_path, use_vertex_tensorboard, use_pathways, ramdisk_directory
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=int(self.task_test_config.timeout.total_seconds()),
@@ -299,6 +301,7 @@ class XpkTask(BaseTask):
       gcs_path: str,
       use_vertex_tensorboard: bool,
       use_pathways: bool = False,
+      ramdisk_directory = "",
   ) -> DAGNode:
     """Create the workload and wait for it to provision."""
     with TaskGroup(group_id="launch_workload") as group:
@@ -318,6 +321,7 @@ class XpkTask(BaseTask):
           num_slices=self.task_test_config.num_slices,
           use_vertex_tensorboard=use_vertex_tensorboard,
           use_pathways=use_pathways,
+          ramdisk_directory=ramdisk_directory,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
