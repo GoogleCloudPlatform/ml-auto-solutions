@@ -65,16 +65,27 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
-  docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
+  maxtext_docker_images = [
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
+  ]
+
+  maxdiffusion_docker_images = [
+      (
+          SetupMode.STABLE,
+          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
+      ),
+      (
+          SetupMode.NIGHTLY,
+          DockerImage.MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX,
+      ),
   ]
 
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     cluster = config.clusters[accelerator]
     for slice_num in slices:
-      for mode, image in docker_images:
+      for mode, image in maxtext_docker_images:
         maxtext_jax_stable_stack_test = config.get_gke_config(
             num_slices=slice_num,
             cluster=cluster,
@@ -88,7 +99,7 @@ with models.DAG(
                 f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-stable-stack/automated/{current_datetime}",
             ),
             test_name=f"maxtext-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
-            docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+            docker_image=image.value,
             test_owner=test_owner.PARAM_B,
         ).run_with_quarantine(quarantine_task_group)
 
@@ -96,7 +107,7 @@ with models.DAG(
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     cluster = config.clusters[accelerator]
     for slice_num in slices:
-      for mode, image in docker_images:
+      for mode, image in maxdiffusion_docker_images:
         maxdiffusion_jax_stable_stack_test = config.get_gke_config(
             num_slices=slice_num,
             cluster=cluster,
