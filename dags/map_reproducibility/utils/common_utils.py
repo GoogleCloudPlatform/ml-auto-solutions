@@ -122,7 +122,7 @@ def helm_apply_cmds(
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
     gcs_cmd = f" --set clusterName={cluster_name}"
-    gcs_cmd += f" --set queue={kueue_name}"
+    # gcs_cmd += f" --set queue={kueue_name}"
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
@@ -187,7 +187,13 @@ def get_nemo_metrics_cmds(
 
 
 def cleanup_cmds():
-  cleanup = ("helm uninstall $JOB_NAME",)
+  cleanup = (
+      "helm uninstall $JOB_NAME",
+      "kubectl get pods "
+      "--no-headers=true | awk '{print $1}' "
+      "| grep $JOB_NAME | xargs kubectl delete pods",
+      'echo "pods cleaned up"',
+  )
   return cleanup
 
 
@@ -259,3 +265,10 @@ def get_recipe_repo_path(tmpdir):
       tmpdir, "reproducible-benchmark-recipes/projects/gpu-recipes"
   )
   return recipe_repo_root
+
+
+def get_cluster(hardware: str = "a3ultra"):
+  if hardware == "a3mega":
+    return "a3plus-benchmark", "australia-southeast1"
+  if hardware == "a3ultra":
+    return "a3ultra-bmark72", "europe-west1"
