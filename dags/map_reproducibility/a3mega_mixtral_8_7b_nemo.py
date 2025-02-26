@@ -46,7 +46,6 @@ from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 
 
-
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL = "mixtral-7b"
 BENCHMARK_MODEL = MODEL_ID

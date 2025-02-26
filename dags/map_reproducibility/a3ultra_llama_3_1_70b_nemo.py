@@ -47,7 +47,6 @@ from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 
 
-
 MODEL_ID = "llama-3.1-70b"
 METRICS_MODEL_ID = "llama3.1-70b"
 DATASET_MODEL_ID = "llama3-1-70b"

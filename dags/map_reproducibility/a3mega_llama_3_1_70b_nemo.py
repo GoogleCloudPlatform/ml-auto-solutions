@@ -46,7 +46,6 @@ from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 
 
-
 MODEL_ID = "llama-3.1-70b"
 METRICS_MODEL = "llama3.1-70b"
 JOB_MODEL_NAME = "llama3-1-70b"

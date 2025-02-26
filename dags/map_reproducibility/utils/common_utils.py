@@ -314,7 +314,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
               "nemo": "0 13 * * 4",
           },
           "gpt3-175b": {
-              "nemo": "0 14 * * 4", # Run once a week at 2 pm UTC (6 am PST)
+              "nemo": "0 14 * * 4",  # Run once a week at 2 pm UTC (6 am PST)
           },
       },
   }
