@@ -76,6 +76,7 @@ def run_workload(
     num_slices: int = 1,
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
+    ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
 ):
   """Run workload through xpk tool."""
 
@@ -100,6 +101,8 @@ def run_workload(
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
         " --restart-on-user-code-failure"
     )
+    if ramdisk_directory:
+      workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
     cmds = get_xpk_setup_cmd(tmpdir)
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
