@@ -272,3 +272,56 @@ def get_cluster(hardware: str = "a3ultra"):
     return "a3plus-benchmark", "australia-southeast1"
   if hardware == "a3ultra":
     return "a3ultra-bmark72", "europe-west1"
+
+
+def get_scheduled_time(hardware: str, model: str, framework: str):
+  """
+  Returns a cron expression for the DAG schedule based on
+  the given hardware, model, and framework.
+
+  Each model runs on Thursday on a unique time so
+  that we have free nodes for each.
+
+  Args:
+      hardware: The hardware type (e.g., "a3ultra", "a3mega").
+      model: The model ID (e.g., "mixtral-8x7b", "llama-3.1-70b").
+      framework: The framework (e.g., "nemo", "maxtext").
+
+  Returns:
+      A cron expression string (e.g., "0 12 * * 4") or None
+      if no schedule is defined
+      for the given combination.
+  """
+
+  schedule_map = {
+      "a3ultra": {
+          "mixtral-8x7b": {
+              "nemo": "0 12 * * 4",
+              "maxtext": "0 13 * * 4",  # 3 AM PST on Thursday
+          },
+          "llama-3.1-70b": {
+              "nemo": "0 11 * * 4",
+          },
+      },
+      "a3mega": {
+          "mixtral-8x7b": {
+              "nemo": "0 11 * * 4",
+          },
+          "llama-3-70b": {
+              "nemo": "0 12 * * 4",
+          },
+          "llama-3.1-70b": {
+              "nemo": "0 13 * * 4",
+          },
+          "gpt3-175b": {
+              "nemo": "0 14 * * 4", # Run once a week at 2 pm UTC (6 am PST)
+          },
+      },
+  }
+
+  if hardware in schedule_map:
+    if model in schedule_map[hardware]:
+      if framework in schedule_map[hardware][model]:
+        return schedule_map[hardware][model][framework]
+
+  return None  # Return None if no schedule is found for the given combination

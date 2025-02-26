@@ -43,10 +43,9 @@ from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
+from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 
 
-# Run once a day at 11 am UTC (3 am PST)
-SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 MODEL_ID = "llama-3.1-70b"
 METRICS_MODEL = "llama3.1-70b"
@@ -54,6 +53,13 @@ JOB_MODEL_NAME = "llama3-1-70b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
+
+SCHEDULED_TIME = (
+    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
+    if composer_env.is_prod_env()
+    else None
+)
+
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
