@@ -44,15 +44,21 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
+from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 
-# Run once a day at 12 pm UTC (4 am PST)
-SCHEDULED_TIME = "0 12 * * *" if composer_env.is_prod_env() else None
 
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
+
+SCHEDULED_TIME = (
+    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
+    if composer_env.is_prod_env()
+    else None
+)
+
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
