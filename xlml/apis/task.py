@@ -25,6 +25,7 @@ from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
 from xlml.apis import gcp_config, metric_config, test_config
 from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
+from dags.common.vm_resource import XpkVersions
 
 
 class BaseTask(abc.ABC):
@@ -164,6 +165,7 @@ class XpkTask(BaseTask):
   workload_provision_timeout: datetime.timedelta = datetime.timedelta(
       minutes=300
   )
+  xpk_version: str = XpkVersions.V0_4_1.value
 
   def run(
       self,
@@ -283,6 +285,7 @@ class XpkTask(BaseTask):
           project_id=self.task_gcp_config.project_name,
           zone=self.task_gcp_config.zone,
           cluster_name=self.task_test_config.cluster_name,
+          xpk_version=self.xpk_version,
       )
 
       (
@@ -318,6 +321,7 @@ class XpkTask(BaseTask):
           num_slices=self.task_test_config.num_slices,
           use_vertex_tensorboard=use_vertex_tensorboard,
           use_pathways=use_pathways,
+          xpk_version=self.xpk_version,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()

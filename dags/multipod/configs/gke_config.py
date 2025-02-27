@@ -18,7 +18,7 @@ from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from dags import gcs_bucket
-from dags.common.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion
+from dags.common.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion, XpkVersions
 from typing import Iterable
 import datetime
 
@@ -150,6 +150,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     test_owner: str,
     docker_image: str,
     num_slices: int = 1,
+    xpk_version: str = XpkVersions.V0_4_1.value,
 ) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=cluster.project,
@@ -178,6 +179,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
   return task.XpkTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
+      xpk_version=xpk_version,
   )
 
 
