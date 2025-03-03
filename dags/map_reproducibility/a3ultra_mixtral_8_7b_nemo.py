@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAGs to run Aotc reproducibility benchmarks."""
+"""DAGs to run hypercomputer recipes"""
 
 import datetime
 import sys
@@ -45,6 +45,7 @@ from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
+from dags.map_reproducibility.utils.common_utils import get_docker_image
 
 
 MODEL_ID = "mixtral-8x7b"
@@ -65,7 +66,7 @@ VALUE_YAML_PATH = (
 CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo24.07"
-DOCKER_IMAGE = f"us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:{IMAGE_VERSION}-gib1.0.3-A3U"
+DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
 KUEUE_NAME = "a3-ultra"
 
 
