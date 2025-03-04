@@ -215,6 +215,7 @@ def get_nemo_metrics(temdir):
 
   # Parse the metrics (adjust based on your file format)
   lines = file_content.splitlines()
+  print(f"lines: {lines}")
   average_step_time = float(lines[0].split(": ")[1])
   tflops_per_accelerator = float(lines[1].split(": ")[1])
   mfu = float(lines[2].split(": ")[1])
