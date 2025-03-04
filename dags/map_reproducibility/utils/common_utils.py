@@ -282,6 +282,10 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
   Each model runs on Thursday on a unique time so
   that we have free nodes for each.
 
+  The alloted time for these tests is 6 pm - 10 pm PST on Thursday.
+  6 PM pst -  0 2 * * 5
+  10 PM pst - 0 6 * * 5
+
   Args:
       hardware: The hardware type (e.g., "a3ultra", "a3mega").
       model: The model ID (e.g., "mixtral-8x7b", "llama-3.1-70b").
@@ -296,25 +300,29 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
   schedule_map = {
       "a3ultra": {
           "mixtral-8x7b": {
-              "nemo": "0 12 * * 4",
-              "maxtext": "0 13 * * 4",  # 3 AM PST on Thursday
+              "nemo": "0 3 * * 5",
+              "maxtext": "0 2 * * 5",  # 6 PM PST on Thursday
           },
           "llama-3.1-70b": {
-              "nemo": "0 11 * * 4",
+              "nemo": "0 4 * * 5",
+              "maxtext": "0 5 * * 5",
           },
       },
       "a3mega": {
           "mixtral-8x7b": {
-              "nemo": "0 11 * * 4",
+              "nemo": "0 4 * * 5",
+              "maxtext": "0 3 * * 5",
           },
           "llama-3-70b": {
-              "nemo": "0 12 * * 4",
+              "nemo": "0 2 * * 5",
+              "maxtext": "0 5 * * 5",
           },
           "llama-3.1-70b": {
-              "nemo": "0 13 * * 4",
+              "nemo": "0 2 * * 5",
+              "maxtext": "0 4 * * 5",
           },
           "gpt3-175b": {
-              "nemo": "0 14 * * 4",  # Run once a week at 2 pm UTC (6 am PST)
+              "nemo": "0 4 * * 5",
           },
       },
   }
