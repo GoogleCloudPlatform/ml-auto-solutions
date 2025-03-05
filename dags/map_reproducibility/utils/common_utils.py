@@ -182,8 +182,8 @@ def get_nemo_metrics_cmds(
     start_step: int = None,
     end_step: int = None,
 ):
-  start_step_cmd = f"--start_step {start_step}" if start_step else ""
-  end_step_cmd = f"--end_step {end_step}" if end_step else ""
+  start_step_cmd = f"--start_step {start_step}" if start_step else "     "
+  end_step_cmd = f"--end_step {end_step}" if end_step else "     "
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
