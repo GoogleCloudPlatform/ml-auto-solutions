@@ -47,13 +47,14 @@ from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_two_node_cmds
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 
+
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
-HYPERCOMPUTER = "a3ultra"
+HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
 
-SCHEDULED_TIME =  "0 6 * * *" if composer_env.is_prod_env()  else None
+SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env()  else  None
 
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
