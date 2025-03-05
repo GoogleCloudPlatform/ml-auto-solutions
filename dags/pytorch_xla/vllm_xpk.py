@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This Airflow DAG runs a maxtext machine learning benchmark on a GKE cluster
+"""This Airflow DAG runs a vllm benchmark on a GKE cluster
 
 Copy and reference from https://github.com/GoogleCloudPlatform/ml-auto-solutions/blob/master/dags/mlcompass/maxtext_gke.py
 
