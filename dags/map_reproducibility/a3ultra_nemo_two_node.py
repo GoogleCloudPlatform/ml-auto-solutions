@@ -143,8 +143,7 @@ def run_aotc_workload():
                     METRICS_MODEL_ID,
                     accelerator_type,
                     tmpdir,
-                    start_step=0,
-                    end_step=0,
+                    freq="daily"
                 )
                 + cleanup_cmds()
             ),

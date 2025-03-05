@@ -179,11 +179,12 @@ def get_nemo_metrics_cmds(
     model_id,
     accelertator_type,
     temdir,
-    start_step: int = None,
-    end_step: int = None,
+    freq: str = "weekly"
+
 ):
-  start_step_cmd = f"--start_step {start_step}" if start_step else "     "
-  end_step_cmd = f"--end_step {end_step}" if end_step else "     "
+  step_cmd = ""
+  if freq == "daily":
+    step_cmd = "--start_step 0 --end_step 0 "
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
@@ -191,7 +192,7 @@ def get_nemo_metrics_cmds(
       f"--num_accelerators {num_accelerators} "
       f"--precision {precision}  "
       f"--model_type {model_id} "
-      f"{start_step_cmd} {end_step_cmd}"
+      f"{step_cmd}"
       f"--accelerator_type {accelertator_type} | "
       "gsutil cp - $METRICS_FILE",
   )
@@ -216,7 +217,6 @@ def get_nemo_metrics(temdir):
 
   # Parse the metrics (adjust based on your file format)
   lines = file_content.splitlines()
-  print(f"lines: {lines}")
   average_step_time = float(lines[0].split(": ")[1])
   tflops_per_accelerator = float(lines[1].split(": ")[1])
   mfu = float(lines[2].split(": ")[1])
