@@ -182,6 +182,8 @@ def get_nemo_metrics_cmds(
     start_step: int = None,
     end_step: int = None,
 ):
+  start_step_cmd = f"--start_step {start_step}" if start_step else ""
+  end_step_cmd = f"--end_step {end_step}" if end_step else ""
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
@@ -189,8 +191,7 @@ def get_nemo_metrics_cmds(
       f"--num_accelerators {num_accelerators} "
       f"--precision {precision}  "
       f"--model_type {model_id} "
-      f"{f'--start_step {start_step} ' if start_step else ''}"
-      f"{f'--end_step {end_step} ' if end_step else ''}"
+      f"{start_step_cmd} {end_step_cmd}"
       f"--accelerator_type {accelertator_type} | "
       "gsutil cp - $METRICS_FILE",
   )

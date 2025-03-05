@@ -53,7 +53,6 @@ METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
-MAX_STEPS = 1
 
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
@@ -143,7 +142,9 @@ def run_aotc_workload():
                     PRECISION,
                     METRICS_MODEL_ID,
                     accelerator_type,
-                    tmpdir, start_step=0, end_step=MAX_STEPS
+                    tmpdir,
+                    start_step=0,
+                    end_step=0,
                 )
                 + cleanup_cmds()
             ),
@@ -167,7 +168,7 @@ def run_aotc_workload():
         seq_length=seq_length,
         median_step_time=average_step_time,
         e2e_time=0,
-        number_of_steps=MAX_STEPS,
+        number_of_steps=1,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
