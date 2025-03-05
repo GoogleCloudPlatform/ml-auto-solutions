@@ -18,7 +18,6 @@
 import datetime
 
 from airflow import models
-from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage
@@ -82,13 +81,9 @@ with models.DAG(
         "gpu",
         "stable",
         "nightly",
+        "mlscale_onduty",
     ],
     start_date=datetime.datetime(2024, 12, 11),
     catchup=False,
 ) as dag:
-  with TaskGroup(
-      group_id="run_tests", dag=dag, prefix_group_id=False
-  ) as run_tests:
-    run_maxtext_tests()
-
-  run_tests
+  run_maxtext_tests()
