@@ -108,9 +108,10 @@ def get_bite_tpu_unittests_config(
       "pip install -U --pre libtpu-nightly -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
       "pip install --pre -U jaxlib -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html",
       "pip install git+https://github.com/google/jax",
+      "pip freeze",
       # create configuration files needed
       """cat > Dockerfile_CI <<EOF
-FROM cimg/python:3.10
+FROM python:3.10-slim
 WORKDIR /workspace
 COPY run_tpu_tests.sh /workspace/
 RUN git clone https://github.com/apple/axlearn.git
