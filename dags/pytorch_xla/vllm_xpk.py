@@ -81,43 +81,58 @@ with models.DAG(
   # workload_provision_timeout = datetime.timedelta(minutes=300).total_seconds()
   # workload_run_timeout = datetime.timedelta(minutes=60).total_seconds()
 
-  run_workload = xpk.run_workload.override(owner=test_owner.Manfei_Bai)(
+  run_workload_server = xpk.run_workload.override(owner=test_owner.MANFEI_B)(
       task_id="run_workload",
-      cluster_project=cluster_project,
-      zone=cluster_zone,
-      cluster_name=cluster_name,
-      benchmark_id=benchmark_id,
-      workload_id=workload_id,
-      gcs_path=gcs_path,
-      docker_image=docker_image_path,
-      accelerator_type=accelerator_type,
-      run_cmds=f"source benchmark_run.sh;run {model_name} {gcs_path}",
-      num_slices=num_slices,
+      cluster_project="cloud-tpu-multipod-dev",
+      zone="europe-west4-b",
+      cluster_name="b397493880-manfei3",
+      benchmark_id="xlml.vllm.llama3-8b.1slice.v5p_128_xpk",
+      workload_id="nightly-vllm-"+datetime.now(),
+      gcs_path=f"gs://vllmnightlyxpk/vllmnightlyxpk/workload_id",
+      docker_image="gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest",
+      accelerator_type="v5p-8",
+      run_cmds=f"bash nightly-benchmarks/scripts/run-nightly-benchmarks.sh",
+      num_slices=1,
       use_vertex_tensorboard=False,
       use_pathways=False,
   )
 
+  # run_workload_inference = xpk.run_workload.override(owner=test_owner.MANFEI_B)(
+  #     task_id="run_workload",
+  #     cluster_project="cloud-tpu-multipod-dev",
+  #     zone="europe-west4-b",
+  #     cluster_name="b397493880-manfei3",
+  #     benchmark_id="xlml.vllm.llama3-8b.1slice.v5p_128_xpk",
+  #     workload_id="nightly-vllm-"+datetime.now(),
+  #     gcs_path=f"gs://vllmnightlyxpk/vllmnightlyxpk/workload_id",
+  #     docker_image="gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest",
+  #     accelerator_type="v5p-8",
+  #     run_cmds=f"source benchmark_run.sh;run {model_name} {gcs_path}",
+  #     num_slices=num_slices,
+  #     use_vertex_tensorboard=False,
+  #     use_pathways=False,
+  # )
+  
   wait_for_workload_start = xpk.wait_for_workload_start.override(
       timeout=workload_provision_timeout
   )(
-      workload_id=workload_id,
-      project_id=cluster_project,
-      region=cluster_region,
-      cluster_name=cluster_name,
+      workload_id="nightly-vllm-"+datetime.now(),
+      project_id="cloud-tpu-multipod-dev",
+      region="europe-west4",
+      cluster_name="b397493880-manfei3",
   )
 
   wait_for_workload_completion = xpk.wait_for_workload_completion.override(
       timeout=workload_run_timeout
   )(
-      workload_id=workload_id,
-      project_id=cluster_project,
-      region=cluster_region,
-      cluster_name=cluster_name,
+      workload_id="nightly-vllm-"+datetime.now(),
+      project_id="cloud-tpu-multipod-dev",
+      region="europe-west4",
+      cluster_name="b397493880-manfei3",
   )
 
   (
-      xlml_state
-      >> run_workload
+      run_workload_server
       >> wait_for_workload_start
       >> wait_for_workload_completion
   )
