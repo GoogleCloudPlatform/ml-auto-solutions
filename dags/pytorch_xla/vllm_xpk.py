@@ -35,17 +35,22 @@ from xlml.utils import xpk
 
 
 with models.DAG(
-    dag_id="pytorch_tpu_vllm_xpk",
-    schedule=None,
-    tags=["pytorch", "vllm", "xpk"],
-    start_date=datetime.datetime(2025, 3, 5),
+    dag_id="pytorch_xla_model_regression_test_on_trillium",
+    schedule="0 0 * * *",  # everyday at midnight # job["schedule"],
+    tags=["mantaray", "pytorchxla", "xlml"],
+    start_date=datetime.datetime(2024, 4, 22),
     catchup=False,
-    params={
-        "uuid": "",
-    },
-    default_args={
-        "retries": 0,
-    },
+    # dag_id="pytorch_xla_model_regression_test_on_trillium", # pytorch_tpu_vllm_xpk",
+    # schedule=None,
+    # tags=["pytorch", "vllm", "xpk"],
+    # start_date=datetime.datetime(2025, 3, 5),
+    # catchup=False,
+    # params={
+    #     "uuid": "",
+    # },
+    # default_args={
+    #     "retries": 0,
+    # },
 ) as dag:
 
   # @task.python(multiple_outputs=True)
