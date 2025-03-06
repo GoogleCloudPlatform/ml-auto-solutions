@@ -118,6 +118,7 @@ def helm_apply_cmds(
     aotc: bool = False,
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
+    additional_cmds: str = "",
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
@@ -138,6 +139,7 @@ def helm_apply_cmds(
       " --set workload.image"
       f"={docker_image} "
       f"{gcs_cmd} {set_aotc}"
+      f"{additional_cmds}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
@@ -171,8 +173,17 @@ def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
 
 
 def get_nemo_metrics_cmds(
-    batch_size, num_accelerators, precision, model_id, accelertator_type, temdir
+    batch_size,
+    num_accelerators,
+    precision,
+    model_id,
+    accelertator_type,
+    temdir,
+    freq: str = "weekly",
 ):
+  step_cmd = ""
+  if freq == "daily":
+    step_cmd = "--start_step 0 --end_step 0 "
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
@@ -180,6 +191,7 @@ def get_nemo_metrics_cmds(
       f"--num_accelerators {num_accelerators} "
       f"--precision {precision}  "
       f"--model_type {model_id} "
+      f"{step_cmd}"
       f"--accelerator_type {accelertator_type} | "
       "gsutil cp - $METRICS_FILE",
   )
@@ -282,6 +294,10 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
   Each model runs on Thursday on a unique time so
   that we have free nodes for each.
 
+  The alloted time for these tests is 6 pm - 10 pm PST on Thursday.
+  6 PM pst -  0 2 * * 5
+  10 PM pst - 0 6 * * 5
+
   Args:
       hardware: The hardware type (e.g., "a3ultra", "a3mega").
       model: The model ID (e.g., "mixtral-8x7b", "llama-3.1-70b").
@@ -296,25 +312,29 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
   schedule_map = {
       "a3ultra": {
           "mixtral-8x7b": {
-              "nemo": "0 12 * * 4",
-              "maxtext": "0 13 * * 4",  # 3 AM PST on Thursday
+              "nemo": "0 3 * * 5",
+              "maxtext": "0 2 * * 5",  # 6 PM PST on Thursday
           },
           "llama-3.1-70b": {
-              "nemo": "0 11 * * 4",
+              "nemo": "0 4 * * 5",
+              "maxtext": "0 5 * * 5",
           },
       },
       "a3mega": {
           "mixtral-8x7b": {
-              "nemo": "0 11 * * 4",
+              "nemo": "0 4 * * 5",
+              "maxtext": "0 3 * * 5",
           },
           "llama-3-70b": {
-              "nemo": "0 12 * * 4",
+              "nemo": "0 2 * * 5",
+              "maxtext": "0 5 * * 5",
           },
           "llama-3.1-70b": {
-              "nemo": "0 13 * * 4",
+              "nemo": "0 2 * * 5",
+              "maxtext": "0 4 * * 5",
           },
           "gpt3-175b": {
-              "nemo": "0 14 * * 4",  # Run once a week at 2 pm UTC (6 am PST)
+              "nemo": "0 4 * * 5",
           },
       },
   }
@@ -345,7 +365,7 @@ def get_docker_image(hardware: str, framework: str):
           "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
       },
       "a3mega": {
-          "nemo": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/nemo_test/nemo_workload:24.07",
+          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
           "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
       },
   }
@@ -355,3 +375,8 @@ def get_docker_image(hardware: str, framework: str):
       return image_map[hardware][framework]
 
   return None  # Return None if no image is found for the given combination
+
+
+def get_two_node_cmds():
+  cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16'
+  return cmd
