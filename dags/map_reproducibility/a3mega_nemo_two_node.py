@@ -54,7 +54,7 @@ PRECISION = "bf16"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
 
-SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env()  else  None
+SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
@@ -123,7 +123,7 @@ def run_aotc_workload():
                     recipe_repo_root,
                     DOCKER_IMAGE,
                     cluster_name=CLUSTER,
-                    additional_cmds=get_two_node_cmds()
+                    additional_cmds=get_two_node_cmds(),
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(
@@ -137,7 +137,7 @@ def run_aotc_workload():
                     METRICS_MODEL_ID,
                     accelerator_type,
                     tmpdir,
-                    freq="daily"
+                    freq="daily",
                 )
                 + cleanup_cmds()
             ),

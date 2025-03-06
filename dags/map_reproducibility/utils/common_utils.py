@@ -179,7 +179,7 @@ def get_nemo_metrics_cmds(
     model_id,
     accelertator_type,
     temdir,
-    freq: str = "weekly"
+    freq: str = "weekly",
 
 ):
   step_cmd = ""
