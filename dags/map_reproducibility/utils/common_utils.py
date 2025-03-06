@@ -118,6 +118,7 @@ def helm_apply_cmds(
     aotc: bool = False,
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
+    additional_cmds: str = "",
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
@@ -138,6 +139,7 @@ def helm_apply_cmds(
       " --set workload.image"
       f"={docker_image} "
       f"{gcs_cmd} {set_aotc}"
+      f"{additional_cmds}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
@@ -171,8 +173,17 @@ def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
 
 
 def get_nemo_metrics_cmds(
-    batch_size, num_accelerators, precision, model_id, accelertator_type, temdir
+    batch_size,
+    num_accelerators,
+    precision,
+    model_id,
+    accelertator_type,
+    temdir,
+    freq: str = "weekly",
 ):
+  step_cmd = ""
+  if freq == "daily":
+    step_cmd = "--start_step 0 --end_step 0 "
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
@@ -180,6 +191,7 @@ def get_nemo_metrics_cmds(
       f"--num_accelerators {num_accelerators} "
       f"--precision {precision}  "
       f"--model_type {model_id} "
+      f"{step_cmd}"
       f"--accelerator_type {accelertator_type} | "
       "gsutil cp - $METRICS_FILE",
   )
@@ -363,3 +375,8 @@ def get_docker_image(hardware: str, framework: str):
       return image_map[hardware][framework]
 
   return None  # Return None if no image is found for the given combination
+
+
+def get_two_node_cmds():
+  cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16'
+  return cmd
