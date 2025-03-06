@@ -16,11 +16,15 @@
 
 
 import datetime
+# import _datetime
 from airflow import models
 from xlml.utils import mantaray
 import yaml
 from dags import composer_env
 import re
+from airflow.decorators import task
+from xlml.utils import xpk
+from dags.common import test_owner
 
 # Skip running this script in unit test because gcs loading will fail.
 if composer_env.is_prod_env() or composer_env.is_dev_env():
@@ -38,6 +42,11 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     if re.match(pattern, job["task_name"]):
       workload_file_name_list.append(job["file_name"])
 
+  @task.python(multiple_outputs=True)
+  def hello_world_vllm(params: dict = None):
+    dag.log.info(params)
+    print("Hello world vLLM!")
+
   # merge all PyTorch/XLA tests ino one Dag
   with models.DAG(
       dag_id="pytorch_xla_model_regression_test_on_trillium",
@@ -53,6 +62,79 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
           workload_file_name=workload_file_name,
       )
       run_workload
+    # hello_world_vllm
+    workload_id="nightly-vllm-"+datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    cluster_name="b397493880-repo3"
+    cluster_project="cloud-tpu-multipod-dev"
+    zone="europe-west4-b"
+    region="europe-west4"
+    workload_provision_timeout = datetime.timedelta(seconds=30).total_seconds()
+    workload_run_timeout = datetime.timedelta(minutes=3).total_seconds()
+    hello_world_vllm_xpk = xpk.run_workload.override(owner=test_owner.MANFEI_B)(
+      task_id="run_workload_vllm_xpk",
+      cluster_project=cluster_project,
+      zone=zone,
+      cluster_name=cluster_name, # "b397493880-manfei3",
+      benchmark_id="xlml.vllm.llama3-8b.1slice.v5p_128_xpk",
+      workload_id=workload_id,
+      gcs_path=f"gs://vllmnightlyxpk/vllmnightlyxpk/workload_id",
+      docker_image="gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest",
+      accelerator_type="v5p-128",
+      run_cmds=f"export HF_TOKEN=xxxxx && \
+      export VLLM_SOURCE_CODE_LOC=./ && \
+      vllm serve meta-llama/Meta-Llama-3.1-8B --swap-space 16  --disable-log-requests --tensor_parallel_size=8 --max-model-len=2048 --num-scheduler-steps=4 & sleep 600 \
+      ",
+      num_slices=1,
+      use_vertex_tensorboard=False,
+      use_pathways=False,
+    )
+    # hello_world_vllm_xpk = xpk.run_workload.override(owner=test_owner.MANFEI_B)(
+    #   task_id="run_workload_vllm_xpk",
+    #   cluster_project=cluster_project,
+    #   zone=zone,
+    #   cluster_name=cluster_name, # "b397493880-manfei3",
+    #   benchmark_id="xlml.vllm.llama3-8b.1slice.v5p_128_xpk",
+    #   workload_id=workload_id,
+    #   gcs_path=f"gs://vllmnightlyxpk/vllmnightlyxpk/workload_id",
+    #   docker_image="gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest",
+    #   accelerator_type="v5p-128",
+    #   run_cmds=f"pip install --upgrade google-cloud-storage && \
+    #   wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json && \
+    #   rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark && \
+    #   echo 'deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main' > /etc/apt/sources.list.d/google-cloud-sdk.list && \
+    #   curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
+    #   apt-get update && apt-get install -y google-cloud-sdk && \
+    #   apt-get -y install jq && \
+    #   export HF_TOKEN=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 && \
+    #   vllm serve meta-llama/Meta-Llama-3.1-8B --swap-space 16  --disable-log-requests --tensor_parallel_size=8 --max-model-len=2048 --num-scheduler-steps=4 & sleep 600 \
+    #   ",
+    #   num_slices=1,
+    #   use_vertex_tensorboard=False,
+    #   use_pathways=False,
+    # )
+    wait_for_workload_start = xpk.wait_for_workload_start.override(
+        timeout=workload_provision_timeout
+    )(
+        workload_id=workload_id,
+        project_id=cluster_project,
+        region=region,
+        cluster_name=cluster_name,
+    )
+
+    wait_for_workload_completion = xpk.wait_for_workload_completion.override(
+        timeout=workload_run_timeout
+    )(
+        workload_id=workload_id,
+        project_id=cluster_project,
+        region=region,
+        cluster_name=cluster_name,
+    )
+
+    (
+        hello_world_vllm_xpk
+        >> wait_for_workload_start
+        >> wait_for_workload_completion
+    )
 
   # Create a DAG for each job from maxtext
   for job in xlml_jobs:
