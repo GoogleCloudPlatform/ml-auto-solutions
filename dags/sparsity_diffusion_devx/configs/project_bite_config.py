@@ -35,15 +35,13 @@ def set_up_axlearn(pinned_version) -> Tuple[str]:
 
   return (
       common.UPGRADE_PIP,
+      common.UPGRADE_SETUPTOOLS,
+      common.UPGRADE_PACKAGING,
       "git clone https://github.com/apple/axlearn.git",
       reset_version,
       "python -m pip install ./axlearn[core]",
       *common.set_up_nightly_jax(),
-      "pip install tensorflow_text==2.16.1",
-      "pip install tensorflow==2.16.1",
-      "pip install ml-dtypes==0.4.0",
   )
-
 
 def get_bite_tpu_config(
     tpu_version: TpuVersion,
