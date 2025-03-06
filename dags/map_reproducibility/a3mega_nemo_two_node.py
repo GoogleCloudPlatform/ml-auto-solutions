@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAGs to run Aotc reproducibility benchmarks."""
+"""DAGs to run hypercomputer recipes"""
 
 import datetime
 import sys
