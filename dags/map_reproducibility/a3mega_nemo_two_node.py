@@ -63,7 +63,6 @@ CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo24.07"
 DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
-KUEUE_NAME = "a3-ultra"
 
 
 @task
@@ -124,7 +123,6 @@ def run_aotc_workload():
                     recipe_repo_root,
                     DOCKER_IMAGE,
                     cluster_name=CLUSTER,
-                    kueue_name=KUEUE_NAME,
                     additional_cmds=get_two_node_cmds()
                 )
                 + wait_for_jobs_cmds()
