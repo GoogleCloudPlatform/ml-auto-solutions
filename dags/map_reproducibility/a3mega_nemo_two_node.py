@@ -165,7 +165,6 @@ def run_aotc_workload():
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
-        topology="2X2",
         comment="Two node and single step tests",
         is_test=False,
     )
