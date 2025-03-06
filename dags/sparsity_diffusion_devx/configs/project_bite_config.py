@@ -114,6 +114,8 @@ def get_bite_tpu_unittests_config(
 FROM python:3.10-slim
 WORKDIR /workspace
 COPY run_tpu_tests.sh /workspace/
+RUN apt update -y
+RUN apt install -y git
 RUN git clone https://github.com/apple/axlearn.git
 WORKDIR /workspace/axlearn
 RUN pip install --upgrade pip
