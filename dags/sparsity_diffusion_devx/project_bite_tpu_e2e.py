@@ -64,3 +64,29 @@ with models.DAG(
       time_out_in_min=180,
       task_owner=test_owner.Maggie_Z,
   )
+
+default_unittest_args = {
+    "retries": 0,
+}
+
+with models.DAG(
+    dag_id="project_bite_tpu_unittests",
+    schedule=SCHEDULED_TIME,
+    tags=[
+        "sparsity_diffusion_devx",
+        "tpu",
+        "axlearn",
+        "bite",
+    ],
+    start_date=datetime.datetime(2025, 2, 24),
+    catchup=False,
+    default_args=default_unittest_args,
+) as dag:
+  unittests = config.get_bite_tpu_unittests_config(
+      tpu_version=TpuVersion.TRILLIUM,
+      tpu_cores=4,
+      tpu_zone=Zone.EUROPE_WEST4_A.value,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
+      time_out_in_min=180,
+      task_owner=test_owner.Andrew_S,
+  )
