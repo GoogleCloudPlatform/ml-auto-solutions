@@ -28,7 +28,7 @@ from dags.map_reproducibility.utils.common_utils import configure_project_and_cl
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_nemo
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
@@ -47,7 +47,8 @@ from dags.map_reproducibility.utils.common_utils import copy_dummy_bucket
 from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
-from xlml.utils import metric
+from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
+
 
 import io
 from google.cloud import storage
@@ -73,7 +74,7 @@ SCHEDULED_TIME = (
 SOFTWARE_ID = "maxtext"
 CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
-KUEUE_NAME = "a3-ultra"
+# KUEUE_NAME = "a3-ultra"
 
 
 @task
@@ -147,46 +148,19 @@ def run_aotc_workload():
 
     log_location = os.path.join(tmpdir, "tflog/metrics")
 
-    print(f"tmpdir: {tmpdir}")
-    print(f"log_location: {log_location}")
+    mfu, step_time = calculate_maxtext_metrics(log_location, HYPERCOMPUTER)
 
-    metrics, metadata = metric.read_from_tb(
-      log_location, None, None
-    )
-
-    step_time = metrics['perf/step_time_seconds']
-
-    storage_client = storage.Client()
-    bucket = storage_client.bucket("gunjanjalori-testing-xlml")
-
-
-    metrics_repr_string = repr(metrics)
-    step_time_str = repr(step_time)
-    # average_step_time = sum(step_time) / len(step_time)
-
-    # metadata_repr_string = repr(metadata)
-
-    # 2. Combine into a single string (optional, but makes it one file)
-    # dump_string = "Metrics (repr):\n" + metrics_repr_string + "\n\nMetadata (repr):\n" + metadata_repr_string + f"\n\naverage_step_time: {average_step_time}\n" + f"mfu: {mfu}\n" + f"\nmodel_id: {MODEL_ID}\n" + f"hypercomputer: {HYPERCOMPUTER}\n" + f"framework: {FRAMEWORK}\n" + f"precision: {PRECISION}\n" + f"timestamp: {datetime.datetime.now().isoformat()}\n"
-
-
-    gcs_metrics_metadata_blob_name = f"aotc_metrics_tb_direct/{MODEL_ID}/step_time.txt" # Modified GCS path - note the "_direct"
-    blob = bucket.blob(gcs_metrics_metadata_blob_name)
-
-    # Create io.StringIO object and write the combined dump string
-    string_file = io.StringIO()
-    string_file.write(step_time_str) # Write the combined repr strings
-
-    # Reset stream position to the beginning
-    string_file.seek(0)
-
-    # Upload from io.StringIO object directly to GCS
-    blob.upload_from_file(string_file, content_type='text/plain')
+    print(f"mfu: {mfu}")
+    print(f"step_time: {step_time}")
 
 
 
-    print(f"Metrics: {metrics}")
-    print(f"Metadata: {metadata}")
+
+
+
+    # storage_client = storage.Client()
+    # bucket = storage_client.bucket("gunjanjalori-testing-xlml")
+
 
 
     # average_step_time, mfu = get_nemo_metrics(tmpdir)

@@ -18,9 +18,13 @@ import re
 import os
 from google.cloud import storage
 import yaml
+from xlml.utils import metric
+from xlml.apis import metric_config
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
+
+MAX_TFLOP = {"a3ultra": 989, "a3mega": 989}
 
 
 # This is required to get auth to access
@@ -152,7 +156,7 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
-def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
+def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   gcs_location = ""
   if hypercomputer == "a3ultra":
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/megatron_gpt/"
@@ -169,14 +173,30 @@ def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
   )
   return copy_bucket_contents
 
-def copy_dummy_bucket(tmpdir):
-  cmd = (
+def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root, hypercomputer: str = "a3mega"):
+  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
+
+  cmds = (
       f"METRICS_FILE={tmpdir}/tflog/metrics",
-      f"cd {tmpdir}",
-      "mkdir -p tflog",
-      "gcloud storage cp gs://reproducibility-demo/maxtext/gunjanjalori-mixtral-8x7b-maxtext-1739253297-sd0j/tensorboard/gunjanjalori-mixtral-8x7b-maxtext-1739253297-sd0j/events.out.tfevents.1739253342.gunjanjalori-mixtral-8x7b-maxtext-0 $METRICS_FILE",
+      "export BUCKET_FOLDER=$(gcloud storage ls "
+      f"{gcs_location} | grep $JOB_NAME)",
+      'echo "BUCKET_FOLDER ${BUCKET_FOLDER}"',
+      "export COMPLETE_JOB_NAME=$(gcloud storage ls "
+      "$BUCKET_FOLDER/tensorboard | grep $JOB_NAME)",
+      'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
+      "gcloud storage cp $COMPLETE_JOB_NAME $METRICS_FILE"
   )
-  return cmd
+
+
+# def copy_dummy_bucket(tmpdir):
+#   cmd = (
+
+#       f"cd {tmpdir}",
+#       "mkdir -p tflog",
+#       "gcloud storage cp gs://reproducibility-demo/maxtext/gunjanjalori-mixtral-8x7b-maxtext-1739253297-sd0j/tensorboard/gunjanjalori-mixtral-8x7b-maxtext-1739253297-sd0j/events.out.tfevents.1739253342.gunjanjalori-mixtral-8x7b-maxtext-0 $METRICS_FILE",
+#   )
+#   return cmd
+
 
 def get_nemo_metrics_cmds(
     batch_size, num_accelerators, precision, model_id, accelertator_type, temdir
@@ -371,3 +391,23 @@ def get_docker_image(hardware: str, framework: str):
       return image_map[hardware][framework]
 
   return None  # Return None if no image is found for the given combination
+
+
+def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
+
+  metrics, _ = metric.read_from_tb(log_location, None, None)
+
+  step_time_metrics = metrics["perf/step_time_seconds"]
+  avg_step_time = metric.aggregate_metrics(
+      step_time_metrics, metric_config.AggregationStrategy.AVERAGE
+  )
+
+  tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
+  avg_tflop_per_device_per_sec = metric.aggregate_metrics(
+      tflop_per_device_per_sec_metrics,
+      metric_config.AggregationStrategy.AVERAGE,
+  )
+
+  mfu = avg_tflop_per_device_per_sec/MAX_TFLOP[hardware]
+
+  return mfu, avg_step_time
