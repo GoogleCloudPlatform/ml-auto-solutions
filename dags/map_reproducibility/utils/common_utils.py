@@ -22,7 +22,7 @@ from xlml.utils import metric
 from xlml.apis import metric_config
 
 PROJECT = "supercomputer-testing"
-BUCKET_NAME = "regression-testing-xlml"
+BUCKET_NAME = "reproducibility-demo"
 
 MAX_TFLOP = {"a3ultra": 989, "a3mega": 989}
 
@@ -173,10 +173,11 @@ def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   )
   return copy_bucket_contents
 
-def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root, hypercomputer: str = "a3mega"):
+def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
   gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
 
   cmds = (
+      "JOB_NAME=gunjanjalori--mixtral-8x7b-maxtext",
       f"METRICS_FILE={tmpdir}/tflog/metrics",
       "export BUCKET_FOLDER=$(gcloud storage ls "
       f"{gcs_location} | grep $JOB_NAME)",

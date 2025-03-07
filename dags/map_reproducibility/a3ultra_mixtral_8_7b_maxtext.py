@@ -48,6 +48,7 @@ from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
 
 
 import io
@@ -138,7 +139,7 @@ def run_aotc_workload():
                 #     # kueue_name=KUEUE_NAME,
                 # )
                 # + wait_for_jobs_cmds()
-                + copy_dummy_bucket(tmpdir)
+                + copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root=recipe_repo_root)
                 # + cleanup_cmds()
             ),
         ],
