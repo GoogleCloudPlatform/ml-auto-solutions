@@ -123,7 +123,9 @@ def run_aotc_workload():
                     recipe_repo_root,
                     DOCKER_IMAGE,
                     cluster_name=CLUSTER,
-                    additional_cmds=get_two_node_cmds(hypercomputer=HYPERCOMPUTER),
+                    additional_cmds=get_two_node_cmds(
+                        hypercomputer=HYPERCOMPUTER
+                    ),
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds(
