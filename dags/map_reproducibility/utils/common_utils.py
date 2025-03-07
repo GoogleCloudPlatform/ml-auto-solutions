@@ -377,6 +377,8 @@ def get_docker_image(hardware: str, framework: str):
   return None  # Return None if no image is found for the given combination
 
 
-def get_two_node_cmds():
-  cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16'
+def get_two_node_cmds(hypercomputer: str = "a3ultra"):
+  cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16 '
+  if hypercomputer == "a3mega":
+    cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   return cmd
