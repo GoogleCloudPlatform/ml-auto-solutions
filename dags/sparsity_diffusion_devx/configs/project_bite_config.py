@@ -93,6 +93,7 @@ def get_bite_tpu_config(
       task_gcp_config=job_gcp_config,
   )
 
+
 def get_bite_tpu_unittests_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
@@ -155,7 +156,7 @@ EOF
           runtime_version=runtime_version,
           reserved=is_tpu_reserved,
       ),
-      test_name='bite_unittests',
+      test_name="bite_unittests",
       set_up_cmds=unittest_setupcmds,
       run_model_cmds=unittest_runcmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
@@ -165,4 +166,4 @@ EOF
   return task.run_queued_resource_test(
       task_test_config=tpu_unittests_test_config,
       task_gcp_config=job_gcp_config,
-    )
+  )
