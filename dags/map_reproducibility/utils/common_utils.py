@@ -18,9 +18,14 @@ import re
 import os
 from google.cloud import storage
 import yaml
+from xlml.utils import metric
+from xlml.apis import metric_config
 
 PROJECT = "supercomputer-testing"
-BUCKET_NAME = "regression-testing-xlml"
+# BUCKET_NAME = "regression-testing-xlml"
+
+BUCKET_NAME = "reproducibility-demo" # remove after testing
+MAX_TFLOP = {"a3ultra": 989, "a3mega": 989}
 
 
 # This is required to get auth to access
@@ -81,7 +86,7 @@ def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
 def get_pre_workload_cmds(model_id, framework):
   prepare_workload_cmds = (
       "NOW=$(date +%s)",
-      f"export JOB_NAME=regression-test-{model_id}-$NOW-{framework}",
+      f"export JOB_NAME=gunjanjalori-regression-test-{model_id}-$NOW-{framework}",
   )
   return prepare_workload_cmds
 
@@ -154,7 +159,7 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
-def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
+def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   gcs_location = ""
   if hypercomputer == "a3ultra":
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/megatron_gpt/"
@@ -170,6 +175,45 @@ def copy_bucket_cmds(recipe_repo_root, hypercomputer: str = "a3mega"):
       "dllogger/rank-0/dllogger.json .",
   )
   return copy_bucket_contents
+
+
+def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
+  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
+
+  cmds = (
+      # "JOB_NAME=gunjanjalori-mixtral-8x7b-maxtext-1739253297",
+      f"METRICS_FILE={tmpdir}/tflog/metrics",
+      "export BUCKET_FOLDER=$(gcloud storage ls "
+      f"{gcs_location} | grep $JOB_NAME)",
+      'echo "BUCKET_FOLDER ${BUCKET_FOLDER}"',
+      "export COMPLETE_JOB_NAME=$(gcloud storage ls "
+      "${BUCKET_FOLDER}tensorboard/ | grep $JOB_NAME)",
+      'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
+      "export LOG_FILE=$(gcloud storage ls "
+      "${COMPLETE_JOB_NAME} | grep events)",
+      'echo "LOG_FILE ${LOG_FILE}"',
+      "gcloud storage cp $LOG_FILE $METRICS_FILE"
+  )
+  return cmds
+
+
+def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
+
+  metrics, _ = metric.read_from_tb(log_location, None, None)
+  step_time_metrics = metrics["perf/step_time_seconds"]
+  avg_step_time = metric.aggregate_metrics(
+      step_time_metrics, metric_config.AggregationStrategy.AVERAGE
+  )
+
+  tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
+  avg_tflop_per_device_per_sec = metric.aggregate_metrics(
+      tflop_per_device_per_sec_metrics,
+      metric_config.AggregationStrategy.AVERAGE,
+  )
+
+  mfu = avg_tflop_per_device_per_sec/MAX_TFLOP[hardware]
+
+  return mfu, avg_step_time
 
 
 def get_nemo_metrics_cmds(
