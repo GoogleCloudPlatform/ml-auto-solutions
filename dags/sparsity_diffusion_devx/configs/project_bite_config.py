@@ -104,11 +104,6 @@ def get_bite_tpu_unittests_config(
     pinned_version: Optional[str] = None,
 ):
   unittest_setupcmds = (
-      # Need to install drivers in the TPU VM as well as in the docker image
-      "pip install -U --pre libtpu-nightly -f https://storage.googleapis.com/jax-releases/libtpu_releases.html",
-      "pip install --pre -U jaxlib -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html",
-      "pip install git+https://github.com/google/jax",
-      "pip freeze",
       # create configuration files needed
       """cat > Dockerfile_CI <<EOF
 FROM python:3.10-slim
