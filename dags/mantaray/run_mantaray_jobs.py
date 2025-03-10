@@ -88,30 +88,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       use_vertex_tensorboard=False,
       use_pathways=False,
     )
-    # hello_world_vllm_xpk = xpk.run_workload.override(owner=test_owner.MANFEI_B)(
-    #   task_id="run_workload_vllm_xpk",
-    #   cluster_project=cluster_project,
-    #   zone=zone,
-    #   cluster_name=cluster_name, # "b397493880-manfei3",
-    #   benchmark_id="xlml.vllm.llama3-8b.1slice.v5p_128_xpk",
-    #   workload_id=workload_id,
-    #   gcs_path=f"gs://vllmnightlyxpk/vllmnightlyxpk/workload_id",
-    #   docker_image="gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest",
-    #   accelerator_type="v5p-128",
-    #   run_cmds=f"pip install --upgrade google-cloud-storage && \
-    #   wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json && \
-    #   rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark && \
-    #   echo 'deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main' > /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    #   curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
-    #   apt-get update && apt-get install -y google-cloud-sdk && \
-    #   apt-get -y install jq && \
-    #   export HF_TOKEN=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 && \
-    #   vllm serve meta-llama/Meta-Llama-3.1-8B --swap-space 16  --disable-log-requests --tensor_parallel_size=8 --max-model-len=2048 --num-scheduler-steps=4 & sleep 600 \
-    #   ",
-    #   num_slices=1,
-    #   use_vertex_tensorboard=False,
-    #   use_pathways=False,
-    # )
+
     wait_for_workload_start = xpk.wait_for_workload_start.override(
         timeout=workload_provision_timeout
     )(
