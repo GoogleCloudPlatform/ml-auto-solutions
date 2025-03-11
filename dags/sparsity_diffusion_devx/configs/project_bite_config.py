@@ -43,6 +43,7 @@ def set_up_axlearn(pinned_version) -> Tuple[str]:
       *common.set_up_nightly_jax(),
   )
 
+
 def get_bite_tpu_config(
     tpu_version: TpuVersion,
     tpu_cores: int,
