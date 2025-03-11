@@ -283,7 +283,7 @@ def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3mega":
     return "a3plus-benchmark", "australia-southeast1"
   if hardware == "a3ultra":
-    return "a3ultra-bmark72", "europe-west1"
+    return "a3ultra-bm-map-2", "europe-west1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
