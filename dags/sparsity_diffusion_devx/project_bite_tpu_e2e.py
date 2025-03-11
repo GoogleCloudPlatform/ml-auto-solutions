@@ -41,6 +41,7 @@ with models.DAG(
 ) as dag:
   # AXLearn head against JAX head
   # Runs Fuji training on v5p-8
+  # TODO(andrewsal): Use another project's v5p capacity
   jax_fuji_v5p_8 = config.get_bite_tpu_config(
       tpu_version=TpuVersion.V5P,
       tpu_cores=8,
