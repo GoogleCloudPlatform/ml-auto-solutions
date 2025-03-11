@@ -18,6 +18,8 @@ from typing import Tuple
 
 
 UPGRADE_PIP = "pip install --upgrade pip"
+UPGRADE_SETUPTOOLS = "python -m pip install --upgrade setuptools"
+UPGRADE_PACKAGING = "python -m pip install --upgrade packaging"
 
 
 def set_up_nightly_jax() -> Tuple[str]:
