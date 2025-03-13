@@ -22,9 +22,8 @@ from xlml.utils import metric
 from xlml.apis import metric_config
 
 PROJECT = "supercomputer-testing"
-# BUCKET_NAME = "regression-testing-xlml"
+BUCKET_NAME = "regression-testing-xlml"
 
-BUCKET_NAME = "reproducibility-demo" # remove after testing
 MAX_TFLOP = {"a3ultra": 989, "a3mega": 989}
 
 
@@ -200,13 +199,12 @@ def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
       "export LOG_FILE=$(gcloud storage ls "
       "${COMPLETE_JOB_NAME} | grep events)",
       'echo "LOG_FILE ${LOG_FILE}"',
-      "gcloud storage cp $LOG_FILE $METRICS_FILE"
+      "gcloud storage cp $LOG_FILE $METRICS_FILE",
   )
   return cmds
 
 
 def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
-
   metrics, _ = metric.read_from_tb(log_location, None, None)
   step_time_metrics = metrics["perf/step_time_seconds"]
   avg_step_time = metric.aggregate_metrics(
@@ -219,7 +217,7 @@ def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
       metric_config.AggregationStrategy.AVERAGE,
   )
 
-  mfu = avg_tflop_per_device_per_sec/MAX_TFLOP[hardware]
+  mfu = avg_tflop_per_device_per_sec / MAX_TFLOP[hardware]
 
   return mfu, avg_step_time
 

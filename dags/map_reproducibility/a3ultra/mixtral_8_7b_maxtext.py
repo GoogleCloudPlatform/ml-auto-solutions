@@ -55,7 +55,6 @@ from google.cloud import storage
 import datetime
 
 
-
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
@@ -79,8 +78,9 @@ KUEUE_NAME = "a3-ultra"
 
 OPTIMIZER = "adam"
 SEQUENCE_LENGTH = 2048
-NUM_STEPS=30
+NUM_STEPS = 30
 BATCH_SIZE_PER_DEVICE = 5
+
 
 @task
 def run_aotc_workload():
@@ -130,7 +130,9 @@ def run_aotc_workload():
                     kueue_name=KUEUE_NAME,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root=recipe_repo_root)
+                + copy_bucket_cmds_maxtext(
+                    tmpdir, recipe_repo_root=recipe_repo_root
+                )
                 + cleanup_cmds()
             ),
         ],
@@ -145,7 +147,6 @@ def run_aotc_workload():
     print(f"mfu: {mfu}")
     print(f"step_time: {step_time}")
 
-
     write_run(
         model_id=MODEL_ID,
         hardware_id=HYPERCOMPUTER,
@@ -153,7 +154,7 @@ def run_aotc_workload():
         number_of_nodes=num_gpus / 8,
         number_of_chips=num_gpus,
         container_image_name=IMAGE_VERSION,
-        global_batch_size=BATCH_SIZE_PER_DEVICE*num_gpus,
+        global_batch_size=BATCH_SIZE_PER_DEVICE * num_gpus,
         precision=PRECISION,
         optimizer=OPTIMIZER,
         seq_length=SEQUENCE_LENGTH,
