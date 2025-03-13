@@ -28,7 +28,7 @@ from dags.map_reproducibility.utils.common_utils import configure_project_and_cl
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_nemo
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
@@ -48,8 +48,7 @@ from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 
 
-MODEL_ID = "llama-3-70b"
-METRICS_MODEL = "llama3-70b"
+MODEL_ID = "gpt3-175b"
 PRECISION = "fp8"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
@@ -91,7 +90,7 @@ def run_aotc_workload():
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{METRICS_MODEL}-{PRECISION}.yaml"
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus}gpus-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
@@ -127,12 +126,12 @@ def run_aotc_workload():
                     DOCKER_IMAGE,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(recipe_repo_root)
+                + copy_bucket_cmds_nemo(recipe_repo_root)
                 + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
                     PRECISION,
-                    METRICS_MODEL,
+                    MODEL_ID,
                     accelerator_type,
                     tmpdir,
                 )
@@ -146,7 +145,7 @@ def run_aotc_workload():
     average_step_time, mfu = get_nemo_metrics(tmpdir)
 
     write_run(
-        model_id=METRICS_MODEL,
+        model_id=MODEL_ID,
         hardware_id=HYPERCOMPUTER,
         software_id=SOFTWARE_ID,
         number_of_nodes=num_gpus / 8,

@@ -28,7 +28,7 @@ from dags.map_reproducibility.utils.common_utils import configure_project_and_cl
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_nemo
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
@@ -43,30 +43,25 @@ from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
-from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_cluster
+from dags.map_reproducibility.utils.common_utils import get_two_node_cmds
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 
 
 MODEL_ID = "mixtral-8x7b"
-METRICS_MODEL = "mixtral-7b"
-BENCHMARK_MODEL = MODEL_ID
+METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
 
-SCHEDULED_TIME = (
-    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
-    if composer_env.is_prod_env()
-    else None
-)
+SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
 CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
-IMAGE_VERSION = "nemo_workload:24.07"
+IMAGE_VERSION = "nemo24.07"
 DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
 
 
@@ -92,7 +87,8 @@ def run_aotc_workload():
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus}gpus-{PRECISION}.yaml"
+    num_gpus_temp = 256
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
@@ -126,16 +122,24 @@ def run_aotc_workload():
                     full_config_yaml_path,
                     recipe_repo_root,
                     DOCKER_IMAGE,
+                    cluster_name=CLUSTER,
+                    additional_cmds=get_two_node_cmds(
+                        hypercomputer=HYPERCOMPUTER
+                    ),
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(recipe_repo_root)
+                + copy_bucket_cmds_nemo(
+                    recipe_repo_root,
+                    hypercomputer=HYPERCOMPUTER,
+                )
                 + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
                     PRECISION,
-                    METRICS_MODEL,
+                    METRICS_MODEL_ID,
                     accelerator_type,
                     tmpdir,
+                    freq="daily",
                 )
                 + cleanup_cmds()
             ),
@@ -159,25 +163,24 @@ def run_aotc_workload():
         seq_length=seq_length,
         median_step_time=average_step_time,
         e2e_time=0,
-        number_of_steps=max_steps,
+        number_of_steps=1,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
-        topology="2X2",
-        comment="Regression tests",
+        comment="Two node and single step tests",
         is_test=False,
     )
 
 
 with models.DAG(
-    dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
+    dag_id=f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",
         "experimental",
         "xlml",
         "regressiontests",
-        "a3mega",
+        "a3ultra",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,

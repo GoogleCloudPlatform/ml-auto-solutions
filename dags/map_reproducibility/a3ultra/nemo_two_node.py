@@ -28,7 +28,7 @@ from dags.map_reproducibility.utils.common_utils import configure_project_and_cl
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_nemo
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
@@ -44,9 +44,8 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import get_scheduled_time
+from dags.map_reproducibility.utils.common_utils import get_two_node_cmds
 from dags.map_reproducibility.utils.common_utils import get_docker_image
-
 
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
@@ -54,11 +53,7 @@ PRECISION = "bf16"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
 
-SCHEDULED_TIME = (
-    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
-    if composer_env.is_prod_env()
-    else None
-)
+SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
@@ -129,9 +124,10 @@ def run_aotc_workload():
                     DOCKER_IMAGE,
                     cluster_name=CLUSTER,
                     kueue_name=KUEUE_NAME,
+                    additional_cmds=get_two_node_cmds(),
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(
+                + copy_bucket_cmds_nemo(
                     recipe_repo_root,
                     hypercomputer=HYPERCOMPUTER,
                 )
@@ -142,6 +138,7 @@ def run_aotc_workload():
                     METRICS_MODEL_ID,
                     accelerator_type,
                     tmpdir,
+                    freq="daily",
                 )
                 + cleanup_cmds()
             ),
@@ -165,18 +162,17 @@ def run_aotc_workload():
         seq_length=seq_length,
         median_step_time=average_step_time,
         e2e_time=0,
-        number_of_steps=max_steps,
+        number_of_steps=1,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
-        topology="2X2",
-        comment="Regression tests",
+        comment="Two node and single step tests",
         is_test=False,
     )
 
 
 with models.DAG(
-    dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
+    dag_id=f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",

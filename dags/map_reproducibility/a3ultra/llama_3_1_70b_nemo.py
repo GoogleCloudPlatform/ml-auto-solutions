@@ -28,7 +28,7 @@ from dags.map_reproducibility.utils.common_utils import configure_project_and_cl
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_nemo
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
@@ -44,25 +44,32 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import get_two_node_cmds
+from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 
 
-MODEL_ID = "mixtral-8x7b"
-METRICS_MODEL_ID = "mixtral-7b"
-PRECISION = "bf16"
-HYPERCOMPUTER = "a3mega"
+MODEL_ID = "llama-3.1-70b"
+METRICS_MODEL_ID = "llama3.1-70b"
+DATASET_MODEL_ID = "llama3-1-70b"
+HELM_NAME_MODEL_ID = "llama-3-1-70b"
+PRECISION = "fp8"
+HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
 
-SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = (
+    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
+    if composer_env.is_prod_env()
+    else None
+)
 
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
 CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
-IMAGE_VERSION = "nemo24.07"
+IMAGE_VERSION = "nemo_workload:24.07"
 DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
+KUEUE_NAME = "a3-ultra"
 
 
 @task
@@ -88,7 +95,7 @@ def run_aotc_workload():
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
     num_gpus_temp = 256
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-{PRECISION}.yaml"
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3ultra-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
@@ -115,7 +122,7 @@ def run_aotc_workload():
                 )
                 + install_helm_cmds()
                 + namespace_cmds()
-                + get_pre_workload_cmds(MODEL_ID, FRAMEWORK)
+                + get_pre_workload_cmds(HELM_NAME_MODEL_ID, FRAMEWORK)
                 + helm_apply_cmds(
                     FRAMEWORK,
                     HYPERCOMPUTER,
@@ -123,14 +130,11 @@ def run_aotc_workload():
                     recipe_repo_root,
                     DOCKER_IMAGE,
                     cluster_name=CLUSTER,
-                    additional_cmds=get_two_node_cmds(
-                        hypercomputer=HYPERCOMPUTER
-                    ),
+                    kueue_name=KUEUE_NAME,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(
-                    recipe_repo_root,
-                    hypercomputer=HYPERCOMPUTER,
+                + copy_bucket_cmds_nemo(
+                    recipe_repo_root, hypercomputer=HYPERCOMPUTER
                 )
                 + get_nemo_metrics_cmds(
                     global_batch_size,
@@ -139,7 +143,6 @@ def run_aotc_workload():
                     METRICS_MODEL_ID,
                     accelerator_type,
                     tmpdir,
-                    freq="daily",
                 )
                 + cleanup_cmds()
             ),
@@ -151,7 +154,7 @@ def run_aotc_workload():
     average_step_time, mfu = get_nemo_metrics(tmpdir)
 
     write_run(
-        model_id=MODEL_ID,
+        model_id=DATASET_MODEL_ID,
         hardware_id=HYPERCOMPUTER,
         software_id=SOFTWARE_ID,
         number_of_nodes=num_gpus / 8,
@@ -163,24 +166,26 @@ def run_aotc_workload():
         seq_length=seq_length,
         median_step_time=average_step_time,
         e2e_time=0,
-        number_of_steps=1,
+        number_of_steps=max_steps,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
-        comment="Two node and single step tests",
+        topology="2X2",
+        comment="Regression tests",
         is_test=False,
     )
 
 
 with models.DAG(
-    dag_id=f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}",
+    dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",
         "experimental",
         "xlml",
         "regressiontests",
-        "a3ultra",
+        "a3mega",
+        "aotc",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
