@@ -15,7 +15,6 @@
 """DAGs to run Aotc reproducibility benchmarks."""
 
 import datetime
-import sys
 import os
 import tempfile
 
@@ -23,22 +22,17 @@ from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_nemo_metrics_cmds
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_nemo
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds
-from dags.map_reproducibility.utils.common_utils import get_nemo_metrics
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
-from dags.map_reproducibility.utils.common_utils import extract_run_details
 from dags.map_reproducibility.utils.common_utils import extract_gpus
-from dags.map_reproducibility.utils.common_utils import get_accelerator_type
 from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
@@ -48,11 +42,6 @@ from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
-
-
-import io
-from google.cloud import storage
-import datetime
 
 
 MODEL_ID = "mixtral-8x7b"
@@ -104,7 +93,6 @@ def run_aotc_workload():
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
-    # num_gpus_temp = 256
     config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/maxtext-configs/{MODEL_ID}-{num_gpus}gpus-a3u-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
@@ -159,12 +147,12 @@ def run_aotc_workload():
         optimizer=OPTIMIZER,
         seq_length=SEQUENCE_LENGTH,
         median_step_time=step_time,
-        e2e_time=0,
+        e2e_time=step_time * NUM_STEPS,
         number_of_steps=NUM_STEPS,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
-        topology="2X2",
+        topology="",
         comment="Regression tests",
         is_test=False,
     )
