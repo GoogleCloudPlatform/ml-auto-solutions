@@ -126,7 +126,8 @@ def helm_apply_cmds(
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
-    # gcs_cmd = f" --set queue={kueue_name}"
+    if framework != "maxtext":
+      gcs_cmd = f" --set queue={kueue_name}"
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
