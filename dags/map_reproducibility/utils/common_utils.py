@@ -86,7 +86,7 @@ def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
 def get_pre_workload_cmds(model_id, framework):
   prepare_workload_cmds = (
       "NOW=$(date +%s)",
-      f"export JOB_NAME=gunjanjalori-regression-test-{model_id}-$NOW-{framework}",
+      f"export JOB_NAME=gunjanjalori-test-{model_id}-$NOW-{framework}",
   )
   return prepare_workload_cmds
 
@@ -127,11 +127,19 @@ def helm_apply_cmds(
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
-    gcs_cmd = f" --set clusterName={cluster_name}"
-    gcs_cmd += f" --set queue={kueue_name}"
+    # gcs_cmd = f" --set queue={kueue_name}"
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+
+  cluster_cmd = ""
+  if framework == "nemo" and hypercomputer == "a3ultra":
+    cluster_cmd = f" --set clusterName={cluster_name}"
+
+  run_name_cmd = ""
+  if framework == "maxtext":
+    run_name_cmd = "--set workload.run_name=$JOB_NAME"
+
   set_aotc = ""
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
@@ -139,11 +147,11 @@ def helm_apply_cmds(
       " helm install -f values.yaml "
       "--namespace default "
       "--set namespace=default"
-      " --set-file nemo_config"
+      f" --set-file {framework}_config"
       f"={config_file}"
       " --set workload.image"
       f"={docker_image} "
-      f"{gcs_cmd} {set_aotc}"
+      f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
       f"{additional_cmds}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )

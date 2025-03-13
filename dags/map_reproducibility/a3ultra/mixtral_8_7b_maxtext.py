@@ -48,7 +48,6 @@ from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
-from dags.map_reproducibility.utils.common_utils import extract_maxtext_run_details
 
 
 import io
@@ -72,12 +71,16 @@ SCHEDULED_TIME = (
     else None
 )
 
-SOFTWARE_ID = "maxtext"
+SOFTWARE_ID = "jax_maxtext"
 CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 IMAGE_VERSION = "maxtext-nightly"
 DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
-# KUEUE_NAME = "a3-ultra"
+KUEUE_NAME = "a3-ultra"
 
+OPTIMIZER = "adam"
+SEQUENCE_LENGTH = 2048
+NUM_STEPS=30
+BATCH_SIZE_PER_DEVICE = 5
 
 @task
 def run_aotc_workload():
@@ -105,21 +108,6 @@ def run_aotc_workload():
     config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/maxtext-configs/{MODEL_ID}-{num_gpus}gpus-a3u-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
-    batch_size_per_device = extract_maxtext_run_details(recipe_repo_root, config_yaml_path)
-
-    # (
-    #     global_batch_size,
-    #     optimizer,
-    #     precision,
-    #     seq_length,
-    #     max_steps,
-    # ) = extract_run_details(recipe_repo_root, config_yaml_path)
-
-    # accelerator_type = get_accelerator_type(HYPERCOMPUTER)
-    # print(
-    #     f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, max steps: {max_steps}"
-    # )
-
     result = hook.run_command(
         [
             "bash",
@@ -129,21 +117,21 @@ def run_aotc_workload():
                 + get_gpu_recipe_cmd(
                     HYPERCOMPUTER, MODEL_ID, FRAMEWORK, recipe_repo_root
                 )
-                # + install_helm_cmds()
-                # + namespace_cmds()
+                + install_helm_cmds()
+                + namespace_cmds()
                 + get_pre_workload_cmds(MODEL_ID, FRAMEWORK)
-                # + helm_apply_cmds(
-                #     FRAMEWORK,
-                #     HYPERCOMPUTER,
-                #     full_config_yaml_path,
-                #     recipe_repo_root,
-                #     DOCKER_IMAGE,
-                #     cluster_name=CLUSTER,
-                #     # kueue_name=KUEUE_NAME,
-                # )
-                # + wait_for_jobs_cmds()
+                + helm_apply_cmds(
+                    FRAMEWORK,
+                    HYPERCOMPUTER,
+                    full_config_yaml_path,
+                    recipe_repo_root,
+                    DOCKER_IMAGE,
+                    cluster_name=CLUSTER,
+                    kueue_name=KUEUE_NAME,
+                )
+                + wait_for_jobs_cmds()
                 + copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root=recipe_repo_root)
-                # + cleanup_cmds()
+                + cleanup_cmds()
             ),
         ],
         cwd=tmpdir,
@@ -165,13 +153,13 @@ def run_aotc_workload():
         number_of_nodes=num_gpus / 8,
         number_of_chips=num_gpus,
         container_image_name=IMAGE_VERSION,
-        global_batch_size=batch_size_per_device*num_gpus,
+        global_batch_size=BATCH_SIZE_PER_DEVICE*num_gpus,
         precision=PRECISION,
-        optimizer=optimizer,
-        seq_length=seq_length,
+        optimizer=OPTIMIZER,
+        seq_length=SEQUENCE_LENGTH,
         median_step_time=step_time,
         e2e_time=0,
-        number_of_steps=max_steps,
+        number_of_steps=NUM_STEPS,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
