@@ -1,0 +1,226 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""DAGs to run Aotc reproducibility benchmarks."""
+
+import datetime
+import os
+import tempfile
+
+from airflow import models
+from airflow.decorators import task
+from airflow.hooks.subprocess import SubprocessHook
+from dags import composer_env
+from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
+from dags.map_reproducibility.utils.common_utils import install_helm_cmds
+from dags.map_reproducibility.utils.common_utils import namespace_cmds
+from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
+from dags.map_reproducibility.utils.common_utils import cleanup_cmds
+from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
+from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
+from dags.map_reproducibility.utils.common_utils import helm_apply_cmds_internal_run
+from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
+from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
+from dags.map_reproducibility.utils.common_utils import get_internal_pre_workload_cmds
+from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
+from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
+from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
+from dags.map_reproducibility.utils.common_utils import get_cluster
+from dags.map_reproducibility.utils.common_utils import get_scheduled_time
+from dags.map_reproducibility.utils.common_utils import get_internal_docker_image
+from dags.map_reproducibility.utils.common_utils import get_docker_image
+from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
+
+
+MODEL_ID = "llama-3.1-70b"
+HELM_NAME_MODEL_ID = "llama-3-1-70b"
+METRICS_MODEL_ID = "llama3.1-70b"
+PRECISION = "bf16"
+HYPERCOMPUTER = "a3ultra"
+FRAMEWORK = "maxtext"
+# VALUE_YAML_PATH = (
+#     f"training/{HYPERCOMPUTER}/{MODEL_ID}/maxtext-pretraining-gke/values.yaml"
+# )
+
+SCHEDULED_TIME = (
+    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
+    if composer_env.is_prod_env()
+    else None
+)
+
+SOFTWARE_ID = "jax_maxtext"
+CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
+IMAGE_VERSION = "latest"
+DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
+KUEUE_NAME = "a3-ultra"
+
+OPTIMIZER = "adam"
+SEQUENCE_LENGTH = 8192
+NUM_STEPS = 30
+BATCH_SIZE_PER_DEVICE = 5
+
+
+def list_files_and_dirs(path):
+    """
+    Print all files and directories under the specified path.
+    
+    Args:
+        path (str): The directory path to list
+    """
+    print(f"Contents of {path}:")
+    
+    # Check if the path exists
+    if not os.path.exists(path):
+        print(f"The path {path} does not exist.")
+        return
+    
+    # Walk through the directory tree
+    for root, dirs, files in os.walk(path):
+        # Print the current directory (relative to the starting path)
+        rel_path = os.path.relpath(root, path)
+        if rel_path == ".":
+            print(f"- {root} (directory)")
+        else:
+            print(f"- {root} (directory)")
+        
+        # Print all directories in the current directory
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            print(f"  - {dir_path} (directory)")
+        
+        # Print all files in the current directory
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            print(f"  - {file_path} (file)")
+
+@task
+def run_aotc_workload():
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                git_cookie_authdaemon()
+                + clone_recipes_gob()
+                + get_bq_writer_repo()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+
+    recipe_repo_root = get_recipe_repo_path(tmpdir)
+    bq_writer_repo_root = get_bq_writer_path(tmpdir)
+    values_file_path = "/home/airflow/gcs/dags/dags/map_reproducibility/values/maxtext_values.yaml"
+    # update helm log
+    # download_from_gcs(local_dir=recipe_repo_root)
+    # print("********list recipe root********")
+    # list_files_and_dirs(recipe_repo_root)
+    # print("********list map_reproducibility********")
+    # list_files_and_dirs("/home/airflow/gcs/dags/dags/map_reproducibility")
+
+
+    # num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
+    num_gpus = 256
+    # current_pwd = os.getcwd()
+    # Log the current PWD
+    # print(f"Current working directory: {current_pwd}")
+    # dag_dir = os.path.dirname(os.path.abspath(__file__))
+    # print(f"Current dag directory: {dag_dir}")
+
+
+    full_config_yaml_path = "/home/airflow/gcs/dags/dags/map_reproducibility/recipes/a3ultra/llama-3.1-70b-256gpus-a3u-bf16.yaml"
+    
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                configure_project_and_cluster(CLUSTER, CLUSTER_REGION)
+                + get_gpu_recipe_cmd(
+                    HYPERCOMPUTER, MODEL_ID, FRAMEWORK, recipe_repo_root
+                )
+                + install_helm_cmds()
+                + namespace_cmds()
+                + get_internal_pre_workload_cmds(HELM_NAME_MODEL_ID, FRAMEWORK)
+                + helm_apply_cmds_internal_run(
+                    FRAMEWORK,
+                    HYPERCOMPUTER,
+                    full_config_yaml_path,
+                    recipe_repo_root,
+                    values_file_path,
+                    DOCKER_IMAGE,
+                    cluster_name=CLUSTER,
+                    kueue_name=KUEUE_NAME,
+                    additional_cmds=f" --set workload.gpus={num_gpus}"
+                )
+                + wait_for_jobs_cmds()
+                + copy_bucket_cmds_maxtext(
+                    tmpdir, recipe_repo_root=recipe_repo_root
+                )
+                + cleanup_cmds()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+    log_location = os.path.join(tmpdir, "tflog/metrics")
+
+    mfu, step_time = calculate_maxtext_metrics(log_location, HYPERCOMPUTER)
+
+    print(f"mfu: {mfu}")
+    print(f"step_time: {step_time}")
+
+    write_run(
+        model_id=MODEL_ID,
+        hardware_id=HYPERCOMPUTER,
+        software_id=SOFTWARE_ID,
+        number_of_nodes=num_gpus / 8,
+        number_of_chips=num_gpus,
+        container_image_name=IMAGE_VERSION,
+        global_batch_size=BATCH_SIZE_PER_DEVICE * num_gpus,
+        precision=PRECISION,
+        optimizer=OPTIMIZER,
+        seq_length=SEQUENCE_LENGTH,
+        median_step_time=step_time,
+        e2e_time=step_time * NUM_STEPS,
+        number_of_steps=NUM_STEPS,
+        mfu=mfu,
+        tokens_per_second=1,
+        writer_path=bq_writer_repo_root,
+        topology="",
+        comment="Intneral recipes regression tests",
+        is_test=False,
+    )
+
+
+with models.DAG(
+    dag_id=f"internal_{HYPERCOMPUTER}_recipes_{MODEL_ID}_{PRECISION}_{FRAMEWORK}",
+    schedule=SCHEDULED_TIME,
+    tags=[
+        "reproducibility",
+        "experimental",
+        "xlml",
+        "regressiontests",
+        "a3ultra",
+    ],
+    start_date=datetime.datetime(2024, 11, 15),
+    catchup=False,
+) as dag:
+  run_aotc_workload()

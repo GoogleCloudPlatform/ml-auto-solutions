@@ -90,6 +90,14 @@ def get_pre_workload_cmds(model_id, framework):
   return prepare_workload_cmds
 
 
+def get_internal_pre_workload_cmds(model_id, framework):
+  prepare_workload_cmds = (
+      "NOW=$(date +%s)",
+      f"export JOB_NAME=internal-coreml-team-regr-test-{model_id}-$NOW-{framework}",
+  )
+  return prepare_workload_cmds
+
+
 def install_helm_cmds():
   install_helm_cmd = (
       "curl -fsSL -o get_helm.sh "
@@ -155,6 +163,54 @@ def helm_apply_cmds(
       f"{additional_cmds}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
+  return helm_cmds
+
+
+def helm_apply_cmds_internal_run(
+    framework: str,
+    hypercomputer: str,
+    config_file,
+    recipe_repo_root,
+    values_file_path,
+    docker_image,
+    aotc: bool = False,
+    cluster_name: str = "a3plus-benchmark",
+    kueue_name: str = "a3-ultra",
+    additional_cmds: str = "",
+):
+  gcs_cmd = ""
+  if hypercomputer == "a3ultra":
+    if framework != "maxtext":
+      gcs_cmd = f" --set queue={kueue_name}"
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+  else:
+    gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+
+  cluster_cmd = ""
+  if framework == "nemo" and hypercomputer == "a3ultra":
+    cluster_cmd = f" --set clusterName={cluster_name}"
+
+  run_name_cmd = ""
+  if framework == "maxtext":
+    run_name_cmd = "--set workload.run_name=$JOB_NAME"
+
+  set_aotc = ""
+  if aotc:
+    set_aotc = " --set-string workload.aotc=true "
+  helm_cmds = (
+      f" helm install -f {values_file_path} "
+      "--namespace default "
+      "--set namespace=default"
+      f" --set-file {framework}_config"
+      f"={config_file}"
+      " --set workload.image"
+      f"={docker_image} "
+      f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
+      f"{additional_cmds}"
+      f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
+  )
+  print("*******helm cmd is*******")
+  print(helm_cmds)
   return helm_cmds
 
 
@@ -427,6 +483,36 @@ def get_docker_image(hardware: str, framework: str):
 
   return None  # Return None if no image is found for the given combination
 
+
+
+def get_internal_docker_image(hardware: str, framework: str):
+  """
+  Returns the appropriate Docker image based on the given hardware, model, and framework.
+
+  Args:
+      hardware: The hardware type (e.g., "a3ultra", "a3mega").
+      framework: The framework (e.g., "nemo", "maxtext").
+
+  Returns:
+      A Docker image string or None if no image is defined for the given combination.
+  """
+
+  image_map = {
+      "a3ultra": {
+          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
+          "maxtext": " gcr.io/supercomputer-testing/lance_0314",
+      },
+      "a3mega": {
+          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
+          "maxtext": " gcr.io/supercomputer-testing/lance_0314",
+      },
+  }
+
+  if hardware in image_map:
+    if framework in image_map[hardware]:
+      return image_map[hardware][framework]
+
+  return None  # Return None if no image is found for the given combination
 
 def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16 '
