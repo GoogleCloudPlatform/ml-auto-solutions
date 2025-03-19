@@ -440,9 +440,21 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   return cmd
 
 
-
 @task
-def run_maxtext_workload(hypercomputer: str, model_id: str, framework: str, precision: str, value_yaml_path: str, num_steps: int, batch_size_per_device: int, kueue_name: str, optimizer: str, sequence_length: int, dataset_model_id: str, helm_model_id: str):
+def run_maxtext_workload(
+    hypercomputer: str,
+    model_id: str,
+    framework: str,
+    precision: str,
+    value_yaml_path: str,
+    num_steps: int,
+    batch_size_per_device: int,
+    kueue_name: str,
+    optimizer: str,
+    sequence_length: int,
+    dataset_model_id: str,
+    helm_model_id: str,
+):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
 
@@ -528,6 +540,7 @@ def run_maxtext_workload(hypercomputer: str, model_id: str, framework: str, prec
         is_test=False,
     )
 
+
 def get_software_id(framework: str):
   if framework == "maxtext":
     return "jax_maxtext"
@@ -535,6 +548,7 @@ def get_software_id(framework: str):
     return "pytorch_nemo"
   else:
     return None
+
 
 def get_image_version(framework: str):
   if framework == "maxtext":
