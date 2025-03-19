@@ -18,7 +18,7 @@ import datetime
 from airflow import models
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, RuntimeVersion
+from dags.common.vm_resource import TpuVersion, Zone, RuntimeVersion, Project
 from dags.sparsity_diffusion_devx.configs import project_bite_config as config
 
 
@@ -40,13 +40,16 @@ with models.DAG(
     catchup=False,
 ) as dag:
   # AXLearn head against JAX head
-  # Runs Fuji training on v5p-8
-  # TODO(andrewsal): Use another project's v5p capacity
+  # Runs Fuji training on v5p-8 in the provided GCP Project
   jax_fuji_v5p_8 = config.get_bite_tpu_config(
       tpu_version=TpuVersion.V5P,
       tpu_cores=8,
       tpu_zone=Zone.US_EAST5_A.value,
-      runtime_version=RuntimeVersion.TPU_VM_TF_V5P_ALPHA.value,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
+      project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
+      network="mas-test",
+      subnetwork="mas-test",
+      is_tpu_reserved=True,
       model_config="fuji-test-v1",
       time_out_in_min=180,
       task_owner=test_owner.Maggie_Z,

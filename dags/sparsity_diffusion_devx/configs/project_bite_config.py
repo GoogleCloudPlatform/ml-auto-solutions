@@ -54,9 +54,12 @@ def get_bite_tpu_config(
     task_owner: str,
     is_tpu_reserved: bool = False,
     pinned_version: Optional[str] = None,
+    project_name: Optional[Project] = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    network: str = "default",
+    subnetwork: str = "default",
 ):
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      project_name=project_name,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
@@ -78,6 +81,8 @@ def get_bite_tpu_config(
           cores=tpu_cores,
           runtime_version=runtime_version,
           reserved=is_tpu_reserved,
+          network=network,
+          subnetwork=subnetwork,
       ),
       test_name=test_name,
       set_up_cmds=set_up_cmds,
