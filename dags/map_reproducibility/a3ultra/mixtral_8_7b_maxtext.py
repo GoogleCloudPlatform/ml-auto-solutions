@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAGs to run hypercomputer recipes"""
+"""DAGs to run Aotc reproducibility benchmarks."""
 
 import datetime
-import sys
 import os
 import tempfile
 
@@ -23,35 +22,36 @@ from airflow import models
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_nemo_metrics_cmds
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds
-from dags.map_reproducibility.utils.common_utils import get_nemo_metrics
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
-from dags.map_reproducibility.utils.common_utils import extract_run_details
 from dags.map_reproducibility.utils.common_utils import extract_gpus
-from dags.map_reproducibility.utils.common_utils import get_accelerator_type
 from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
-from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_cluster
+from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
+from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
 
 
-MODEL_ID = "gpt3-175b"
-PRECISION = "fp8"
-HYPERCOMPUTER = "a3mega"
-FRAMEWORK = "nemo"
+MODEL_ID = "mixtral-8x7b"
+METRICS_MODEL_ID = "mixtral-7b"
+PRECISION = "bf16"
+HYPERCOMPUTER = "a3ultra"
+FRAMEWORK = "maxtext"
+VALUE_YAML_PATH = (
+    f"training/{HYPERCOMPUTER}/{MODEL_ID}/maxtext-pretraining-gke/values.yaml"
+)
 
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
@@ -59,13 +59,16 @@ SCHEDULED_TIME = (
     else None
 )
 
-VALUE_YAML_PATH = (
-    f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
-)
+SOFTWARE_ID = "jax_maxtext"
 CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
-SOFTWARE_ID = "pytorch_nemo"
-IMAGE_VERSION = "nemo_workload:24.07"
+IMAGE_VERSION = "maxtext-nightly"
 DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
+KUEUE_NAME = "a3-ultra"
+
+OPTIMIZER = "adam"
+SEQUENCE_LENGTH = 2048
+NUM_STEPS = 30
+BATCH_SIZE_PER_DEVICE = 5
 
 
 @task
@@ -90,21 +93,8 @@ def run_aotc_workload():
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus}gpus-{PRECISION}.yaml"
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/maxtext-configs/{MODEL_ID}-{num_gpus}gpus-a3u-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
-
-    (
-        global_batch_size,
-        optimizer,
-        precision,
-        seq_length,
-        max_steps,
-    ) = extract_run_details(recipe_repo_root, config_yaml_path)
-
-    accelerator_type = get_accelerator_type(HYPERCOMPUTER)
-    print(
-        f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, max steps: {max_steps}"
-    )
 
     result = hook.run_command(
         [
@@ -124,16 +114,12 @@ def run_aotc_workload():
                     full_config_yaml_path,
                     recipe_repo_root,
                     DOCKER_IMAGE,
+                    cluster_name=CLUSTER,
+                    kueue_name=KUEUE_NAME,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(recipe_repo_root)
-                + get_nemo_metrics_cmds(
-                    global_batch_size,
-                    num_gpus,
-                    PRECISION,
-                    MODEL_ID,
-                    accelerator_type,
-                    tmpdir,
+                + copy_bucket_cmds_maxtext(
+                    tmpdir, recipe_repo_root=recipe_repo_root
                 )
                 + cleanup_cmds()
             ),
@@ -142,7 +128,12 @@ def run_aotc_workload():
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
-    average_step_time, mfu = get_nemo_metrics(tmpdir)
+    log_location = os.path.join(tmpdir, "tflog/metrics")
+
+    mfu, step_time = calculate_maxtext_metrics(log_location, HYPERCOMPUTER)
+
+    print(f"mfu: {mfu}")
+    print(f"step_time: {step_time}")
 
     write_run(
         model_id=MODEL_ID,
@@ -151,17 +142,17 @@ def run_aotc_workload():
         number_of_nodes=num_gpus / 8,
         number_of_chips=num_gpus,
         container_image_name=IMAGE_VERSION,
-        global_batch_size=global_batch_size,
-        precision=precision,
-        optimizer=optimizer,
-        seq_length=seq_length,
-        median_step_time=average_step_time,
-        e2e_time=0,
-        number_of_steps=max_steps,
+        global_batch_size=BATCH_SIZE_PER_DEVICE * num_gpus,
+        precision=PRECISION,
+        optimizer=OPTIMIZER,
+        seq_length=SEQUENCE_LENGTH,
+        median_step_time=step_time,
+        e2e_time=step_time * NUM_STEPS,
+        number_of_steps=NUM_STEPS,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
-        topology="2X2",
+        topology="",
         comment="Regression tests",
         is_test=False,
     )
@@ -175,7 +166,7 @@ with models.DAG(
         "experimental",
         "xlml",
         "regressiontests",
-        "a3mega",
+        "a3ultra",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
