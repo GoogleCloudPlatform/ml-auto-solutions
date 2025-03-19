@@ -23,6 +23,38 @@ import dags.common.vm_resource as resource
 # Schudule the job to run everyday at 3:00AM PST (11:00AM UTC).
 SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
+def run_test_code_on_persistent_TPUVM():
+  gcloud_command = (
+      f"gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 --zone=us-east5-b --project=cloud-ml-benchmarking --ssh-flag='-4 -L 6009:localhost:6009'",
+  )
+  return gcloud_command
+
+
+def make_sure_docker_container_cleaned_on_persistent_TPUVM():
+  gcloud_command = (
+      f"gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 --zone=us-east5-b --project=cloud-ml-benchmarking --ssh-flag='-t -4 -L 6009:localhost:6009' --worker=all --command=\"sudo docker stop testooo && sudo docker rm testooo\"",
+  )
+  return gcloud_command
+
+
+@task
+def run_on_v6e_4_persistant_TPUVM():
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                run_test_code_on_persistent_TPUVM()
+                + make_sure_docker_container_cleaned_on_persistent_TPUVM()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
 
 with models.DAG(
     dag_id="pytorchxla-vllm-nightly",
@@ -32,7 +64,7 @@ with models.DAG(
     catchup=False,
 ) as dag:
     # follow example in https://github.com/GoogleCloudPlatform/ml-auto-solutions/blob/bda4d59ed7fd9dd3b244a8b2612385c4f5c9a8a9/dags/multipod/maxtext_gpu_end_to_end.py#L41
-    
+    run_on_v6e_4_persistant_TPUVM()
 
     
   # # Running on V6E
