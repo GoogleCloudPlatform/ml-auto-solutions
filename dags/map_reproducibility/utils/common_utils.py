@@ -533,7 +533,7 @@ def run_maxtext_workload(
         e2e_time=step_time * num_steps,
         number_of_steps=num_steps,
         mfu=mfu,
-        tokens_per_second=1,
+        tokens_per_second=-1,
         writer_path=bq_writer_repo_root,
         topology="",
         comment="Regression tests",
