@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,44 +17,38 @@
 import datetime
 
 from airflow import models
+from dags.map_reproducibility.utils.constants import Schedule
 from dags.map_reproducibility.utils.aotc_workload import run_aotc_workload
 
 
-# List of configuration setups
-config_yamls = [
-    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml",
+# List of configuration setups as a dictionary with schedule times
+config_yamls = {
+    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY, # < 5mins
+    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
 
-    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml",
+    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_6_30PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_6_30PM_EXCEPT_THURSDAY,
 
-    "recipes/a3ultra/a3ultra_mixtral8x7b_8gpus_bf16_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_mixtral8x7b_8gpus_fp8_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_mixtral8x7b_16gpus_bf16_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_mixtral8x7b_16gpus_fp8_maxtext.yaml",
-
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml",
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml",
+    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_7PM_EXCEPT_THURSDAY, # 20mins for the run
+    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_7_30PM_EXCEPT_THURSDAY, # 40mins
     # Add more config paths as needed
-]
-
-SCHEDULED_TIME = None
+}
 
 # Define common tags
 common_tags = [
     "reproducibility",
     "experimental",
     "xlml",
-    "v1.7"
+    "v1.8",  # Fixed missing comma
     "internal",
     "regressiontests",
     "a3ultra",
 ]
 
 # Create a DAG for each config
-for relative_config_yaml_path in config_yamls:
+for relative_config_yaml_path, schedule_time in config_yamls.items():
     # Extract config name for the DAG ID
     config_yaml_name = relative_config_yaml_path.rsplit('/', maxsplit=1)[-1].replace(".yaml", "")
     
@@ -63,7 +57,7 @@ for relative_config_yaml_path in config_yamls:
     # Define the DAG
     with models.DAG(
         dag_id=dag_id,
-        schedule=SCHEDULED_TIME,
+        schedule=schedule_time,  # Use the specific schedule time
         tags=common_tags,
         start_date=datetime.datetime(2025, 3, 15),
         catchup=False,

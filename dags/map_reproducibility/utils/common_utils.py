@@ -515,11 +515,11 @@ def get_internal_docker_image(hardware: str, framework: str):
   image_map = {
       "a3ultra": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": "gcr.io/supercomputer-testing/lance_0314",
+          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:0310",
       },
       "a3mega": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": "gcr.io/supercomputer-testing/lance_0314",
+          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:0310",
       },
   }
 

@@ -40,7 +40,6 @@ from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_content
 from dags.map_reproducibility.utils.constants import OPTIMIZER, KUEUE_NAME, NUM_STEPS
-from dags.map_reproducibility.utils.gcs_utils import list_files_and_dirs
 
 
 @task
@@ -87,7 +86,6 @@ def run_aotc_workload(relative_config_yaml_path, test_run=False):
     full_config_yaml_path = f"{internal_recipe_repo_root}/{relative_config_yaml_path}"
     print(f"values_file_path is {values_file_path}")
     print(f"full_config_yaml_path is {full_config_yaml_path}")
-    # list_files_and_dirs(internal_recipe_repo_root)
     
     # Parse the config content now that we have the file path
     more_config = parse_internal_config_content(full_config_yaml_path)
