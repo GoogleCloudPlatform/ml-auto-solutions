@@ -18,6 +18,7 @@ import datetime
 import tempfile
 from airflow import models
 from airflow.decorators import task
+from airflow.hooks.subprocess import SubprocessHook
 from xlml.utils import mantaray
 import yaml
 from dags import composer_env
