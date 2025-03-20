@@ -106,10 +106,7 @@ def run_on_v6e_4_persistant_TPUVM():
         [
             "bash",
             "-c",
-            ";".join(
-                run_test_code_on_persistent_TPUVM()
-                # + make_sure_docker_container_cleaned_on_persistent_TPUVM()
-            ),
+            run_test_code_on_persistent_TPUVM(),
         ],
         cwd=tmpdir,
     )
@@ -130,8 +127,7 @@ def clean_docker_container_on_v6e_4_persistant_TPUVM():
         [
             "bash",
             "-c",
-            ";".join(make_sure_docker_container_cleaned_on_persistent_TPUVM()
-            ),
+            make_sure_docker_container_cleaned_on_persistent_TPUVM(),
         ],
         cwd=tmpdir,
     )
