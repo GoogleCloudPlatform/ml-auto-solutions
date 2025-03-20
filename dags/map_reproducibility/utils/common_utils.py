@@ -452,7 +452,6 @@ def run_maxtext_workload(
     kueue_name: str,
     optimizer: str,
     sequence_length: int,
-    dataset_model_id: str,
     helm_model_id: str,
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -519,7 +518,7 @@ def run_maxtext_workload(
     print(f"step_time: {step_time}")
 
     write_run(
-        model_id=dataset_model_id,
+        model_id=model_id,
         hardware_id=hypercomputer,
         software_id=get_software_id(framework),
         number_of_nodes=num_gpus / 8,
