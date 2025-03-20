@@ -42,16 +42,20 @@ from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
+
 from dags.map_reproducibility.utils.common_utils import run_maxtext_workload
 
 
-MODEL_ID = "mixtral-8x7b"
-PRECISION = "bf16"
+MODEL_ID = "llama-3.1-70b"
+METRICS_MODEL_ID = "llama3.1-70b"
+DATASET_MODEL_ID = "llama3-1-70b"
+HELM_NAME_MODEL_ID = "llama-3-1-70b"
+PRECISION = "fp8"
 HYPERCOMPUTER = "a3ultra"
-FRAMEWORK = "maxtext"
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/maxtext-pretraining-gke/values.yaml"
 )
+FRAMEWORK = "maxtext"
 
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
@@ -69,6 +73,7 @@ OPTIMIZER = "adam"
 SEQUENCE_LENGTH = 2048
 NUM_STEPS = 30
 BATCH_SIZE_PER_DEVICE = 5
+
 
 with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
@@ -94,6 +99,6 @@ with models.DAG(
       kueue_name=KUEUE_NAME,
       optimizer=OPTIMIZER,
       sequence_length=SEQUENCE_LENGTH,
-      dataset_model_id=MODEL_ID,
-      helm_model_id=MODEL_ID,
+      dataset_model_id=DATASET_MODEL_ID,
+      helm_model_id=HELM_NAME_MODEL_ID,
   )
