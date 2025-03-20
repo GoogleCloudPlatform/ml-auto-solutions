@@ -15,6 +15,7 @@
 """A DAG to run all PyTorch/XLA tests with nightly version."""
 
 import datetime
+import tempfile
 from airflow import models
 from xlml.utils import mantaray
 import yaml
