@@ -55,6 +55,7 @@ def run_test_code_on_persistent_TPUVM():
     """
     Generuje polecenie gcloud do uruchomienia testowego kodu na trwałej maszynie wirtualnej TPU.
     """
+    print("point 7: after enter run_test_code_on_persistent_TPUVM, before code run !!!")
     gcloud_command = (
         "gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 "
         "--zone=us-east5-b "
@@ -81,19 +82,25 @@ def run_test_code_on_persistent_TPUVM():
         "--max-output-length=1024 --file-prefix=benchmark --models=meta-llama/Meta-Llama-3-8B "
         "\\\"--output-bucket=gs://manfeipublic\\\"' && docker stop testooo && docker rm testooo\"" # Usunięto sudo
     )
+    print("point 8: after enter run_test_code_on_persistent_TPUVM, after gcloud_command = (... !!!")
     return gcloud_command
 
 def make_sure_docker_container_cleaned_on_persistent_TPUVM():
+  print("point 9: after enter make_sure_docker_container_cleaned_on_persistent_TPUVM, before code run!!!")
   gcloud_command = (
       f"gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 --zone=us-east5-b --project=cloud-ml-benchmarking --ssh-flag='-t -4 -L 6009:localhost:6009' --worker=all --command=\"sudo docker stop testooo && sudo docker rm testooo\"",
   )
+  print("point 9: after enter make_sure_docker_container_cleaned_on_persistent_TPUVM, after gcloud_command = (... !!!")
   return gcloud_command
 
 
 @task
 def run_on_v6e_4_persistant_TPUVM():
+  print("point 2: enter run_on_v6e_4_persistant_TPUVM(), and before code run !!!")
   with tempfile.TemporaryDirectory() as tmpdir:
+    print("point 3: after with tempfile.TemporaryDirectory() as tmpdir: !!!")
     hook = SubprocessHook()
+    print("point 4: after hook = SubprocessHook() !!!")
 
     result = hook.run_command(
         [
@@ -106,7 +113,9 @@ def run_on_v6e_4_persistant_TPUVM():
         ],
         cwd=tmpdir,
     )
+    print("point 5: after result = hook.run_command(...) !!!")
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+    print("point 6: after assert result.exit_code... !!!")
 
 
 with models.DAG(
@@ -117,7 +126,9 @@ with models.DAG(
     catchup=False,
 ) as dag:
     # follow example in https://github.com/GoogleCloudPlatform/ml-auto-solutions/blob/bda4d59ed7fd9dd3b244a8b2612385c4f5c9a8a9/dags/multipod/maxtext_gpu_end_to_end.py#L41
+    print("point 1: before the total function running!!!")
     run_on_v6e_4_persistant_TPUVM()
+    print("point final: after the total function running!!!")
 
     
   # # Running on V6E
