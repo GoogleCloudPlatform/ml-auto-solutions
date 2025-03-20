@@ -453,6 +453,7 @@ def run_maxtext_workload(
     optimizer: str,
     sequence_length: int,
     helm_model_id: str,
+    num_gpus: int = None
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -473,7 +474,13 @@ def run_maxtext_workload(
     recipe_repo_root = get_recipe_repo_path(tmpdir)
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
-    num_gpus = extract_gpus(recipe_repo_root, value_yaml_path)
+    num_gpus_in_file = extract_gpus(recipe_repo_root, value_yaml_path)
+    gpu_helm_cmd = ""
+    if num_gpus == None:
+      num_gpus = num_gpus_in_file
+    elif num_gpus != num_gpus_in_file:
+      gpu_helm_cmd = f" --set workload.gpus={num_gpus} "
+
     config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-a3u-{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
@@ -498,6 +505,7 @@ def run_maxtext_workload(
                     get_docker_image(hypercomputer, framework),
                     cluster_name=cluster,
                     kueue_name=kueue_name,
+                    additional_cmds=gpu_helm_cmd,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_maxtext(

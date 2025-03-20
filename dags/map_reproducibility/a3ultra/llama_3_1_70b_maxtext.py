@@ -85,6 +85,7 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
+
   run_maxtext_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
@@ -97,4 +98,19 @@ with models.DAG(
       optimizer=OPTIMIZER,
       sequence_length=SEQUENCE_LENGTH,
       helm_model_id=MODEL_ID,
+  )
+
+  run_maxtext_workload(
+      hypercomputer=HYPERCOMPUTER,
+      model_id=MODEL_ID,
+      framework=FRAMEWORK,
+      precision=PRECISION,
+      value_yaml_path=VALUE_YAML_PATH,
+      num_steps=NUM_STEPS,
+      batch_size_per_device=BATCH_SIZE_PER_DEVICE,
+      kueue_name=KUEUE_NAME,
+      optimizer=OPTIMIZER,
+      sequence_length=SEQUENCE_LENGTH,
+      helm_model_id=MODEL_ID,
+      num_gpus=512
   )
