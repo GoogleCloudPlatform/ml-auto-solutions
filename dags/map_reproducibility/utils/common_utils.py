@@ -371,7 +371,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
               "nemo": "0 3 * * 5",
               "maxtext": "0 2 * * 5",  # 6 PM PST on Thursday
           },
-          "llama-3.1-70b": {
+          "llama3-1-70b": {
               "nemo": "0 4 * * 5",
               "maxtext": "0 5 * * 5",
           },
@@ -385,7 +385,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
               "nemo": "0 2 * * 5",
               "maxtext": "0 5 * * 5",
           },
-          "llama-3.1-70b": {
+          "llama3-1-70b": {
               "nemo": "0 2 * * 5",
               "maxtext": "0 4 * * 5",
           },
