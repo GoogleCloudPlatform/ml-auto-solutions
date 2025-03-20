@@ -138,8 +138,8 @@ def helm_apply_cmds(
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
 
-  if num_steps:
-    additional_cmds += f" --set workload.steps=100 "
+  if num_steps == 1:
+    additional_cmds += f" --set workload.steps={num_steps} "
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
@@ -516,6 +516,7 @@ def run_maxtext_workload(
                     cluster_name=cluster,
                     kueue_name=kueue_name,
                     additional_cmds=gpu_helm_cmd,
+                    num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_maxtext(

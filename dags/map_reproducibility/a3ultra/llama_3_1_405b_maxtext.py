@@ -28,9 +28,6 @@ MODEL_ID = "llama3-1-405b"
 PRECISION = "fp8"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "maxtext"
-VALUE_YAML_PATH = (
-    f"training/{HYPERCOMPUTER}/{MODEL_ID}/{FRAMEWORK}-pretraining-gke/values.yaml"
-)
 
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
@@ -64,7 +61,6 @@ with models.DAG(
       model_id=MODEL_ID,
       framework=FRAMEWORK,
       precision=PRECISION,
-      value_yaml_path=VALUE_YAML_PATH,
       num_steps=NUM_STEPS,
       batch_size_per_device=BATCH_SIZE_PER_DEVICE,
       kueue_name=KUEUE_NAME,
