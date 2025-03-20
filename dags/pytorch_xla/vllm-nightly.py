@@ -51,6 +51,46 @@ SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 #   return gcloud_command
 
 
+# def run_test_code_on_persistent_TPUVM():
+#     """
+#     Generuje polecenie gcloud do uruchomienia testowego kodu na trwałej maszynie wirtualnej TPU.
+#     """
+#     print("point 7: after enter run_test_code_on_persistent_TPUVM, before code run !!!")
+#     gcloud_command = (
+#         f"gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 "
+#         "--zone=us-east5-b "
+#         "--project=cloud-ml-benchmarking "
+#         "--ssh-flag='-t' "
+#         "--worker=all "
+#         "--command=\"sudo docker run -it --privileged --net host --shm-size=16G --name testooo "
+#         "docker.io/vllm/vllm-tpu:270a5da495d24e947a71e2fa0c56635f4fad2dc3 bash -c '"
+#         "export HF_TOKEN=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 && "
+#         "VLLM_USE_V1=1 python -m vllm.entrypoints.openai.api_server "
+#         "--model meta-llama/Meta-Llama-3-8B --disable-log-requests "
+#         "--max-num-seq=320 --gpu-memory-utilization=0.95 --tensor-parallel-size=4 "
+#         "--max-model-len=8192 --port 8009 & sleep 1200 && "
+#         "wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json && "
+#         "pip install --upgrade google-cloud-storage && rm -rf inference-benchmark && "
+#         "git clone https://github.com/AI-Hypercomputer/inference-benchmark && "
+#         "echo \\\"deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main\\\" > /etc/apt/sources.list.d/google-cloud-sdk.list && "
+#         "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && "
+#         "apt-get update && apt-get install -y google-cloud-sdk && apt-get -y install jq && "
+#         "export HF_TOKEN=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 && export PJRT_DEVICE=TPU && "
+#         "python inference-benchmark/benchmark_serving.py --save-json-results --port=8009 "
+#         "--dataset=ShareGPT_V3_unfiltered_cleaned_split.json --tokenizer=meta-llama/Meta-Llama-3-8B "
+#         "--request-rate=1 --backend=vllm --num-prompts=300 --max-input-length=1024 "
+#         "--max-output-length=1024 --file-prefix=benchmark --models=meta-llama/Meta-Llama-3-8B "
+#         "\\\"--output-bucket=gs://manfeipublic\\\"' && docker stop testooo && docker rm testooo\"" # Usunięto sudo
+#     )
+#     print("point 8: after enter run_test_code_on_persistent_TPUVM, after gcloud_command = (... !!!")
+#     return gcloud_command
+
+
+# delete "--ssh-flag='-t' " due to Airflow error:
+# [2025-03-20 21:38:53.600859+00:00] {subprocess.py:93} INFO - Pseudo-terminal will not be allocated because stdin is not a terminal.
+# [2025-03-20 21:41:03.733700+00:00] {subprocess.py:93} INFO - ssh: connect to host 34.162.99.201 port 22: Connection timed out
+# [2025-03-20 21:41:03.734472+00:00] {subprocess.py:93} INFO - ERROR: (gcloud.compute.tpus.tpu-vm.ssh) [/usr/bin/ssh] exited with return code [255].
+# [2025-03-20 21:41:04.093228+00:00] {subprocess.py:97} INFO - Command exited with return code 255
 def run_test_code_on_persistent_TPUVM():
     """
     Generuje polecenie gcloud do uruchomienia testowego kodu na trwałej maszynie wirtualnej TPU.
@@ -60,7 +100,6 @@ def run_test_code_on_persistent_TPUVM():
         f"gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 "
         "--zone=us-east5-b "
         "--project=cloud-ml-benchmarking "
-        "--ssh-flag='-t' "
         "--worker=all "
         "--command=\"sudo docker run -it --privileged --net host --shm-size=16G --name testooo "
         "docker.io/vllm/vllm-tpu:270a5da495d24e947a71e2fa0c56635f4fad2dc3 bash -c '"
@@ -84,6 +123,7 @@ def run_test_code_on_persistent_TPUVM():
     )
     print("point 8: after enter run_test_code_on_persistent_TPUVM, after gcloud_command = (... !!!")
     return gcloud_command
+
 
 def make_sure_docker_container_cleaned_on_persistent_TPUVM():
   print("point 9: after enter make_sure_docker_container_cleaned_on_persistent_TPUVM, before code run!!!")
