@@ -25,3 +25,9 @@ tmp
 
 # Build artifacts
 *.whl
+
+
+**/map_reproducibility/helm-charts/*
+**/map_reproducibility/scripts
+**/map_reproducibility/recipes
+**/map_reproducibility/values
