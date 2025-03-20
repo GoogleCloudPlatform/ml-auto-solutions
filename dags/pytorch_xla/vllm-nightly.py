@@ -17,6 +17,7 @@
 import datetime
 import tempfile
 from airflow import models
+from airflow.decorators import task
 from xlml.utils import mantaray
 import yaml
 from dags import composer_env
@@ -88,7 +89,7 @@ def make_sure_docker_container_cleaned_on_persistent_TPUVM():
   return gcloud_command
 
 
-# @task
+@task
 def run_on_v6e_4_persistant_TPUVM():
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
