@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@ from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import run_maxtext_workload
 
 
-MODEL_ID = "llama3-1-70b"
-PRECISION = "bf16"
+MODEL_ID = "llama3-1-405b"
+PRECISION = "fp8"
 HYPERCOMPUTER = "a3ultra"
-VALUE_YAML_PATH = (
-    f"training/{HYPERCOMPUTER}/{MODEL_ID}/maxtext-pretraining-gke/values.yaml"
-)
 FRAMEWORK = "maxtext"
+VALUE_YAML_PATH = (
+    f"training/{HYPERCOMPUTER}/{MODEL_ID}/{FRAMEWORK}-pretraining-gke/values.yaml"
+)
 
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
@@ -38,12 +38,7 @@ SCHEDULED_TIME = (
     else None
 )
 
-SOFTWARE_ID = "jax_maxtext"
-CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
-IMAGE_VERSION = "maxtext-nightly"
-DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
 KUEUE_NAME = "a3-ultra"
-
 OPTIMIZER = "adam"
 SEQUENCE_LENGTH = 2048
 NUM_STEPS = 30
@@ -78,17 +73,3 @@ with models.DAG(
       helm_model_id=MODEL_ID,
   )
 
-  run_maxtext_workload(
-      hypercomputer=HYPERCOMPUTER,
-      model_id=MODEL_ID,
-      framework=FRAMEWORK,
-      precision=PRECISION,
-      value_yaml_path=VALUE_YAML_PATH,
-      num_steps=NUM_STEPS,
-      batch_size_per_device=BATCH_SIZE_PER_DEVICE,
-      kueue_name=KUEUE_NAME,
-      optimizer=OPTIMIZER,
-      sequence_length=SEQUENCE_LENGTH,
-      helm_model_id=MODEL_ID,
-      num_gpus=512
-  )
