@@ -108,7 +108,7 @@ def run_on_v6e_4_persistant_TPUVM():
             "-c",
             ";".join(
                 run_test_code_on_persistent_TPUVM()
-                + make_sure_docker_container_cleaned_on_persistent_TPUVM()
+                # + make_sure_docker_container_cleaned_on_persistent_TPUVM()
             ),
         ],
         cwd=tmpdir,
@@ -117,6 +117,27 @@ def run_on_v6e_4_persistant_TPUVM():
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
     print("point 6: after assert result.exit_code... !!!")
 
+
+@task
+def clean_docker_container_on_v6e_4_persistant_TPUVM():
+  print("point 2: enter run_on_v6e_4_persistant_TPUVM(), and before code run !!!")
+  with tempfile.TemporaryDirectory() as tmpdir:
+    print("point 3: after with tempfile.TemporaryDirectory() as tmpdir: !!!")
+    hook = SubprocessHook()
+    print("point 4: after hook = SubprocessHook() !!!")
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(make_sure_docker_container_cleaned_on_persistent_TPUVM()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    print("point 5: after result = hook.run_command(...) !!!")
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+    print("point 6: after assert result.exit_code... !!!")
 
 with models.DAG(
     dag_id="pytorchxla-vllm-nightly",
@@ -128,6 +149,7 @@ with models.DAG(
     # follow example in https://github.com/GoogleCloudPlatform/ml-auto-solutions/blob/bda4d59ed7fd9dd3b244a8b2612385c4f5c9a8a9/dags/multipod/maxtext_gpu_end_to_end.py#L41
     print("point 1: before the total function running!!!")
     run_on_v6e_4_persistant_TPUVM()
+    clean_docker_container_on_v6e_4_persistant_TPUVM()
     print("point final: after the total function running!!!")
 
     
