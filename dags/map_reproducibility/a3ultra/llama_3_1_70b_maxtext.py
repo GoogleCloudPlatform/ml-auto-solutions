@@ -46,10 +46,7 @@ from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
 from dags.map_reproducibility.utils.common_utils import run_maxtext_workload
 
 
-MODEL_ID = "llama-3.1-70b"
-METRICS_MODEL_ID = "llama3.1-70b"
-DATASET_MODEL_ID = "llama3-1-70b"
-HELM_NAME_MODEL_ID = "llama-3-1-70b"
+MODEL_ID = "llama3-1-70b"
 PRECISION = "fp8"
 HYPERCOMPUTER = "a3ultra"
 VALUE_YAML_PATH = (
@@ -99,6 +96,5 @@ with models.DAG(
       kueue_name=KUEUE_NAME,
       optimizer=OPTIMIZER,
       sequence_length=SEQUENCE_LENGTH,
-      dataset_model_id=DATASET_MODEL_ID,
-      helm_model_id=HELM_NAME_MODEL_ID,
+      helm_model_id=MODEL_ID,
   )

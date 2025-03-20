@@ -94,6 +94,5 @@ with models.DAG(
       kueue_name=KUEUE_NAME,
       optimizer=OPTIMIZER,
       sequence_length=SEQUENCE_LENGTH,
-      dataset_model_id=MODEL_ID,
       helm_model_id=MODEL_ID,
   )
