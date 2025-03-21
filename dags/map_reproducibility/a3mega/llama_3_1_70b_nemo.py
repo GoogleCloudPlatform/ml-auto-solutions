@@ -48,9 +48,8 @@ from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 
 
-MODEL_ID = "llama-3.1-70b"
+MODEL_ID = "llama3-1-70b"
 METRICS_MODEL = "llama3.1-70b"
-JOB_MODEL_NAME = "llama3-1-70b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
@@ -119,7 +118,7 @@ def run_aotc_workload():
                 )
                 + install_helm_cmds()
                 + namespace_cmds()
-                + get_pre_workload_cmds(JOB_MODEL_NAME, FRAMEWORK)
+                + get_pre_workload_cmds(MODEL_ID, FRAMEWORK)
                 + helm_apply_cmds(
                     FRAMEWORK,
                     HYPERCOMPUTER,
@@ -147,7 +146,7 @@ def run_aotc_workload():
     average_step_time, mfu = get_nemo_metrics(tmpdir)
 
     write_run(
-        model_id=JOB_MODEL_NAME,
+        model_id=MODEL_ID,
         hardware_id=HYPERCOMPUTER,
         software_id=SOFTWARE_ID,
         number_of_nodes=num_gpus / 8,

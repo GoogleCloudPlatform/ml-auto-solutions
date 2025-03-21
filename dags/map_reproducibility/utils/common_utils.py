@@ -14,12 +14,17 @@
 
 "Bash helper commands for AOTC artifacts"
 
-import re
+
 import os
-from google.cloud import storage
+import tempfile
 import yaml
+
+from google.cloud import storage
+from airflow.decorators import task
+from airflow.hooks.subprocess import SubprocessHook
 from xlml.utils import metric
 from xlml.apis import metric_config
+from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -366,7 +371,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
               "nemo": "0 3 * * 5",
               "maxtext": "0 2 * * 5",  # 6 PM PST on Thursday
           },
-          "llama-3.1-70b": {
+          "llama3-1-70b": {
               "nemo": "0 4 * * 5",
               "maxtext": "0 5 * * 5",
           },
@@ -380,7 +385,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
               "nemo": "0 2 * * 5",
               "maxtext": "0 5 * * 5",
           },
-          "llama-3.1-70b": {
+          "llama3-1-70b": {
               "nemo": "0 2 * * 5",
               "maxtext": "0 4 * * 5",
           },
@@ -433,3 +438,121 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   if hypercomputer == "a3mega":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   return cmd
+
+
+@task
+def run_maxtext_workload(
+    hypercomputer: str,
+    model_id: str,
+    framework: str,
+    precision: str,
+    value_yaml_path: str,
+    num_steps: int,
+    batch_size_per_device: int,
+    kueue_name: str,
+    optimizer: str,
+    sequence_length: int,
+    helm_model_id: str,
+):
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                git_cookie_authdaemon()
+                + clone_recipes_gob()
+                + get_bq_writer_repo()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+
+    recipe_repo_root = get_recipe_repo_path(tmpdir)
+    bq_writer_repo_root = get_bq_writer_path(tmpdir)
+
+    num_gpus = extract_gpus(recipe_repo_root, value_yaml_path)
+    config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-a3u-{precision}.yaml"
+    full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
+
+    cluster, cluster_region = get_cluster(hypercomputer)
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                configure_project_and_cluster(cluster, cluster_region)
+                + get_gpu_recipe_cmd(
+                    hypercomputer, model_id, framework, recipe_repo_root
+                )
+                + install_helm_cmds()
+                + namespace_cmds()
+                + get_pre_workload_cmds(helm_model_id, framework)
+                + helm_apply_cmds(
+                    framework,
+                    hypercomputer,
+                    full_config_yaml_path,
+                    recipe_repo_root,
+                    get_docker_image(hypercomputer, framework),
+                    cluster_name=cluster,
+                    kueue_name=kueue_name,
+                )
+                + wait_for_jobs_cmds()
+                + copy_bucket_cmds_maxtext(
+                    tmpdir, recipe_repo_root=recipe_repo_root
+                )
+                + cleanup_cmds()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+    log_location = os.path.join(tmpdir, "tflog/metrics")
+
+    mfu, step_time = calculate_maxtext_metrics(log_location, hypercomputer)
+
+    print(f"mfu: {mfu}")
+    print(f"step_time: {step_time}")
+
+    write_run(
+        model_id=model_id,
+        hardware_id=hypercomputer,
+        software_id=get_software_id(framework),
+        number_of_nodes=num_gpus / 8,
+        number_of_chips=num_gpus,
+        container_image_name=get_image_version(framework),
+        global_batch_size=batch_size_per_device * num_gpus,
+        precision=precision,
+        optimizer=optimizer,
+        seq_length=sequence_length,
+        median_step_time=step_time,
+        e2e_time=step_time * num_steps,
+        number_of_steps=num_steps,
+        mfu=mfu,
+        tokens_per_second=-1,
+        writer_path=bq_writer_repo_root,
+        topology="",
+        comment="Regression tests",
+        is_test=False,
+    )
+
+
+def get_software_id(framework: str):
+  if framework == "maxtext":
+    return "jax_maxtext"
+  elif framework == "nemo":
+    return "pytorch_nemo"
+  else:
+    return None
+
+
+def get_image_version(framework: str):
+  if framework == "maxtext":
+    return "maxtext_nightly"
+  elif framework == "nemo":
+    return "nemo24.07-A3U"
+  else:
+    return None

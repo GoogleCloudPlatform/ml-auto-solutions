@@ -74,27 +74,44 @@ with models.DAG(
     catchup=False,
 ) as dag:
   # AXLearn head against JAX head
-  jax_fuji_v4_8 = config.get_bite_tpu_config(
-      tpu_version=TpuVersion.V4,
+  # Runs Fuji training on v5p-8 in the provided GCP Project
+  jax_fuji_v5p_8 = config.get_bite_tpu_config(
+      tpu_version=TpuVersion.V5P,
       tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
-      runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+      tpu_zone=Zone.US_EAST5_A.value,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
+      project_name=Project.TPU_PROD_ENV_AUTOMATED.value,
+      network="mas-test",
+      subnetwork="mas-test",
+      is_tpu_reserved=True,
+      model_config="fuji-test-v1",
+      time_out_in_min=180,
+      task_owner=test_owner.Maggie_Z,
+  )
+
+  # AXLearn head against JAX head
+  # Runs Fuji training on v6e-8
+  jax_fuji_v6e_8 = config.get_bite_tpu_config(
+      tpu_version=TpuVersion.TRILLIUM,
+      tpu_cores=8,
+      tpu_zone=Zone.US_EAST5_B.value,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
       model_config="fuji-test-v1",
       time_out_in_min=180,
       task_owner=test_owner.Maggie_Z,
   )
 
   # AXLearn pinned version against JAX head
-  # pinned_version commit: e918d7c219d067dfcace8a25e619d90c5a54c36b
-  # pinned_version PR: https://github.com/apple/axlearn/pull/752
-  # pinned_version date: Oct 16, 2024
-  jax_pinned_fuji_v4_8 = config.get_bite_tpu_config(
-      tpu_version=TpuVersion.V4,
+  # pinned_version commit: 35a189c15bdd06416be743cecde272693363ce3c
+  # pinned_version PR: https://github.com/apple/axlearn/pull/1033
+  # pinned_version date: March 6, 2025 (test succeeds at this commit)
+  jax_pinned_fuji_v6e_8 = config.get_bite_tpu_config(
+      tpu_version=TpuVersion.TRILLIUM,
       tpu_cores=8,
-      tpu_zone=Zone.US_CENTRAL2_B.value,
-      runtime_version=RuntimeVersion.TPU_UBUNTU2204_BASE.value,
+      tpu_zone=Zone.US_EAST5_B.value,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
       model_config="fuji-test-v1",
-      pinned_version="e918d7c219d067dfcace8a25e619d90c5a54c36b",
+      pinned_version="35a189c15bdd06416be743cecde272693363ce3c",
       time_out_in_min=180,
       task_owner=test_owner.Maggie_Z,
   )
