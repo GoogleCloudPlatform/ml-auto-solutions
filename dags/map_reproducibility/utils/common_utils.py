@@ -193,12 +193,14 @@ def helm_apply_cmds_internal_run(
     additional_cmds: str = "",
 ):
   gcs_cmd = ""
+  if framework == "maxtext":
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+
   if hypercomputer == "a3ultra":
     if framework != "maxtext":
-      gcs_cmd = f" --set queue={kueue_name}"
-    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+      gcs_cmd += f" --set queue={kueue_name}"
   else:
-    gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
@@ -211,6 +213,12 @@ def helm_apply_cmds_internal_run(
   set_aotc = ""
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
+  
+  if hypercomputer == "a3mega":
+    helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
+  else:
+    helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  
   helm_cmds = (
       f" helm install -f {values_file_path} "
       "--namespace default "
@@ -221,7 +229,8 @@ def helm_apply_cmds_internal_run(
       f"={docker_image} "
       f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
       f"{additional_cmds}"
-      f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
+      # f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
+      f" $JOB_NAME {helm_template_path}",
   )
   print("*******helm cmd is*******")
   print(helm_cmds)
@@ -401,9 +410,7 @@ def get_recipe_repo_path(tmpdir):
 
 
 def get_internal_recipe_repo_path(tmpdir):
-  recipe_repo_root = os.path.join(
-      tmpdir, "internal-gpu-recipes"
-  )
+  recipe_repo_root = os.path.join(tmpdir, "internal-gpu-recipes")
   return recipe_repo_root
 
 
@@ -520,11 +527,11 @@ def get_internal_docker_image(hardware: str, framework: str):
   image_map = {
       "a3ultra": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:0310",
+          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:2025-03-10",
       },
       "a3mega": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:0310",
+          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:2025-03-10",
       },
   }
 
@@ -533,6 +540,7 @@ def get_internal_docker_image(hardware: str, framework: str):
       return image_map[hardware][framework]
 
   return None  # Return None if no image is found for the given combination
+
 
 def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16 '
@@ -544,72 +552,75 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
 def parse_internal_config_filename(filename):
   """
   Parse a config filename to extract config values.
-  
+
   Args:
       filename (str): Config filename like 'a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml'
-      
+
   Returns:
       object: Config values accessible via dot notation
   """
+
   # Simple dot notation class
   class Config:
+
     def __init__(self, **kwargs):
       self.__dict__.update(kwargs)
-  
+
   # Remove file extension and split by underscore
-  parts = filename.split('.yaml')[0].split('_')
-  
+  parts = filename.split(".yaml")[0].split("_")
+
   # Extract components
   hypercomputer = parts[0]
   model_id_raw = parts[1]
-  model_id = model_id_raw.replace('llama', 'llama-')
-  num_gpus = int(parts[2].replace('gpus', ''))
+  model_id = model_id_raw.replace("llama", "llama-")
+  num_gpus = int(parts[2].replace("gpus", ""))
   precision = parts[3]
   framework = parts[4]
-  
+
   # Create software ID based on framework
   software_id = f"{'jax' if framework == 'maxtext' else 'pytorch'}_{framework}"
-  
+
   # Return config object with dot notation access
   return Config(
       MODEL_ID=model_id,
-      HELM_NAME_MODEL_ID=model_id_raw.replace('.', '-'),
+      HELM_NAME_MODEL_ID=model_id_raw.replace(".", "-"),
       PRECISION=precision,
       HYPERCOMPUTER=hypercomputer,
       FRAMEWORK=framework,
       SOFTWARE_ID=software_id,
-      NUM_GPUS=num_gpus
+      NUM_GPUS=num_gpus,
   )
 
 
 def parse_internal_config_content(yaml_path):
   """
   Parse the internal content of a config YAML file.
-  
+
   Args:
       yaml_path (str): Path to the YAML file
-      
+
   Returns:
       object: Config values accessible via dot notation
   """
   import yaml
-  
+
   # Simple dot notation class with dictionary-like representation
   class Config:
+
     def __init__(self, **kwargs):
       self.__dict__.update(kwargs)
-    
+
     def __repr__(self):
       return repr(self.__dict__)
-    
+
     def __str__(self):
       return str(self.__dict__)
-  
+
   try:
     # Open and read the YAML file
-    with open(yaml_path, 'r') as file:
+    with open(yaml_path, "r") as file:
       result = yaml.safe_load(file)
-    
+
     # Return config object with dot notation access
     return Config(
         SEQUENCE_LENGTH=result.get("max_target_length", None),
@@ -619,6 +630,8 @@ def parse_internal_config_content(yaml_path):
   except Exception as e:
     print(f"Unexpected error: {e}")
     raise e
+
+
 @task
 def run_maxtext_workload(
     hypercomputer: str,
