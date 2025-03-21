@@ -216,6 +216,8 @@ def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
 
 def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
   metrics, _ = metric.read_from_tb(log_location, None, None)
+
+  print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
   avg_step_time = metric.aggregate_metrics(
       step_time_metrics, metric_config.AggregationStrategy.AVERAGE
@@ -460,7 +462,8 @@ def run_maxtext_workload(
     optimizer: str,
     sequence_length: int,
     helm_model_id: str,
-    num_gpus: int = None
+    num_gpus: int = None,
+    gpu_overide: bool = True
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -490,6 +493,9 @@ def run_maxtext_workload(
       num_gpus = num_gpus_in_file
     elif num_gpus != num_gpus_in_file:
       gpu_helm_cmd = f" --set workload.gpus={num_gpus} "
+
+    if gpu_overide == False:
+      num_gpus = num_gpus_in_file # This is for two node tests, they'll use the same config of more nodes
 
     config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-a3u-{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
