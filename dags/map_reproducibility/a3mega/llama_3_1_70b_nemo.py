@@ -91,7 +91,7 @@ def run_aotc_workload():
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{METRICS_MODEL}-{num_gpus}gpus-{PRECISION}.yaml"
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus}gpus-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
