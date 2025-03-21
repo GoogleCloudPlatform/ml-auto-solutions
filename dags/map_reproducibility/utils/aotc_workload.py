@@ -39,25 +39,29 @@ from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metric
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_content
-from dags.map_reproducibility.utils.constants import OPTIMIZER, KUEUE_NAME, NUM_STEPS
+from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_STEPS
 
 
 @task
 def run_aotc_workload(relative_config_yaml_path, test_run=False):
   """Runs the AOTC workload benchmark.
-  
+
   Args:
     relative_config_yaml_path: Path to the config YAML relative to the repo root
   """
   # Parse config from filename
-  config_yaml_name = relative_config_yaml_path.rsplit('/', maxsplit=1)[-1].replace(".yaml", "")
+  config_yaml_name = relative_config_yaml_path.rsplit("/", maxsplit=1)[
+      -1
+  ].replace(".yaml", "")
   config = parse_internal_config_filename(config_yaml_name)
-  
+
   # Get derived configuration
   cluster, cluster_region = get_cluster(config.HYPERCOMPUTER)
-  docker_image = get_internal_docker_image(config.HYPERCOMPUTER, config.FRAMEWORK)
+  docker_image = get_internal_docker_image(
+      config.HYPERCOMPUTER, config.FRAMEWORK
+  )
   values_name = f"{config.HYPERCOMPUTER}_{config.FRAMEWORK}_values"
-  
+
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
 
@@ -79,17 +83,21 @@ def run_aotc_workload(relative_config_yaml_path, test_run=False):
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     # Update paths now that we have the repo paths
-    internal_recipe_repo_root = "/home/airflow/gcs/dags/dags/map_reproducibility"
+    internal_recipe_repo_root = (
+        "/home/airflow/gcs/dags/dags/map_reproducibility"
+    )
     if not test_run:
-        internal_recipe_repo_root = get_internal_recipe_repo_path(tmpdir)
+      internal_recipe_repo_root = get_internal_recipe_repo_path(tmpdir)
     values_file_path = f"{internal_recipe_repo_root}/values/{values_name}.yaml"
-    full_config_yaml_path = f"{internal_recipe_repo_root}/{relative_config_yaml_path}"
+    full_config_yaml_path = (
+        f"{internal_recipe_repo_root}/{relative_config_yaml_path}"
+    )
     print(f"values_file_path is {values_file_path}")
     print(f"full_config_yaml_path is {full_config_yaml_path}")
-    
+
     # Parse the config content now that we have the file path
     more_config = parse_internal_config_content(full_config_yaml_path)
-    
+
     result = hook.run_command(
         [
             "bash",
@@ -97,11 +105,16 @@ def run_aotc_workload(relative_config_yaml_path, test_run=False):
             ";".join(
                 configure_project_and_cluster(cluster, cluster_region)
                 + get_gpu_recipe_cmd(
-                    config.HYPERCOMPUTER, config.MODEL_ID, config.FRAMEWORK, recipe_repo_root
+                    config.HYPERCOMPUTER,
+                    config.MODEL_ID,
+                    config.FRAMEWORK,
+                    recipe_repo_root,
                 )
                 + install_helm_cmds()
                 + namespace_cmds()
-                + get_internal_pre_workload_cmds(config.HELM_NAME_MODEL_ID, config.FRAMEWORK)
+                + get_internal_pre_workload_cmds(
+                    config.HELM_NAME_MODEL_ID, config.FRAMEWORK
+                )
                 + helm_apply_cmds_internal_run(
                     config.FRAMEWORK,
                     config.HYPERCOMPUTER,
@@ -111,7 +124,7 @@ def run_aotc_workload(relative_config_yaml_path, test_run=False):
                     docker_image,
                     cluster_name=cluster,
                     kueue_name=KUEUE_NAME,
-                    additional_cmds=f" --set workload.gpus={config.NUM_GPUS} "
+                    additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_maxtext(
@@ -126,7 +139,9 @@ def run_aotc_workload(relative_config_yaml_path, test_run=False):
 
     log_location = os.path.join(tmpdir, "tflog/metrics")
 
-    mfu, step_time = calculate_maxtext_metrics(log_location, config.HYPERCOMPUTER)
+    mfu, step_time = calculate_maxtext_metrics(
+        log_location, config.HYPERCOMPUTER
+    )
 
     print(f"mfu: {mfu}")
     print(f"step_time: {step_time}")
@@ -140,7 +155,7 @@ def run_aotc_workload(relative_config_yaml_path, test_run=False):
         container_image_name=docker_image,
         global_batch_size=more_config.BATCH_SIZE_PER_DEVICE * config.NUM_GPUS,
         precision=config.PRECISION,
-        optimizer=OPTIMIZER,
+        optimizer=Optimizer.ADAM,
         seq_length=more_config.SEQUENCE_LENGTH,
         median_step_time=step_time,
         e2e_time=step_time * NUM_STEPS,
