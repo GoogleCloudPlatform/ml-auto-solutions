@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,11 +29,7 @@ PRECISION = "bf16"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "maxtext"
 
-SCHEDULED_TIME = (
-    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
-    if composer_env.is_prod_env()
-    else None
-)
+SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
 SOFTWARE_ID = "jax_maxtext"
 CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
@@ -43,12 +39,12 @@ KUEUE_NAME = "a3-ultra"
 
 OPTIMIZER = "adam"
 SEQUENCE_LENGTH = 2048
-NUM_STEPS = 30
+NUM_STEPS = 2
 BATCH_SIZE_PER_DEVICE = 5
 
 
 with models.DAG(
-    dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
+    dag_id=f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",
@@ -72,18 +68,6 @@ with models.DAG(
       optimizer=OPTIMIZER,
       sequence_length=SEQUENCE_LENGTH,
       helm_model_id=MODEL_ID,
-  )
-
-  run_maxtext_workload(
-      hypercomputer=HYPERCOMPUTER,
-      model_id=MODEL_ID,
-      framework=FRAMEWORK,
-      precision=PRECISION,
-      num_steps=NUM_STEPS,
-      batch_size_per_device=BATCH_SIZE_PER_DEVICE,
-      kueue_name=KUEUE_NAME,
-      optimizer=OPTIMIZER,
-      sequence_length=SEQUENCE_LENGTH,
-      helm_model_id=MODEL_ID,
-      num_gpus=512
+      num_gpus=16,
+      gpu_overide=False
   )

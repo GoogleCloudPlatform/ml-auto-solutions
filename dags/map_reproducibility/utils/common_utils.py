@@ -128,6 +128,7 @@ def helm_apply_cmds(
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
+    num_steps: int = None,
 ):
   gcs_cmd = ""
   if hypercomputer == "a3ultra":
@@ -136,6 +137,9 @@ def helm_apply_cmds(
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+
+  if num_steps == 1:
+    additional_cmds += f" --set workload.steps={num_steps} "
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
@@ -212,6 +216,8 @@ def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
 
 def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
   metrics, _ = metric.read_from_tb(log_location, None, None)
+
+  print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
   avg_step_time = metric.aggregate_metrics(
       step_time_metrics, metric_config.AggregationStrategy.AVERAGE
@@ -373,6 +379,10 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
           },
           "llama3-1-70b": {
               "nemo": "0 4 * * 5",
+              "maxtext": "0 4 * * 5",
+          },
+          "llama3-1-405b": {
+              "nemo": "0 5 * * 5",
               "maxtext": "0 5 * * 5",
           },
       },
@@ -446,13 +456,14 @@ def run_maxtext_workload(
     model_id: str,
     framework: str,
     precision: str,
-    value_yaml_path: str,
     num_steps: int,
     batch_size_per_device: int,
     kueue_name: str,
     optimizer: str,
     sequence_length: int,
     helm_model_id: str,
+    num_gpus: int = None,
+    gpu_overide: bool = True
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -470,10 +481,22 @@ def run_maxtext_workload(
         cwd=tmpdir,
     )
 
+    value_yaml_path = (
+    f"training/{hypercomputer}/{model_id}/{framework}-pretraining-gke/values.yaml")
+
     recipe_repo_root = get_recipe_repo_path(tmpdir)
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
-    num_gpus = extract_gpus(recipe_repo_root, value_yaml_path)
+    num_gpus_in_file = extract_gpus(recipe_repo_root, value_yaml_path)
+    gpu_helm_cmd = ""
+    if num_gpus == None:
+      num_gpus = num_gpus_in_file
+    elif num_gpus != num_gpus_in_file:
+      gpu_helm_cmd = f" --set workload.gpus={num_gpus} "
+
+    if gpu_overide == False:
+      num_gpus = num_gpus_in_file # This is for two node tests, they'll use the same config of more nodes
+
     config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-a3u-{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
@@ -498,6 +521,8 @@ def run_maxtext_workload(
                     get_docker_image(hypercomputer, framework),
                     cluster_name=cluster,
                     kueue_name=kueue_name,
+                    additional_cmds=gpu_helm_cmd,
+                    num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_maxtext(
