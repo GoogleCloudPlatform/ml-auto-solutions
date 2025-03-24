@@ -25,6 +25,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from xlml.utils import metric
 from xlml.apis import metric_config
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
+from datetime import datetime, timezone
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -104,11 +105,16 @@ def get_pre_workload_cmds(model_id, framework):
   return prepare_workload_cmds
 
 
-def get_internal_pre_workload_cmds(model_id, framework):
+def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
   prepare_workload_cmds = (
       "NOW=$(date +%s)",
       f"export JOB_NAME=internal-reg-{model_id}-$NOW-{framework}",
   )
+  if is_pgle:
+    prepare_workload_cmds += (
+        "export JAX_ENABLE_PGLE=true",
+        "export JAX_PGLE_PROFILING_RUNS=2",
+    )
   return prepare_workload_cmds
 
 
@@ -194,31 +200,31 @@ def helm_apply_cmds_internal_run(
 ):
   gcs_cmd = ""
   if framework == "maxtext":
-    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME} "
 
   if hypercomputer == "a3ultra":
     if framework != "maxtext":
-      gcs_cmd += f" --set queue={kueue_name}"
+      gcs_cmd += f" --set queue={kueue_name} "
   else:
-    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME} "
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
-    cluster_cmd = f" --set clusterName={cluster_name}"
+    cluster_cmd = f" --set clusterName={cluster_name} "
 
   run_name_cmd = ""
   if framework == "maxtext":
-    run_name_cmd = "--set workload.run_name=$JOB_NAME"
+    run_name_cmd = " --set workload.run_name=$JOB_NAME "
 
   set_aotc = ""
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
-  
+
   if hypercomputer == "a3mega":
     helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
   else:
     helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
-  
+
   helm_cmds = (
       f" helm install -f {values_file_path} "
       "--namespace default "
@@ -523,15 +529,17 @@ def get_internal_docker_image(hardware: str, framework: str):
   Returns:
       A Docker image string or None if no image is defined for the given combination.
   """
+  utc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+  utc_date = "2025-03-10"
 
   image_map = {
       "a3ultra": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:2025-03-10",
+          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
       },
       "a3mega": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": "gcr.io/supercomputer-testing/jax3p_nightly:2025-03-10",
+          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
       },
   }
 
@@ -576,6 +584,9 @@ def parse_internal_config_filename(filename):
   num_gpus = int(parts[2].replace("gpus", ""))
   precision = parts[3]
   framework = parts[4]
+  is_pgle = False
+  if len(parts) >= 6 and parts[5] == "pgle":
+    is_pgle = True
 
   # Create software ID based on framework
   software_id = f"{'jax' if framework == 'maxtext' else 'pytorch'}_{framework}"
@@ -589,6 +600,7 @@ def parse_internal_config_filename(filename):
       FRAMEWORK=framework,
       SOFTWARE_ID=software_id,
       NUM_GPUS=num_gpus,
+      IS_PGLE=is_pgle,
   )
 
 

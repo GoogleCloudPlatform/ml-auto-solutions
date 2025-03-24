@@ -18,7 +18,7 @@ import datetime
 
 from airflow import models
 from dags.map_reproducibility.utils.constants import Schedule
-from dags.map_reproducibility.utils.aotc_workload import run_aotc_workload
+from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
 TEST_RUN = False
@@ -26,12 +26,21 @@ TURN_ON_SCHEDULE = False
 
 # List of configuration setups as a dictionary with schedule times
 config_yamls = {
+    # a3ultra_llama3.1-8b
     "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,  # < 5mins
     "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    # "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext_pgle.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
     "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
     "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    # a3ultra_mixtral-8x7 image issue
+    # "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    # "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    # "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    # "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    # a3ultra_llama3.1-70b
     "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_6_30PM_EXCEPT_THURSDAY,
     "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_6_30PM_EXCEPT_THURSDAY,
+    # a3ultra_llama3.1-405b
     "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_7PM_EXCEPT_THURSDAY,  # 30mins for the run
     "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_7_30PM_EXCEPT_THURSDAY,  # 50mins
     # Add more config paths as needed
@@ -42,7 +51,7 @@ common_tags = [
     "reproducibility",
     "experimental",
     "xlml",
-    "v1.13",
+    "v1.15",
     "internal",
     "regressiontests",
     "a3ultra",
@@ -66,7 +75,6 @@ for relative_config_yaml_path, schedule_time in config_yamls.items():
       catchup=False,
   ) as dag:
     # Create the workload for this specific config
-    run_aotc_workload(
+    run_internal_aotc_workload(
         relative_config_yaml_path=relative_config_yaml_path, test_run=TEST_RUN
     )
-    # run_aotc_workload(relative_config_yaml_path=relative_config_yaml_path)

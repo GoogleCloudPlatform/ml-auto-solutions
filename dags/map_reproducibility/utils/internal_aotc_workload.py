@@ -43,7 +43,7 @@ from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_
 
 
 @task
-def run_aotc_workload(relative_config_yaml_path, test_run=False):
+def run_internal_aotc_workload(relative_config_yaml_path, test_run=False):
   """Runs the AOTC workload benchmark.
 
   Args:
@@ -113,7 +113,9 @@ def run_aotc_workload(relative_config_yaml_path, test_run=False):
                 + install_helm_cmds()
                 + namespace_cmds()
                 + get_internal_pre_workload_cmds(
-                    config.HELM_NAME_MODEL_ID, config.FRAMEWORK
+                    config.HELM_NAME_MODEL_ID,
+                    config.FRAMEWORK,
+                    config.IS_PGLE,
                 )
                 + helm_apply_cmds_internal_run(
                     config.FRAMEWORK,
