@@ -30,9 +30,7 @@ sudo docker stop testooo && sudo docker rm testooo"
 """
 
 
-def vllm_nightly_cmds_run_task(
-    queued_resource: airflow.XComArg, ssh_keys: airflow.XComArg
-):
+def vllm_nightly_cmds_run_task():
   cmds = vllm_nightly_cmds()
   ssh_keys = ssh.generate_ssh_keys()
 
