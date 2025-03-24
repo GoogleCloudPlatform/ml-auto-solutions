@@ -444,7 +444,7 @@ def ssh_persistant_tpu(
   #   ]
   # else:
   #   ip_addresses = [endpoint.ip_address for endpoint in endpoints]
-  ip_addresses = ['34.162.99.201'] # v6e-4 has one host, match one ip address, use external ip address here
+  ip_addresses = ['10.202.0.118'] # v6e-4 has one host, match one ip address, use external ip address here
 
   logging.info(f'Connecting to IP addresses of workers: {ip_addresses}')
 
