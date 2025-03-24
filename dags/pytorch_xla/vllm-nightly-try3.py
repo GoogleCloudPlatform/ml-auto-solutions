@@ -36,7 +36,6 @@ def vllm_nightly_cmds_run_task():
 
   return tpu.ssh_persistant_tpu.override(
       task_id='vllm_nightly_cmds_run_task',
-      execution_timeout=1200,
   )(
       cmds,
       ssh_keys,
