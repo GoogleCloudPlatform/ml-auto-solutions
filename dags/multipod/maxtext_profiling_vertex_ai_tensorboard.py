@@ -23,20 +23,12 @@ from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
-# Run once a day at 6 am UTC (10 pm PST)
-SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = None
 
 with models.DAG(
     dag_id="maxtext_profiling_vertex_ai_tensorboard",
     schedule=SCHEDULED_TIME,
-    tags=[
-        "multipod_team",
-        "mlscale_onduty",
-        "maxtext",
-        "stable",
-        "nightly",
-        "vertex_ai",
-    ],
+    tags=[],
     start_date=datetime.datetime(2024, 6, 1),
     catchup=False,
     concurrency=2,
