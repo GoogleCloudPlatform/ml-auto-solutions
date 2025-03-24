@@ -405,6 +405,80 @@ def ssh_tpu(
 
 
 @task
+def ssh_persistant_tpu(
+    cmds: Iterable[str],
+    ssh_keys: ssh.SshKeys,
+    all_workers: bool,
+    env: Dict[str, str] = None,
+) -> None:
+  """SSH TPU and run commands in multi process.
+
+  Args:
+   cmds: The commands to run on a TPU.
+   ssh_keys: The SSH key pair to use for authentication.
+   all_workers: The flag to define if run commands on all workers or worker 0
+     only.
+   env: environment variables to be pass to the ssh runner session using dict.
+  """
+  creds, _ = google.auth.default()
+  client = tpu_api.TpuClient(credentials=creds)
+
+  # queued_resource = client.get_queued_resource(name=qualified_name) # deleted `qualified_name`
+
+  # nodes = [
+  #     client.get_node(name=os.path.join(node.parent, 'nodes', node.node_id))
+  #     for node in queued_resource.tpu.node_spec
+  # ]
+
+  # if all_workers:
+  #   endpoints = itertools.chain.from_iterable(
+  #       node.network_endpoints for node in nodes
+  #   )
+  # else:
+  #   endpoints = [nodes[0].network_endpoints[0]]
+
+  use_external_ips = os.getenv('XLMLTEST_SSH_EXTERNAL_IPS', '0') == '1'
+  # if use_external_ips:
+  #   ip_addresses = [
+  #       endpoint.access_config.external_ip for endpoint in endpoints
+  #   ]
+  # else:
+  #   ip_addresses = [endpoint.ip_address for endpoint in endpoints]
+  ip_addresses = ['34.162.99.201'] # v6e-4 has one host, match one ip address, use external ip address here
+
+  logging.info(f'Connecting to IP addresses of workers: {ip_addresses}')
+
+  pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
+  ssh_group = fabric.ThreadingGroup(
+      *ip_addresses,
+      connect_kwargs={
+          'auth_strategy': paramiko.auth_strategy.InMemoryPrivateKey(
+              'ml-auto-solutions', pkey
+          ),
+          # See https://stackoverflow.com/a/59453832
+          'banner_timeout': 200,
+      },
+      # Proxy required on Cloudtops to connect to external IPs
+      gateway='corp-ssh-helper %h %p' if use_external_ips else None,
+  )
+
+  context = get_current_context()
+  if context['task_instance'].try_number > 1:
+    # kill TPU process by pid (if any) to avoid `TPU in use` error in retry
+    tmp_file = '/tmp/kill_process.sh'
+    accelerator_type = 'ct6e-standard-4t' # nodes[0].accelerator_type
+    script = kill_process_by_pid()
+    kill_process_cmds = (
+        f'set -xue; sudo echo "{script}" > {tmp_file}',
+        f'bash {tmp_file} {accelerator_type}',
+    )
+    ssh_group.run(';'.join(kill_process_cmds))
+
+  # run provided commands
+  ssh_group.run(cmds, env=env)
+
+
+@task
 def clean_up_idle_queued_resources(
     project_name: str, zones: Iterable[str]
 ) -> None:
