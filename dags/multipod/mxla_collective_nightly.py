@@ -29,7 +29,12 @@ SCHEDULED_TIME = "0 8 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="mxla_collective_nightly",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "mlscale_onduty", "mxla_collective", "nightly"],
+    tags=[
+        "multipod_team",
+        "mxla_collective",
+        "nightly",
+        "mlscale_perfx",
+    ],
     start_date=datetime.datetime(2024, 2, 7),
     catchup=False,
 ) as dag:
