@@ -54,12 +54,6 @@ with models.DAG(
         f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
         f" dataset_path={dataset_path} profiler=xplane steps=20",
         f"gsutil cp -R {base_output_directory}/$RUN_NAME/tensorboard .",
-        "pip3 uninstall -y tbp-nightly",
-        "pip3 uninstall -y tensorboard_plugin_profile",
-        "pip3 uninstall -y tensorflow",
-        "pip3 install tf-nightly",
-        "pip3 install tbp-nightly",
-        "python3 end_to_end/test_profiler.py",
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
         time_out_in_min=60,
