@@ -42,6 +42,8 @@ def get_vllm_gpu_setup_cmds():
       "sudo apt-get install python-is-python3",
       "pip install google-auth",
       "pip install vllm",
+      # See https://github.com/sphinx-doc/sphinx/issues/10291
+      "pip install 'Jinja2<3.1'",
       "export PATH=$PATH:/home/cloud-ml-auto-solutions/.local/bin",
       "ls $(which vllm)",
       # Download dataset
