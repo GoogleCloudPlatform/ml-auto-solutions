@@ -21,22 +21,13 @@ from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags.common.model_configs import MaxTextV5eModelConfigs
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config
 
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
-MODEL_CONFIGS = [
-    "16b",
-    "32b",
-    "64b",
-    "128b",
-    "gpt3_175b",
-    "llama2_7b",
-    "llama2_13b",
-    "llama2_70b",
-]
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
@@ -55,9 +46,10 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
   for mode, image in DOCKER_IMAGES:
-    for model in MODEL_CONFIGS:
+    for model in MaxTextV5eModelConfigs:
       base_run_model_cmds = [
-          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue",
+          "bash preflight.sh",
+          f"python3 benchmarks/benchmark_runner.py on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -70,7 +62,7 @@ with models.DAG(
               base_output_directory=BASE_OUTPUT_DIRECTORY,
               num_slices=[1, 2],
               docker_image=image.value,
-              run_name_prefix=f"maxtext-{model}-{mode.value}",
+              run_name_prefix=f"maxtext-{model.name.lower()}-{mode.value}",
               base_run_model_cmds=base_run_model_cmds,
               sweep_params=QUANTIZATION_SWEEP,
           )
@@ -103,9 +95,9 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
   for mode, image in DOCKER_IMAGES:
-    for model in MODEL_CONFIGS:
+    for model in MaxTextV5eModelConfigs:
       base_run_model_cmds = [
-          f"bash MaxText/configs/v5e/{model}.sh OUTPUT_PATH={BASE_OUTPUT_DIRECTORY} DATASET_PATH=gs://max-datasets-rogue RUN_PREFLIGHT=false",
+          f"python3 benchmarks/benchmark_runner.py on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -118,7 +110,7 @@ with models.DAG(
               base_output_directory=BASE_OUTPUT_DIRECTORY,
               num_slices=[1, 2],
               docker_image=image.value,
-              run_name_prefix=f"p-maxtext-{model}-{mode.value}",
+              run_name_prefix=f"p-maxtext-{model.name.lower()}-{mode.value}",
               base_run_model_cmds=base_run_model_cmds,
               sweep_params=QUANTIZATION_SWEEP,
           )

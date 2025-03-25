@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAGs to run Aotc reproducibility benchmarks."""
+"""DAGs to run hypercomputer recipes"""
 
 import datetime
 import sys
@@ -28,7 +28,7 @@ from dags.map_reproducibility.utils.common_utils import configure_project_and_cl
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_nemo
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob
@@ -43,23 +43,31 @@ from dags.map_reproducibility.utils.common_utils import get_pre_workload_cmds
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path
+from dags.map_reproducibility.utils.common_utils import get_cluster
+from dags.map_reproducibility.utils.common_utils import get_scheduled_time
+from dags.map_reproducibility.utils.common_utils import get_docker_image
 
-# Run once a day at 2 pm UTC (6 am PST)
-SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
 
-MODEL_ID = "mixtral-8x7b"
-METRICS_MODEL_ID = "mixtral-7b"
-PRECISION = "bf16"
+MODEL_ID = "llama3-1-70b"
+METRICS_MODEL_ID = "llama3.1-70b"
+PRECISION = "fp8"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
+
+SCHEDULED_TIME = (
+    get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
+    if composer_env.is_prod_env()
+    else None
+)
+
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
 )
-CLUSTER = "gke-a3ultra-map"
-CLUSTER_REGION = "europe-west1"
+CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo_workload:24.07"
-DOCKER_IMAGE = f"us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/{FRAMEWORK}_test/{IMAGE_VERSION}"
+DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
+KUEUE_NAME = "a3-ultra"
 
 
 @task
@@ -85,7 +93,7 @@ def run_aotc_workload():
 
     num_gpus = extract_gpus(recipe_repo_root, VALUE_YAML_PATH)
     num_gpus_temp = 256
-    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3u-{PRECISION}.yaml"
+    config_yaml_path = f"src/frameworks/{HYPERCOMPUTER}/nemo-configs/{MODEL_ID}-{num_gpus_temp}gpus-a3ultra-{PRECISION}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     (
@@ -119,9 +127,13 @@ def run_aotc_workload():
                     full_config_yaml_path,
                     recipe_repo_root,
                     DOCKER_IMAGE,
+                    cluster_name=CLUSTER,
+                    kueue_name=KUEUE_NAME,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds(recipe_repo_root)
+                + copy_bucket_cmds_nemo(
+                    recipe_repo_root, hypercomputer=HYPERCOMPUTER
+                )
                 + get_nemo_metrics_cmds(
                     global_batch_size,
                     num_gpus,
@@ -166,12 +178,12 @@ with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
-        "simple",
-        "aotc",
-        "nightly",
         "reproducibility",
         "experimental",
         "xlml",
+        "regressiontests",
+        "a3mega",
+        "aotc",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,

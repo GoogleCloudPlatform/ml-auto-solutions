@@ -16,14 +16,59 @@
 
 
 import datetime
+
 from airflow import models
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import gke_config
 
+
 # Run once a day at 11 am UTC (3 am PST)
 SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
+
+SCANNED_CHECKPOINT = "gs://ml-auto-solutions/output/sparsity_diffusion_devx/maxtext/chained_tests_mixtral-8x7b_nightly-2025-01-09-05-00-18//8x7b/scanned_ckpt/0/items"
+UNSCANNED_CKPT_PATH = "gs://ml-auto-solutions/output/sparsity_diffusion_devx/maxtext/chained_tests_mixtral-8x7b_nightly-2025-01-09-05-00-18//unscanned_ckpt/checkpoints/0/items"
+
+
+def run_maxtext_tests():
+  test_name_prefix = "maxtext"
+
+  test_models_gpu = {
+      "mixtral-8x7b-1node": (
+          f"SCANNED_CHECKPOINT={SCANNED_CHECKPOINT} \
+            UNSCANNED_CKPT_PATH={UNSCANNED_CKPT_PATH} \
+            bash end_to_end/gpu/mixtral/test_8x7b.sh",
+          1,
+      ),
+      "mixtral-8x7b-2node": (
+          f"SCANNED_CHECKPOINT={SCANNED_CHECKPOINT} \
+            UNSCANNED_CKPT_PATH={UNSCANNED_CKPT_PATH} \
+            bash end_to_end/gpu/mixtral/test_8x7b.sh",
+          2,
+      ),
+  }
+
+  for model, (test_script, nnodes) in test_models_gpu.items():
+    pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+        time_out_in_min=90,
+        test_name=f"{test_name_prefix}-pinned-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
+        test_owner=test_owner.MICHELLE_Y,
+    ).run()
+    stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+        time_out_in_min=90,
+        test_name=f"{test_name_prefix}-stable-{model}",
+        run_model_cmds=(test_script,),
+        num_slices=nnodes,
+        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
+        test_owner=test_owner.MICHELLE_Y,
+    ).run()
+    pinned_a3plus_gpu >> stable_a3plus_gpu
 
 
 with models.DAG(
@@ -41,36 +86,4 @@ with models.DAG(
     start_date=datetime.datetime(2024, 12, 11),
     catchup=False,
 ) as dag:
-  test_name_prefix = "maxtext"
-
-  timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
-  train_base = (
-      "python3 MaxText/train.py MaxText/configs/base.yml model_name=mixtral-8x7b "
-      "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
-      "steps=2 per_device_batch_size=1 hardware=gpu dataset_type=synthetic attention=cudnn_flash_te "
-      "remat_policy=full use_iota_embed=True capacity_factor=1.0 "
-      "reuse_example_batch=1 enable_checkpointing=False megablox=False "
-      "weight_dtype=bfloat16 ici_expert_parallelism=-1 ici_fsdp_parallelism=1"
-  )
-  test_models_gpu = {
-      "mixtral-8x7b-1node": (
-          f"{train_base} run_name=runner-{timestamp}-1",
-          1,
-      ),
-      "mixtral-8x7b-2node": (
-          f"{train_base} run_name=runner-{timestamp}-2",
-          2,
-      ),
-  }
-
-  for model, (test_script, nnodes) in test_models_gpu.items():
-    pinned_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=60,
-        test_name=f"{test_name_prefix}-pinned-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
-        test_owner=test_owner.MICHELLE_Y,
-    ).run()
-    pinned_a3_gpu
+  run_maxtext_tests()

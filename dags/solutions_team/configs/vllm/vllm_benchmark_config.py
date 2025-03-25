@@ -30,6 +30,8 @@ PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
 HF_TOKEN = Variable.get("HF_TOKEN", None)
+VLLM_TPU_DOCKER_IMAGE = "gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest"
+VLLM_TPU_CONTAINER = "vllm-tpu-container"
 
 
 def get_vllm_gpu_setup_cmds():
@@ -53,39 +55,64 @@ def get_vllm_gpu_setup_cmds():
 
 def get_vllm_tpu_setup_cmds():
   setup_cmds = (
-      # Update environment and installs basic deps
-      "pip install --upgrade pip",
-      "sudo apt-get -y update",
-      "sudo apt install -y libopenblas-base libopenblas-dev",
-      "sudo apt-get -y install python3.10-venv",
-      "sudo apt-get -y install jq",
-      "python -m venv .env",
-      "source .env/bin/activate",
-      # Install vllm at head
-      "rm -rf vllm && git clone https://github.com/vllm-project/vllm",
-      "cd vllm",
-      # From https://docs.vllm.ai/en/latest/getting_started/tpu-installation.html
-      "pip uninstall torch torch-xla -y",
-      "pip install -r requirements-tpu.txt",
-      # Build vLLM
-      'VLLM_TARGET_DEVICE="tpu" python setup.py develop',
-      # Download dataset
-      "cd .. && wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json",
-      # Download benchmark
-      "pip install --upgrade google-cloud-storage",
-      "rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark",
+      # Download and start the vLLM TPU Docker container
+      f"export CONTAINER_NAME={VLLM_TPU_CONTAINER}",
+      f"sudo docker run --name $CONTAINER_NAME -d --privileged --network host -v /dev/shm:/dev/shm {VLLM_TPU_DOCKER_IMAGE} tail -f /dev/null",
+      # Download dataset inside the container
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json'",
+      # Download benchmark inside the container
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'pip install --upgrade google-cloud-storage'",
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark'",
+      # Download Google Cloud SDK inside the container, which is needed for the gsutil command.
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'echo \"deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main\" > /etc/apt/sources.list.d/google-cloud-sdk.list'",
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -'",
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'apt-get update && apt-get install -y google-cloud-sdk'",
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'apt-get -y install jq'",
   )
 
   return setup_cmds
 
 
-def get_vllm_benchmark_cmds(
+def _get_vllm_benchmark_parameters(
     model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
 ):
   base_model_id = model_id.split("/")[-1]
   request_rates = model_configs["request_rates"].split(",")
   instance_type = model_configs["instance_type"]
   num_prompts = 1000
+
+  # Group metrics together using test_run_id.
+  metadata = {
+      "test_run_id": test_run_id,
+      "instance_type": instance_type,
+      "num_accelerators": num_chips,
+  }
+
+  # Get the GCS destination path *before* constructing the command, OUTSIDE the list.
+  gcs_destination = metric_config.SshEnvVars.GCS_OUTPUT.value
+  if not gcs_destination:
+    raise ValueError("GCS_OUTPUT environment variable is not set or is empty.")
+  # Debug Print
+  print(f"DEBUG: GCS Destination: {gcs_destination}")
+
+  return base_model_id, request_rates, num_prompts, metadata, gcs_destination
+
+
+def get_gpu_vllm_benchmark_cmds(
+    model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
+):
+  (
+      base_model_id,
+      request_rates,
+      num_prompts,
+      metadata,
+      gcs_destination,
+  ) = _get_vllm_benchmark_parameters(
+      model_id=model_id,
+      num_chips=num_chips,
+      test_run_id=test_run_id,
+      model_configs=model_configs,
+  )
 
   run_cmds = [
       "export PATH=$PATH:/home/cloud-ml-auto-solutions/vllm:/home/cloud-ml-auto-solutions/.local/bin",
@@ -99,12 +126,6 @@ def get_vllm_benchmark_cmds(
       "sleep 600",
   ]
 
-  # Group metrics together using test_run_id.
-  metadata = {
-      "test_run_id": test_run_id,
-      "instance_type": instance_type,
-      "num_accelerators": num_chips,
-  }
   for request_rate in request_rates:
     benchmark_cmd_fmt = "python inference-benchmark/benchmark_serving.py --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model '{model_id}' --tokenizer '{model_id}' --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'"
 
@@ -132,7 +153,59 @@ def get_vllm_benchmark_cmds(
       # Kill background process
       "pkill -P $$",
       # Copy metrics as the last step
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gsutil cp metric_report.jsonl {gcs_destination}",
+  ])
+
+  return tuple(run_cmds)
+
+
+def get_tpu_vllm_benchmark_cmds(
+    model_id: str, num_chips: int, test_run_id: str, model_configs: Dict = {}
+):
+  (
+      base_model_id,
+      request_rates,
+      num_prompts,
+      metadata,
+      gcs_destination,
+  ) = _get_vllm_benchmark_parameters(
+      model_id=model_id,
+      num_chips=num_chips,
+      test_run_id=test_run_id,
+      model_configs=model_configs,
+  )
+
+  run_cmds = [
+      f"export CONTAINER_NAME={VLLM_TPU_CONTAINER}",
+      # Start vllm in the background and wait for server to come up
+      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'export HF_TOKEN={HF_TOKEN} && vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 & sleep 600'",
+  ]
+
+  for request_rate in request_rates:
+    benchmark_cmd_fmt = "sudo docker exec $CONTAINER_NAME /bin/bash -c \"export HF_TOKEN={HF_TOKEN} && python inference-benchmark/benchmark_serving.py --stream-request --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model {model_id} --tokenizer {model_id} --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'\""
+
+    benchmark_cmds = [
+        # Run benchmark inside the container
+        benchmark_cmd_fmt.format(
+            HF_TOKEN=HF_TOKEN,
+            num_prompts=num_prompts,
+            model_id=model_id,
+            request_rate=request_rate,
+            additional_metadata=json.dumps(metadata).replace('"', '\\"'),
+        ),
+        # Process result json files inside the container
+        f"sudo docker exec $CONTAINER_NAME /bin/bash -c \"export OUTPUT_FORMAT='*vllm*{base_model_id}*' && export BENCHMARK_OUTPUT=\\$(find . -name \\$OUTPUT_FORMAT -type f -printf \\\"%T@ %Tc %p\n\\\" | sort -n | head -1 | awk 'NF>1{{print \\$NF}}') && cat \\$BENCHMARK_OUTPUT >> metric_report.jsonl && rm \\$BENCHMARK_OUTPUT\"",
+        "sudo docker exec $CONTAINER_NAME /bin/bash -c \"echo '' >> metric_report.jsonl\"",
+    ]
+    run_cmds.extend(benchmark_cmds)
+
+  run_cmds.extend([
+      # Kill background process
+      "sudo docker exec $CONTAINER_NAME /bin/bash -c 'pkill vllm'",
+      # Copy metrics
+      f"sudo docker exec -e GCS=\"{gcs_destination}\" $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl $GCS'",
+      # Stop the container
+      "sudo docker stop $CONTAINER_NAME",
   ])
 
   return tuple(run_cmds)
@@ -163,7 +236,7 @@ def get_gpu_vllm_gce_config(
   set_up_cmds = get_vllm_gpu_setup_cmds()
   model_configs["instance_type"] = machine_version.value
 
-  run_model_cmds = get_vllm_benchmark_cmds(
+  run_model_cmds = get_gpu_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
       num_chips=count,
       test_run_id=test_run_id,
@@ -235,7 +308,7 @@ def get_tpu_vllm_gce_config(
   set_up_cmds = get_vllm_tpu_setup_cmds()
   model_configs["instance_type"] = tpu_version.value
 
-  run_model_cmds = get_vllm_benchmark_cmds(
+  run_model_cmds = get_tpu_vllm_benchmark_cmds(
       model_id=model_configs["model_id"],
       num_chips=tpu_cores,
       test_run_id=test_run_id,

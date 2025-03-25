@@ -50,6 +50,10 @@ MOHIT_K = "Mohit K."
 ANISHA_M = "Anisha M."
 YUWEI_Y = "Yuwei Y."
 
+# Multi-tier Checkpointing
+ABHINAV_S = "ABHINAV S."
+XUEFENG_G = "XUEFENG G."
+
 # MLCompass
 ORTI_B = "Orti B."
 
@@ -80,3 +84,4 @@ GUNJAN_J = "Gunjan J."
 
 # Bite
 Maggie_Z = "Maggie Z."
+Andrew_S = "Andrew S."

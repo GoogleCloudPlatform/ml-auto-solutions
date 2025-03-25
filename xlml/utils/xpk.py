@@ -76,6 +76,7 @@ def run_workload(
     num_slices: int = 1,
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
+    ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
 ):
   """Run workload through xpk tool."""
 
@@ -100,6 +101,8 @@ def run_workload(
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
         " --restart-on-user-code-failure"
     )
+    if ramdisk_directory:
+      workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
     cmds = get_xpk_setup_cmd(tmpdir)
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
@@ -144,6 +147,42 @@ def _list_workload_pods(
   return pods
 
 
+def _get_batch_api_client(
+    project_id: str, region: str, cluster_name: str
+) -> k8s_client.BatchV1Api:
+  """Create a batch API client for the given cluster."""
+  client = gke.get_authenticated_client(project_id, region, cluster_name)
+
+  # Initilize the client
+  batch_api = k8s_client.BatchV1Api(client)
+  logging.info(
+      "Successful initilize k8s batch api client from cluster response."
+  )
+  return batch_api
+
+
+def _get_workload_job(
+    batch_api: k8s_client.BatchV1Api, workload_id: str
+) -> k8s_client.V1Job:
+  """Get the job for a given workload."""
+  logging.info(f"Getting job for workload_id: {workload_id}")
+  jobs = batch_api.list_namespaced_job(
+      label_selector=f"jobset.sigs.k8s.io/jobset-name={workload_id}",
+      namespace="default",
+  )
+  if len(jobs.items) == 0:
+    logging.info(f"Getting job for workload_id: {workload_id}")
+    return None
+
+  if len(jobs.items) > 1:
+    logging.info(f"Got more than one job for workload_id: {workload_id}")
+    for i, job in enumerate(jobs.items):
+      logging.info(f"Job {i=}")
+      logging.info(f"{job}")
+
+  return jobs.items[0]
+
+
 @task.sensor(poke_interval=60, timeout=600, mode="reschedule")
 def wait_for_workload_start(
     workload_id: str, project_id: str, region: str, cluster_name: str
@@ -165,6 +204,27 @@ def wait_for_workload_completion(
 
   if not pods.items:
     logging.info(f"No pods found for workload selector: {workload_id}.")
+
+    # Pathways jobs delete all pods on failure so we must also check if the job
+    # is complete
+    batch_api = _get_batch_api_client(project_id, region, cluster_name)
+    job = _get_workload_job(batch_api, workload_id)
+    if job is None:
+      logging.info(
+          f"No pods or jobs were found for workload selector: {workload_id}"
+      )
+      return False
+
+    if any(condition.type == "Failed" for condition in job.status.conditions):
+      # Don't keep retrying if the job has failed
+      raise AirflowFailException('Job has condition type: "Failed"')
+
+    if any(condition.type == "Complete" for condition in job.status.conditions):
+      logging.info(
+          f"No pods found but job is complete for workload selector: {workload_id}"
+      )
+      return True
+
     return False
 
   if any(pod.status.phase in ["Pending", "Running"] for pod in pods.items):
