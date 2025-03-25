@@ -37,7 +37,13 @@ BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 with models.DAG(
     dag_id="maxtext_trillium_configs_perf",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "mlscale_onduty", "maxtext", "stable", "nightly"],
+    tags=[
+        "multipod_team",
+        "maxtext",
+        "stable",
+        "nightly",
+        "mlscale_perfx",
+    ],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
 ) as dag:
