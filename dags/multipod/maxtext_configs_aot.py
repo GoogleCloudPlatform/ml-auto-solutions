@@ -31,7 +31,13 @@ SCHEDULED_TIME = "0 5 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxtext_configs_aot",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "mlscale_onduty", "maxtext", "stable", "nightly"],
+    tags=[
+        "multipod_team",
+        "maxtext",
+        "stable",
+        "nightly",
+        "mlscale_devx",
+    ],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
     concurrency=2,
