@@ -85,7 +85,12 @@ def hybridsim_compile_and_run(test_group_id):
 with models.DAG(
     dag_id="maxtext_configs_aot_hybridsim",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "nightly", "mlscale_onduty"],
+    tags=[
+        "multipod_team",
+        "maxtext",
+        "nightly",
+        "mlscale_perfx",
+    ],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
     concurrency=10,

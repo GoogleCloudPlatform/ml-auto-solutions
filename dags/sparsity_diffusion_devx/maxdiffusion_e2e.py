@@ -34,8 +34,8 @@ with models.DAG(
     tags=[
         "sparsity_diffusion_devx",
         "multipod_team",
-        "mlscale_onduty",
         "maxdiffusion",
+        "mlscale_devx",
     ],
     start_date=datetime.datetime(2024, 9, 12),
     catchup=False,

@@ -81,7 +81,7 @@ with models.DAG(
         "gpu",
         "stable",
         "nightly",
-        "mlscale_onduty",
+        "mlscale_devx",
     ],
     start_date=datetime.datetime(2024, 12, 11),
     catchup=False,

@@ -259,7 +259,7 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
-      name="bodaborg-v6e-256-dnd-yucmhab",
+      name="bodaborg-v6e-256-dnd-yucmhab-new",
       device_version=TpuVersion.TRILLIUM,
       core_count=256,
       project=Project.TPU_PROD_ENV_ONE_VM.value,
@@ -328,10 +328,6 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXDIFFUSION_TPU_JAX_NIGHTLY = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
-      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  )
   MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX = (
       "gcr.io/tpu-prod-env-multipod/maxdiffusion_stable_stack_nightly_jax:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
@@ -358,10 +354,6 @@ class DockerImage(enum.Enum):
   )
   MAXTEXT_GPU_STABLE_STACK_NIGHTLY_JAX = (
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:"
-      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  )
-  MAXTEXT_GPU_JAX_NIGHTLY = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   CLOUD_HYBRIDSIM_NIGHTLY = (

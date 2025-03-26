@@ -120,4 +120,5 @@ with models.DAG(
                 network=network,
                 subnetwork=subnetwork,
                 model_configs=model_configs,
+                reservation=True,
             ).run()
