@@ -259,7 +259,7 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
-      name="bodaborg-v6e-256-dnd-yucmhab",
+      name="bodaborg-v6e-256-dnd-yucmhab-new",
       device_version=TpuVersion.TRILLIUM,
       core_count=256,
       project=Project.TPU_PROD_ENV_ONE_VM.value,
