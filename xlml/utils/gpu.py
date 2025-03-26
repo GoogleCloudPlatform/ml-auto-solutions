@@ -400,8 +400,9 @@ def create_resource(
     if reservation:
       # Set reservation affinity if specified
       reservation_affinity = compute_v1.ReservationAffinity()
-      reservation_affinity.consume_reservation_type = compute_v1.ReservationAffinity.ConsumeReservationType.ANY_RESERVATION.name
-
+      reservation_affinity.consume_reservation_type = (
+          compute_v1.ReservationAffinity.ConsumeReservationType.ANY_RESERVATION.name
+      )
       instance.reservation_affinity = reservation_affinity
 
     # Prepare the request to insert an instance.
