@@ -49,6 +49,9 @@ def write_run(
     update_person_ldap: str = getpass.getuser(),
     comment: str = "",
     is_test: bool = False,
+    logs_profile="",
+    workload_others="",
+    experiment_id="",
 ):
   """Writes a workload benchmark run manually to the database.
 
@@ -250,6 +253,9 @@ def write_run(
         hardware_topology=topology,
         hardware_num_superblocks=num_of_superblock,
         logs_comments=comment,
+        logs_profile=logs_profile,
+        workload_others=workload_others,
+        experiment_id=experiment_id,
     )
 
     client = get_db_client(

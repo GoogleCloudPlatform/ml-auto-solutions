@@ -27,22 +27,19 @@ TURN_ON_SCHEDULE = False
 # List of configuration setups as a dictionary with schedule times
 config_yamls = {
     # a3ultra_llama3.1-8b
-    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,  # < 5mins
+    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,  # < 10mins
     "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
-    # "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext_pgle.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
     "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
     "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
-    # a3ultra_mixtral-8x7 image issue
-    # "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
-    # "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
-    # "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
-    # "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_fp8_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    # a3ultra_mixtral-8x7
+    "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_6PM_EXCEPT_THURSDAY,
     # a3ultra_llama3.1-70b
-    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_6_30PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_6_30PM_EXCEPT_THURSDAY,  # ~10min
     "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_6_30PM_EXCEPT_THURSDAY,
     # a3ultra_llama3.1-405b
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_7PM_EXCEPT_THURSDAY,  # 30mins for the run
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_7_30PM_EXCEPT_THURSDAY,  # 50mins
+    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_7PM_EXCEPT_THURSDAY,  # ~30mins
+    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_7_30PM_EXCEPT_THURSDAY,  # ~30mins
     # Add more config paths as needed
 }
 
