@@ -19,14 +19,14 @@ local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
 {
-  local r2_6 = {
-    frameworkPrefix: 'pt-2-6',
+  local r2_7 = {
+    frameworkPrefix: 'pt-2-7',
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.6.0_3.10',
+    imageTag: 'r2.7.0_3.10',
   },
-  PyTorchTest:: common.PyTorchTest + r2_6 {
+  PyTorchTest:: common.PyTorchTest + r2_7 {
     local config = self,
 
     podTemplate+:: {
@@ -228,5 +228,5 @@ local volumes = import 'templates/volumes.libsonnet';
   HuggingfacePipVersionConstraints:: common.HuggingfacePipVersionConstraints,
 
   // DEPRECATED: Use PyTorchTpuVmMixin instead
-  tpu_vm_r2_6_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
+  tpu_vm_r2_7_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
 }
