@@ -32,11 +32,11 @@ with models.DAG(
     schedule=SCHEDULED_TIME,
     tags=[
         "multipod_team",
-        "mlscale_onduty",
         "maxtext",
         "gke",
         "nightly",
         "gpt_6b",
+        "mlscale_perfx",
     ],
     start_date=datetime.datetime(2024, 3, 18),
     catchup=False,
