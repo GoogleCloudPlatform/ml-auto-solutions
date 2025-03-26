@@ -228,6 +228,7 @@ def get_gpu_vllm_gce_config(
     network: str,
     subnetwork: str,
     model_configs: Dict = {},
+    reservation: bool = False,
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project.value,
@@ -282,6 +283,7 @@ def get_gpu_vllm_gce_config(
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
       install_nvidia_drivers=True,
+      reservation=reservation,
   )
 
 
