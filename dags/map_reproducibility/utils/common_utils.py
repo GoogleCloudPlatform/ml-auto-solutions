@@ -444,6 +444,132 @@ def get_docker_image(hardware: str, framework: str):
   return None  # Return None if no image is found for the given combination
 
 
+def get_internal_docker_image(hardware: str, framework: str):
+  """
+  Returns the appropriate Docker image based on the given hardware, model, and framework.
+
+  Args:
+      hardware: The hardware type (e.g., "a3ultra", "a3mega").
+      framework: The framework (e.g., "nemo", "maxtext").
+
+  Returns:
+      A Docker image string or None if no image is defined for the given combination.
+  """
+  utc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+  utc_date = "2025-03-10"
+
+  image_map = {
+      "a3ultra": {
+          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
+          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
+      },
+      "a3mega": {
+          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
+          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
+      },
+  }
+
+  if hardware in image_map:
+    if framework in image_map[hardware]:
+      return image_map[hardware][framework]
+
+  return None  # Return None if no image is found for the given combination
+
+
+def get_two_node_cmds(hypercomputer: str = "a3ultra"):
+  cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16 '
+  if hypercomputer == "a3mega":
+    cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
+  return cmd
+
+
+def parse_internal_config_filename(filename):
+  """
+  Parse a config filename to extract config values.
+
+  Args:
+      filename (str): Config filename like 'a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml'
+
+  Returns:
+      object: Config values accessible via dot notation
+  """
+
+  # Simple dot notation class
+  class Config:
+
+    def __init__(self, **kwargs):
+      self.__dict__.update(kwargs)
+
+  # Remove file extension and split by underscore
+  parts = filename.split(".yaml")[0].split("_")
+
+  # Extract components
+  hypercomputer = parts[0]
+  model_id_raw = parts[1]
+  model_id = model_id_raw.replace("llama", "llama-")
+  num_gpus = int(parts[2].replace("gpus", ""))
+  precision = parts[3]
+  framework = parts[4]
+  is_pgle = False
+  if len(parts) >= 6 and parts[5] == "pgle":
+    is_pgle = True
+
+  # Create software ID based on framework
+  software_id = f"{'jax' if framework == 'maxtext' else 'pytorch'}_{framework}"
+
+  # Return config object with dot notation access
+  return Config(
+      MODEL_ID=model_id,
+      HELM_NAME_MODEL_ID=model_id_raw.replace(".", "-"),
+      PRECISION=precision,
+      HYPERCOMPUTER=hypercomputer,
+      FRAMEWORK=framework,
+      SOFTWARE_ID=software_id,
+      NUM_GPUS=num_gpus,
+      IS_PGLE=is_pgle,
+  )
+
+
+def parse_internal_config_content(yaml_path):
+  """
+  Parse the internal content of a config YAML file.
+
+  Args:
+      yaml_path (str): Path to the YAML file
+
+  Returns:
+      object: Config values accessible via dot notation
+  """
+  import yaml
+
+  # Simple dot notation class with dictionary-like representation
+  class Config:
+
+    def __init__(self, **kwargs):
+      self.__dict__.update(kwargs)
+
+    def __repr__(self):
+      return repr(self.__dict__)
+
+    def __str__(self):
+      return str(self.__dict__)
+
+  try:
+    # Open and read the YAML file
+    with open(yaml_path, "r") as file:
+      result = yaml.safe_load(file)
+
+    # Return config object with dot notation access
+    return Config(
+        SEQUENCE_LENGTH=result.get("max_target_length", None),
+        BATCH_SIZE_PER_DEVICE=result.get("per_device_batch_size", None)
+        # Add other mappings here as needed
+    )
+  except Exception as e:
+    print(f"Unexpected error: {e}")
+    raise e
+
+
 @task
 def run_maxtext_workload(
     hypercomputer: str,
