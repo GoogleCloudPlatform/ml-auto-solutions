@@ -56,7 +56,6 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-
   run_maxtext_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
@@ -69,5 +68,5 @@ with models.DAG(
       sequence_length=SEQUENCE_LENGTH,
       helm_model_id=f"two-node",
       num_gpus=32,
-      gpu_overide=False
+      gpu_overide=False,
   )

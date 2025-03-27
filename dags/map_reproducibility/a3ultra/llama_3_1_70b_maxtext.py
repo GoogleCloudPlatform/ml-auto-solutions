@@ -60,7 +60,6 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-
   run_maxtext_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
@@ -73,7 +72,6 @@ with models.DAG(
       sequence_length=SEQUENCE_LENGTH,
       helm_model_id=MODEL_ID,
   )
-
   run_maxtext_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
@@ -85,5 +83,5 @@ with models.DAG(
       optimizer=OPTIMIZER,
       sequence_length=SEQUENCE_LENGTH,
       helm_model_id=MODEL_ID,
-      num_gpus=512
+      num_gpus=512,
   )
