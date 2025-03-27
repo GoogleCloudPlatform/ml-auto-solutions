@@ -601,8 +601,7 @@ def run_maxtext_workload(
         cwd=tmpdir,
     )
 
-    value_yaml_path = (
-    f"training/{hypercomputer}/{model_id}/{framework}-pretraining-gke/values.yaml")
+    value_yaml_path = f"training/{hypercomputer}/{model_id}/{framework}-pretraining-gke/values.yaml"
 
     recipe_repo_root = get_recipe_repo_path(tmpdir)
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
@@ -615,7 +614,7 @@ def run_maxtext_workload(
       gpu_helm_cmd = f" --set workload.gpus={num_gpus} "
 
     if gpu_overide == False:
-      num_gpus = num_gpus_in_file # This is for two node tests, they'll use the same config of more nodes
+      num_gpus = num_gpus_in_file  # This is for two node tests, they'll use the same config of more nodes
 
     config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-a3u-{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
@@ -706,9 +705,9 @@ def get_image_version(framework: str):
 def get_two_node_cmds(hypercomputer: str = "a3ultra", framework: str = "nemo"):
   cmd = ' --set workload.arguments="{trainer.max_steps=1}" '
   if framework == "nemo":
-    cmd += ' --set workload.gpus=16 '
+    cmd += "" --set workload.gpus=16 "
   if hypercomputer == "a3mega" and framework == "nemo":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   if framework == "maxtext":
-    cmd +=" --set dcn_fsdp_parallelism=1 --set ici_fsdp_parallelism=1 --set dcn_data_parallelism=1 "
+    cmd += " --set dcn_fsdp_parallelism=1 --set ici_fsdp_parallelism=1 --set dcn_data_parallelism=1 "
   return cmd
