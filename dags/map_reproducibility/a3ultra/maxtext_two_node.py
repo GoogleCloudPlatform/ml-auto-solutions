@@ -39,7 +39,7 @@ KUEUE_NAME = "a3-ultra"
 
 OPTIMIZER = "adam"
 SEQUENCE_LENGTH = 2048
-NUM_STEPS = 2
+NUM_STEPS = 1
 BATCH_SIZE_PER_DEVICE = 5
 
 
@@ -67,7 +67,7 @@ with models.DAG(
       kueue_name=KUEUE_NAME,
       optimizer=OPTIMIZER,
       sequence_length=SEQUENCE_LENGTH,
-      helm_model_id=MODEL_ID,
-      num_gpus=16,
+      helm_model_id=f"two-node",
+      num_gpus=32,
       gpu_overide=False
   )

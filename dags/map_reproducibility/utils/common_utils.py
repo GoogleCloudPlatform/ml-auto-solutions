@@ -162,6 +162,7 @@ def helm_apply_cmds(
       f"={docker_image} "
       f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
       f"{additional_cmds}"
+      f"{get_two_node_cmds(hypercomputer, framework)}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
@@ -443,10 +444,14 @@ def get_docker_image(hardware: str, framework: str):
   return None  # Return None if no image is found for the given combination
 
 
-def get_two_node_cmds(hypercomputer: str = "a3ultra"):
-  cmd = ' --set workload.arguments="{trainer.max_steps=1}"  --set workload.gpus=16 '
-  if hypercomputer == "a3mega":
+def get_two_node_cmds(hypercomputer: str = "a3ultra", framework: str = "nemo"):
+  cmd = ' --set workload.arguments="{trainer.max_steps=1}" '
+  if framework == "nemo":
+    cmd += ' --set workload.gpus=16 '
+  if hypercomputer == "a3mega" and framework == "nemo":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
+  if framework == "maxtext":
+    cmd +=" --set dcn_fsdp_parallelism=1 --set ici_fsdp_parallelism=1 --set dcn_data_parallelism=1 "
   return cmd
 
 
