@@ -126,13 +126,13 @@ def helm_apply_cmds(
     docker_image,
     aotc: bool = False,
     cluster_name: str = "a3plus-benchmark",
-    kueue_name: str = "a3-ultra",
+    kueue_name: str = None,
     additional_cmds: str = "",
     num_steps: int = None,
 ):
   gcs_cmd = ""
   if hypercomputer in ("a3ultra", "a4"):
-    if framework != "maxtext":
+    if framework != "maxtext" and kueue_name:
       gcs_cmd = f" --set queue={kueue_name}"
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
@@ -162,7 +162,6 @@ def helm_apply_cmds(
       f"={docker_image} "
       f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
       f"{additional_cmds}"
-      f"{get_two_node_cmds(hypercomputer, framework)}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
   return helm_cmds
@@ -633,7 +632,7 @@ def run_nemo_workload(
     )
 
     additional_cmds= ""
-    if two_node:
+    if two_node == True:
       additional_cmds += get_two_node_cmds(hypercomputer, framework)
 
     cluster, cluster_region = get_cluster(hypercomputer)
@@ -658,7 +657,6 @@ def run_nemo_workload(
                     cluster_name=cluster,
                     kueue_name=kueue_name,
                     additional_cmds=additional_cmds,
-                    num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_nemo(

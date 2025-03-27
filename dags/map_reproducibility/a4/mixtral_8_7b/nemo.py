@@ -25,6 +25,7 @@ from dags.map_reproducibility.utils.common_utils import run_nemo_workload
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
+KUEUE_NAME = "a4-high"
 HYPERCOMPUTER = "a4"
 FRAMEWORK = "nemo"
 SCHEDULED_TIME = (
@@ -53,5 +54,6 @@ with models.DAG(
     framework=FRAMEWORK,
     precision=PRECISION,
     metrics_model_id=METRICS_MODEL_ID,
-    config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml"
+    config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
+    kueue_name=KUEUE_NAME
   )
