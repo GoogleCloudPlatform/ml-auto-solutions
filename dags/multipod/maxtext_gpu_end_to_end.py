@@ -32,7 +32,7 @@ from xlml.utils import gke
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 
 # Number of nodes on A3 cluster to be scaled up to
-A3_NUM_NODES = 10
+A3_NUM_NODES = 2
 
 
 def configure_project_and_cluster(project: str, cluster_name: str, zone: str):
