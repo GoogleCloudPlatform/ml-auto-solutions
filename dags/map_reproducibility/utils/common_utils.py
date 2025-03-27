@@ -131,14 +131,14 @@ def helm_apply_cmds(
     num_steps: int = None,
 ):
   gcs_cmd = ""
-  if hypercomputer == "a3ultra":
+  if hypercomputer in ("a3ultra", "a4"):
     if framework != "maxtext":
       gcs_cmd = f" --set queue={kueue_name}"
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
 
-  if num_steps == 1:
+  if num_steps:
     additional_cmds += f" --set workload.steps={num_steps} "
 
   cluster_cmd = ""
@@ -179,7 +179,7 @@ def wait_for_jobs_cmds():
 
 def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   gcs_location = ""
-  if hypercomputer == "a3ultra":
+  if hypercomputer in ("a3ultra", "a4"):
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/megatron_gpt/"
   else:
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/"
@@ -199,7 +199,6 @@ def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
   gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
 
   cmds = (
-      # "JOB_NAME=gunjanjalori-mixtral-8x7b-maxtext-1739253297",
       f"METRICS_FILE={tmpdir}/tflog/metrics",
       "export BUCKET_FOLDER=$(gcloud storage ls "
       f"{gcs_location} | grep $JOB_NAME)",
@@ -242,10 +241,10 @@ def get_nemo_metrics_cmds(
     model_id,
     accelertator_type,
     temdir,
-    freq: str = "weekly",
+    two_node: bool = False,
 ):
   step_cmd = ""
-  if freq == "daily":
+  if two_node:
     step_cmd = "--start_step 0 --end_step 0 "
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
@@ -329,6 +328,8 @@ def get_accelerator_type(hypercomputer: str):
     return "h200"
   elif hypercomputer == "a3mega":
     return "h100"
+  elif hypercomputer == "a4":
+    return "b200"
 
 
 def get_bq_writer_path(tempdir):
@@ -347,6 +348,8 @@ def get_cluster(hardware: str = "a3ultra"):
     return "a3plus-benchmark", "australia-southeast1"
   if hardware == "a3ultra":
     return "a3ultra-bm-map-2", "europe-west1"
+  if hardware == "a4":
+    return "map-a4-gke", "us-central1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
@@ -435,6 +438,10 @@ def get_docker_image(hardware: str, framework: str):
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
           "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
       },
+      "a4": {
+          "nemo": "pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4",
+          "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
+      }
   }
 
   if hardware in image_map:
@@ -571,6 +578,135 @@ def parse_internal_config_content(yaml_path):
 
 
 @task
+def run_nemo_workload(
+  hypercomputer: str,
+    model_id: str,
+    framework: str,
+    precision: str,
+    metrics_model_id: str,
+    num_gpus: int = None,
+    num_steps: int = None,
+    two_node: bool = False,
+    kueue_name: str = None,
+    config_model_name: str = None
+):
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                git_cookie_authdaemon()
+                + clone_recipes_gob()
+                + get_bq_writer_repo()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+
+    recipe_repo_root = get_recipe_repo_path(tmpdir)
+    bq_writer_repo_root = get_bq_writer_path(tmpdir)
+    value_yaml_path = f"training/{hypercomputer}/{model_id}/{framework}-pretraining-gke/values.yaml"
+
+    num_gpus_file = extract_gpus(recipe_repo_root, value_yaml_path)
+
+    if config_model_name:
+      config_yaml_path = f"src/frameworks/{hypercomputer}/{framework}-configs/{config_model_name}"
+    else:
+      config_hardware = f"{'a3u-' if hypercomputer == 'a3ultra' else ''}"
+      config_yaml_path = f"src/frameworks/{hypercomputer}/{framework}-configs/{model_id}-{num_gpus_file}gpus-{config_hardware}{precision}.yaml"
+    full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
+
+    (
+        global_batch_size,
+        optimizer,
+        precision,
+        seq_length,
+        num_steps,
+    ) = extract_run_details(recipe_repo_root, config_yaml_path)
+
+    accelerator_type = get_accelerator_type(hypercomputer)
+    print(
+        f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, num steps: {num_steps}"
+    )
+
+    additional_cmds= ""
+    if two_node:
+      additional_cmds += get_two_node_cmds(hypercomputer, framework)
+
+    cluster, cluster_region = get_cluster(hypercomputer)
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                configure_project_and_cluster(cluster, cluster_region)
+                + get_gpu_recipe_cmd(
+                    hypercomputer, model_id, framework, recipe_repo_root
+                )
+                + install_helm_cmds()
+                + namespace_cmds()
+                + get_pre_workload_cmds(model_id, framework)
+                + helm_apply_cmds(
+                    framework,
+                    hypercomputer,
+                    full_config_yaml_path,
+                    recipe_repo_root,
+                    get_docker_image(hypercomputer, framework),
+                    cluster_name=cluster,
+                    kueue_name=kueue_name,
+                    additional_cmds=additional_cmds,
+                    num_steps=num_steps,
+                )
+                + wait_for_jobs_cmds()
+                + copy_bucket_cmds_nemo(
+                    recipe_repo_root,
+                    hypercomputer=hypercomputer,
+                )
+                + get_nemo_metrics_cmds(
+                    global_batch_size,
+                    num_gpus,
+                    precision,
+                    metrics_model_id,
+                    accelerator_type,
+                    tmpdir,
+                    two_node=two_node
+                )
+                + cleanup_cmds()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+    average_step_time, mfu = get_nemo_metrics(tmpdir)
+
+    write_run(
+        model_id=model_id,
+        hardware_id=hypercomputer,
+        software_id=get_software_id(framework),
+        number_of_nodes=num_gpus / 8,
+        number_of_chips=num_gpus,
+        container_image_name=get_image_version(framework),
+        global_batch_size=global_batch_size,
+        precision=precision,
+        optimizer=optimizer,
+        seq_length=seq_length,
+        median_step_time=average_step_time,
+        e2e_time=0,
+        number_of_steps=num_steps,
+        mfu=mfu,
+        tokens_per_second=1,
+        writer_path=bq_writer_repo_root,
+        topology="2X2",
+        comment="Regression tests",
+        is_test=False,
+    )
+
+
+@task
 def run_maxtext_workload(
     hypercomputer: str,
     model_id: str,
@@ -616,7 +752,8 @@ def run_maxtext_workload(
     if gpu_overide == False:
       num_gpus = num_gpus_in_file  # This is for two node tests, they'll use the same config of more nodes
 
-    config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-a3u-{precision}.yaml"
+    config_hardware = f"{'a3u' if hypercomputer == 'a3ultra' else hypercomputer}"
+    config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-{config_hardware}-{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     cluster, cluster_region = get_cluster(hypercomputer)
