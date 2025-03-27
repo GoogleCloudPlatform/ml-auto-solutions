@@ -121,23 +121,21 @@ def torchvision():
   mnist_v2_8 >> (resnet_v2_8, *resnet_v4_8_tests, resnet_v4_32, resnet_v5lp_4)
   resnet_v2_8 >> resnet_v3_8_tests
 
-  # TODO(https://github.com/pytorch/xla/issues/8577): Bring back GPU tests.
-  if False:
-    resnet_v100_2x2 = task.GpuGkeTask(
-        test_config.GpuGkeTest.from_pytorch(
-            "pt-2-7-resnet50-mp-fake-v100-x2x2"
-        ),
-        US_CENTRAL1,
-        "gpu-uc1",
-    ).run()
-    resnet_v100_2x2_spmd = task.GpuGkeTask(
-        test_config.GpuGkeTest.from_pytorch(
-            "pt-2-7-resnet50-spmd-batch-fake-v100-x2x2"
-        ),
-        US_CENTRAL1,
-        "gpu-uc1",
-    ).run()
-    resnet_v100_2x2 >> resnet_v100_2x2_spmd
+  resnet_v100_2x2 = task.GpuGkeTask(
+      test_config.GpuGkeTest.from_pytorch(
+          "pt-2-7-resnet50-mp-fake-v100-x2x2"
+      ),
+      US_CENTRAL1,
+      "gpu-uc1",
+  ).run()
+  resnet_v100_2x2_spmd = task.GpuGkeTask(
+      test_config.GpuGkeTest.from_pytorch(
+          "pt-2-7-resnet50-spmd-batch-fake-v100-x2x2"
+      ),
+      US_CENTRAL1,
+      "gpu-uc1",
+  ).run()
+  resnet_v100_2x2 >> resnet_v100_2x2_spmd
 
 
 @task_group(prefix_group_id=False)
