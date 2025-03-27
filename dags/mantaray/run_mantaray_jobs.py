@@ -23,6 +23,13 @@ from dags import composer_env
 from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
 import dags.common.vm_resource as resource
 import re
+import tempfile
+from airflow.decorators import task
+from airflow.decorators import task_group
+from airflow.hooks.subprocess import SubprocessHook
+from dags.common import test_owner
+from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
+
 
 # Skip running this script in unit test because gcs loading will fail.
 if composer_env.is_prod_env() or composer_env.is_dev_env():
@@ -42,31 +49,41 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
 
   def run_test_code_on_persistent_TPUVM():
-    gcloud_command = (
-        f"gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 --zone=us-east5-b --project=cloud-ml-benchmarking --ssh-flag='-t' --worker=all \
-        --command=\"sudo docker run -it --privileged --net host --shm-size=16G --name testooo docker.io/vllm/vllm-tpu:270a5da495d24e947a71e2fa0c56635f4fad2dc3 \
-        bash -c 'export HF_TOKEN=xxx && \
-  VLLM_USE_V1=1 python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B --disable-log-requests \
-  --max-num-seq=320 --gpu-memory-utilization=0.95 --tensor-parallel-size=4 --max-model-len=8192 --port 8009 & sleep 1200 && \
-  wget --no-verbose https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json && \
-  pip install --upgrade google-cloud-storage && rm -rf inference-benchmark && git clone https://github.com/AI-Hypercomputer/inference-benchmark && \
-  echo \"deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main\" > /etc/apt/sources.list.d/google-cloud-sdk.list && \
-  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-  apt-get update && apt-get install -y google-cloud-sdk && apt-get -y install jq && export HF_TOKEN=xxx && \
-  export PJRT_DEVICE=TPU && \
-  python inference-benchmark/benchmark_serving.py --save-json-results --port=8009 --dataset=ShareGPT_V3_unfiltered_cleaned_split.json \
-  --tokenizer=meta-llama/Meta-Llama-3-8B --request-rate=1 --backend=vllm --num-prompts=300 --max-input-length=1024 --max-output-length=1024 \
-  --file-prefix=benchmark --models=meta-llama/Meta-Llama-3-8B \"--output-bucket=gs://manfeipublic\"' && sudo docker stop testooo && sudo docker rm testooo\" \
-  ",
-    )
-    return gcloud_command
-
-
-  def make_sure_docker_container_cleaned_on_persistent_TPUVM():
-    gcloud_command = (
-        f"gcloud compute tpus tpu-vm ssh manfei-2025-v6e-4 --zone=us-east5-b --project=cloud-ml-benchmarking --ssh-flag='-t -4 -L 6009:localhost:6009' --worker=all --command=\"sudo docker stop testooo && sudo docker rm testooo\"",
-    )
-    return gcloud_command
+      """
+      Run nightly vLLM inference benchmarking on persistent TPU.
+      """
+      gcloud_command = (
+          f"set -x && "
+          "set -u && "
+          "project=$(curl -sS \"http://metadata.google.internal/computeMetadata/v1/project/project-id\" -H \"Metadata-Flavor: Google\") && "
+          "zone=europe-west4-a && "
+          "tpu_name=manfei-2025-v6e-4-cloud-ml-auto-solu && "
+          "[ -f /scripts/id_rsa ] && sudo rm /scripts/id_rsa && sudo rm /scripts/id_rsa.pub; sudo ssh-keygen -t rsa -f /scripts/id_rsa -q -N \"\" && "
+          "echo \"xl-ml-test:$(cat /scripts/id_rsa.pub)\" > ssh-keys.txt && "
+          "echo 'echo Running startup script' > startup-script.txt && "
+          "sudo apt-get -y update && "
+          "sudo apt-get -y install lsof && "
+          "sudo dpkg --configure -a && "
+          "sudo apt-get -y install nfs-common && "
+          "yes '' | gcloud compute config-ssh && "
+          "ls /home/airflow/.ssh/ && "
+          "echo ${project} && "
+          "echo ${zone} && "
+          "echo ${tpu_name} && "
+          "yes 'y' | sudo gcloud alpha compute tpus tpu-vm ssh manfei-2025-v6e-4-cloud-ml-auto-solu --zone=europe-west4-a "
+          "--project=cloud-ml-auto-solutions --ssh-key-file=/home/airflow/.ssh/google_compute_engine --strict-host-key-checking=no "
+          "--internal-ip --worker=all --command ' \
+              sudo docker ps -a --filter \"name=testooo\" -q | grep -q . && sudo docker rm -f testooo; \
+              sudo docker run --privileged --net host --shm-size=16G --name testooo \
+              docker.io/vllm/vllm-tpu:270a5da495d24e947a71e2fa0c56635f4fad2dc3 bash -c \" \
+                  export HF_TOKEN=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 && \
+                  VLLM_USE_V1=1 python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B --disable-log-requests \
+                  --max-num-seq=320 --gpu-memory-utilization=0.95 --tensor-parallel-size=4 --max-model-len=8192 --port 8009 & sleep 900 && \
+                  git clone -b inference-benchmark-script https://github.com/ManfeiBai/vllm.git vllmscript && \
+                  bash vllmscript/benchmarks/inference_benchmark_script.sh \
+              \" && sudo docker stop testooo && sudo docker rm testooo' "
+      )
+      return gcloud_command
 
 
   @task
@@ -78,21 +95,29 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
           [
               "bash",
               "-c",
-              ";".join(
-                  run_test_code_on_persistent_TPUVM()
-                  + make_sure_docker_container_cleaned_on_persistent_TPUVM()
-              ),
+              run_test_code_on_persistent_TPUVM(),
           ],
           cwd=tmpdir,
       )
       assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
 
+  @task_group(prefix_group_id=False)
+  def run_vllm_nightly_on_v6e_4_persistant_TPUVM():
+      GCS_SUBFOLDER_PREFIX_PYTORCH_XLA = test_owner.Team.PYTORCH_XLA.value
+      output_location = name_format.generate_gcs_folder_location(
+              f"{GCS_SUBFOLDER_PREFIX_PYTORCH_XLA}/vllm_benchmark_nightly",
+              f'vllm-nightly-v6e-4',
+          )
+      run_on_v6e_4_persistant_TPUVM_func = run_on_v6e_4_persistant_TPUVM()
+      run_on_v6e_4_persistant_TPUVM_func
+
+
   # merge all PyTorch/XLA tests ino one Dag
   with models.DAG(
       dag_id="pytorch_xla_model_regression_test_on_trillium",
       schedule="0 0 * * *",  # everyday at midnight # job["schedule"],
-      tags=["mantaray", "pytorchxla", "xlml"],
+      tags=["mantaray", "pytorchxla", "xlml", "vllm", "nightly"],
       start_date=datetime.datetime(2024, 4, 22),
       catchup=False,
   ) as dag:
@@ -103,7 +128,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
           workload_file_name=workload_file_name,
       )
       run_workload
-    run_on_v6e_4_persistant_TPUVM()
+    run_vllm_nightly_on_v6e_4_persistant_TPUVM()
 
   # Create a DAG for each job from maxtext
   for job in xlml_jobs:
