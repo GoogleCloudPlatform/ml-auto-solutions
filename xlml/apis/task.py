@@ -370,6 +370,7 @@ class GpuCreateResourceTask(BaseTask):
     gpu_create_timeout: timeout when waiting for the GPU vm creation.
     install_nvidia_drivers: whether to install Nvidia drivers.
     existing_instance_name: whether an existing GPU instance shall be used.
+    reservation: use a specific reservation for the VM instance, if available
   """
 
   image_project: str
@@ -380,6 +381,7 @@ class GpuCreateResourceTask(BaseTask):
   gpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60)
   install_nvidia_drivers: bool = False
   existing_instance_name: str = None
+  reservation: bool = False
 
   def run(self) -> DAGNode:
     """Run a test job.
@@ -516,6 +518,7 @@ class GpuCreateResourceTask(BaseTask):
           ssh_keys,
           timeout=self.gpu_create_timeout,
           install_nvidia_drivers=self.install_nvidia_drivers,
+          reservation=self.reservation,
       )
 
       ip_address >> gpu.ssh_host.override(task_id="setup")(

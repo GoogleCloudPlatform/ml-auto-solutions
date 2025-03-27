@@ -35,10 +35,10 @@ with models.DAG(
     tags=[
         "sparsity_diffusion_devx",
         "multipod_team",
-        "mlscale_onduty",
         "maxtext",
         "gpu",
         "jax-stable-stack",
+        "mlscale_devx",
     ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
