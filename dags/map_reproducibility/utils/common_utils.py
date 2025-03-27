@@ -705,7 +705,7 @@ def get_image_version(framework: str):
 def get_two_node_cmds(hypercomputer: str = "a3ultra", framework: str = "nemo"):
   cmd = ' --set workload.arguments="{trainer.max_steps=1}" '
   if framework == "nemo":
-    cmd += "" --set workload.gpus=16 "
+    cmd += " --set workload.gpus=16 "
   if hypercomputer == "a3mega" and framework == "nemo":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   if framework == "maxtext":
