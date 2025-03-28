@@ -239,6 +239,34 @@ def set_up_torchbench_tpu(
       *install_torch_xla2_dependency,
   )
 
+def run_simple_model_test(simple_model_test):
+    # def set_up_torchbench_tpu(
+    model_name: str = "",
+    test_version: VERSION = VERSION.NIGHTLY,
+) -> Tuple[str]:
+  """Common set up for Simple model."""
+
+    version_mapping = get_version_mapping(test_version)
+    return (
+      "pip3 install -U 'setuptools>=70.0.0,<71.0.0'",
+      "sudo apt-get -y update",
+      "sudo apt install -y libopenblas-base",
+      "sudo apt install -y libsndfile-dev",
+      "sudo apt-get install libgl1 -y",
+      "pip3 install --user numpy pandas",
+      (
+          f"pip3 install --user --pre {version_mapping.TORCH.value} {version_mapping.TORCHVISION.value} {version_mapping.TORCHAUDIO.value} --index-url {version_mapping.TORCH_INDEX_CPU_URL.value}"
+      ),
+      (
+          f"pip3 install --user 'torch_xla[tpu] @{version_mapping.TORCH_XLA_TPU_WHEEL.value}' -f https://storage.googleapis.com/libtpu-releases/index.html"
+      ),
+      "pip3 install --user psutil",
+      "cd; git clone https://github.com/pytorch/benchmark.git", # change to hf code path
+      # f"cd benchmark && {model_install_cmds()}",
+      f"cd; git clone {version_mapping.TORCH_REPO_BRANCH.value} https://github.com/pytorch/pytorch.git",
+      f"cd; git clone {version_mapping.TORCH_XLA_REPO_BRANCH.value} https://github.com/pytorch/xla.git",
+      # *install_torch_xla2_dependency,
+  )
 
 def get_torchbench_tpu_config(
     tpu_version: resource.TpuVersion,
@@ -255,12 +283,17 @@ def get_torchbench_tpu_config(
     test_version: VERSION = VERSION.NIGHTLY,
     model_name: str = "",
     extraFlags: str = "",
+    simple_model_test: bool = False,
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project.value,
       zone=tpu_zone.value,
       dataset_name=metric_config.DatasetOption.BENCHMARK_DATASET,
   )
+
+  if simple_model_test:
+    run_simple_model_test(model_name, test_version)
+  # else: ...
 
   set_up_cmds = set_up_torchbench_tpu(
       model_name, test_version, use_xla2=use_xla2
