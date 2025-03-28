@@ -211,11 +211,11 @@ def run_maxtext_tests(dag: models.DAG):
     ).run_with_quarantine(quarantine_task_group)
     stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=300,
-        test_name=f"{test_name_prefix}-stable-stack-{model}",
+        test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=(test_script,),
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.YUWEI_Y,
     ).run_with_quarantine(quarantine_task_group)
     pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
