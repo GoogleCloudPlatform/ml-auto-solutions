@@ -267,7 +267,7 @@ class XpkClusters:
   )
 
   GPU_A3_CLUSTER = XpkClusterConfig(
-      name="ninacai-maxtext-a3",
+      name="maxtext-a3-gke",
       device_version=GpuVersion.XPK_H100,
       core_count=8,
       project=Project.SUPERCOMPUTER_TESTING.value,
