@@ -220,10 +220,9 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  if hypercomputer == "a3mega":
-    helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
-  else:
-    helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  helm_template_path = (
+      f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  )
 
   helm_cmds = (
       f" helm install -f {values_file_path} "
