@@ -23,18 +23,52 @@ from dags.sparsity_diffusion_devx.configs import project_bite_config as config
 
 
 # Run once a day at 6 pm UTC (11 am PST)
-SCHEDULED_TIME = "0 18 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = '0 18 * * *' if composer_env.is_prod_env() else None
+
+trillium_conf = {
+    'tpu_version': TpuVersion.TRILLIUM,
+    'tpu_cores': 4,
+    'tpu_zone': Zone.EUROPE_WEST4_A.value,
+    'runtime_version': RuntimeVersion.V2_ALPHA_TPUV6.value,
+}
+
+v5p_conf = {
+    'tpu_version': TpuVersion.V5P,
+    'tpu_cores': 8,
+    'tpu_zone': Zone.US_EAST5_A.value,
+    'is_tpu_reserved': True,
+    'runtime_version': RuntimeVersion.V2_ALPHA_TPUV5.value,
+    'project_name': Project.TPU_PROD_ENV_AUTOMATED.value,
+    'network': 'mas-test',
+    'subnetwork': 'mas-test',
+}
+
+v5e_conf = {
+    'tpu_version': TpuVersion.V5E,
+    'tpu_cores': 8,
+    'tpu_zone': Zone.US_EAST1_C.value,
+    'is_tpu_reserved': True,
+    'runtime_version': RuntimeVersion.V2_ALPHA_TPUV5_LITE.value,
+    'project_name': Project.TPU_PROD_ENV_AUTOMATED.value,
+    'network': 'mas-test',
+    'subnetwork': 'mas-test',
+}
+
+common = {
+    'time_out_in_min': 180,
+    'task_owner': test_owner.Andrew_S,
+}
 
 
 with models.DAG(
-    dag_id="project_bite_tpu_e2e",
+    dag_id='project_bite_tpu_e2e',
     schedule=SCHEDULED_TIME,
     tags=[
-        "sparsity_diffusion_devx",
-        "multipod_team",
-        "tpu",
-        "axlearn",
-        "bite",
+        'sparsity_diffusion_devx',
+        'multipod_team',
+        'tpu',
+        'axlearn',
+        'bite',
     ],
     start_date=datetime.datetime(2024, 4, 4),
     catchup=False,
@@ -82,28 +116,37 @@ with models.DAG(
       task_owner=test_owner.Maggie_Z,
   )
 
-default_unittest_args = {
-    "retries": 0,
-}
-
-with models.DAG(
-    dag_id="project_bite_tpu_unittests",
-    schedule=SCHEDULED_TIME,
-    tags=[
-        "sparsity_diffusion_devx",
-        "tpu",
-        "axlearn",
-        "bite",
-    ],
-    start_date=datetime.datetime(2025, 2, 24),
-    catchup=False,
-    default_args=default_unittest_args,
-) as dag:
-  unittests = config.get_bite_tpu_unittests_config(
-      tpu_version=TpuVersion.TRILLIUM,
-      tpu_cores=4,
-      tpu_zone=Zone.EUROPE_WEST4_A.value,
-      runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
-      time_out_in_min=180,
-      task_owner=test_owner.Andrew_S,
-  )
+  tpu_unittests = [
+      # Trillium (v6e) with JAX 0.5.1
+      config.get_bite_tpu_unittests_config(
+          **trillium_conf,
+          test_suffix='v6e_051',
+          jax_version='0.5.1',
+          **common,
+      ),
+      # Trillium (v6e) with JAX nightly
+      config.get_bite_tpu_unittests_config(
+          **trillium_conf,
+          test_suffix='v6e_nightly',
+          **common,
+      ),
+      # V5P with JAX 0.5.1
+      config.get_bite_tpu_unittests_config(
+          **v5p_conf,
+          test_suffix='v5p_051',
+          jax_version='0.5.1',
+          **common,
+      ),
+      # V5P with JAX nightly
+      config.get_bite_tpu_unittests_config(
+          **v5p_conf,
+          test_suffix='v5p_nightly',
+          **common,
+      ),
+      # V5E with JAX nightly
+      config.get_bite_tpu_unittests_config(
+          **v5e_conf,
+          test_suffix='v5e_nightly',
+          **common,
+      ),
+  ]
