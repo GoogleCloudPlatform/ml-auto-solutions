@@ -18,7 +18,12 @@ local mixins = import 'templates/mixins.libsonnet';
 local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
-local rcVersion = 'rc1';
+local rcVersion = 'rc3';
+
+// make sure the vision commit aligns with upstream. E.g., for 2.7 release:
+// https://github.com/pytorch/pytorch/blob/release/2.7/.github/ci_commit_pins/vision.txt.
+local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
+
 
 {
   local r2_7 = {
@@ -108,8 +113,8 @@ local rcVersion = 'rc1';
         # Install torchvision by pinned commit in PyTorch 2.7 release branch.
         pip install torch==2.7 --index-url https://download.pytorch.org/whl/test/cpu
         # torchvision commit reference: https://github.com/pytorch/pytorch/blob/release/2.7/.github/ci_commit_pins/vision.txt
-        pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0%(rc)s+cxx11-cp310-cp310-linux_x86_64.whl
+        pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@%(vision_commit)s"
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0%(rc)s-cp310-cp310-linux_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html -f https://storage.googleapis.com/libtpu-wheels/index.html
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
@@ -151,11 +156,11 @@ local rcVersion = 'rc1';
         nvidia-smi
         pip uninstall -y torch torchvision
         pip install torch==2.7 --index-url https://download.pytorch.org/whl/test/cpu
-        pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@d23a6e1664d20707c11781299611436e1f0c104f"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0%(rc)s+cxx11-cp310-cp310-linux_x86_64.whl
+        pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@%(vision_commit)s"
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.1/torch_xla-2.7.0%(rc)s-cp310-cp310-linux_x86_64.whl
 
         mkdir -p pytorch/xla
-        git clone -b v2.7.0-rc1 https://github.com/pytorch/xla.git pytorch/xla
+        git clone -b v2.7.0-%(rc)s https://github.com/pytorch/xla.git pytorch/xla
 
         %(cmd)s
 
