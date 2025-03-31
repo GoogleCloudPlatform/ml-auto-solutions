@@ -120,7 +120,7 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
         git clone --depth=1 https://github.com/pytorch/pytorch.git
         cd pytorch
         git clone -b v2.7.0-%(rc)s https://github.com/pytorch/xla.git
-      ||| % {rc: rcVersion},
+      ||| % {rc: rcVersion, vision_commit: vision_commit},
     },
     podTemplate+:: {
       spec+: {
@@ -166,7 +166,7 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
 
         # Run whatever is in `command` here
         "${@:0}"
-      ||| % {cmd: config.tpuSettings.tpuVmExports, rc: rcVersion},
+      ||| % {cmd: config.tpuSettings.tpuVmExports, rc: rcVersion, vision_commit: vision_commit},
     ],
     command: [
       'torchrun',
