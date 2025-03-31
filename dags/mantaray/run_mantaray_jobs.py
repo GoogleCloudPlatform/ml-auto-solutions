@@ -29,6 +29,7 @@ from airflow.decorators import task_group
 from airflow.hooks.subprocess import SubprocessHook
 from dags.common import test_owner
 from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
+from airflow.models import Variable
 
 
 # Skip running this script in unit test because gcs loading will fail.
@@ -47,6 +48,8 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     if re.match(pattern, job["task_name"]):
       workload_file_name_list.append(job["file_name"])
 
+
+  HF_TOKEN = Variable.get("HF_TOKEN", None)
 
   def run_test_code_on_persistent_TPUVM():
       """
@@ -76,7 +79,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
               sudo docker ps -a --filter \"name=testooo\" -q | grep -q . && sudo docker rm -f testooo; \
               sudo docker run --privileged --net host --shm-size=16G --name testooo \
               docker.io/vllm/vllm-tpu:270a5da495d24e947a71e2fa0c56635f4fad2dc3 bash -c \" \
-                  export HF_TOKEN=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 && \
+                  export HF_TOKEN={HF_TOKEN} && \
                   VLLM_USE_V1=1 python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B --disable-log-requests \
                   --max-num-seq=320 --gpu-memory-utilization=0.95 --tensor-parallel-size=4 --max-model-len=8192 --port 8009 & sleep 900 && \
                   git clone -b inference-benchmark-script https://github.com/ManfeiBai/vllm.git vllmscript && \
