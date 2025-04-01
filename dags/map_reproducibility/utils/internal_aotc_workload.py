@@ -19,7 +19,7 @@ import tempfile
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
-from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
+from dags.map_reproducibility.utils.common_utils import BUCKET_NAME, configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
@@ -29,7 +29,7 @@ from dags.map_reproducibility.utils.common_utils import clone_recipes_gob, clone
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds_internal_run
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_repo
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
-from dags.map_reproducibility.utils.common_utils import get_internal_pre_workload_cmds
+from dags.map_reproducibility.utils.common_utils import get_internal_pre_workload_cmds, get_internal_pre_workload_job_name
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
@@ -97,7 +97,9 @@ def run_internal_aotc_workload(relative_config_yaml_path, test_run=False):
 
     # Parse the config content now that we have the file path
     more_config = parse_internal_config_content(full_config_yaml_path)
-
+    job_name = get_internal_pre_workload_job_name(config.MODEL_ID, config.FRAMEWORK)
+    gcs_bucket = f"gs://{BUCKET_NAME}/{config.FRAMEWORK}/{job_name}"
+    
     result = hook.run_command(
         [
             "bash",
@@ -127,6 +129,7 @@ def run_internal_aotc_workload(relative_config_yaml_path, test_run=False):
                     cluster_name=cluster,
                     kueue_name=KUEUE_NAME,
                     additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
+                    test_run=test_run,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_maxtext(
@@ -166,6 +169,7 @@ def run_internal_aotc_workload(relative_config_yaml_path, test_run=False):
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
         topology="",
-        comment="internal recipes regression tests",
+        comment="internal recipes regression tests backfill",
         is_test=False,
+        logs_profile=gcs_bucket
     )

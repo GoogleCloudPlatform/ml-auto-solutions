@@ -18,6 +18,9 @@
 import os
 import tempfile
 import yaml
+import random
+import string
+import time
 
 from google.cloud import storage
 from airflow.decorators import task
@@ -106,16 +109,24 @@ def get_pre_workload_cmds(model_id, framework):
 
 
 def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
+  job_name = get_internal_pre_workload_job_name(model_id, framework)
   prepare_workload_cmds = (
-      "NOW=$(date +%s)",
-      f"export JOB_NAME=internal-reg-{model_id}-$NOW-{framework}",
+      f"export JOB_NAME={job_name}",
   )
+
   if is_pgle:
     prepare_workload_cmds += (
         "export JAX_ENABLE_PGLE=true",
         "export JAX_PGLE_PROFILING_RUNS=2",
     )
   return prepare_workload_cmds
+
+
+def get_internal_pre_workload_job_name(model_id, framework):
+  random_id = ''.join(random.choices(string.ascii_lowercase, k=4))
+  now = int(time.time())
+  job_name = f"coreml-{model_id}-{now}-{framework}-{random_id}"
+  return job_name
 
 
 def install_helm_cmds():
@@ -197,6 +208,7 @@ def helm_apply_cmds_internal_run(
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
+    test_run=False,
 ):
   gcs_cmd = ""
   if framework == "maxtext":
@@ -220,9 +232,12 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  helm_template_path = (
-      f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
-  )
+  if test_run:
+    helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
+  else:
+    helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+
+  print(f"helm_template_path is {helm_template_path}")
 
   helm_cmds = (
       f" helm install -f {values_file_path} "
@@ -244,6 +259,7 @@ def helm_apply_cmds_internal_run(
 
 def wait_for_jobs_cmds():
   wait_for_job = (
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
       "echo 'will wait for jobs to finish'",
       "kubectl wait --for=condition=complete "
       "job/$JOB_NAME --namespace=default --timeout=100m",
@@ -423,7 +439,7 @@ def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3mega":
     return "a3plus-benchmark", "australia-southeast1"
   if hardware == "a3ultra":
-    return "a3ultra-bm-map-2", "europe-west1"
+    return " gke-a3ultra-bm-map-3", "europe-west1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
@@ -529,7 +545,12 @@ def get_internal_docker_image(hardware: str, framework: str):
       A Docker image string or None if no image is defined for the given combination.
   """
   utc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-  utc_date = "2025-03-10"
+  utc_date = "2025-03-25"
+  utc_date = "2025-03-22"
+  utc_date = "2025-03-20"
+  utc_date = "2025-03-19"
+  utc_date = "2025-03-18"
+  utc_date = "2025-03-20"
 
   image_map = {
       "a3ultra": {
@@ -631,6 +652,9 @@ def parse_internal_config_content(yaml_path):
     # Open and read the YAML file
     with open(yaml_path, "r") as file:
       result = yaml.safe_load(file)
+
+    print("******* configs are ********")
+    print(result)
 
     # Return config object with dot notation access
     return Config(
