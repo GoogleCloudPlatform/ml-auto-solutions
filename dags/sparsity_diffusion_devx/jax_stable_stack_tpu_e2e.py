@@ -73,7 +73,7 @@ with models.DAG(
   maxdiffusion_docker_images = [
       (
           SetupMode.STABLE,
-          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
+          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK,
       ),
       (
           SetupMode.NIGHTLY,
