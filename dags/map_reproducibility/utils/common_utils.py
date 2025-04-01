@@ -502,8 +502,8 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
           "llama3-1-405b": {
               "nemo": "0 4 * * 5",
               "maxtext": "0 4 * * 5",
-          }
-      }
+          },
+      },
   }
 
   if hardware in schedule_map:
@@ -538,7 +538,7 @@ def get_docker_image(hardware: str, framework: str):
       "a4": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4",
           "maxtext": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317",
-      }
+      },
   }
 
   if hardware in image_map:
@@ -676,7 +676,7 @@ def parse_internal_config_content(yaml_path):
 
 @task
 def run_nemo_workload(
-  hypercomputer: str,
+    hypercomputer: str,
     model_id: str,
     framework: str,
     precision: str,
@@ -685,7 +685,7 @@ def run_nemo_workload(
     num_steps: int = None,
     two_node: bool = False,
     kueue_name: str = None,
-    config_model_name: str = None
+    config_model_name: str = None,
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -729,7 +729,7 @@ def run_nemo_workload(
         f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, num steps: {num_steps}"
     )
 
-    additional_cmds= ""
+    additional_cmds = ""
     if two_node == True:
       additional_cmds += get_two_node_cmds(hypercomputer, framework)
 
@@ -771,7 +771,7 @@ def run_nemo_workload(
                     metrics_model_id,
                     accelerator_type,
                     tmpdir,
-                    two_node=two_node
+                    two_node=two_node,
                 )
                 + cleanup_cmds()
             ),
@@ -818,7 +818,7 @@ def run_maxtext_workload(
     sequence_length: int,
     helm_model_id: str,
     num_gpus: int = None,
-    gpu_overide: bool = True
+    gpu_overide: bool = True,
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -851,7 +851,9 @@ def run_maxtext_workload(
     if gpu_overide == False:
       num_gpus = num_gpus_in_file  # This is for two node tests, they'll use the same config of more nodes
 
-    config_hardware = f"{'a3u' if hypercomputer == 'a3ultra' else hypercomputer}"
+    config_hardware = (
+        f"{'a3u' if hypercomputer == 'a3ultra' else hypercomputer}"
+    )
     config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-{config_hardware}-{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 

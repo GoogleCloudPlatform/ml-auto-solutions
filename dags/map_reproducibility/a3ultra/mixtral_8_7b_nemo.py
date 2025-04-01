@@ -51,10 +51,10 @@ with models.DAG(
     catchup=False,
 ) as dag:
   run_nemo_workload(
-    hypercomputer=HYPERCOMPUTER,
-    model_id=MODEL_ID,
-    framework=FRAMEWORK,
-    precision=PRECISION,
-    kueue_name=KUEUE_NAME,
-    metrics_model_id=METRICS_MODEL_ID,
+      hypercomputer=HYPERCOMPUTER,
+      model_id=MODEL_ID,
+      framework=FRAMEWORK,
+      precision=PRECISION,
+      kueue_name=KUEUE_NAME,
+      metrics_model_id=METRICS_MODEL_ID,
   )

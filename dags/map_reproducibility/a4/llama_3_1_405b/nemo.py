@@ -49,10 +49,10 @@ with models.DAG(
     catchup=False,
 ) as dag:
   run_nemo_workload(
-    hypercomputer=HYPERCOMPUTER,
-    model_id=MODEL_ID,
-    framework=FRAMEWORK,
-    precision=PRECISION,
-    metrics_model_id=METRICS_MODEL_ID,
-    config_model_name="llama3-1-405b-224gpus-a4-bf16.yaml"
+      hypercomputer=HYPERCOMPUTER,
+      model_id=MODEL_ID,
+      framework=FRAMEWORK,
+      precision=PRECISION,
+      metrics_model_id=METRICS_MODEL_ID,
+      config_model_name="llama3-1-405b-224gpus-a4-bf16.yaml"
   )

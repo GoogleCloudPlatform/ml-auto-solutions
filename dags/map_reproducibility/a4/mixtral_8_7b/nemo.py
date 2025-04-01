@@ -33,7 +33,7 @@ SCHEDULED_TIME = (
     if composer_env.is_prod_env()
     else None
 )
-NUM_GPUS=32
+NUM_GPUS = 32
 
 
 with models.DAG(
@@ -50,11 +50,11 @@ with models.DAG(
     catchup=False,
 ) as dag:
   run_nemo_workload(
-    hypercomputer=HYPERCOMPUTER,
-    model_id=MODEL_ID,
-    framework=FRAMEWORK,
-    precision=PRECISION,
-    metrics_model_id=METRICS_MODEL_ID,
-    config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
-    num_gpus=NUM_GPUS
+      hypercomputer=HYPERCOMPUTER,
+      model_id=MODEL_ID,
+      framework=FRAMEWORK,
+      precision=PRECISION,
+      metrics_model_id=METRICS_MODEL_ID,
+      config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
+      num_gpus=NUM_GPUS
   )
