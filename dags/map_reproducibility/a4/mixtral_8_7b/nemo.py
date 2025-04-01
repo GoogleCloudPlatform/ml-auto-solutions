@@ -56,5 +56,5 @@ with models.DAG(
       precision=PRECISION,
       metrics_model_id=METRICS_MODEL_ID,
       config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
-      num_gpus=NUM_GPUS
+      num_gpus=NUM_GPUS,
   )
