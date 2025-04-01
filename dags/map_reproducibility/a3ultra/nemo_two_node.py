@@ -59,4 +59,5 @@ with models.DAG(
       framework=FRAMEWORK,
       precision=PRECISION,
       metrics_model_id=METRICS_MODEL_ID,
+      two_node=True,
   )

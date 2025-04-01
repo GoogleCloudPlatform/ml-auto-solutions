@@ -25,6 +25,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from xlml.utils import metric
 from xlml.apis import metric_config
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
+from datetime import datetime, timezone
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -56,6 +57,28 @@ def clone_recipes_gob():
       "reproducible-benchmark-recipes",
   )
   return gob_clone_cmds
+
+
+def clone_internal_recipes_gob():
+  gob_clone_cmds = (
+      "echo 'trying to clone internal GoB repo'",
+      "git clone https://jax3p-gpu-benchmarking.googlesource.com/"
+      "internal-gpu-recipes",
+  )
+  return gob_clone_cmds
+
+
+def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
+  prepare_workload_cmds = (
+      "NOW=$(date +%s)",
+      f"export JOB_NAME=internal-reg-{model_id}-$NOW-{framework}",
+  )
+  if is_pgle:
+    prepare_workload_cmds += (
+        "export JAX_ENABLE_PGLE=true",
+        "export JAX_PGLE_PROFILING_RUNS=2",
+    )
+  return prepare_workload_cmds
 
 
 def get_bq_writer_repo():
@@ -164,6 +187,63 @@ def helm_apply_cmds(
       f"{additional_cmds}"
       f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
   )
+  return helm_cmds
+
+
+def helm_apply_cmds_internal_run(
+    framework: str,
+    hypercomputer: str,
+    config_file,
+    recipe_repo_root,
+    values_file_path,
+    docker_image,
+    aotc: bool = False,
+    cluster_name: str = "a3plus-benchmark",
+    kueue_name: str = "a3-ultra",
+    additional_cmds: str = "",
+):
+  gcs_cmd = ""
+  if framework == "maxtext":
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME} "
+
+  if hypercomputer == "a3ultra":
+    if framework != "maxtext":
+      gcs_cmd += f" --set queue={kueue_name} "
+  else:
+    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME} "
+
+  cluster_cmd = ""
+  if framework == "nemo" and hypercomputer == "a3ultra":
+    cluster_cmd = f" --set clusterName={cluster_name} "
+
+  run_name_cmd = ""
+  if framework == "maxtext":
+    run_name_cmd = " --set workload.run_name=$JOB_NAME "
+
+  set_aotc = ""
+  if aotc:
+    set_aotc = " --set-string workload.aotc=true "
+
+  if hypercomputer == "a3mega":
+    helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
+  else:
+    helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+
+  helm_cmds = (
+      f" helm install -f {values_file_path} "
+      "--namespace default "
+      "--set namespace=default"
+      f" --set-file {framework}_config"
+      f"={config_file}"
+      " --set workload.image"
+      f"={docker_image} "
+      f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
+      f"{additional_cmds}"
+      # f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
+      f" $JOB_NAME {helm_template_path}",
+  )
+  print("*******helm cmd is*******")
+  print(helm_cmds)
   return helm_cmds
 
 
@@ -286,6 +366,11 @@ def get_nemo_metrics(temdir):
   print(f"MFU: {mfu}")
 
   return average_step_time, mfu
+
+
+def get_internal_recipe_repo_path(tmpdir):
+  recipe_repo_root = os.path.join(tmpdir, "internal-gpu-recipes")
+  return recipe_repo_root
 
 
 def extract_gpus(tmpdir, yaml_file):
