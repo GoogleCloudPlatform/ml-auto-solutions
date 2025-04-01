@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,10 +22,11 @@ from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import run_nemo_workload
 
 
-MODEL_ID = "mixtral-8x7b"
-METRICS_MODEL_ID = "mixtral-7b"
+MODEL_ID = "llama3-1-405b"
+METRICS_MODEL_ID = "llama3.1-405b"
 PRECISION = "bf16"
-HYPERCOMPUTER = "a3mega"
+KUEUE_NAME = "a4-high"
+HYPERCOMPUTER = "a4"
 FRAMEWORK = "nemo"
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
@@ -48,9 +49,10 @@ with models.DAG(
     catchup=False,
 ) as dag:
   run_nemo_workload(
-      hypercomputer=HYPERCOMPUTER,
-      model_id=MODEL_ID,
-      framework=FRAMEWORK,
-      precision=PRECISION,
-      metrics_model_id=METRICS_MODEL_ID,
+    hypercomputer=HYPERCOMPUTER,
+    model_id=MODEL_ID,
+    framework=FRAMEWORK,
+    precision=PRECISION,
+    metrics_model_id=METRICS_MODEL_ID,
+    config_model_name="llama3-1-405b-224gpus-a4-bf16.yaml"
   )
