@@ -735,6 +735,8 @@ def run_nemo_workload(
 
     if num_gpus:
       additional_cmds += f" --set workload.gpus={num_gpus} "
+    else:
+      num_gpus = num_gpus_file
 
     cluster, cluster_region = get_cluster(hypercomputer)
     result = hook.run_command(
