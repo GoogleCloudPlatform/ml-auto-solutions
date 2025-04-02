@@ -71,6 +71,7 @@ US_EAST5_B_CLOUD_ML_BENCHMARKING = gcp_config.GCPConfig(
     metric_config.DatasetOption.XLML_DATASET,
 )
 
+
 @task_group(prefix_group_id=False)
 def torchvision():
   mnist_v2_8 = task.run_queued_resource_test(
