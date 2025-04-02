@@ -17,7 +17,7 @@ from airflow.decorators import task_group
 from airflow import models
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import composer_env
-from dags.common.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, V6E_SUBNETWORKS
+from dags.common.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, V6E_SUBNETWORKS, BM_NETWORKS, V5P_BM_SUBNETWORKS
 
 
 # Run once a day at 2 pm UTC (6 am PST)
@@ -61,6 +61,13 @@ US_CENTRAL2_B_TPU_PROD_ENV = gcp_config.GCPConfig(
 US_EAST5_A_TPU_PROD_ENV_AUTOMATED = gcp_config.GCPConfig(
     Project.TPU_PROD_ENV_AUTOMATED.value,
     Zone.US_EAST5_A.value,
+    metric_config.DatasetOption.XLML_DATASET,
+)
+
+
+US_EAST5_B_CLOUD_ML_BENCHMARKING = gcp_config.GCPConfig(
+    Project.CLOUD_ML_BENCHMARKING.value,
+    Zone.US_EAST5_B.value,
     metric_config.DatasetOption.XLML_DATASET,
 )
 
@@ -164,10 +171,10 @@ def huggingface():
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-7-stable-diffusion-2-train-func-v6e-4-1vm",
-          network=V5_NETWORKS,
-          subnetwork=V6E_SUBNETWORKS,
+          network=BM_NETWORKS,
+          subnetwork=V5P_BM_SUBNETWORKS,
       ),
-      US_CENTRAL2_B_TPU_PROD_ENV,
+      US_EAST5_B_CLOUD_ML_BENCHMARKING,
   )
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
@@ -221,10 +228,10 @@ def llama():
   llama_3_train_trillium = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-7-llama3-train-func-v6e-4-1vm",
-          network=V5_NETWORKS,
-          subnetwork=V6E_SUBNETWORKS,
+          network=BM_NETWORKS,
+          subnetwork=V5P_BM_SUBNETWORKS,
       ),
-      US_CENTRAL2_B_TPU_PROD_ENV,
+      US_EAST5_B_CLOUD_ML_BENCHMARKING,
   )
   llama_3_train_v5p_2_slices = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
@@ -271,8 +278,8 @@ with models.DAG(
   ci_trillium_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-2-7-ci-func-v6e-4-1vm",
-          network=V5_NETWORKS,
-          subnetwork=V6E_SUBNETWORKS,
+          network=BM_NETWORKS,
+          subnetwork=V5P_BM_SUBNETWORKS,
       ),
-      US_CENTRAL2_B_TPU_PROD_ENV,
+      US_EAST5_B_CLOUD_ML_BENCHMARKING,
   )
