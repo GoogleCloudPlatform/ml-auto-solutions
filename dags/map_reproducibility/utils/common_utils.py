@@ -460,7 +460,6 @@ def get_cluster(hardware: str = "a3ultra"):
     return "gke-a3ultra-bm-map-3", "europe-west1"
   if hardware == "a4":
     return "map-a4-gke", "us-central1"
-    return "gke-a3ultra-bm-map-3", "europe-west1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
