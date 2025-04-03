@@ -23,6 +23,7 @@ from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_a
 
 TEST_RUN = False
 TURN_ON_SCHEDULE = True
+BACKFILL = False
 
 # List of configuration setups as a dictionary with schedule times
 config_yamls = {
@@ -73,5 +74,7 @@ for relative_config_yaml_path, schedule_time in config_yamls.items():
   ) as dag:
     # Create the workload for this specific config
     run_internal_aotc_workload(
-        relative_config_yaml_path=relative_config_yaml_path, test_run=TEST_RUN
+        relative_config_yaml_path=relative_config_yaml_path,
+        test_run=TEST_RUN,
+        backfill=BACKFILL,
     )

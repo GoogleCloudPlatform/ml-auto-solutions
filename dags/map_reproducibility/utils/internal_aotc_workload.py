@@ -43,7 +43,9 @@ from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_
 
 
 @task
-def run_internal_aotc_workload(relative_config_yaml_path, test_run=False):
+def run_internal_aotc_workload(
+    relative_config_yaml_path, test_run=False, backfill=False
+):
   """Runs the AOTC workload benchmark.
 
   Args:
@@ -166,6 +168,12 @@ def run_internal_aotc_workload(relative_config_yaml_path, test_run=False):
 
     print(f"mfu: {mfu}")
     print(f"step_time: {step_time}")
+    comment = (
+        "internal recipes regression tests"
+        if not backfill
+        else "internal recipes regression tests backfill"
+    )
+    is_db_test_run = False if backfill else test_run
 
     write_run(
         model_id=config.HELM_NAME_MODEL_ID,
@@ -185,8 +193,8 @@ def run_internal_aotc_workload(relative_config_yaml_path, test_run=False):
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
         topology="",
-        comment="internal recipes regression tests",
-        is_test=test_run,
+        comment=comment,
+        is_test=is_db_test_run,
         logs_profile=gcs_bucket,
         workload_others=str(config),
         experiment_id=job_name,
