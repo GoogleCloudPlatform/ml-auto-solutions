@@ -18,7 +18,7 @@ local mixins = import 'templates/mixins.libsonnet';
 local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
-local rcVersion = 'rc3';
+local rcVersion = 'rc4';
 
 // make sure the vision commit aligns with upstream. E.g., for 2.7 release:
 // https://github.com/pytorch/pytorch/blob/release/2.7/.github/ci_commit_pins/vision.txt.
