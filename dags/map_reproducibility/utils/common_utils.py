@@ -282,6 +282,19 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
+def internal_wait_for_jobs_cmds(timeout="100m"):
+  timeout = str(timeout)
+  if not timeout.endswith("m"):
+    timeout += "m"
+  wait_for_job = (
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
+      "echo 'will wait for jobs to finish'",
+      "kubectl wait --for=condition=complete "
+      f"job/$JOB_NAME --namespace=default --timeout={timeout}",
+  )
+  return wait_for_job
+
+
 def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   gcs_location = ""
   if hypercomputer in ("a3ultra", "a4"):
@@ -586,11 +599,15 @@ def get_internal_docker_image(hardware: str, framework: str):
       A Docker image string or None if no image is defined for the given combination.
   """
   utc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+  utc_date = "2025-04-02"
 
   image_map = {
       "a3ultra": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:{utc_date}",
+          # "maxtext": f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:{utc_date}",
+          # "maxtext": f"gcr.io/supercomputer-testing/jax3p_stable:{utc_date}",
+          "maxtext": f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack:{utc_date}",
+          
       },
       "a3mega": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",

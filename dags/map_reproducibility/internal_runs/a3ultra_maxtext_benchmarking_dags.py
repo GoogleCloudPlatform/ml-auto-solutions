@@ -21,26 +21,56 @@ from dags.map_reproducibility.utils.constants import Schedule
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
-TEST_RUN = False
-TURN_ON_SCHEDULE = True
-BACKFILL = False
+TEST_RUN = True
+TURN_ON_SCHEDULE = False
+BACKFILL = True
 
-# List of configuration setups as a dictionary with schedule times
+# List of configuration setups as a dictionary with schedule times and timeouts (in minutes)
 config_yamls = {
     # a3ultra_llama3.1-8b
-    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,  # < 10mins
-    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
-    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
-    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
+    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
+    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
+    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
     # a3ultra_mixtral-8x7
-    "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
-    "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_bf16_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
+    "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_bf16_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
     # a3ultra_llama3.1-70b
-    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6_30PM_EXCEPT_THURSDAY,  # ~10min
-    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_PST_6_30PM_EXCEPT_THURSDAY,
+    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6_30PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
+    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_6_30PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 15,
+    },
     # a3ultra_llama3.1-405b
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_PST_7PM_EXCEPT_THURSDAY,  # ~30mins
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_7_30PM_EXCEPT_THURSDAY,  # ~30mins
+    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_7PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 60,
+    },
+    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": {
+        "schedule": Schedule.DAILY_PST_7_30PM_EXCEPT_THURSDAY,
+        "timeout_minutes": 90,
+    },
     # Add more config paths as needed
 }
 
@@ -56,13 +86,14 @@ common_tags = [
 ]
 
 # Create a DAG for each config
-for relative_config_yaml_path, schedule_time in config_yamls.items():
+for relative_config_yaml_path, config_info in config_yamls.items():
   # Extract config name for the DAG ID
   config_yaml_name = relative_config_yaml_path.rsplit("/", maxsplit=1)[
       -1
   ].replace(".yaml", "")
-  actual_schedule = schedule_time if TURN_ON_SCHEDULE else None
+  actual_schedule = config_info["schedule"] if TURN_ON_SCHEDULE else None
   dag_id = f"new_internal_{config_yaml_name}"
+  timeout_minutes = config_info["timeout_minutes"]
 
   # Define the DAG
   with models.DAG(
@@ -72,9 +103,10 @@ for relative_config_yaml_path, schedule_time in config_yamls.items():
       start_date=datetime.datetime(2025, 4, 3),
       catchup=False,
   ) as dag:
-    # Create the workload for this specific config
+    # Create the workload for this specific config with timeout
     run_internal_aotc_workload(
         relative_config_yaml_path=relative_config_yaml_path,
         test_run=TEST_RUN,
         backfill=BACKFILL,
+        timeout=timeout_minutes,
     )
