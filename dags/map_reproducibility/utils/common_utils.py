@@ -282,6 +282,19 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
+def internal_wait_for_jobs_cmds(timeout="100m"):
+  timeout = str(timeout)
+  if not timeout.endswith("m"):
+    timeout += "m"
+  wait_for_job = (
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
+      "echo 'will wait for jobs to finish'",
+      "kubectl wait --for=condition=complete "
+      f"job/$JOB_NAME --namespace=default --timeout={timeout}",
+  )
+  return wait_for_job
+
+
 def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   gcs_location = ""
   if hypercomputer in ("a3ultra", "a4"):

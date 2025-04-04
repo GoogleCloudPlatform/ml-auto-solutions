@@ -22,7 +22,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from dags.map_reproducibility.utils.common_utils import BUCKET_NAME, configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
-from dags.map_reproducibility.utils.common_utils import wait_for_jobs_cmds
+from dags.map_reproducibility.utils.common_utils import internal_wait_for_jobs_cmds
 from dags.map_reproducibility.utils.common_utils import cleanup_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob, clone_internal_recipes_gob
@@ -34,7 +34,6 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import get_internal_docker_image
 from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
@@ -44,7 +43,11 @@ from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_
 
 @task
 def run_internal_aotc_workload(
-    relative_config_yaml_path, test_run=False, backfill=False
+    relative_config_yaml_path,
+    test_run=False,
+    backfill=False,
+    timeout=None,
+    image_version=None,
 ):
   """Runs the AOTC workload benchmark.
 
@@ -59,9 +62,7 @@ def run_internal_aotc_workload(
 
   # Get derived configuration
   cluster, cluster_region = get_cluster(config.HYPERCOMPUTER)
-  docker_image = get_internal_docker_image(
-      config.HYPERCOMPUTER, config.FRAMEWORK
-  )
+  docker_image = image_version
   values_name = f"{config.HYPERCOMPUTER}_{config.FRAMEWORK}_values"
 
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -149,7 +150,7 @@ def run_internal_aotc_workload(
                     additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
                     test_run=test_run,
                 )
-                + wait_for_jobs_cmds()
+                + internal_wait_for_jobs_cmds(timeout=timeout)
                 + copy_bucket_cmds_maxtext(
                     tmpdir, recipe_repo_root=recipe_repo_root
                 )
