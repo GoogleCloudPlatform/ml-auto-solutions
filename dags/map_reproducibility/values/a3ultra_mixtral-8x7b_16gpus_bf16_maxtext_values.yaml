@@ -1,0 +1,22 @@
+queue:
+podsetPreferredTopology: "kubernetes.io/hostname"
+
+volumes:
+  # The VM host path for SSDs is assumed at /mnt/stateful_partition/kube-ephemeral-ssd
+  ssdMountPath: "/ssd"
+
+  gcsMounts:
+    - bucketName:
+      mountPath: /gcs
+
+workload:
+  gpus: 8 # This should be one of: {<= 8,  multiple of 8}
+  steps: 20
+  xlaPythonClientMemFraction: 0.92
+
+network:
+  gibVersion: us-docker.pkg.dev/gce-ai-infra/gpudirect-gib/nccl-plugin-gib:v1.0.3
+  subnetworks[]:
+  ncclSettings:
+  - name: NCCL_DEBUG
+    value: "VERSION"
