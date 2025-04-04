@@ -173,6 +173,7 @@ class XpkTask(BaseTask):
       use_pathways: bool = False,
       skip_post_process: bool = False,
       ramdisk_directory: str = "",
+      mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
   ) -> DAGNode:
     """Run a test job within a docker image.
@@ -192,6 +193,7 @@ class XpkTask(BaseTask):
           use_vertex_tensorboard,
           use_pathways,
           ramdisk_directory,
+          mtc_enabled,
           xpk_branch,
       )
       if not skip_post_process:
@@ -258,6 +260,7 @@ class XpkTask(BaseTask):
       use_vertex_tensorboard: bool = False,
       use_pathways: bool = False,
       ramdisk_directory: str = "",
+      mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
@@ -285,6 +288,7 @@ class XpkTask(BaseTask):
           use_vertex_tensorboard,
           use_pathways,
           ramdisk_directory,
+          mtc_enabled,
           xpk_branch,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
@@ -318,6 +322,7 @@ class XpkTask(BaseTask):
       use_vertex_tensorboard: bool,
       use_pathways: bool = False,
       ramdisk_directory: str = "",
+      mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
   ) -> DAGNode:
     """Create the workload and wait for it to provision."""
@@ -339,6 +344,7 @@ class XpkTask(BaseTask):
           use_vertex_tensorboard=use_vertex_tensorboard,
           use_pathways=use_pathways,
           ramdisk_directory=ramdisk_directory,
+          mtc_enabled=mtc_enabled,
           xpk_branch=xpk_branch,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
@@ -702,9 +708,10 @@ class GpuGkeTask(BaseTask):
             },
         },
         "spec": {
-            "activeDeadlineSeconds": (
-                int(self.task_test_config.timeout.total_seconds()) or 3600
-            ),
+            "activeDeadlineSeconds": int(
+                self.task_test_config.timeout.total_seconds()
+            )
+            or 3600,
             "backoffLimit": 0,
             "completionMode": "Indexed",
             "completions": self.task_test_config.num_hosts,
