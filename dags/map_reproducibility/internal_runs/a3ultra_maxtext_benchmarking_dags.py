@@ -117,7 +117,7 @@ for config_path, config_info in MODEL_CONFIGS.items():
 
   # Create DAG for stable release
   with models.DAG(
-      dag_id=f"new_internal_stable_release_{config_name}_",
+      dag_id=f"new_internal_stable_release_{config_name}",
       schedule=schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 3),
