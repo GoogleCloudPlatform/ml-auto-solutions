@@ -198,6 +198,9 @@ local volumes = import 'templates/volumes.libsonnet';
         %s
         HF_CONSTRAINTS_EOF
         pip install pytest -c ~/hf-constraints.txt
+
+        pip install git+https://github.com/zpcore/accelerate.git@piz/fix_deprecated_api
+
         mkdir -p ~/.cache/huggingface/accelerate/
         cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'
         compute_environment: LOCAL_MACHINE

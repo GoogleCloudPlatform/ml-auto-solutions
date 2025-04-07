@@ -54,6 +54,9 @@ local tpus = import 'templates/tpus.libsonnet';
         %s
         HF_CONSTRAINTS_EOF
         pip install pytest -c ~/hf-constraints.txt
+
+        pip install git+https://github.com/zpcore/accelerate.git@piz/fix_deprecated_api
+
         pip install tensorboardX google-cloud-storage transformers evaluate scikit-learn -c ~/hf-constraints.txt
       ||| % common.HuggingfacePipVersionConstraints,
     },

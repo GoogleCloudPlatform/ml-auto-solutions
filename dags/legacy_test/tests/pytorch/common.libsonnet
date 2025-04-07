@@ -98,7 +98,6 @@ local volumes = import 'templates/volumes.libsonnet';
   // A list of Python library versions that are known to work with
   // the Huggingface models and workflows exercised in PyTorch/XLA CI.
   HuggingfacePipVersionConstraints:: |||
-    git+https://github.com/zpcore/accelerate.git@piz/fix_deprecated_api
     datasets==3.2.0
     evaluate==0.4.3
     huggingface-hub==0.30.1
