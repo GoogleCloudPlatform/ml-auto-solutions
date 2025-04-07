@@ -23,7 +23,7 @@ from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_a
 
 
 TEST_RUN = True
-TURN_ON_SCHEDULE = True if composer_env.is_prod_env() else False
+TURN_ON_SCHEDULE = False
 
 # List of configuration setups as a dictionary with schedule times
 config_yamls = {
