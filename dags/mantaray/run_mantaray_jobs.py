@@ -41,10 +41,11 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
   # merge all PyTorch/XLA tests ino one Dag
   with models.DAG(
       dag_id="pytorch_xla_model_regression_test_on_trillium",
-      schedule="0 0 * * *",  # everyday at midnight # job["schedule"],
+      schedule="0 0 * * *",  # everyday at midnight
       tags=["mantaray", "pytorchxla", "xlml"],
       start_date=datetime.datetime(2024, 4, 22),
       catchup=False,
+      concurrency=1,
   ) as dag:
     for workload_file_name in workload_file_name_list:
       run_workload = mantaray.run_workload.override(
