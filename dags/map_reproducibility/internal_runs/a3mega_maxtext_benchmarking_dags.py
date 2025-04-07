@@ -17,29 +17,30 @@
 import datetime
 
 from airflow import models
+from dags import composer_env
 from dags.map_reproducibility.utils.constants import Schedule
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
 TEST_RUN = True
-TURN_ON_SCHEDULE = False
+TURN_ON_SCHEDULE = True if composer_env.is_prod_env() else False
 
 # List of configuration setups as a dictionary with schedule times
 config_yamls = {
     # a3mega_llama3.1-8b
-    "recipes/a3mega/a3mega_llama3.1-8b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,  # < 5mins
-    "recipes/a3mega/a3mega_llama3.1-8b_8gpus_fp8_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
-    "recipes/a3mega/a3mega_llama3.1-8b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
-    "recipes/a3mega/a3mega_llama3.1-8b_16gpus_fp8_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+    "recipes/a3mega/a3mega_llama3.1-8b_8gpus_bf16_maxtext.yaml": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,  # < 5mins
+    "recipes/a3mega/a3mega_llama3.1-8b_8gpus_fp8_maxtext.yaml": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
+    "recipes/a3mega/a3mega_llama3.1-8b_16gpus_bf16_maxtext.yaml": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
+    "recipes/a3mega/a3mega_llama3.1-8b_16gpus_fp8_maxtext.yaml": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
     # a3mega_mixtral-8x7
-    "recipes/a3mega/a3mega_mixtral-8x7b_16gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
-    "recipes/a3mega/a3mega_mixtral-8x7b_8gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6PM_EXCEPT_THURSDAY,
+    "recipes/a3mega/a3mega_mixtral-8x7b_16gpus_bf16_maxtext.yaml": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
+    "recipes/a3mega/a3mega_mixtral-8x7b_8gpus_bf16_maxtext.yaml": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
     # a3mega_llama3.1-70b
-    "recipes/a3mega/a3mega_llama3.1-70b_256gpus_bf16_maxtext.yaml": Schedule.DAILY_PST_6_30PM_EXCEPT_THURSDAY,  # ~10min
-    "recipes/a3mega/a3mega_llama3.1-70b_256gpus_fp8_maxtext.yaml": Schedule.DAILY_PST_6_30PM_EXCEPT_THURSDAY,
+    "recipes/a3mega/a3mega_llama3.1-70b_256gpus_bf16_maxtext.yaml": Schedule.WEEKDAY_PDT_6_30PM_EXCEPT_THURSDAY,  # ~10min
+    "recipes/a3mega/a3mega_llama3.1-70b_256gpus_fp8_maxtext.yaml": Schedule.WEEKDAY_PDT_6_30PM_EXCEPT_THURSDAY,
     # a3mega_llama3.1-405b
-    # "recipes/a3mega/a3mega_llama3.1-405b_512gpus_bf16_maxtext.yaml": Schedule.DAILY_7PM_EXCEPT_THURSDAY, # ~50mins
-    # "recipes/a3mega/a3mega_llama3.1-405b_512gpus_fp8_maxtext.yaml": Schedule.DAILY_7_30PM_EXCEPT_THURSDAY, # ~50mins
+    # "recipes/a3mega/a3mega_llama3.1-405b_512gpus_bf16_maxtext.yaml": Schedule.WEEKDAY_7PM_EXCEPT_THURSDAY, # ~50mins
+    # "recipes/a3mega/a3mega_llama3.1-405b_512gpus_fp8_maxtext.yaml": Schedule.WEEKDAY_7_30PM_EXCEPT_THURSDAY, # ~50mins
 }
 
 # Define common tags
