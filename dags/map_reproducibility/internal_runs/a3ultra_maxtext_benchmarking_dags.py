@@ -18,13 +18,14 @@ import datetime
 import os
 
 from airflow import models
+from dags import composer_env
 from dags.map_reproducibility.utils.constants import Schedule, Image
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
 # Configuration parameters
 TEST_RUN = False
-TURN_ON_SCHEDULE = True
+TURN_ON_SCHEDULE = True if composer_env.is_prod_env() else False
 BACKFILL = False
 
 # Get current date for image tags
