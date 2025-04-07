@@ -120,8 +120,7 @@ local utils = import 'templates/utils.libsonnet';
         cd transformers
         sudo pip3 uninstall transformers
         sudo pip3 install -e . -c ~/hf-constraints.txt
-        pip3 install datasets evaluate scikit-learn accelerate -c ~/hf-constraints.txt
-
+        pip3 install datasets evaluate scikit-learn  -c ~/hf-constraints.txt
         cd
         # 7B config
         mkdir 7B
@@ -177,7 +176,7 @@ local utils = import 'templates/utils.libsonnet';
         cd transformers
         sudo pip3 install -e . -c ~/hf-constraints.txt
         pip3 install 'torch_xla[pallas]' -f https://storage.googleapis.com/jax-releases/jax_nightly_releases.html -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html
-        pip3 install datasets evaluate scikit-learn accelerate -c ~/hf-constraints.txt
+        pip3 install datasets evaluate scikit-learn -c ~/hf-constraints.txt
       ||| % common.HuggingfacePipVersionConstraints,
     },
   },
