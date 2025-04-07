@@ -37,6 +37,7 @@ GAGIK_A = "Gagik A."
 
 # PYTORCH
 PEI_Z = "Pei Z."
+MANFEI_B = "Manfei B."
 
 # MaxText
 TONY_C = "Tony C."
