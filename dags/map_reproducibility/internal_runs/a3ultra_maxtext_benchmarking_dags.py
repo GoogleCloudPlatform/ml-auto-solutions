@@ -18,13 +18,14 @@ import datetime
 import os
 
 from airflow import models
+from dags import composer_env
 from dags.map_reproducibility.utils.constants import Schedule, Image
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
 # Configuration parameters
 TEST_RUN = False
-TURN_ON_SCHEDULE = True
+TURN_ON_SCHEDULE = True if composer_env.is_prod_env() else False
 BACKFILL = False
 
 # Get current date for image tags
@@ -47,46 +48,46 @@ DAG_TAGS = [
 MODEL_CONFIGS = {
     # a3ultra_llama3.1-8b
     "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_6PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_6PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_6PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_6PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     # a3ultra_mixtral-8x7
     "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_6PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_6PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     # a3ultra_llama3.1-70b
     "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_6_30PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_6_30PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_7PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_7PM_EXCEPT_THURSDAY,
         "timeout_minutes": 15,
     },
     # a3ultra_llama3.1-405b
     "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_7_30PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_7_30PM_EXCEPT_THURSDAY,
         "timeout_minutes": 30,
     },
     "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.DAILY_PDT_8PM_EXCEPT_THURSDAY,
+        "schedule": Schedule.WEEKDAY_PDT_8PM_EXCEPT_THURSDAY,
         "timeout_minutes": 40,
     },
 }
