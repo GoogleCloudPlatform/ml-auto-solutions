@@ -19,7 +19,7 @@ import tempfile
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
-from dags.map_reproducibility.utils.common_utils import BUCKET_NAME, configure_project_and_cluster
+from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import internal_wait_for_jobs_cmds
@@ -35,7 +35,7 @@ from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
+from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext, get_job_gcs_bucket_folder
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_content
 from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_STEPS
@@ -117,7 +117,7 @@ def run_internal_aotc_workload(
     job_name = get_internal_pre_workload_job_name(
         config.MODEL_ID, config.FRAMEWORK
     )
-    gcs_bucket = f"gs://{BUCKET_NAME}/{config.FRAMEWORK}/{job_name}"
+
     container_timeout = int(timeout) - 3
     result = hook.run_command(
         [
@@ -133,11 +133,7 @@ def run_internal_aotc_workload(
                 )
                 + install_helm_cmds()
                 + namespace_cmds()
-                + get_internal_pre_workload_cmds(
-                    config.HELM_NAME_MODEL_ID,
-                    config.FRAMEWORK,
-                    config.IS_PGLE,
-                )
+                + get_internal_pre_workload_cmds(job_name=job_name)
                 + helm_apply_cmds_internal_run(
                     config.FRAMEWORK,
                     config.HYPERCOMPUTER,
@@ -175,6 +171,8 @@ def run_internal_aotc_workload(
         else "internal recipes regression tests backfill"
     )
     is_db_test_run = False if backfill else test_run
+    gcs_bucket = get_job_gcs_bucket_folder(job_name)
+    print(f"GCS bucket is {gcs_bucket}")
 
     write_run(
         model_id=config.HELM_NAME_MODEL_ID,
