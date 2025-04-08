@@ -100,7 +100,7 @@ local volumes = import 'templates/volumes.libsonnet';
   HuggingfacePipVersionConstraints:: |||
     datasets==3.2.0
     evaluate==0.4.3
-    huggingface-hub==0.30.1
+    huggingface-hub==0.27.1
     safetensors==0.5.0
     tokenizers==0.19.1
   |||,
