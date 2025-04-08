@@ -127,6 +127,7 @@ class Zone(enum.Enum):
   EUROPE_WEST1_B = "europe-west1-b"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
+  SOUTHAMERICA_WEST1_A = "southamerica-west1-a"
   # reserved v5e capacity in tpu-prod-env-multipod
   EUROPE_WEST4_B = "europe-west4-b"
   # reserved l4 in cloud-tpu-inference-test
@@ -263,11 +264,11 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
-      name="bodaborg-v6e-256-dnd-yucmhab-new",
+      name="bodaborg-v6e-256-lcscld-c",
       device_version=TpuVersion.TRILLIUM,
       core_count=256,
       project=Project.TPU_PROD_ENV_ONE_VM.value,
-      zone=Zone.US_EAST5_B.value,
+      zone=Zone.SOUTHAMERICA_WEST1_A.value,
   )
 
   GPU_A3_CLUSTER = XpkClusterConfig(
@@ -333,7 +334,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_stable_stack_nightly_jax:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE = (

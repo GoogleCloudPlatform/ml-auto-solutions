@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAGs to run hypercomputer recipes"""
+"""DAGs to run Aotc reproducibility benchmarks."""
 
 import datetime
-
 from airflow import models
 from dags import composer_env
+
+from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
-from dags.map_reproducibility.utils.common_utils import run_nemo_workload
+from dags.map_reproducibility.utils.common_utils import get_docker_image
+from dags.map_reproducibility.utils.common_utils import run_maxtext_workload
 
 
-MODEL_ID = "mixtral-8x7b"
-METRICS_MODEL_ID = "mixtral-7b"
-PRECISION = "bf16"
-HYPERCOMPUTER = "a3mega"
-FRAMEWORK = "nemo"
+MODEL_ID = "llama3-1-405b"
+PRECISION = "fp8"
+HYPERCOMPUTER = "a3ultra"
+FRAMEWORK = "maxtext"
+
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
     if composer_env.is_prod_env()
     else None
 )
+
+KUEUE_NAME = "a3-ultra"
+OPTIMIZER = "adam"
+SEQUENCE_LENGTH = 2048
+NUM_STEPS = 30
+BATCH_SIZE_PER_DEVICE = 5
 
 
 with models.DAG(
@@ -42,15 +50,20 @@ with models.DAG(
         "experimental",
         "xlml",
         "regressiontests",
-        "a3mega",
+        "a3ultra",
     ],
-    start_date=datetime.datetime(2025, 3, 1),
+    start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-  run_nemo_workload(
+  run_maxtext_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
       precision=PRECISION,
-      metrics_model_id=METRICS_MODEL_ID,
+      num_steps=NUM_STEPS,
+      batch_size_per_device=BATCH_SIZE_PER_DEVICE,
+      kueue_name=KUEUE_NAME,
+      optimizer=OPTIMIZER,
+      sequence_length=SEQUENCE_LENGTH,
+      helm_model_id=MODEL_ID,
   )

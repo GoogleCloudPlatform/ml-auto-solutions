@@ -18,6 +18,9 @@
 import os
 import tempfile
 import yaml
+import random
+import string
+import time
 
 from google.cloud import storage
 from airflow.decorators import task
@@ -30,7 +33,7 @@ from datetime import datetime, timezone
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
 
-MAX_TFLOP = {"a3ultra": 989, "a3mega": 989}
+MAX_TFLOP = {"a3ultra": 989, "a3mega": 989, "a4": 2237}
 
 
 # This is required to get auth to access
@@ -66,6 +69,19 @@ def clone_internal_recipes_gob():
       "internal-gpu-recipes",
   )
   return gob_clone_cmds
+
+
+def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
+  prepare_workload_cmds = (
+      "NOW=$(date +%s)",
+      f"export JOB_NAME=internal-reg-{model_id}-$NOW-{framework}",
+  )
+  if is_pgle:
+    prepare_workload_cmds += (
+        "export JAX_ENABLE_PGLE=true",
+        "export JAX_PGLE_PROFILING_RUNS=2",
+    )
+  return prepare_workload_cmds
 
 
 def get_bq_writer_repo():
@@ -106,16 +122,22 @@ def get_pre_workload_cmds(model_id, framework):
 
 
 def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
-  prepare_workload_cmds = (
-      "NOW=$(date +%s)",
-      f"export JOB_NAME=internal-reg-{model_id}-$NOW-{framework}",
-  )
+  job_name = get_internal_pre_workload_job_name(model_id, framework)
+  prepare_workload_cmds = (f"export JOB_NAME={job_name}",)
+
   if is_pgle:
     prepare_workload_cmds += (
         "export JAX_ENABLE_PGLE=true",
         "export JAX_PGLE_PROFILING_RUNS=2",
     )
   return prepare_workload_cmds
+
+
+def get_internal_pre_workload_job_name(model_id, framework):
+  random_id = "".join(random.choices(string.ascii_lowercase, k=4))
+  now = int(time.time())
+  job_name = f"coreml-{model_id}-{now}-{framework}-{random_id}"
+  return job_name
 
 
 def install_helm_cmds():
@@ -149,16 +171,20 @@ def helm_apply_cmds(
     docker_image,
     aotc: bool = False,
     cluster_name: str = "a3plus-benchmark",
-    kueue_name: str = "a3-ultra",
+    kueue_name: str = None,
     additional_cmds: str = "",
+    num_steps: int = None,
 ):
   gcs_cmd = ""
-  if hypercomputer == "a3ultra":
-    if framework != "maxtext":
+  if hypercomputer in ("a3ultra", "a4"):
+    if framework != "maxtext" and kueue_name:
       gcs_cmd = f" --set queue={kueue_name}"
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME}"
+
+  if num_steps:
+    additional_cmds += f" --set workload.steps={num_steps} "
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
@@ -197,6 +223,7 @@ def helm_apply_cmds_internal_run(
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
+    test_run=False,
 ):
   gcs_cmd = ""
   if framework == "maxtext":
@@ -220,10 +247,12 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  if hypercomputer == "a3mega":
+  if test_run:
     helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
   else:
     helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+
+  print(f"helm_template_path is {helm_template_path}")
 
   helm_cmds = (
       f" helm install -f {values_file_path} "
@@ -245,6 +274,7 @@ def helm_apply_cmds_internal_run(
 
 def wait_for_jobs_cmds():
   wait_for_job = (
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
       "echo 'will wait for jobs to finish'",
       "kubectl wait --for=condition=complete "
       "job/$JOB_NAME --namespace=default --timeout=100m",
@@ -252,9 +282,22 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
+def internal_wait_for_jobs_cmds(timeout="100m"):
+  timeout = str(timeout)
+  if not timeout.endswith("m"):
+    timeout += "m"
+  wait_for_job = (
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
+      "echo 'will wait for jobs to finish'",
+      "kubectl wait --for=condition=complete "
+      f"job/$JOB_NAME --namespace=default --timeout={timeout}",
+  )
+  return wait_for_job
+
+
 def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   gcs_location = ""
-  if hypercomputer == "a3ultra":
+  if hypercomputer in ("a3ultra", "a4"):
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/megatron_gpt/"
   else:
     gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/"
@@ -274,7 +317,6 @@ def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
   gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
 
   cmds = (
-      # "JOB_NAME=gunjanjalori-mixtral-8x7b-maxtext-1739253297",
       f"METRICS_FILE={tmpdir}/tflog/metrics",
       "export BUCKET_FOLDER=$(gcloud storage ls "
       f"{gcs_location} | grep $JOB_NAME)",
@@ -292,6 +334,8 @@ def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
 
 def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
   metrics, _ = metric.read_from_tb(log_location, None, None)
+
+  print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
   avg_step_time = metric.aggregate_metrics(
       step_time_metrics, metric_config.AggregationStrategy.AVERAGE
@@ -315,10 +359,10 @@ def get_nemo_metrics_cmds(
     model_id,
     accelertator_type,
     temdir,
-    freq: str = "weekly",
+    two_node: bool = False,
 ):
   step_cmd = ""
-  if freq == "daily":
+  if two_node:
     step_cmd = "--start_step 0 --end_step 0 "
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
@@ -336,7 +380,7 @@ def get_nemo_metrics_cmds(
 
 def cleanup_cmds():
   cleanup = (
-      "helm uninstall $JOB_NAME",
+      "helm uninstall $JOB_NAME -n default",
       "kubectl get pods "
       "--no-headers=true | awk '{print $1}' "
       "| grep $JOB_NAME | xargs kubectl delete pods",
@@ -361,6 +405,11 @@ def get_nemo_metrics(temdir):
   print(f"MFU: {mfu}")
 
   return average_step_time, mfu
+
+
+def get_internal_recipe_repo_path(tmpdir):
+  recipe_repo_root = os.path.join(tmpdir, "internal-gpu-recipes")
+  return recipe_repo_root
 
 
 def extract_gpus(tmpdir, yaml_file):
@@ -402,6 +451,8 @@ def get_accelerator_type(hypercomputer: str):
     return "h200"
   elif hypercomputer == "a3mega":
     return "h100"
+  elif hypercomputer == "a4":
+    return "b200"
 
 
 def get_bq_writer_path(tempdir):
@@ -415,16 +466,13 @@ def get_recipe_repo_path(tmpdir):
   return recipe_repo_root
 
 
-def get_internal_recipe_repo_path(tmpdir):
-  recipe_repo_root = os.path.join(tmpdir, "internal-gpu-recipes")
-  return recipe_repo_root
-
-
 def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3mega":
     return "a3plus-benchmark", "australia-southeast1"
   if hardware == "a3ultra":
-    return "a3ultra-bm-map-2", "europe-west1"
+    return "gke-a3ultra-bm-map-3", "europe-west1"
+  if hardware == "a4":
+    return "map-a4-gke", "us-central1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
@@ -458,6 +506,10 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
           },
           "llama3-1-70b": {
               "nemo": "0 4 * * 5",
+              "maxtext": "0 4 * * 5",
+          },
+          "llama3-1-405b": {
+              "nemo": "0 5 * * 5",
               "maxtext": "0 5 * * 5",
           },
       },
@@ -476,6 +528,19 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
           },
           "gpt3-175b": {
               "nemo": "0 4 * * 5",
+          },
+      },
+      "a4": {
+          "mixtral-8x7b": {
+              "nemo": "0 2 * * 5",
+          },
+          "llama3-1-70b": {
+              "nemo": "0 3 * * 5",
+              "maxtext": "0 3 * * 5",
+          },
+          "llama3-1-405b": {
+              "nemo": "0 4 * * 5",
+              "maxtext": "0 4 * * 5",
           },
       },
   }
@@ -509,6 +574,10 @@ def get_docker_image(hardware: str, framework: str):
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
           "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
       },
+      "a4": {
+          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4",
+          "maxtext": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317",
+      },
   }
 
   if hardware in image_map:
@@ -530,16 +599,15 @@ def get_internal_docker_image(hardware: str, framework: str):
       A Docker image string or None if no image is defined for the given combination.
   """
   utc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-  utc_date = "2025-03-10"
 
   image_map = {
       "a3ultra": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
+          "maxtext": f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:{utc_date}",
       },
       "a3mega": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
+          "maxtext": f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:{utc_date}",
       },
   }
 
@@ -557,106 +625,104 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   return cmd
 
 
-def parse_internal_config_filename(filename):
+class Config:
   """
-  Parse a config filename to extract config values.
+  A simple configuration class that allows dot notation access
+  to dictionary keys.
+  """
+
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __repr__(self):
+    return repr(self.__dict__)
+
+  def __str__(self):
+    return str(self.__dict__)
+
+
+def parse_internal_config_filename(filename, config=None):
+  """
+  Parse configuration values embedded in the filename.
 
   Args:
-      filename (str): Config filename like 'a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml'
+      filename (str): Example: "a3ultra_llama2-7b_8gpus_fp16_maxtext_pgle.yaml"
+      config (Config, optional): Existing Config object to update. If None, a new one is created.
 
   Returns:
-      object: Config values accessible via dot notation
+      Config: Configuration object with dot notation access
   """
-
-  # Simple dot notation class
-  class Config:
-
-    def __init__(self, **kwargs):
-      self.__dict__.update(kwargs)
-
-  # Remove file extension and split by underscore
   parts = filename.split(".yaml")[0].split("_")
 
-  # Extract components
   hypercomputer = parts[0]
   model_id_raw = parts[1]
   model_id = model_id_raw.replace("llama", "llama-")
   num_gpus = int(parts[2].replace("gpus", ""))
   precision = parts[3]
   framework = parts[4]
-  is_pgle = False
-  if len(parts) >= 6 and parts[5] == "pgle":
-    is_pgle = True
+  is_pgle = len(parts) >= 6 and parts[5] == "pgle"
 
-  # Create software ID based on framework
   software_id = f"{'jax' if framework == 'maxtext' else 'pytorch'}_{framework}"
 
-  # Return config object with dot notation access
-  return Config(
-      MODEL_ID=model_id,
-      HELM_NAME_MODEL_ID=model_id_raw.replace(".", "-"),
-      PRECISION=precision,
-      HYPERCOMPUTER=hypercomputer,
-      FRAMEWORK=framework,
-      SOFTWARE_ID=software_id,
-      NUM_GPUS=num_gpus,
-      IS_PGLE=is_pgle,
-  )
+  filename_config = {
+      "MODEL_ID": model_id,
+      "HELM_NAME_MODEL_ID": model_id_raw.replace(".", "-"),
+      "PRECISION": precision,
+      "HYPERCOMPUTER": hypercomputer,
+      "FRAMEWORK": framework,
+      "SOFTWARE_ID": software_id,
+      "NUM_GPUS": num_gpus,
+      "IS_PGLE": is_pgle,
+  }
+
+  if config is None:
+    return Config(**filename_config)
+  else:
+    config.__dict__.update(filename_config)
+    return config
 
 
-def parse_internal_config_content(yaml_path):
+def parse_internal_config_content(yaml_path, config=None):
   """
-  Parse the internal content of a config YAML file.
+  Parse the internal content of a config YAML file and update the existing config.
 
   Args:
       yaml_path (str): Path to the YAML file
+      config (Config, optional): Existing Config object to update. If None, a new one is created.
 
   Returns:
-      object: Config values accessible via dot notation
+      Config: Updated configuration object with dot notation access
   """
-  import yaml
-
-  # Simple dot notation class with dictionary-like representation
-  class Config:
-
-    def __init__(self, **kwargs):
-      self.__dict__.update(kwargs)
-
-    def __repr__(self):
-      return repr(self.__dict__)
-
-    def __str__(self):
-      return str(self.__dict__)
-
   try:
-    # Open and read the YAML file
     with open(yaml_path, "r") as file:
       result = yaml.safe_load(file)
 
-    # Return config object with dot notation access
-    return Config(
-        SEQUENCE_LENGTH=result.get("max_target_length", None),
-        BATCH_SIZE_PER_DEVICE=result.get("per_device_batch_size", None)
-        # Add other mappings here as needed
-    )
+    if config is None:
+      config = Config(**result)
+    else:
+      config.__dict__.update(result)
+
+    print("******* configs are ********")
+    print(config)
+
+    return config
   except Exception as e:
     print(f"Unexpected error: {e}")
     raise e
 
 
 @task
-def run_maxtext_workload(
+def run_nemo_workload(
     hypercomputer: str,
     model_id: str,
     framework: str,
     precision: str,
-    value_yaml_path: str,
-    num_steps: int,
-    batch_size_per_device: int,
-    kueue_name: str,
-    optimizer: str,
-    sequence_length: int,
-    helm_model_id: str,
+    metrics_model_id: str,
+    num_gpus: int = None,
+    num_steps: int = None,
+    two_node: bool = False,
+    kueue_name: str = None,
+    config_model_name: str = None,
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -676,9 +742,158 @@ def run_maxtext_workload(
 
     recipe_repo_root = get_recipe_repo_path(tmpdir)
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
+    value_yaml_path = f"training/{hypercomputer}/{model_id}/{framework}-pretraining-gke/values.yaml"
 
-    num_gpus = extract_gpus(recipe_repo_root, value_yaml_path)
-    config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-a3u-{precision}.yaml"
+    num_gpus_file = extract_gpus(recipe_repo_root, value_yaml_path)
+
+    if config_model_name:
+      config_yaml_path = f"src/frameworks/{hypercomputer}/{framework}-configs/{config_model_name}"
+    else:
+      config_hardware = f"{'a3u-' if hypercomputer == 'a3ultra' else ''}"
+      config_yaml_path = f"src/frameworks/{hypercomputer}/{framework}-configs/{model_id}-{num_gpus_file}gpus-{config_hardware}{precision}.yaml"
+    full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
+
+    (
+        global_batch_size,
+        optimizer,
+        precision,
+        seq_length,
+        num_steps,
+    ) = extract_run_details(recipe_repo_root, config_yaml_path)
+
+    accelerator_type = get_accelerator_type(hypercomputer)
+    print(
+        f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, num steps: {num_steps}"
+    )
+
+    additional_cmds = ""
+    if two_node == True:
+      additional_cmds += get_two_node_cmds(hypercomputer, framework)
+
+    if num_gpus:
+      additional_cmds += f" --set workload.gpus={num_gpus} "
+    else:
+      num_gpus = num_gpus_file
+
+    cluster, cluster_region = get_cluster(hypercomputer)
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                configure_project_and_cluster(cluster, cluster_region)
+                + get_gpu_recipe_cmd(
+                    hypercomputer, model_id, framework, recipe_repo_root
+                )
+                + install_helm_cmds()
+                + namespace_cmds()
+                + get_pre_workload_cmds(model_id, framework)
+                + helm_apply_cmds(
+                    framework,
+                    hypercomputer,
+                    full_config_yaml_path,
+                    recipe_repo_root,
+                    get_docker_image(hypercomputer, framework),
+                    cluster_name=cluster,
+                    kueue_name=kueue_name,
+                    additional_cmds=additional_cmds,
+                )
+                + wait_for_jobs_cmds()
+                + copy_bucket_cmds_nemo(
+                    recipe_repo_root,
+                    hypercomputer=hypercomputer,
+                )
+                + get_nemo_metrics_cmds(
+                    global_batch_size,
+                    num_gpus,
+                    precision,
+                    metrics_model_id,
+                    accelerator_type,
+                    tmpdir,
+                    two_node=two_node,
+                )
+                + cleanup_cmds()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+    average_step_time, mfu = get_nemo_metrics(tmpdir)
+
+    write_run(
+        model_id=model_id,
+        hardware_id=hypercomputer,
+        software_id=get_software_id(framework),
+        number_of_nodes=num_gpus / 8,
+        number_of_chips=num_gpus,
+        container_image_name=get_image_version(framework),
+        global_batch_size=global_batch_size,
+        precision=precision,
+        optimizer=optimizer,
+        seq_length=seq_length,
+        median_step_time=average_step_time,
+        e2e_time=0,
+        number_of_steps=num_steps,
+        mfu=mfu,
+        tokens_per_second=1,
+        writer_path=bq_writer_repo_root,
+        topology="2X2",
+        comment="Regression tests",
+        is_test=False,
+    )
+
+
+@task
+def run_maxtext_workload(
+    hypercomputer: str,
+    model_id: str,
+    framework: str,
+    precision: str,
+    num_steps: int,
+    batch_size_per_device: int,
+    kueue_name: str,
+    optimizer: str,
+    sequence_length: int,
+    helm_model_id: str,
+    num_gpus: int = None,
+    gpu_overide: bool = True,
+):
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                git_cookie_authdaemon()
+                + clone_recipes_gob()
+                + get_bq_writer_repo()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+
+    value_yaml_path = f"training/{hypercomputer}/{model_id}/{framework}-pretraining-gke/values.yaml"
+
+    recipe_repo_root = get_recipe_repo_path(tmpdir)
+    bq_writer_repo_root = get_bq_writer_path(tmpdir)
+
+    num_gpus_in_file = extract_gpus(recipe_repo_root, value_yaml_path)
+    gpu_helm_cmd = ""
+    if num_gpus == None:
+      num_gpus = num_gpus_in_file
+    elif num_gpus != num_gpus_in_file:
+      gpu_helm_cmd = f" --set workload.gpus={num_gpus} "
+
+    if gpu_overide == False:
+      num_gpus = num_gpus_in_file  # This is for two node tests, they'll use the same config of more nodes
+
+    config_hardware = (
+        f"{'a3u' if hypercomputer == 'a3ultra' else hypercomputer}"
+    )
+    config_yaml_path = f"src/frameworks/{hypercomputer}/maxtext-configs/{model_id}-{num_gpus}gpus-{config_hardware}-{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
     cluster, cluster_region = get_cluster(hypercomputer)
@@ -702,6 +917,8 @@ def run_maxtext_workload(
                     get_docker_image(hypercomputer, framework),
                     cluster_name=cluster,
                     kueue_name=kueue_name,
+                    additional_cmds=gpu_helm_cmd,
+                    num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_maxtext(
@@ -760,3 +977,14 @@ def get_image_version(framework: str):
     return "nemo24.07-A3U"
   else:
     return None
+
+
+def get_two_node_cmds(hypercomputer: str = "a3ultra", framework: str = "nemo"):
+  cmd = ' --set workload.arguments="{trainer.max_steps=1}" '
+  if framework == "nemo":
+    cmd += " --set workload.gpus=16 "
+  if hypercomputer == "a3mega" and framework == "nemo":
+    cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
+  if framework == "maxtext":
+    cmd += " --set dcn_fsdp_parallelism=1 --set ici_fsdp_parallelism=1 --set dcn_data_parallelism=1 "
+  return cmd
