@@ -39,6 +39,9 @@ V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
 
 INFERENCE_NETWORK_PREFIX = "projects/cloud-tpu-inference-test"
 INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
+US_EAST5_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-east5"
+)
 H100_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
@@ -144,6 +147,7 @@ class MachineVersion(enum.Enum):
   A2_ULTRAGPU_4G = "a2-ultragpu-4g"
   A2_ULTRAGPU_8G = "a2-ultragpu-8g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
+  A3_MEGAGPU_8G = "a3-megagpu-8g"
   A3_ULTRAGPU_8G = "a3-ultragpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
