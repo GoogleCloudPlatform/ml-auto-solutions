@@ -210,7 +210,7 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
 
         pip install pytest -c ~/hf-constraints.txt
 
-        pip install git+https://github.com/zpcore/accelerate.git@piz/fix_deprecated_api
+        pip install git+https://github.com/zpcore/accelerate.git@piz/v1.2.1-patch
 
         mkdir -p ~/.cache/huggingface/accelerate/
         cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'
