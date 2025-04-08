@@ -129,6 +129,7 @@ def write_run(
 
     project = "supercomputer-testing" if is_test else "ml-workload-benchmarks"
     dataset = "mantaray_v2" if is_test else "benchmark_dataset_v2"
+    print(f"Writing to project: {project}, dataset: {dataset}")
     return bq_writer_utils.create_bq_writer_object(
         project=project,
         dataset=dataset,
@@ -263,6 +264,8 @@ def write_run(
         workload_benchmark_v2_schema.WorkloadBenchmarkV2Schema,
         is_test,
     )
+    print("******metrics query is******")
+    print(summary)
     client.write([summary])
 
   else:
