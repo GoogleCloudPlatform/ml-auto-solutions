@@ -118,7 +118,7 @@ def run_internal_aotc_workload(
         config.MODEL_ID, config.FRAMEWORK
     )
     gcs_bucket = f"gs://{BUCKET_NAME}/{config.FRAMEWORK}/{job_name}"
-
+    container_timeout = int(timeout) - 3
     result = hook.run_command(
         [
             "bash",
@@ -150,7 +150,7 @@ def run_internal_aotc_workload(
                     additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
                     test_run=test_run,
                 )
-                + internal_wait_for_jobs_cmds(timeout=timeout)
+                + internal_wait_for_jobs_cmds(timeout=container_timeout)
                 + copy_bucket_cmds_maxtext(
                     tmpdir, recipe_repo_root=recipe_repo_root
                 )
