@@ -21,6 +21,7 @@ import yaml
 import random
 import string
 import time
+import subprocess
 
 from google.cloud import storage
 from airflow.decorators import task
@@ -71,19 +72,6 @@ def clone_internal_recipes_gob():
   return gob_clone_cmds
 
 
-def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
-  prepare_workload_cmds = (
-      "NOW=$(date +%s)",
-      f"export JOB_NAME=internal-reg-{model_id}-$NOW-{framework}",
-  )
-  if is_pgle:
-    prepare_workload_cmds += (
-        "export JAX_ENABLE_PGLE=true",
-        "export JAX_PGLE_PROFILING_RUNS=2",
-    )
-  return prepare_workload_cmds
-
-
 def get_bq_writer_repo():
   gob_clone_cmds = (
       "echo 'trying to clone GoB bq writer repo'",
@@ -121,22 +109,16 @@ def get_pre_workload_cmds(model_id, framework):
   return prepare_workload_cmds
 
 
-def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
-  job_name = get_internal_pre_workload_job_name(model_id, framework)
+def get_internal_pre_workload_cmds(job_name):
   prepare_workload_cmds = (f"export JOB_NAME={job_name}",)
-
-  if is_pgle:
-    prepare_workload_cmds += (
-        "export JAX_ENABLE_PGLE=true",
-        "export JAX_PGLE_PROFILING_RUNS=2",
-    )
   return prepare_workload_cmds
 
 
 def get_internal_pre_workload_job_name(model_id, framework):
+  helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=4))
   now = int(time.time())
-  job_name = f"coreml-{model_id}-{now}-{framework}-{random_id}"
+  job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
   return job_name
 
 
@@ -293,6 +275,31 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
       f"job/$JOB_NAME --namespace=default --timeout={timeout}",
   )
   return wait_for_job
+
+
+def get_job_gcs_bucket_folder(job_name):
+  """
+  Get the GCS bucket folder for a specific job.
+
+  Args:
+      bucket_name (str): The name of the GCS bucket
+      job_name (str): The job name to search for
+
+  Returns:
+      str: The full path to the bucket folder containing the job
+  """
+  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
+  bucket_folder_cmd = f"gcloud storage ls {gcs_location} | grep {job_name}"
+
+  try:
+    bucket_folder = (
+        subprocess.check_output(bucket_folder_cmd, shell=True).decode().strip()
+    )
+    print(f"BUCKET_FOLDER: {bucket_folder}")
+    return bucket_folder
+  except subprocess.CalledProcessError as e:
+    print(f"Error finding bucket folder: {e}")
+    return None
 
 
 def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
