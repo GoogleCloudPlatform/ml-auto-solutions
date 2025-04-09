@@ -128,13 +128,13 @@ def run_maxtext_tests(dag: models.DAG):
   timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
   train_base = (
       "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-      "python3 MaxText/train.py MaxText/configs/base.yml "
+      "python3 -m MaxText.train MaxText/configs/base.yml "
       "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
       "steps=2 enable_checkpointing=false attention=dot_product"
   )
   decode_base = (
       "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-      "python3 MaxText/decode.py MaxText/configs/base.yml "
+      "python3 -m MaxText.decode MaxText/configs/base.yml "
       "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
       "steps=2 enable_checkpointing=false attention=dot_product "
       "max_target_length=128 per_device_batch_size=1"
