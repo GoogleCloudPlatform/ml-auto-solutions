@@ -59,7 +59,7 @@ with models.DAG(
         current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
         profiling_in_vertex_ai_tb_cmds = (
             f"export RUN_NAME=vertex-ai-{mode.value}-{slice_num}x-{accelerator}-{current_datetime}",
-            "python3 MaxText/train.py MaxText/configs/base.yml"
+            "python3 -m MaxText.train MaxText/configs/base.yml"
             f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
             f" dataset_path={dataset_path} profiler=xplane steps=10",
             "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
