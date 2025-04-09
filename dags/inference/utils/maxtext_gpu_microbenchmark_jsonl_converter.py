@@ -49,5 +49,8 @@ def extract_and_write_to_jsonl_pattern(input_file, output_file):
 
 if __name__ == "__main__":
   input_file = "output.txt"  # Replace with the actual path
-  output_file = sys.argv[1]
+  try:
+    output_file = sys.argv[1]
+  except Exception as e:
+    print(f"An error occurred: {e}")
   extract_and_write_to_jsonl_pattern(input_file, output_file)
