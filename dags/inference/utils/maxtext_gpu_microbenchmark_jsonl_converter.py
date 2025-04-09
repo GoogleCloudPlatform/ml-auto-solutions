@@ -51,6 +51,6 @@ if __name__ == "__main__":
   input_file = "output.txt"  # Replace with the actual path
   try:
     output_file = sys.argv[1]
+    extract_and_write_to_jsonl_pattern(input_file, output_file)
   except Exception as e:
     print(f"An error occurred: {e}")
-  extract_and_write_to_jsonl_pattern(input_file, output_file)
