@@ -111,7 +111,7 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
         # for huggingface tests
         sudo apt install -y libsndfile-dev
         # Install torchvision by pinned commit in PyTorch 2.7 release branch.
-        pip install torch==2.7 --index-url https://download.pytorch.org/whl/test/cpu
+        pip install torch==2.7.0 --index-url https://download.pytorch.org/whl/test/cpu
         # torchvision commit reference: https://github.com/pytorch/pytorch/blob/release/2.7/.github/ci_commit_pins/vision.txt
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@%(vision_commit)s"
         pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0%(rc)s-cp310-cp310-linux_x86_64.whl
@@ -155,7 +155,7 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
 
         nvidia-smi
         pip uninstall -y torch torchvision
-        pip install torch==2.7 --index-url https://download.pytorch.org/whl/test/cpu
+        pip install torch==2.7.0 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@%(vision_commit)s"
         pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.6/torch_xla-2.7.0%(rc)s-cp310-cp310-linux_x86_64.whl
 
