@@ -37,7 +37,7 @@ with models.DAG(
   # MaxText set up and run commands
   base_output_directory = "gs://maxtext-experiments-multipod"
   base_run_model_cmds = [
-      f"python3 MaxText/train.py MaxText/configs/base.yml base_output_directory={base_output_directory} dataset_path=gs://max-datasets-rogue enable_checkpointing=false global_parameter_scale=16 steps=10",
+      f"python3 -m MaxText.train MaxText/configs/base.yml base_output_directory={base_output_directory} dataset_path=gs://max-datasets-rogue enable_checkpointing=false global_parameter_scale=16 steps=10",
   ]
 
   # Get list of MaxText GKE XPK jobs

@@ -13,10 +13,10 @@
 // limitations under the License.
 
 local nightly = import 'nightly/targets.jsonnet';
-local r2_6 = import 'r2.6/targets.jsonnet';
+local r2_7 = import 'r2.7/targets.jsonnet';
 
 // Add new versions here
 std.flattenArrays([
   nightly,
-  r2_6,
+  r2_7,
 ])

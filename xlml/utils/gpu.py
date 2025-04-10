@@ -261,6 +261,7 @@ def create_resource(
     ssh_keys: airflow.XComArg,
     timeout: datetime.timedelta,
     install_nvidia_drivers: bool = False,
+    reservation: bool = False,
 ) -> airflow.XComArg:
   """Request a resource and wait until the nodes are created.
 
@@ -273,6 +274,7 @@ def create_resource(
     ssh_kpeys: XCom value for SSH keys to communicate with these GPUs.
     timeout: Amount of time to wait for GPUs to be created.
     install_nvidia_drivers: Whether to install Nvidia drivers.
+    reservation: Whether to use an existing reservation
 
   Returns:
     The ip address of the GPU VM.
@@ -290,6 +292,7 @@ def create_resource(
       spot: bool = False,
       delete_protection: bool = False,
       install_nvidia_drivers: bool = False,
+      reservation: bool = False,
   ) -> airflow.XComArg:
     """
     Send an instance creation request to the Compute Engine API and wait for
@@ -309,6 +312,7 @@ def create_resource(
             should be protected against deletion or not.
         install_nvidia_drivers: boolean value indicating whether to install
             Nvidia drivers.
+        reservation: boolean value indicating whether to use VM reservation
     Returns:
         Ip address of the instance object created.
     """
@@ -393,6 +397,14 @@ def create_resource(
       # Set the delete protection bit
       instance.deletion_protection = True
 
+    if reservation:
+      # Set reservation affinity if specified
+      reservation_affinity = compute_v1.ReservationAffinity()
+      reservation_affinity.consume_reservation_type = (
+          compute_v1.ReservationAffinity.ConsumeReservationType.ANY_RESERVATION.name
+      )
+      instance.reservation_affinity = reservation_affinity
+
     # Prepare the request to insert an instance.
     request = compute_v1.InsertInstanceRequest()
     request.zone = zone
@@ -464,6 +476,7 @@ def create_resource(
       ssh_keys=ssh_keys,
       instance_termination_action="STOP",
       install_nvidia_drivers=install_nvidia_drivers,
+      reservation=reservation,
   )
   ip_address = get_ip_address(gpu_name)
   wait_for_resource_creation(operation) >> ip_address

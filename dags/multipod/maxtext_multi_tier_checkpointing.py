@@ -30,7 +30,6 @@ with models.DAG(
     schedule=SCHEDULED_TIME,
     tags=[
         "multipod_team",
-        "mlscale_onduty",
         "maxtext",
         "muti_tier_checkpointing",
         "nightly",
