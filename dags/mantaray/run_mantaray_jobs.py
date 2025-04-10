@@ -114,7 +114,6 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     if re.match(pattern, job["task_name"]):
       workload_file_name_list.append(job["file_name"])
 
-
   # generate metadata for test result to push to BigQuery Database
   def new_add_test_config_metadata(
       base_id: str,
@@ -126,38 +125,37 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
       test_config_meta.append(
           bigquery.MetadataHistoryRow(
-            job_uuid=uuid,
-            metadata_key="accelerator",
-            metadata_value="v6e-4",
+              job_uuid=uuid,
+              metadata_key="accelerator",
+              metadata_value="v6e-4",
           )
       )
       test_config_meta.append(
           bigquery.MetadataHistoryRow(
-            job_uuid=uuid,
-            metadata_key="project",
-            metadata_value=Project.CLOUD_ML_BENCHMARKING.value,
+              job_uuid=uuid,
+              metadata_key="project",
+              metadata_value=Project.CLOUD_ML_BENCHMARKING.value,
           )
       )
       if True:
         test_config_meta.append(
             bigquery.MetadataHistoryRow(
-              job_uuid=uuid,
-              metadata_key="num_slices",
-              metadata_value=1,
+                job_uuid=uuid,
+                metadata_key="num_slices",
+                metadata_value=1,
             )
         )
         test_config_meta.append(
             bigquery.MetadataHistoryRow(
-              job_uuid=uuid,
-              metadata_key="multislice_topology",
-              metadata_value=("1" "v6e-4"),
+                job_uuid=uuid,
+                metadata_key="multislice_topology",
+                metadata_value=("1" "v6e-4"),
             )
         )
 
       metadata[index].extend(test_config_meta)
 
     return metadata
-
 
   # generate metadata for test result to push to BigQuery Database
   def new_add_airflow_metadata(
@@ -182,7 +180,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
       airflow_meta.append(
           bigquery.MetadataHistoryRow(
-            job_uuid=uuid, metadata_key="base_id", metadata_value=base_id
+              job_uuid=uuid, metadata_key="base_id", metadata_value=base_id
           )
       )
       metadata[index].extend(airflow_meta)
@@ -214,8 +212,8 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
         absolute_path = folder_location
         print("absolute_path: ", absolute_path)
         (
-          metric_history_rows_list,
-          metadata_history_rows_list
+            metric_history_rows_list,
+            metadata_history_rows_list
         ) = metric.process_json_lines(base_id, absolute_path)
 
     print("metric_history_rows_list: ", metric_history_rows_list)
@@ -225,7 +223,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     metadata_history_rows_list = new_add_airflow_metadata(
         base_id,
         Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-        metadata_history_rows_list
+        metadata_history_rows_list,
     )
     print("metadata_history_rows_list: ", metadata_history_rows_list)
 
@@ -281,11 +279,11 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     gcloud_command = (
         f"set -x && "
         "set -u && "
-        "project=$(curl -sS \"http://metadata.google.internal/computeMetadata/v1/project/project-id\" -H \"Metadata-Flavor: Google\") && "
+        'project=$(curl -sS "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google") && '
         "zone=europe-west4-a && "
         "tpu_name=manfei-2025-v6e-4-cloud-ml-auto-solu && "
-        "[ -f /scripts/id_rsa ] && sudo rm /scripts/id_rsa && sudo rm /scripts/id_rsa.pub; sudo ssh-keygen -t rsa -f /scripts/id_rsa -q -N \"\" && "
-        "echo \"xl-ml-test:$(cat /scripts/id_rsa.pub)\" > ssh-keys.txt && "
+        '[ -f /scripts/id_rsa ] && sudo rm /scripts/id_rsa && sudo rm /scripts/id_rsa.pub; sudo ssh-keygen -t rsa -f /scripts/id_rsa -q -N "" && '
+        'echo "xl-ml-test:$(cat /scripts/id_rsa.pub)" > ssh-keys.txt && '
         "echo 'echo Running startup script' > startup-script.txt && "
         "sudo apt-get -y update && "
         "sudo apt-get -y install lsof && "
@@ -305,14 +303,14 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
             pip uninstall -y torch torchvision torch_xla jax jaxlib libtpu && \
             git clone https://github.com/vllm-project/vllm.git && cd vllm && \
             pip install -r requirements/tpu.txt && \
-            VLLM_TARGET_DEVICE=\'tpu\' python setup.py develop && \
+            VLLM_TARGET_DEVICE='tpu' python setup.py develop && \
             export PJRT_DEVICE=TPU && \
             export HF_TOKEN={HF_TOKEN_LLaMA3_8B} && \
             VLLM_USE_V1=1 python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B --disable-log-requests \
             --max-num-seq=320 --gpu-memory-utilization=0.95 --tensor-parallel-size=4 --max-model-len=8192 --port 8009 & sleep 800 && \
             git clone -b inference-benchmark-script https://github.com/ManfeiBai/vllm.git vllmscript && "
-            f"bash vllmscript/benchmarks/inference_benchmark_script.sh {current_request_rate} && "
-            f"gsutil cp metric_result.jsonl {output_location} && ls \
+        f"bash vllmscript/benchmarks/inference_benchmark_script.sh {current_request_rate} && "
+        f"gsutil cp metric_result.jsonl {output_location} && ls \
           \" && sudo docker stop testooo && sudo docker rm testooo && sudo docker image rmi us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.10_tpuvm' \
         "
     )
@@ -331,8 +329,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
               "bash",
               "-c",
               run_test_code_on_persistent_TPUVM(
-                output_location,
-                current_request_rate
+                  output_location, current_request_rate
               ),
           ],
           cwd=tmpdir,
@@ -395,7 +392,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
   def vllm_request_rate_inf_nightly_on_v6e_4_persistant_TPUVM():
     run_vllm_nightly_on_v6e_4_persistant_TPUVM(
         0
-    ) # use 0 to present inf in this program
+    )  # use 0 to present inf in this program
 
 
   # merge all PyTorch/XLA tests ino one Dag
@@ -422,7 +419,6 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
         >> vllm_request_rate_16_nightly_on_v6e_4_persistant_TPUVM()
         >> vllm_request_rate_inf_nightly_on_v6e_4_persistant_TPUVM()
     )
-
 
   # Create a DAG for each job from maxtext
   for job in xlml_jobs:
