@@ -14,88 +14,25 @@
 
 """DAGs to run Mantaray benchmarks."""
 
-
 import datetime
-from airflow import models
-from xlml.utils import mantaray
-import yaml
-from dags import composer_env
-from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
-import dags.common.vm_resource as resource
 import re
 import tempfile
-from airflow.decorators import task
-from airflow.decorators import task_group
-from airflow.hooks.subprocess import SubprocessHook
-from dags.common import test_owner
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
+import yaml
+import os
+import dags.common.vm_resource as resource
+from airflow import models
 from airflow.models import Variable
-
-
-import datetime
-from airflow import models
-from xlml.utils import mantaray
-import yaml
-from dags import composer_env
-import re
-
-import datetime
-import tempfile
-from airflow import models
-from airflow.decorators import task
-from airflow.decorators import task_group
 from airflow.utils.task_group import TaskGroup
-from airflow.hooks.subprocess import SubprocessHook
-from xlml.utils import mantaray
-import yaml
-from dags import composer_env
-from dags.common import test_owner
-from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
-import dags.common.vm_resource as resource
-import re
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
-from xlml.apis import gcp_config, metric_config, task, test_config
-from dags.common.vm_resource import AcceleratorType, GpuVersion, TpuVersion, Region, Zone, Project, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
-from dags.common.vm_resource import Project
-from xlml.utils import bigquery, composer
-
-import datetime
-from airflow import models
-from xlml.utils import mantaray
-import yaml
-from dags import composer_env
-from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
-import dags.common.vm_resource as resource
-import re
-import tempfile
-from airflow.decorators import task
-from airflow.decorators import task_group
-from airflow.hooks.subprocess import SubprocessHook
-from dags.common import test_owner
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
-
-import datetime
-import tempfile
-from airflow import models
 from airflow.decorators import task as task_decorators
 from airflow.decorators import task_group
-from airflow.utils.task_group import TaskGroup
 from airflow.hooks.subprocess import SubprocessHook
-from xlml.utils import mantaray
-import yaml
 from dags import composer_env
-from dags.common import test_owner
 from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
-import dags.common.vm_resource as resource
-import re
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
-from xlml.apis import gcp_config, metric_config, task, test_config
+from dags.common import test_owner
 from dags.common.vm_resource import AcceleratorType, GpuVersion, TpuVersion, Region, Zone, Project, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
-from dags.common.vm_resource import Project
-from xlml.utils import bigquery, composer
-
+from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke, bigquery, composer, mantaray
+from xlml.apis import gcp_config, metric_config, task, test_config
 from typing import Dict, Iterable, List, Optional
-import os
 
 
 # Skip running this script in unit test because gcs loading will fail.
@@ -318,7 +255,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
   # execute commands for vllm nightly benchmarking
   @task_decorators
-  def run_on_v6e_4_persistant_TPUVM(
+  def run_on_v6e_4_persistent_TPUVM(
       output_location: str, current_request_rate: int
   ):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -347,13 +284,13 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
   # call execute commands for vllm nightly benchmark test result, and push test result to BigQuery Database in post-process
   @task_group(prefix_group_id=False)
-  def run_vllm_nightly_on_v6e_4_persistant_TPUVM(current_request_rate: int):
+  def run_vllm_nightly_on_v6e_4_persistent_TPUVM(current_request_rate: int):
     ### output_location path get to save metric_result.jsonl
     output_location = get_path(current_request_rate)
     print("output_location: ", output_location)
 
     ### run test code
-    run_on_v6e_4_persistant_TPUVM_func = run_on_v6e_4_persistant_TPUVM(
+    run_on_v6e_4_persistent_TPUVM_func = run_on_v6e_4_persistent_TPUVM(
         output_location, current_request_rate
     )
 
@@ -373,24 +310,24 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     )
 
     ### order of execute
-    run_on_v6e_4_persistant_TPUVM_func >> post_process
+    run_on_v6e_4_persistent_TPUVM_func >> post_process
 
   # split func defination with different func name to show on Airflow Dashboard
   @task_group(prefix_group_id=False)
-  def vllm_request_rate_1_nightly_on_v6e_4_persistant_TPUVM():
-    run_vllm_nightly_on_v6e_4_persistant_TPUVM(1)
+  def vllm_request_rate_1_nightly_on_v6e_4_persistent_TPUVM():
+    run_vllm_nightly_on_v6e_4_persistent_TPUVM(1)
 
   @task_group(prefix_group_id=False)
-  def vllm_request_rate_4_nightly_on_v6e_4_persistant_TPUVM():
-    run_vllm_nightly_on_v6e_4_persistant_TPUVM(4)
+  def vllm_request_rate_4_nightly_on_v6e_4_persistent_TPUVM():
+    run_vllm_nightly_on_v6e_4_persistent_TPUVM(4)
 
   @task_group(prefix_group_id=False)
-  def vllm_request_rate_16_nightly_on_v6e_4_persistant_TPUVM():
-    run_vllm_nightly_on_v6e_4_persistant_TPUVM(16)
+  def vllm_request_rate_16_nightly_on_v6e_4_persistent_TPUVM():
+    run_vllm_nightly_on_v6e_4_persistent_TPUVM(16)
 
   @task_group(prefix_group_id=False)
-  def vllm_request_rate_inf_nightly_on_v6e_4_persistant_TPUVM():
-    run_vllm_nightly_on_v6e_4_persistant_TPUVM(
+  def vllm_request_rate_inf_nightly_on_v6e_4_persistent_TPUVM():
+    run_vllm_nightly_on_v6e_4_persistent_TPUVM(
         0
     )  # use 0 to present inf in this program
 
@@ -413,10 +350,10 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
 
     # vLLM nightly Benchmark via inference_benchmark github repo script
     (
-        vllm_request_rate_1_nightly_on_v6e_4_persistant_TPUVM()
-        >> vllm_request_rate_4_nightly_on_v6e_4_persistant_TPUVM()
-        >> vllm_request_rate_16_nightly_on_v6e_4_persistant_TPUVM()
-        >> vllm_request_rate_inf_nightly_on_v6e_4_persistant_TPUVM()
+        vllm_request_rate_1_nightly_on_v6e_4_persistent_TPUVM()
+        >> vllm_request_rate_4_nightly_on_v6e_4_persistent_TPUVM()
+        >> vllm_request_rate_16_nightly_on_v6e_4_persistent_TPUVM()
+        >> vllm_request_rate_inf_nightly_on_v6e_4_persistent_TPUVM()
     )
 
   # Create a DAG for each job from maxtext
