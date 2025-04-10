@@ -49,6 +49,9 @@ def write_run(
     update_person_ldap: str = getpass.getuser(),
     comment: str = "",
     is_test: bool = False,
+    logs_profile="",
+    workload_others="",
+    experiment_id="",
 ):
   """Writes a workload benchmark run manually to the database.
 
@@ -126,6 +129,7 @@ def write_run(
 
     project = "supercomputer-testing" if is_test else "ml-workload-benchmarks"
     dataset = "mantaray_v2" if is_test else "benchmark_dataset_v2"
+    print(f"Writing to project: {project}, dataset: {dataset}")
     return bq_writer_utils.create_bq_writer_object(
         project=project,
         dataset=dataset,
@@ -250,6 +254,9 @@ def write_run(
         hardware_topology=topology,
         hardware_num_superblocks=num_of_superblock,
         logs_comments=comment,
+        logs_profile=logs_profile,
+        workload_others=workload_others,
+        experiment_id=experiment_id,
     )
 
     client = get_db_client(
@@ -257,6 +264,8 @@ def write_run(
         workload_benchmark_v2_schema.WorkloadBenchmarkV2Schema,
         is_test,
     )
+    print("******metrics query is******")
+    print(summary)
     client.write([summary])
 
   else:

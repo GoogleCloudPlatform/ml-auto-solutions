@@ -18,6 +18,10 @@
 import os
 import tempfile
 import yaml
+import random
+import string
+import time
+import subprocess
 
 from google.cloud import storage
 from airflow.decorators import task
@@ -68,19 +72,6 @@ def clone_internal_recipes_gob():
   return gob_clone_cmds
 
 
-def get_internal_pre_workload_cmds(model_id, framework, is_pgle):
-  prepare_workload_cmds = (
-      "NOW=$(date +%s)",
-      f"export JOB_NAME=internal-reg-{model_id}-$NOW-{framework}",
-  )
-  if is_pgle:
-    prepare_workload_cmds += (
-        "export JAX_ENABLE_PGLE=true",
-        "export JAX_PGLE_PROFILING_RUNS=2",
-    )
-  return prepare_workload_cmds
-
-
 def get_bq_writer_repo():
   gob_clone_cmds = (
       "echo 'trying to clone GoB bq writer repo'",
@@ -116,6 +107,19 @@ def get_pre_workload_cmds(model_id, framework):
       f"export JOB_NAME=imo-team-regr-test-{model_id}-$NOW-{framework}",
   )
   return prepare_workload_cmds
+
+
+def get_internal_pre_workload_cmds(job_name):
+  prepare_workload_cmds = (f"export JOB_NAME={job_name}",)
+  return prepare_workload_cmds
+
+
+def get_internal_pre_workload_job_name(model_id, framework):
+  helm_model_id = model_id.replace(".", "-")
+  random_id = "".join(random.choices(string.ascii_lowercase, k=4))
+  now = int(time.time())
+  job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
+  return job_name
 
 
 def install_helm_cmds():
@@ -201,6 +205,7 @@ def helm_apply_cmds_internal_run(
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
+    test_run=False,
 ):
   gcs_cmd = ""
   if framework == "maxtext":
@@ -224,10 +229,12 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  if hypercomputer == "a3mega":
+  if test_run:
     helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
   else:
     helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+
+  print(f"helm_template_path is {helm_template_path}")
 
   helm_cmds = (
       f" helm install -f {values_file_path} "
@@ -249,11 +256,50 @@ def helm_apply_cmds_internal_run(
 
 def wait_for_jobs_cmds():
   wait_for_job = (
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
       "echo 'will wait for jobs to finish'",
       "kubectl wait --for=condition=complete "
       "job/$JOB_NAME --namespace=default --timeout=100m",
   )
   return wait_for_job
+
+
+def internal_wait_for_jobs_cmds(timeout="100m"):
+  timeout = str(timeout)
+  if not timeout.endswith("m"):
+    timeout += "m"
+  wait_for_job = (
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
+      "echo 'will wait for jobs to finish'",
+      "kubectl wait --for=condition=complete "
+      f"job/$JOB_NAME --namespace=default --timeout={timeout}",
+  )
+  return wait_for_job
+
+
+def get_job_gcs_bucket_folder(job_name):
+  """
+  Get the GCS bucket folder for a specific job.
+
+  Args:
+      bucket_name (str): The name of the GCS bucket
+      job_name (str): The job name to search for
+
+  Returns:
+      str: The full path to the bucket folder containing the job
+  """
+  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
+  bucket_folder_cmd = f"gcloud storage ls {gcs_location} | grep {job_name}"
+
+  try:
+    bucket_folder = (
+        subprocess.check_output(bucket_folder_cmd, shell=True).decode().strip()
+    )
+    print(f"BUCKET_FOLDER: {bucket_folder}")
+    return bucket_folder
+  except subprocess.CalledProcessError as e:
+    print(f"Error finding bucket folder: {e}")
+    return None
 
 
 def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
@@ -341,7 +387,7 @@ def get_nemo_metrics_cmds(
 
 def cleanup_cmds():
   cleanup = (
-      "helm uninstall $JOB_NAME",
+      "helm uninstall $JOB_NAME -n default",
       "kubectl get pods "
       "--no-headers=true | awk '{print $1}' "
       "| grep $JOB_NAME | xargs kubectl delete pods",
@@ -560,16 +606,15 @@ def get_internal_docker_image(hardware: str, framework: str):
       A Docker image string or None if no image is defined for the given combination.
   """
   utc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-  utc_date = "2025-03-10"
 
   image_map = {
       "a3ultra": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
+          "maxtext": f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:{utc_date}",
       },
       "a3mega": {
           "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": f"gcr.io/supercomputer-testing/jax3p_nightly:{utc_date}",
+          "maxtext": f"gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:{utc_date}",
       },
   }
 
@@ -587,88 +632,87 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   return cmd
 
 
-def parse_internal_config_filename(filename):
+class Config:
   """
-  Parse a config filename to extract config values.
+  A simple configuration class that allows dot notation access
+  to dictionary keys.
+  """
+
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __repr__(self):
+    return repr(self.__dict__)
+
+  def __str__(self):
+    return str(self.__dict__)
+
+
+def parse_internal_config_filename(filename, config=None):
+  """
+  Parse configuration values embedded in the filename.
 
   Args:
-      filename (str): Config filename like 'a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml'
+      filename (str): Example: "a3ultra_llama2-7b_8gpus_fp16_maxtext_pgle.yaml"
+      config (Config, optional): Existing Config object to update. If None, a new one is created.
 
   Returns:
-      object: Config values accessible via dot notation
+      Config: Configuration object with dot notation access
   """
-
-  # Simple dot notation class
-  class Config:
-
-    def __init__(self, **kwargs):
-      self.__dict__.update(kwargs)
-
-  # Remove file extension and split by underscore
   parts = filename.split(".yaml")[0].split("_")
 
-  # Extract components
   hypercomputer = parts[0]
   model_id_raw = parts[1]
   model_id = model_id_raw.replace("llama", "llama-")
   num_gpus = int(parts[2].replace("gpus", ""))
   precision = parts[3]
   framework = parts[4]
-  is_pgle = False
-  if len(parts) >= 6 and parts[5] == "pgle":
-    is_pgle = True
+  is_pgle = len(parts) >= 6 and parts[5] == "pgle"
 
-  # Create software ID based on framework
   software_id = f"{'jax' if framework == 'maxtext' else 'pytorch'}_{framework}"
 
-  # Return config object with dot notation access
-  return Config(
-      MODEL_ID=model_id,
-      HELM_NAME_MODEL_ID=model_id_raw.replace(".", "-"),
-      PRECISION=precision,
-      HYPERCOMPUTER=hypercomputer,
-      FRAMEWORK=framework,
-      SOFTWARE_ID=software_id,
-      NUM_GPUS=num_gpus,
-      IS_PGLE=is_pgle,
-  )
+  filename_config = {
+      "MODEL_ID": model_id,
+      "HELM_NAME_MODEL_ID": model_id_raw.replace(".", "-"),
+      "PRECISION": precision,
+      "HYPERCOMPUTER": hypercomputer,
+      "FRAMEWORK": framework,
+      "SOFTWARE_ID": software_id,
+      "NUM_GPUS": num_gpus,
+      "IS_PGLE": is_pgle,
+  }
+
+  if config is None:
+    return Config(**filename_config)
+  else:
+    config.__dict__.update(filename_config)
+    return config
 
 
-def parse_internal_config_content(yaml_path):
+def parse_internal_config_content(yaml_path, config=None):
   """
-  Parse the internal content of a config YAML file.
+  Parse the internal content of a config YAML file and update the existing config.
 
   Args:
       yaml_path (str): Path to the YAML file
+      config (Config, optional): Existing Config object to update. If None, a new one is created.
 
   Returns:
-      object: Config values accessible via dot notation
+      Config: Updated configuration object with dot notation access
   """
-  import yaml
-
-  # Simple dot notation class with dictionary-like representation
-  class Config:
-
-    def __init__(self, **kwargs):
-      self.__dict__.update(kwargs)
-
-    def __repr__(self):
-      return repr(self.__dict__)
-
-    def __str__(self):
-      return str(self.__dict__)
-
   try:
-    # Open and read the YAML file
     with open(yaml_path, "r") as file:
       result = yaml.safe_load(file)
 
-    # Return config object with dot notation access
-    return Config(
-        SEQUENCE_LENGTH=result.get("max_target_length", None),
-        BATCH_SIZE_PER_DEVICE=result.get("per_device_batch_size", None)
-        # Add other mappings here as needed
-    )
+    if config is None:
+      config = Config(**result)
+    else:
+      config.__dict__.update(result)
+
+    print("******* configs are ********")
+    print(config)
+
+    return config
   except Exception as e:
     print(f"Unexpected error: {e}")
     raise e
