@@ -77,6 +77,7 @@ def run_workload(
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
     ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
+    mtc_enabled: bool = False,  # It enables MTC phase-2 drivers
 ):
   """Run workload through xpk tool."""
 
@@ -103,6 +104,8 @@ def run_workload(
     )
     if ramdisk_directory:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
+    if mtc_enabled:
+      workload_create_cmd += " --mtc-enabled"
     cmds = get_xpk_setup_cmd(tmpdir)
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
@@ -118,9 +121,7 @@ def run_workload(
         ["bash", "-c", ";".join(cmds)],
         env={**os.environ, "KUBECONFIG": os.path.join(tmpdir, "xpk.conf")},
     )
-    assert (
-        result.exit_code == 0
-    ), f"XPK command failed with code {result.exit_code}"
+    assert result.exit_code == 0, f"XPK command failed with code {result.exit_code}"
 
 
 def _get_core_api_client(
@@ -155,9 +156,7 @@ def _get_batch_api_client(
 
   # Initilize the client
   batch_api = k8s_client.BatchV1Api(client)
-  logging.info(
-      "Successful initilize k8s batch api client from cluster response."
-  )
+  logging.info("Successful initilize k8s batch api client from cluster response.")
   return batch_api
 
 
@@ -210,9 +209,7 @@ def wait_for_workload_completion(
     batch_api = _get_batch_api_client(project_id, region, cluster_name)
     job = _get_workload_job(batch_api, workload_id)
     if job is None:
-      logging.info(
-          f"No pods or jobs were found for workload selector: {workload_id}"
-      )
+      logging.info(f"No pods or jobs were found for workload selector: {workload_id}")
       return False
 
     if any(condition.type == "Failed" for condition in job.status.conditions):
@@ -280,6 +277,4 @@ def clean_up_workload(
         ["bash", "-c", ";".join(cmds)],
         env={**os.environ, "KUBECONFIG": os.path.join(tmpdir, "xpk.conf")},
     )
-    assert (
-        result.exit_code == 0
-    ), f"XPK clean-up failed with code {result.exit_code}"
+    assert result.exit_code == 0, f"XPK clean-up failed with code {result.exit_code}"
