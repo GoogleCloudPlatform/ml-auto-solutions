@@ -213,7 +213,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
         print("absolute_path: ", absolute_path)
         (
             metric_history_rows_list,
-            metadata_history_rows_list
+            metadata_history_rows_list,
         ) = metric.process_json_lines(base_id, absolute_path)
 
     print("metric_history_rows_list: ", metric_history_rows_list)
@@ -393,7 +393,6 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     run_vllm_nightly_on_v6e_4_persistant_TPUVM(
         0
     )  # use 0 to present inf in this program
-
 
   # merge all PyTorch/XLA tests ino one Dag
   with models.DAG(
