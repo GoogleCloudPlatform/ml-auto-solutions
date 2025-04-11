@@ -525,7 +525,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
               "nemo": "0 4 * * 5",
               "maxtext": "0 3 * * 5",
           },
-          "llama-3-70b": {
+          "llama3-70b": {
               "nemo": "0 2 * * 5",
               "maxtext": "0 5 * * 5",
           },
@@ -775,7 +775,7 @@ def run_nemo_workload(
 
     additional_cmds = ""
     if two_node == True:
-      additional_cmds += get_two_node_cmds(hypercomputer, framework)
+      additional_cmds += get_two_node_cmds(hypercomputer)
 
     if num_gpus:
       additional_cmds += f" --set workload.gpus={num_gpus} "
@@ -984,14 +984,3 @@ def get_image_version(framework: str):
     return "nemo24.07-A3U"
   else:
     return None
-
-
-def get_two_node_cmds(hypercomputer: str = "a3ultra", framework: str = "nemo"):
-  cmd = ' --set workload.arguments="{trainer.max_steps=1}" '
-  if framework == "nemo":
-    cmd += " --set workload.gpus=16 "
-  if hypercomputer == "a3mega" and framework == "nemo":
-    cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
-  if framework == "maxtext":
-    cmd += " --set dcn_fsdp_parallelism=1 --set ici_fsdp_parallelism=1 --set dcn_data_parallelism=1 "
-  return cmd
