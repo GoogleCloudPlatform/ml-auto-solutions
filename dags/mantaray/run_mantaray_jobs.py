@@ -233,16 +233,16 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
         "echo ${tpu_name} && "
         "yes 'y' | sudo gcloud alpha compute tpus tpu-vm ssh manfei-2025-v6e-4-cloud-ml-auto-solu --zone=europe-west4-a "
         "--project=cloud-ml-auto-solutions --ssh-key-file=/home/airflow/.ssh/google_compute_engine --strict-host-key-checking=no "
-        "--internal-ip --worker=all --command ' \
-          sudo docker ps -a --filter \"name=testooo\" -q | grep -q . && sudo docker rm -f testooo && sudo docker image rmi us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.10_tpuvm; \
+        '--internal-ip --worker=all --command \' \
+          sudo docker ps -a --filter "name=testooo" -q | grep -q . && sudo docker rm -f testooo && sudo docker image rmi us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.10_tpuvm; \
           sudo docker run --privileged --net host --shm-size=16G --name testooo \
-          us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.10_tpuvm bash -c \" \
+          us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.10_tpuvm bash -c " \
             pip uninstall -y torch torchvision torch_xla jax jaxlib libtpu && \
             git clone https://github.com/vllm-project/vllm.git && cd vllm && \
-            pip install -r requirements/tpu.txt && \
-            VLLM_TARGET_DEVICE='tpu' python setup.py develop && \
-            export PJRT_DEVICE=TPU && \
-            export HF_TOKEN={HF_TOKEN_LLaMA3_8B} && \
+            pip install -r requirements/tpu.txt && '
+        f"VLLM_TARGET_DEVICE='tpu' python setup.py develop && \
+            export PJRT_DEVICE=TPU && "
+        f"export HF_TOKEN={HF_TOKEN_LLaMA3_8B} && \
             VLLM_USE_V1=1 python -m vllm.entrypoints.openai.api_server --model meta-llama/Meta-Llama-3-8B --disable-log-requests \
             --max-num-seq=320 --gpu-memory-utilization=0.95 --tensor-parallel-size=4 --max-model-len=8192 --port 8009 & sleep 800 && \
             git clone -b inference-benchmark-script https://github.com/ManfeiBai/vllm.git vllmscript && "
