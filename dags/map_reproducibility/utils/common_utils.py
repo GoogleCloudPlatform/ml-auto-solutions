@@ -30,6 +30,7 @@ from xlml.utils import metric
 from xlml.apis import metric_config
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
+from dags import composer_env
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -964,7 +965,7 @@ def run_maxtext_workload(
         writer_path=bq_writer_repo_root,
         topology="",
         comment="Regression tests",
-        is_test=False,
+        is_test=(True if composer_env.is_prod_env() else False),
     )
 
 

@@ -43,7 +43,7 @@ with models.DAG(
         "experimental",
         "xlml",
         "regressiontests",
-        "a3mega",
+        "a4",
     ],
     start_date=datetime.datetime(2025, 3, 1),
     catchup=False,
