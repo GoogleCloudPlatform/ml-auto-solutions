@@ -173,6 +173,7 @@ class XpkTask(BaseTask):
       use_pathways: bool = False,
       skip_post_process: bool = False,
       ramdisk_directory: str = "",
+      xpk_branch: str = xpk.MAIN_BRANCH,
   ) -> DAGNode:
     """Run a test job within a docker image.
 
@@ -187,7 +188,11 @@ class XpkTask(BaseTask):
     """
     with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
       run_model, gcs_path = self.run_model(
-          gcs_location, use_vertex_tensorboard, use_pathways, ramdisk_directory
+          gcs_location,
+          use_vertex_tensorboard,
+          use_pathways,
+          ramdisk_directory,
+          xpk_branch,
       )
       if not skip_post_process:
         run_model >> self.post_process(gcs_path)
@@ -195,16 +200,21 @@ class XpkTask(BaseTask):
     return group
 
   def run_with_name_gen_and_quarantine(
-      self, quarantine_task_group, use_pathways: bool = False
+      self,
+      quarantine_task_group,
+      use_pathways: bool = False,
+      xpk_branch: str = xpk.MAIN_BRANCH,
   ) -> DAGNode:
     test_name = self.task_test_config.benchmark_id
     if QuarantineTests.is_quarantined(test_name):
       with quarantine_task_group:
-        return self.run_with_run_name_generation(use_pathways)
+        return self.run_with_run_name_generation(use_pathways, xpk_branch)
     else:
-      return self.run_with_run_name_generation(use_pathways)
+      return self.run_with_run_name_generation(use_pathways, xpk_branch)
 
-  def run_with_run_name_generation(self, use_pathways: bool = False) -> DAGNode:
+  def run_with_run_name_generation(
+      self, use_pathways: bool = False, xpk_branch: str = xpk.MAIN_BRANCH
+  ) -> DAGNode:
     """Generate a unique run name and tensorboard file location,
     then run a test job within a docker image.
 
@@ -236,7 +246,7 @@ class XpkTask(BaseTask):
       (
           run_name
           >> tb_file_location
-          >> self.run_model(use_pathways=use_pathways)
+          >> self.run_model(use_pathways=use_pathways, xpk_branch=xpk_branch)
           >> self.post_process()
       )
 
@@ -248,6 +258,7 @@ class XpkTask(BaseTask):
       use_vertex_tensorboard: bool = False,
       use_pathways: bool = False,
       ramdisk_directory: str = "",
+      xpk_branch: str = xpk.MAIN_BRANCH,
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
 
@@ -274,6 +285,7 @@ class XpkTask(BaseTask):
           use_vertex_tensorboard,
           use_pathways,
           ramdisk_directory,
+          xpk_branch,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=int(self.task_test_config.timeout.total_seconds()),
@@ -306,6 +318,7 @@ class XpkTask(BaseTask):
       use_vertex_tensorboard: bool,
       use_pathways: bool = False,
       ramdisk_directory: str = "",
+      xpk_branch: str = xpk.MAIN_BRANCH,
   ) -> DAGNode:
     """Create the workload and wait for it to provision."""
     with TaskGroup(group_id="launch_workload") as group:
@@ -326,6 +339,7 @@ class XpkTask(BaseTask):
           use_vertex_tensorboard=use_vertex_tensorboard,
           use_pathways=use_pathways,
           ramdisk_directory=ramdisk_directory,
+          xpk_branch=xpk_branch,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
@@ -688,10 +702,9 @@ class GpuGkeTask(BaseTask):
             },
         },
         "spec": {
-            "activeDeadlineSeconds": int(
-                self.task_test_config.timeout.total_seconds()
-            )
-            or 3600,
+            "activeDeadlineSeconds": (
+                int(self.task_test_config.timeout.total_seconds()) or 3600
+            ),
             "backoffLimit": 0,
             "completionMode": "Indexed",
             "completions": self.task_test_config.num_hosts,
@@ -705,7 +718,9 @@ class GpuGkeTask(BaseTask):
                 "spec": {
                     "subdomain": "headless-svc",
                     "nodeSelector": {
-                        "cloud.google.com/gke-accelerator": accelerator.accelerator_type,
+                        "cloud.google.com/gke-accelerator": (
+                            accelerator.accelerator_type
+                        ),
                     },
                     "restartPolicy": "Never",
                     "containers": [
@@ -745,7 +760,9 @@ class GpuGkeTask(BaseTask):
                                     "name": "JOB_NAME",
                                     "valueFrom": {
                                         "fieldRef": {
-                                            "fieldPath": "metadata.labels['job-name']"
+                                            "fieldPath": (
+                                                "metadata.labels['job-name']"
+                                            )
                                         }
                                     },
                                 },
