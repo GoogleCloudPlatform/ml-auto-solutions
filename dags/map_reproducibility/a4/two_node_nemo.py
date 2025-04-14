@@ -62,5 +62,5 @@ with models.DAG(
       metrics_model_id=METRICS_MODEL_ID,
       two_node=True,
       config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
-      kueue_name="a4-high"
+      kueue_name="a4-high",
   )
