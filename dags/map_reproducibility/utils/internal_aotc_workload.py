@@ -191,6 +191,7 @@ def run_internal_aotc_workload(
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
+        run_type="internal_perf_regression",
         topology="",
         comment=comment,
         is_test=is_db_test_run,
