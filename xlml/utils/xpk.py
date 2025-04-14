@@ -41,10 +41,16 @@ LOGGING_URL_FORMAT = (
 )
 
 
-def get_xpk_setup_cmd(tmpdir):
-  return [
+def get_xpk_setup_cmd(tmpdir, branch: str = ""):
+  if not branch:
+    branch = "v0.4.1"
+  set_branch = (
+      f"git clone --branch {branch} https://github.com/AI-Hypercomputer/xpk"
+      f" {tmpdir}/xpk"
+  )
+  cmds = [
       "set -xue",
-      f"git clone --branch v0.4.1 https://github.com/AI-Hypercomputer/xpk {tmpdir}/xpk",
+      set_branch,
       "pip install ruamel.yaml docker",
   ]
 
@@ -77,6 +83,7 @@ def run_workload(
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
     ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
+    xpk_branch: str = "",
 ):
   """Run workload through xpk tool."""
 
@@ -103,7 +110,8 @@ def run_workload(
     )
     if ramdisk_directory:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
-    cmds = get_xpk_setup_cmd(tmpdir)
+    cmds = get_xpk_setup_cmd(tmpdir, xpk_branch)
+
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
     if use_vertex_tensorboard:
@@ -221,7 +229,8 @@ def wait_for_workload_completion(
 
     if any(condition.type == "Complete" for condition in job.status.conditions):
       logging.info(
-          f"No pods found but job is complete for workload selector: {workload_id}"
+          "No pods found but job is complete for workload selector:"
+          f" {workload_id}"
       )
       return True
 
@@ -263,7 +272,11 @@ def wait_for_workload_completion(
 
 @task(trigger_rule="all_done")
 def clean_up_workload(
-    workload_id: str, project_id: str, zone: str, cluster_name: str
+    workload_id: str,
+    project_id: str,
+    zone: str,
+    cluster_name: str,
+    xpk_branch: str = "",
 ) -> bool:
   """Delete workload."""
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -273,7 +286,7 @@ def clean_up_workload(
         f" --project={project_id} --zone={zone}"
     )
 
-    cmds = get_xpk_setup_cmd(tmpdir)
+    cmds = get_xpk_setup_cmd(tmpdir, xpk_branch)
     cmds.append(workload_delete_cmd)
     hook = SubprocessHook()
     result = hook.run_command(
