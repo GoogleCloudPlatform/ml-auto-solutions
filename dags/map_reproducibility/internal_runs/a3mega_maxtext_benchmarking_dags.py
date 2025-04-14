@@ -20,6 +20,7 @@ import os
 from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.utils.constants import Image
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_MEGA
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
