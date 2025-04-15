@@ -47,7 +47,7 @@ def get_microbenchmark_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-      "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git ~/ ",
+      "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git  ",
       "cd ~/accelerator-microbenchmarks ",
       "pip install -r requirements.txt ",
       # Run the benchmark script

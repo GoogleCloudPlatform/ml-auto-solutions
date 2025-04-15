@@ -114,16 +114,9 @@ with models.DAG(
       test_name="framework-microbenchmark-v6e-256",
       docker_image=vm_resource.DockerImage.XPK_JAX_TEST.value,
       test_owner=test_owner.QINY_Y,
-      cluster=vm_resource.XpkClusters.TPU_V6E_256_CLUSTER,
+      cluster=vm_resource.XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
   ).run()
 
-  microbenchmarks_v4_128 = get_microbenchmark_xpk_config(
-      time_out_in_min=60,
-      test_name="framework-microbenchmark-v4-128",
-      docker_image=vm_resource.DockerImage.XPK_JAX_TEST.value,
-      test_owner=test_owner.QINY_Y,
-      cluster=vm_resource.XpkClusters.TPU_V4_128_CLUSTER,
-  ).run()
 
 
 # Test dependency: run in parallel
