@@ -19,7 +19,8 @@ import os
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.constants import Schedule, Image
+from dags.map_reproducibility.utils.constants import Image
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
@@ -44,57 +45,9 @@ DAG_TAGS = [
     "a3ultra",
 ]
 
-# Model configurations with schedule and timeout settings
-MODEL_CONFIGS = {
-    # a3ultra_llama3.1-8b
-    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    # a3ultra_mixtral-8x7
-    "recipes/a3ultra/a3ultra_mixtral-8x7b_8gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3ultra/a3ultra_mixtral-8x7b_16gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    # a3ultra_llama3.1-70b
-    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_6_30PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_7PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    # a3ultra_llama3.1-405b
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_7_30PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 30,
-    },
-    "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": {
-        "schedule": Schedule.WEEKDAY_PDT_8PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 40,
-    },
-}
-
 
 # Create DAGs for each configuration
-for config_path, config_info in MODEL_CONFIGS.items():
+for config_path, config_info in DAG_CONFIGS_ULTRA.items():
   # Extract config name for the DAG ID
   config_name = os.path.basename(config_path).replace(".yaml", "")
   schedule = config_info["schedule"] if TURN_ON_SCHEDULE else None

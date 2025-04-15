@@ -19,7 +19,8 @@ import os
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.constants import Schedule, Image
+from dags.map_reproducibility.utils.constants import Image
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_MEGA
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
@@ -33,64 +34,6 @@ utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
 NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
 RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:{utc_date}"
 
-# Model configurations with schedule and timeout settings
-MODEL_CONFIGS = {
-    # a3mega_llama3.1-8b
-    "recipes/a3mega/a3mega_llama3.1-8b_8gpus_bf16_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3mega/a3mega_llama3.1-8b_8gpus_fp8_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3mega/a3mega_llama3.1-8b_16gpus_bf16_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3mega/a3mega_llama3.1-8b_16gpus_fp8_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    # a3mega_mixtral-8x7
-    "recipes/a3mega/a3mega_mixtral-8x7b_8gpus_bf16_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3mega/a3mega_mixtral-8x7b_16gpus_bf16_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_6PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    # a3mega_llama3.1-70b
-    "recipes/a3mega/a3mega_llama3.1-70b_256gpus_bf16_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_6_30PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_6_30PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    "recipes/a3mega/a3mega_llama3.1-70b_256gpus_fp8_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_7PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_7PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 15,
-    },
-    # a3mega_llama3.1-405b
-    "recipes/a3mega/a3mega_llama3.1-405b_512gpus_fp8_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_7_30PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_8PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 40,
-    },
-    "recipes/a3mega/a3mega_llama3.1-405b_512gpus_bf16_maxtext.yaml": {
-        "nightly_schedule": Schedule.WEEKDAY_PDT_8_30PM_EXCEPT_THURSDAY,
-        "release_schedule": Schedule.WEEKDAY_PDT_9PM_EXCEPT_THURSDAY,
-        "timeout_minutes": 50,
-    },
-}
-
 # Define common tags
 DAG_TAGS = [
     "reproducibility",
@@ -103,7 +46,7 @@ DAG_TAGS = [
 ]
 
 # Create DAGs for each configuration
-for config_path, config_info in MODEL_CONFIGS.items():
+for config_path, config_info in DAG_CONFIGS_MEGA.items():
   # Extract config name for the DAG ID
   config_name = os.path.basename(config_path).replace(".yaml", "")
   nightly_schedule = (
