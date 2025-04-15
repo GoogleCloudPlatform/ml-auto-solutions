@@ -26,8 +26,9 @@ from dags.map_reproducibility.utils.common_utils import run_nemo_workload
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
-HYPERCOMPUTER = "a3ultra"
+HYPERCOMPUTER = "a4"
 FRAMEWORK = "nemo"
+KUEUE_NAME = "a4-high"
 
 SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
@@ -48,7 +49,7 @@ with models.DAG(
         "experimental",
         "xlml",
         "regressiontests",
-        "a3ultra",
+        f"{HYPERCOMPUTER}",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
@@ -60,4 +61,6 @@ with models.DAG(
       precision=PRECISION,
       metrics_model_id=METRICS_MODEL_ID,
       two_node=True,
+      config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
+      kueue_name="a4-high",
   )
