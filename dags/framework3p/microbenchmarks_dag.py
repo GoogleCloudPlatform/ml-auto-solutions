@@ -34,14 +34,6 @@ with models.DAG(
       project=vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
   )
 
-  microbenchmarks_v4_64 = get_microbenchmark_config(
-      tpu_version=vm_resource.TpuVersion.V4,
-      tpu_cores=64,
-      tpu_zone=vm_resource.Zone.US_CENTRAL2_B,
-      time_out_in_min=60,
-      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5,
-      project=vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
-  )
 
   microbenchmarks_v5p_8 = get_microbenchmark_config(
       tpu_version=vm_resource.TpuVersion.V5P,

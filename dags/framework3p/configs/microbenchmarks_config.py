@@ -47,12 +47,12 @@ def get_microbenchmark_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-      # TODO(qinyiyan): Clone the project from google repo when ready.
-      (f"if [ -d /tmp/maxtext ]; then " f"rm -rf /tmp/maxtext; " "fi "),
-      "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
-      # Run the benchmark script (either all_reduce or all_gather)
-      f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
-      f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config}",
+      "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git ~/ ",
+      "cd ~/accelerator-microbenchmarks ",
+      "pip install -r requirements.txt ",
+      # Run the benchmark script
+      f"python3 src/run_benchmark.py "
+      f"--config=configs/{benchmark_config} ",
   )
 
   # Check if the metrics report exists, and if so, upload it to GCS
@@ -127,9 +127,7 @@ def get_microbenchmark_xpk_config(
       "pip install jsonlines ",
       "pip install ray[default] ",
       "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true ",
-      # TODO(qinyiyan): clone from Google's maxtext when code is merged.
-      (f"if [ -d /tmp/maxtext ]; then " f"rm -rf /tmp/maxtext; " "fi "),
-      "git clone https://github.com/qinyiyan/maxtext.git /tmp/maxtext ",
+      "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git ",
       # Create the output directory
       "mkdir -p /tmp/microbenchmarks/outputs ",
       # Remove any existing metrics report
@@ -138,9 +136,11 @@ def get_microbenchmark_xpk_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-      # Run the benchmark script (either all_reduce or all_gather)
-      f"python3 /tmp/maxtext/microbenchmarks/run_benchmark.py "
-      f"--config=/tmp/maxtext/microbenchmarks/configs/{benchmark_config} ",
+      "cd ~/accelerator-microbenchmarks ",
+      "pip install -r requirements.txt ",
+      # Run the benchmark script
+      f"python3 src/run_benchmark.py "
+      f"--config=configs/{benchmark_config} ",
   )
 
   # Check if the metrics report exists, and if so, upload it to GCS
