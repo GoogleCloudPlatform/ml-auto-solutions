@@ -85,3 +85,4 @@ GUNJAN_J = "Gunjan J."
 
 # Bite
 Maggie_Z = "Maggie Z."
+Andrew_S = "Andrew S."

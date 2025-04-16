@@ -39,7 +39,7 @@ with models.DAG(
         "tpu",
         "stable",
         "nightly",
-        "mlscale_onduty",
+        "mlscale_devx",
     ],
     start_date=datetime.datetime(2024, 11, 14),
     catchup=False,
@@ -58,7 +58,7 @@ with models.DAG(
   test_models_tpu = {
       "mixtral-8x22b": {
           "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
-          "cluster": XpkClusters.TPU_V4_128_CLUSTER,
+          "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
           "time_out_in_min": 60,
       },
   }
@@ -92,7 +92,7 @@ with models.DAG(
           },
           {
               "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
-              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
+              "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
               "time_out_in_min": 90,
           },
       ],

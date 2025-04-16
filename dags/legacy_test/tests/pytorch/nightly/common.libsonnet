@@ -105,7 +105,7 @@ local volumes = import 'templates/volumes.libsonnet';
         sudo apt install -y libsndfile-dev
         pip3 install --user --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu
         pip install --user \
-          'torch_xla[tpu] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0.dev+cxx11-cp310-cp310-linux_x86_64.whl' \
+          'torch_xla[tpu] @ https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.8.0.dev-cp310-cp310-linux_x86_64.whl' \
           -f https://storage.googleapis.com/libtpu-releases/index.html \
           -f https://storage.googleapis.com/libtpu-wheels/index.html
         pip3 install pillow
@@ -197,7 +197,9 @@ local volumes = import 'templates/volumes.libsonnet';
         cat > ~/hf-constraints.txt << 'HF_CONSTRAINTS_EOF'
         %s
         HF_CONSTRAINTS_EOF
-        pip install pytest accelerate -c ~/hf-constraints.txt
+        pip install pytest -c ~/hf-constraints.txt
+
+        pip install git+https://github.com/zpcore/accelerate.git@v1.2.1-patch
 
         mkdir -p ~/.cache/huggingface/accelerate/
         cat > ~/.cache/huggingface/accelerate/default_config.yaml << 'HF_CONFIG_EOF'

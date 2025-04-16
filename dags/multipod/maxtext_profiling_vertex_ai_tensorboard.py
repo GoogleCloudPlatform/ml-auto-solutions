@@ -23,20 +23,12 @@ from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
-# Run once a day at 6 am UTC (10 pm PST)
-SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = None
 
 with models.DAG(
     dag_id="maxtext_profiling_vertex_ai_tensorboard",
     schedule=SCHEDULED_TIME,
-    tags=[
-        "multipod_team",
-        "mlscale_onduty",
-        "maxtext",
-        "stable",
-        "nightly",
-        "vertex_ai",
-    ],
+    tags=[],
     start_date=datetime.datetime(2024, 6, 1),
     catchup=False,
     concurrency=2,
@@ -67,7 +59,7 @@ with models.DAG(
         current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
         profiling_in_vertex_ai_tb_cmds = (
             f"export RUN_NAME=vertex-ai-{mode.value}-{slice_num}x-{accelerator}-{current_datetime}",
-            "python3 MaxText/train.py MaxText/configs/base.yml"
+            "python3 -m MaxText.train MaxText/configs/base.yml"
             f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
             f" dataset_path={dataset_path} profiler=xplane steps=10",
             "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",

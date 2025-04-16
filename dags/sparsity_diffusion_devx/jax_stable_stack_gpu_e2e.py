@@ -25,8 +25,8 @@ from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 from dags.multipod.configs.common import SetupMode
 
-# Run once a day at 3 am UTC (7 pm PST)
-SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 7 am UTC (11 pm PST)
+SCHEDULED_TIME = "0 7 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
@@ -35,10 +35,10 @@ with models.DAG(
     tags=[
         "sparsity_diffusion_devx",
         "multipod_team",
-        "mlscale_onduty",
         "maxtext",
         "gpu",
         "jax-stable-stack",
+        "mlscale_devx",
     ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
@@ -47,7 +47,7 @@ with models.DAG(
 
   train_base = (
       "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-      "python3 MaxText/train.py MaxText/configs/base.yml "
+      "python3 -m MaxText.train MaxText/configs/base.yml "
       "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
       "steps=2 enable_checkpointing=false attention=dot_product"
   )
