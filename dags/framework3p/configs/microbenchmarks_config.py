@@ -28,9 +28,6 @@ def get_microbenchmark_config(
           "pip install jax[tpu] -f"
           " https://storage.googleapis.com/jax-releases/libtpu_releases.html"
       ),
-      "pip install --upgrade clu tensorflow tensorflow-datasets ",
-      "pip install jsonlines ",
-      "pip install ray[default] ",
       "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true ",
   )
 
@@ -48,7 +45,7 @@ def get_microbenchmark_config(
   # Run the benchmark tests.
   run_model_cmds += (
       "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git  ",
-      "cd ~/accelerator-microbenchmarks ",
+      "cd accelerator-microbenchmarks ",
       "pip install -r requirements.txt ",
       # Run the benchmark script
       f"python3 src/run_benchmark.py "
@@ -124,9 +121,6 @@ def get_microbenchmark_xpk_config(
 
   # Initial commands
   run_model_cmds = set_up_cmds + (
-      "pip install jsonlines ",
-      "pip install ray[default] ",
-      "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true ",
       "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git ",
       # Create the output directory
       "mkdir -p /tmp/microbenchmarks/outputs ",
@@ -136,8 +130,9 @@ def get_microbenchmark_xpk_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-      "cd ~/accelerator-microbenchmarks ",
+      "cd accelerator-microbenchmarks ",
       "pip install -r requirements.txt ",
+      "JAX_PLATFORMS=cpu ENABLE_PJRT_COMPATIBILITY=true ",
       # Run the benchmark script
       f"python3 src/run_benchmark.py "
       f"--config=configs/{benchmark_config} ",
