@@ -34,7 +34,6 @@ with models.DAG(
       project=vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
   )
 
-
   microbenchmarks_v5p_8 = get_microbenchmark_config(
       tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=8,
@@ -90,7 +89,6 @@ with models.DAG(
       subnetwork=vm_resource.V5E_SUBNETWORKS,
   )
 
-
   microbenchmarks_v5e_256 = get_microbenchmark_xpk_config(
       time_out_in_min=60,
       test_name="framework-microbenchmark-v5e-256",
@@ -106,7 +104,6 @@ with models.DAG(
       test_owner=test_owner.QINY_Y,
       cluster=vm_resource.XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
   ).run()
-
 
 
 # Test dependency: run in parallel

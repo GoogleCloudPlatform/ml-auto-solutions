@@ -48,8 +48,7 @@ def get_microbenchmark_config(
       "cd accelerator-microbenchmarks ",
       "pip install -r requirements.txt ",
       # Run the benchmark script
-      f"python3 src/run_benchmark.py "
-      f"--config=configs/{benchmark_config} ",
+      f"python3 src/run_benchmark.py " f"--config=configs/{benchmark_config} ",
   )
 
   # Check if the metrics report exists, and if so, upload it to GCS
@@ -134,8 +133,7 @@ def get_microbenchmark_xpk_config(
       "pip install -r requirements.txt ",
       "JAX_PLATFORMS=cpu ENABLE_PJRT_COMPATIBILITY=true ",
       # Run the benchmark script
-      f"python3 src/run_benchmark.py "
-      f"--config=configs/{benchmark_config} ",
+      f"python3 src/run_benchmark.py " f"--config=configs/{benchmark_config} ",
   )
 
   # Check if the metrics report exists, and if so, upload it to GCS
