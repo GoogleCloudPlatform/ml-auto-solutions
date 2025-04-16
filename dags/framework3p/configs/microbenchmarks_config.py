@@ -44,7 +44,7 @@ def get_microbenchmark_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-      "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git  ",
+      "git clone https://github.com/AI-Hypercomputer/accelerator-microbenchmarks.git  ",
       "cd accelerator-microbenchmarks ",
       "pip install -r requirements.txt ",
       # Run the benchmark script
@@ -121,7 +121,7 @@ def get_microbenchmark_xpk_config(
 
   # Initial commands
   run_model_cmds = set_up_cmds + (
-      "git clone https://github.com/qinyiyan/accelerator-microbenchmarks.git ",
+      "git clone https://github.com/AI-Hypercomputer/accelerator-microbenchmarks.git ",
       # Create the output directory
       "mkdir -p /tmp/microbenchmarks/outputs ",
       # Remove any existing metrics report

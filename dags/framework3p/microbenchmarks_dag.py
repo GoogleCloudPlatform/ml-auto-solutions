@@ -57,6 +57,17 @@ with models.DAG(
       subnetwork=vm_resource.V5P_SUBNETWORKS,
   )
 
+  microbenchmarks_v5p_256 = get_microbenchmark_config(
+      tpu_version=vm_resource.TpuVersion.V5P,
+      tpu_cores=256,
+      tpu_zone=vm_resource.Zone.US_EAST5_A,
+      time_out_in_min=60,
+      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5,
+      project=vm_resource.Project.TPU_PROD_ENV_AUTOMATED,
+      network=vm_resource.V5_NETWORKS,
+      subnetwork=vm_resource.V5P_SUBNETWORKS,
+  )
+
   microbenchmarks_v5e_4 = get_microbenchmark_config(
       tpu_version=vm_resource.TpuVersion.V5E,
       tpu_cores=4,
@@ -79,14 +90,6 @@ with models.DAG(
       subnetwork=vm_resource.V5E_SUBNETWORKS,
   )
 
-#   microbenchmarks_v6e_4 = get_microbenchmark_config(
-#       tpu_version=vm_resource.TpuVersion.TRILLIUM,
-#       tpu_cores=4,
-#       tpu_zone=vm_resource.Zone.US_EAST5_C,
-#       time_out_in_min=60,
-#       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV6,
-#       project=vm_resource.Project.TPU_PROD_ENV_AUTOMATED,
-#   )
 
   microbenchmarks_v5e_256 = get_microbenchmark_xpk_config(
       time_out_in_min=60,
