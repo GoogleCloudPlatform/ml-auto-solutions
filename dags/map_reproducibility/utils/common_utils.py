@@ -388,11 +388,25 @@ def get_nemo_metrics_cmds(
 
 def cleanup_cmds():
   cleanup = (
-      "helm uninstall $JOB_NAME -n default",
-      "kubectl get pods "
-      "--no-headers=true | awk '{print $1}' "
-      "| grep $JOB_NAME | xargs kubectl delete pods",
-      'echo "pods cleaned up"',
+      # Attempt Helm uninstall first, continue even if it fails
+      "helm uninstall aaa -n default --wait || true ",
+      # Give Helm resources time to fully clean up
+      "echo 'Waiting 60 seconds for helm uninstall... '",
+      "sleep 60 ",
+      "echo 'Attempting regular job and pod deletion... '",
+      # Track if job exists and attempt standard deletion if it does
+      "JOB_EXISTS=false",
+      "if kubectl get job $JOB_NAME &>/dev/null; then JOB_EXISTS=true; kubectl delete job/$JOB_NAME --grace-period=30; else echo 'Job not found, skipping regular deletion'; fi ",
+      # Track if pods exist and attempt standard deletion if they do
+      "PODS_EXIST=false",
+      "if kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'No pods found, skipping deletion'; else PODS_EXIST=true; kubectl delete pods -l job-name=$JOB_NAME --grace-period=30; fi ",
+      # Only wait if there were resources to delete
+      "[ \"$JOB_EXISTS\" = true ] || [ \"$PODS_EXIST\" = true ] && { echo 'Waiting 30 seconds for kubectl graceful termination... '; sleep 30; } || echo 'No resources found, skipping wait period' ",
+      # Only attempt force deletion of job if it existed before and still exists now
+      "if [ \"$JOB_EXISTS\" = true ] && kubectl get job $JOB_NAME &>/dev/null; then echo 'Job still exists, using force deletion...'; kubectl delete job $JOB_NAME --force --grace-period=0; else echo 'No job to force delete'; fi ",
+      # Only attempt force deletion of pods if they existed before and still exist now
+      "if [ \"$PODS_EXIST\" = true ] && ! kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'Pods still exist, using force deletion...'; kubectl delete pods -l job-name=$JOB_NAME --force --grace-period=0; else echo 'No pods to force delete'; fi ",
+      "echo 'Cleanup completed'",
   )
   return cleanup
 
