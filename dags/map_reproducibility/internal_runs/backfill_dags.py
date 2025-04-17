@@ -73,7 +73,7 @@ def create_adaptive_backfill_dag(
     backfill: bool = DEFAULT_BACKFILL,
     nightly_image_tag: str = DEFAULT_NIGHTLY_IMAGE_TAG,
     release_image_tag: str = DEFAULT_RELEASE_IMAGE_TAG,
-    retries: int = 3,  # Number of retries for tasks
+    retries: int = 2,  # Number of retries for tasks
 ) -> models.DAG:
   """
   Creates an Airflow DAG for backfilling Aotc reproducibility benchmarks.
