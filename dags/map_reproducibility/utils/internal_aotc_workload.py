@@ -118,7 +118,8 @@ def run_internal_aotc_workload(
         config.MODEL_ID, config.FRAMEWORK
     )
 
-    container_timeout = int(timeout) - 3
+    container_timeout = int(timeout) - 4
+    print(f"container timeout is {container_timeout}")
     result = hook.run_command(
         [
             "bash",
