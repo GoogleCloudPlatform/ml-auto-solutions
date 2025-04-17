@@ -842,6 +842,8 @@ def run_nemo_workload(
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
     average_step_time, mfu = get_nemo_metrics(tmpdir)
+    if two_node:
+      num_gpus = 16
 
     write_run(
         model_id=model_id,
