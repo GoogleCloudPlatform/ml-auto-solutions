@@ -98,18 +98,21 @@ def get_bite_tpu_config(
   )
 
 
-def get_bite_tpu_unittests_config(
-    tpu_version: TpuVersion,
-    tpu_cores: int,
-    tpu_zone: str,
-    runtime_version: str,
-    time_out_in_min: int,
-    task_owner: str,
-    is_tpu_reserved: bool = False,
-    pinned_version: Optional[str] = None,
-):
-  unittest_setupcmds = (
-      # create configuration files needed
+def dockerfile_build_cmd(jax_version):
+  # Generate pip commands to install certain version of JAX/libTPU e.g.
+  # pip install --pre jaxlib==0.5.1  -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html
+  # pip install jax[tpu]==0.5.1  -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+  # pip install jax==0.5.1
+  if jax_version:
+    pip_tpu_jax_install = "\n".join(
+        ["RUN " + x for x in common.set_up_jax_version(jax_version)]
+    )
+  else:
+    pip_tpu_jax_install = "\n".join(
+        ["RUN " + x for x in common.set_up_nightly_jax()]
+    )
+
+  return (
       """cat > Dockerfile_CI <<EOF
 FROM python:3.10-slim
 WORKDIR /workspace
@@ -122,12 +125,33 @@ RUN pip install --upgrade pip
 RUN pip install -e '.[core,dev,gcp]'
 RUN pip install grain
 RUN pip install google-cloud-aiplatform
-RUN pip install -U --pre libtpu-nightly -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
-RUN pip install --pre -U jaxlib -f https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html
-RUN pip install git+https://github.com/google/jax
+"""
+      + pip_tpu_jax_install
+      + """
 RUN pip freeze
 EOF
-""",
+"""
+  )
+
+
+def get_bite_tpu_unittests_config(
+    tpu_version: TpuVersion,
+    tpu_cores: int,
+    tpu_zone: str,
+    runtime_version: str,
+    time_out_in_min: int,
+    task_owner: str,
+    network: str = "default",
+    subnetwork: str = "default",
+    is_tpu_reserved: bool = False,
+    jax_version: Optional[str] = None,
+    test_suffix: Optional[str] = None,
+    project_name: Optional[Project] = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+):
+
+  unittest_setupcmds = (
+      # create configuration files needed
+      dockerfile_build_cmd(jax_version),
       # create script to run the tests inside of the container
       # incluedes a basic sanity check python script which prints out TPU env info for reference
       """cat > run_tpu_tests.sh <<EOF
@@ -148,10 +172,15 @@ EOF
       "sudo docker run --network=host --privileged --ulimit memlock=-1:-1  ml-auto-solutions/tpu_unittests  /bin/bash -c '/workspace/run_tpu_tests.sh'",
   )
   job_gcp_config = gcp_config.GCPConfig(
-      project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+      project_name=project_name,
       zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
+
+  if test_suffix:
+    test_name = f"bite_unittests_{test_suffix}"
+  else:
+    test_name = "bite_unittests"
 
   tpu_unittests_test_config = test_config.TpuVmTest(
       test_config.Tpu(
@@ -159,8 +188,10 @@ EOF
           cores=tpu_cores,
           runtime_version=runtime_version,
           reserved=is_tpu_reserved,
+          network=network,
+          subnetwork=subnetwork,
       ),
-      test_name="bite_unittests",
+      test_name=test_name,
       set_up_cmds=unittest_setupcmds,
       run_model_cmds=unittest_runcmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
