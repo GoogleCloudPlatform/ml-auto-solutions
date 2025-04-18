@@ -52,10 +52,19 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
   config_name = os.path.basename(config_path).replace(".yaml", "")
   schedule = config_info["schedule"] if TURN_ON_SCHEDULE else None
   timeout = config_info["timeout_minutes"]
+  # Set retry parameter based on timeout
+  retries = 1 if timeout <= 15 else 2
+  retry_delay = datetime.timedelta(minutes=1)
+
+  dag_default_args = {
+      "retries": retries,
+      "retry_delay": retry_delay,
+  }
 
   # Create DAG for nightly build
   with models.DAG(
       dag_id=f"new_internal_{config_name}",
+      default_args=dag_default_args,
       schedule=schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 3),
@@ -72,6 +81,7 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
   # Create DAG for stable release
   with models.DAG(
       dag_id=f"new_internal_stable_release_{config_name}",
+      default_args=dag_default_args,
       schedule=schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 3),
