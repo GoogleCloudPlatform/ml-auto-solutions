@@ -864,7 +864,7 @@ def run_nemo_workload(
         writer_path=bq_writer_repo_root,
         topology="2X2",
         comment="Regression tests",
-        is_test=False,
+        is_test=(False if composer_env.is_prod_env() else True),
     )
 
 
@@ -981,7 +981,7 @@ def run_maxtext_workload(
         writer_path=bq_writer_repo_root,
         topology="",
         comment="Regression tests",
-        is_test=(True if composer_env.is_prod_env() else False),
+        is_test=(False if composer_env.is_prod_env() else True),
     )
 
 
