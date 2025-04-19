@@ -148,9 +148,7 @@ def run_internal_aotc_workload(
                     test_run=test_run,
                 )
                 + internal_wait_for_jobs_cmds(timeout=container_timeout)
-                + copy_bucket_cmds_maxtext(
-                    tmpdir, recipe_repo_root=recipe_repo_root
-                )
+                + copy_bucket_cmds_maxtext(tmpdir)
                 + cleanup_cmds()
             ),
         ],
