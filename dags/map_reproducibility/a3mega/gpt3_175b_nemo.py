@@ -63,4 +63,3 @@ with models.DAG(
       kueue_name=KUEUE_NAME,
       metrics_model_id=MODEL_ID,
   )
-

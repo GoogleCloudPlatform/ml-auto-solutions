@@ -43,7 +43,6 @@ KUEUE_NAME = "a3-ultra"
 NUM_GPUS = 256
 
 
-
 with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
