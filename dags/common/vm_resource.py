@@ -270,7 +270,13 @@ class XpkClusters:
       project=Project.TPU_PROD_ENV_ONE_VM.value,
       zone=Zone.SOUTHAMERICA_WEST1_A.value,
   )
-
+  TPU_V6E_16_IN_MEM_CLUSTER = XpkClusterConfig(
+      name="in-mem-airflow-v6e-16",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=16,
+      project=Project.TPU_PROD_ENV_ONE_VM.value,
+      zone=Zone.US_EAST5_C.value,
+  )
   GPU_A3_CLUSTER = XpkClusterConfig(
       name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
