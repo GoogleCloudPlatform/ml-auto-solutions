@@ -26,7 +26,8 @@ from xlml.apis import metric_config
 from xlml.utils import gke
 from dags.common.vm_resource import GpuVersion
 
-MAIN_BRANCH = "main"
+# b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
+MAIN_BRANCH = "v0.4.1"
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
     "https://pantheon.corp.google.com/logs/query;"
@@ -89,6 +90,7 @@ def run_workload(
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
     ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
+    mtc_enabled: bool = False,  # It enables MTC phase-2 drivers
     xpk_branch: str = MAIN_BRANCH,
 ):
   """Run workload through xpk tool."""
@@ -116,6 +118,8 @@ def run_workload(
     )
     if ramdisk_directory:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
+    if mtc_enabled:
+      workload_create_cmd += " --mtc-enabled"
 
     # If using a valid GPU and the XPK branch is set to "main", then branch is switch to "v0.4.1".
     if is_valid_gpu_version(accelerator_type) and xpk_branch == MAIN_BRANCH:
