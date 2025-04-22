@@ -194,7 +194,7 @@ def run_internal_aotc_workload(
         topology="",
         comment=comment,
         is_test=is_db_test_run,
-        logs_profile=gcs_bucket,
+        gcs_metrics_bucket=gcs_bucket,
         workload_others=str(config),
         experiment_id=job_name,
     )
