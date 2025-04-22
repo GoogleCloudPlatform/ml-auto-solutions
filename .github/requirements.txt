@@ -1,3 +1,4 @@
+apache-airflow==2.10.2
 apache-airflow-providers-sendgrid
 fabric
 google-cloud-bigquery
