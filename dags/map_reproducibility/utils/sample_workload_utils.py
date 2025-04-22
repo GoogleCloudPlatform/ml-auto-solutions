@@ -36,6 +36,7 @@ from dags.map_reproducibility.utils.common_utils import (
     get_job_gcs_bucket_folder,
     parse_internal_config_filename,
     parse_internal_config_content,
+    get_patheon_job_link,
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -94,7 +95,7 @@ def get_values_file_path(
 
 
 def execute_workload_commands(commands: list, cwd: str) -> Tuple[bool, list]:
-  """Execute each command individually while preserving bash context.
+  """Execute shell commands and capture their outputs.
 
   Args:
       commands: List of shell commands to execute
@@ -103,161 +104,42 @@ def execute_workload_commands(commands: list, cwd: str) -> Tuple[bool, list]:
   Returns:
       Tuple of (success, list of command results)
   """
-  logger.info(
-      f"Executing commands sequentially: {commands} in directory: {cwd}"
-  )
+  logger.info(f"Executing commands: {commands} in directory: {cwd}")
 
-  command_results = []
+  # Join commands with semicolons for sequential execution
+  combined_command = ";".join(commands)
 
-  # Start a bash process that we'll keep alive
+  # Run the combined command
   process = subprocess.Popen(
-      ["bash"],
-      stdin=subprocess.PIPE,
+      ["bash", "-c", combined_command],
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,
       text=True,
       cwd=cwd,
   )
 
-  try:
-    # Execute setup commands to enable command tracing
-    process.stdin.write("set -e\n")  # Exit on first error
-    process.stdin.write(
-        "cd " + cwd + "\n"
-    )  # Ensure we're in the right directory
-    process.stdin.flush()
+  # Capture output
+  stdout, stderr = process.communicate()
+  exit_code = process.returncode
 
-    for i, cmd in enumerate(commands):
-      logger.info(f"Executing command {i+1}: {cmd}")
+  # Create result for the combined execution
+  command_results = [{
+      "command": combined_command,
+      "stdout": stdout,
+      "stderr": stderr,
+      "output": stdout + ("\n\nSTDERR:\n" + stderr if stderr else ""),
+      "exit_code": exit_code,
+  }]
 
-      # Create unique markers for this command
-      cmd_id = f"CMD_{i}"
+  # Log results
+  if stdout:
+    logger.info(f"Stdout for combined commands:\n{stdout}")
+  if stderr:
+    logger.warning(f"Stderr for combined commands:\n{stderr}")
+  if exit_code != 0:
+    logger.error("Command execution failed")
 
-      # Script to capture both stdout and stderr separately
-      capture_script = f"""
-            # Start marker
-            echo '{cmd_id}_START'
-            
-            # Create temporary files for stdout and stderr
-            STDOUT_FILE=$(mktemp)
-            STDERR_FILE=$(mktemp)
-            
-            # Execute the command, capturing stdout and stderr
-            {{ {cmd} > $STDOUT_FILE 2> $STDERR_FILE; }}
-            CMD_EXIT_CODE=$?
-            
-            # Output stdout with marker
-            echo '{cmd_id}_STDOUT_BEGIN'
-            cat $STDOUT_FILE
-            echo '{cmd_id}_STDOUT_END'
-            
-            # Output stderr with marker
-            echo '{cmd_id}_STDERR_BEGIN'
-            cat $STDERR_FILE
-            echo '{cmd_id}_STDERR_END'
-            
-            # Output exit code with marker
-            echo '{cmd_id}_EXIT_'$CMD_EXIT_CODE
-            
-            # Clean up temp files
-            rm -f $STDOUT_FILE $STDERR_FILE
-            """
-
-      # Write the capture script
-      process.stdin.write(capture_script)
-      process.stdin.flush()
-
-      # Process output with state machine
-      current_state = "WAITING_FOR_START"
-      stdout_lines = []
-      stderr_lines = []
-      exit_code = None
-
-      while True:
-        line = process.stdout.readline().rstrip("\n")
-
-        if not line:
-          continue
-
-        if line == f"{cmd_id}_START":
-          current_state = "STARTED"
-        elif line == f"{cmd_id}_STDOUT_BEGIN":
-          current_state = "READING_STDOUT"
-        elif line == f"{cmd_id}_STDOUT_END":
-          current_state = "STDOUT_COMPLETE"
-        elif line == f"{cmd_id}_STDERR_BEGIN":
-          current_state = "READING_STDERR"
-        elif line == f"{cmd_id}_STDERR_END":
-          current_state = "STDERR_COMPLETE"
-        elif line.startswith(f"{cmd_id}_EXIT_"):
-          exit_code = int(line.split("_")[-1])
-          break
-        elif current_state == "READING_STDOUT":
-          stdout_lines.append(line)
-        elif current_state == "READING_STDERR":
-          stderr_lines.append(line)
-
-      # Combine stdout and stderr
-      stdout_content = "\n".join(stdout_lines)
-      stderr_content = "\n".join(stderr_lines)
-      combined_output = stdout_content
-      if stderr_content:
-        if combined_output:
-          combined_output += "\n\nSTDERR:\n" + stderr_content
-        else:
-          combined_output = "STDERR:\n" + stderr_content
-
-      # Store the command result
-      cmd_result = {
-          "command": cmd,
-          "stdout": stdout_content,
-          "stderr": stderr_content,
-          "output": combined_output,  # Combined for backward compatibility
-          "exit_code": exit_code,
-      }
-      command_results.append(cmd_result)
-
-      # Log the command result - no longer printing exit code
-      if stdout_content:
-        logger.info(f"Stdout for command {i+1}:\n{stdout_content}")
-      if stderr_content:
-        logger.warning(f"Stderr for command {i+1}:\n{stderr_content}")
-
-      # If a command failed and we're using set -e, stop execution
-      if exit_code != 0:
-        logger.error(f"Command {i+1} failed")
-        break
-
-    # Close the process properly
-    process.stdin.write("exit\n")
-    process.stdin.flush()
-    process.wait()
-
-    # Check if all commands succeeded
-    all_succeeded = all(result["exit_code"] == 0 for result in command_results)
-    return all_succeeded, command_results
-
-  except Exception as e:
-    # Get detailed exception information including stack trace
-    import traceback
-
-    stack_trace = traceback.format_exc()
-    error_message = (
-        f"Error executing commands: {e}\n\nStack trace:\n{stack_trace}"
-    )
-    logger.error(error_message)
-
-    # Kill the process if it's still running
-    if process.poll() is None:
-      process.terminate()
-
-    return False, [{
-        "command": "unknown",
-        "stdout": "",
-        "stderr": error_message,
-        "output": error_message,
-        "exit_code": -1,
-    }]
+  return exit_code == 0, command_results
 
 
 def sample_job_configure_project_and_cluster(cluster: str, cluster_region: str):
@@ -359,6 +241,9 @@ def run_internal_sample_aotc_workload(
   config = parse_internal_config_content(full_config_yaml_path, config=config)
   job_name = get_internal_pre_workload_job_name(
       config.MODEL_ID, config.FRAMEWORK, is_sample_run=True
+  )
+  pantheon_link = get_patheon_job_link(
+      region=cluster_region, cluster_name=cluster, job_name=job_name
   )
 
   # Adjust timeout for the container

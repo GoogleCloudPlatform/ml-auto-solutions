@@ -124,8 +124,14 @@ def get_internal_pre_workload_job_name(
   job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
   if is_sample_run:
     job_name = f"{getpass.getuser()}-{job_name}"
-  print(f"NAME: {job_name}")
+  print(f"{'*' * 20}NAME: {job_name}")
   return job_name
+
+
+def get_patheon_job_link(region, cluster_name, job_name):
+  pantheon_link = f"https://pantheon.corp.google.com/kubernetes/job/{region}/{cluster_name}/default/{job_name}"
+  print(f"{'*' * 20}LINK: {pantheon_link}")
+  return pantheon_link
 
 
 def install_helm_cmds():

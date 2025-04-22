@@ -61,7 +61,6 @@ def main():
   relative_config_yaml_path = (
       "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_bf16_maxtext.yaml"
   )
-  config_name = relative_config_yaml_path.replace(".yaml", "")
   timeout = DAG_CONFIGS_ULTRA[relative_config_yaml_path]["timeout_minutes"]
 
   run_internal_sample_aotc_workload(
