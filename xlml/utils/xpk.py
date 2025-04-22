@@ -47,9 +47,13 @@ def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
       f"git clone --branch {branch} https://github.com/AI-Hypercomputer/xpk"
       f" {tmpdir}/xpk"
   )
+  install_docker = "sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+  install_xpk = f"pushd {tmpdir}/xpk && make install && export PATH=$PWD/bin:$PATH && popd"
   cmds = [
       "set -xue",
       clone_branch,
+      install_docker,
+      install_xpk,
       "pip install ruamel.yaml docker",
   ]
   return cmds
