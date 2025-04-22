@@ -26,7 +26,8 @@ from xlml.apis import metric_config
 from xlml.utils import gke
 from dags.common.vm_resource import GpuVersion
 
-MAIN_BRANCH = "main"
+# b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
+MAIN_BRANCH = "v0.4.1"
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
     "https://pantheon.corp.google.com/logs/query;"
