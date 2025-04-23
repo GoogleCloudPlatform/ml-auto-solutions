@@ -18,9 +18,7 @@ import datetime
 from airflow import models
 from dags import composer_env
 
-from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
-from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import run_maxtext_workload
 
 

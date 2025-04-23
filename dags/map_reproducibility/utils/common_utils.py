@@ -22,8 +22,8 @@ import random
 import string
 import time
 import subprocess
-import getpass
 
+from google.cloud import storage
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from xlml.utils import metric
@@ -115,23 +115,12 @@ def get_internal_pre_workload_cmds(job_name):
   return prepare_workload_cmds
 
 
-def get_internal_pre_workload_job_name(
-    model_id, framework, is_sample_run=False
-):
+def get_internal_pre_workload_job_name(model_id, framework):
   helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=4))
   now = int(time.time())
   job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
-  if is_sample_run:
-    job_name = f"{getpass.getuser()}-{job_name}"
-  print(f"{'*' * 20}NAME: {job_name}")
   return job_name
-
-
-def get_patheon_job_link(region, cluster_name, job_name):
-  pantheon_link = f"https://pantheon.corp.google.com/kubernetes/job/{region}/{cluster_name}/default/{job_name}"
-  print(f"{'*' * 20}LINK: {pantheon_link}")
-  return pantheon_link
 
 
 def install_helm_cmds():
@@ -218,17 +207,16 @@ def helm_apply_cmds_internal_run(
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
     test_run=False,
-    bucket_name=BUCKET_NAME,
 ):
   gcs_cmd = ""
   if framework == "maxtext":
-    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={bucket_name} "
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME} "
 
   if hypercomputer == "a3ultra":
     if framework != "maxtext":
       gcs_cmd += f" --set queue={kueue_name} "
   else:
-    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={bucket_name} "
+    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME} "
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
@@ -242,9 +230,8 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  local_helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
-  if test_run and os.path.exists(local_helm_template_path):
-    helm_template_path = local_helm_template_path
+  if test_run:
+    helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
   else:
     helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
 
@@ -334,8 +321,8 @@ def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   return copy_bucket_contents
 
 
-def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
-  gcs_location = f"gs://{bucket_name}/maxtext/"
+def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
+  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
 
   cmds = (
       f"METRICS_FILE={tmpdir}/tflog/metrics",
@@ -470,7 +457,6 @@ def extract_run_details(root, config_path):
     with open(config_path, "r", encoding="utf-8") as file:
       config = yaml.safe_load(file)
       batch_size = config.get("model", {}).get("global_batch_size")
-      precision = config.get("trainer", {}).get("precision")
       optimizer = config.get("model", {}).get("optim", {}).get("name")
       seq_length = config.get("model", {}).get("data", {}).get("seq_length")
       max_steps = config.get("trainer", {}).get("max_steps")
@@ -478,7 +464,7 @@ def extract_run_details(root, config_path):
     print(f"Error: {e}")
     return None
 
-  return batch_size, optimizer, precision, seq_length, max_steps
+  return batch_size, optimizer, seq_length, max_steps
 
 
 def get_accelerator_type(hypercomputer: str):
@@ -791,14 +777,13 @@ def run_nemo_workload(
     (
         global_batch_size,
         optimizer,
-        precision,
         seq_length,
         num_steps,
     ) = extract_run_details(recipe_repo_root, config_yaml_path)
 
     accelerator_type = get_accelerator_type(hypercomputer)
     print(
-        f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, num steps: {num_steps}"
+        f"batch size: {global_batch_size}, num gpus: {num_gpus}, seq length: {seq_length}, num steps: {num_steps}"
     )
 
     additional_cmds = ""

@@ -27,11 +27,14 @@ METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
+
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
     if composer_env.is_prod_env()
     else None
 )
+
+KUEUE_NAME = "multislice-kueue"
 
 
 with models.DAG(
@@ -42,9 +45,9 @@ with models.DAG(
         "experimental",
         "xlml",
         "regressiontests",
-        "a3mega",
+        "a3ultra",
     ],
-    start_date=datetime.datetime(2025, 3, 1),
+    start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
   run_nemo_workload(
@@ -52,5 +55,6 @@ with models.DAG(
       model_id=MODEL_ID,
       framework=FRAMEWORK,
       precision=PRECISION,
+      kueue_name=KUEUE_NAME,
       metrics_model_id=METRICS_MODEL_ID,
   )
