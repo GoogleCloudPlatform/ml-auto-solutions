@@ -53,7 +53,7 @@ with models.DAG(
   for mode, image in DOCKER_IMAGES:
     for model in MaxTextTrilliumModelConfigs:
       base_run_model_cmds = [
-          f"python3 benchmarks/benchmark_runner.py on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
+          f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
       num_slices = (
           [2]
