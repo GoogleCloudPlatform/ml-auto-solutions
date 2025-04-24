@@ -35,12 +35,12 @@ with models.DAG(
     tags=[
         "sparsity_diffusion_devx",
         "multipod_team",
-        "mlscale_onduty",
         "maxtext",
         "maxdiffusion",
         "axlearn",
         "tpu",
         "jax-stable-stack",
+        "mlscale_devx",
     ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
@@ -73,7 +73,7 @@ with models.DAG(
   maxdiffusion_docker_images = [
       (
           SetupMode.STABLE,
-          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
+          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK,
       ),
       (
           SetupMode.NIGHTLY,
@@ -92,7 +92,7 @@ with models.DAG(
             time_out_in_min=60,
             run_model_cmds=(
                 f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-                f"python MaxText/train.py MaxText/configs/base.yml run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxtext-jax-stable-stack-{current_datetime} "
+                f"python -m MaxText.train MaxText/configs/base.yml run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxtext-jax-stable-stack-{current_datetime} "
                 "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
                 "enable_checkpointing=false attention=dot_product remat_policy=minimal_flash use_iota_embed=true scan_layers=false "
                 "dataset_type=synthetic async_checkpointing=false "

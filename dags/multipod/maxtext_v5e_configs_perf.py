@@ -38,7 +38,13 @@ BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 with models.DAG(
     dag_id="maxtext_v5e_configs_perf",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext", "stable", "nightly", "mlscale_onduty"],
+    tags=[
+        "multipod_team",
+        "maxtext",
+        "stable",
+        "nightly",
+        "mlscale_perfx",
+    ],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
 ) as dag:
@@ -49,7 +55,7 @@ with models.DAG(
     for model in MaxTextV5eModelConfigs:
       base_run_model_cmds = [
           "bash preflight.sh",
-          f"python3 benchmarks/benchmark_runner.py on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
+          f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -87,7 +93,7 @@ PATHWAYS_SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="pathways_maxtext_v5e_configs_perf",
     schedule=None,
-    tags=["multipod_team", "maxtext", "stable", "nightly"],
+    tags=["multipod_team", "maxtext", "stable", "nightly", "mlscale_perfx"],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
 ) as dag:
@@ -97,7 +103,7 @@ with models.DAG(
   for mode, image in DOCKER_IMAGES:
     for model in MaxTextV5eModelConfigs:
       base_run_model_cmds = [
-          f"python3 benchmarks/benchmark_runner.py on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
+          f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15 --use_pathways=True",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(

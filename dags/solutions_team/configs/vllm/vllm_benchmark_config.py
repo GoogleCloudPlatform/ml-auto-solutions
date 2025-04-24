@@ -42,6 +42,8 @@ def get_vllm_gpu_setup_cmds():
       "sudo apt-get install python-is-python3",
       "pip install google-auth",
       "pip install vllm",
+      # See https://github.com/sphinx-doc/sphinx/issues/10291
+      "pip install 'Jinja2<3.1'",
       "export PATH=$PATH:/home/cloud-ml-auto-solutions/.local/bin",
       "ls $(which vllm)",
       # Download dataset
@@ -226,6 +228,7 @@ def get_gpu_vllm_gce_config(
     network: str,
     subnetwork: str,
     model_configs: Dict = {},
+    reservation: bool = False,
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project.value,
@@ -280,6 +283,7 @@ def get_gpu_vllm_gce_config(
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
       install_nvidia_drivers=True,
+      reservation=reservation,
   )
 
 

@@ -142,7 +142,7 @@ def get_config(
       f"export RESHAPE_Q={model_configs['reshape_q']}",
       f"export KV_QUANT_AXIS={model_configs['kv_quant_axis']}",
       # Start JetStream MaxText server in the background
-      """python MaxText/maxengine_server.py \
+      """python3 -m MaxText.maxengine_server \
         MaxText/configs/inference_jetstream.yml \
         model_name=${MODEL_NAME} \
         tokenizer_path=${TOKENIZER_PATH} \

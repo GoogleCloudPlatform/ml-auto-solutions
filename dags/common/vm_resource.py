@@ -39,6 +39,9 @@ V5P_BM_SUBNETWORKS = f"{BM_NETWORKS}/regions/us-east5/subnetworks/mas-test"
 
 INFERENCE_NETWORK_PREFIX = "projects/cloud-tpu-inference-test"
 INFERENCE_NETWORKS = f"{INFERENCE_NETWORK_PREFIX}/global/networks/mas-test"
+US_EAST5_INFERENCE_SUBNETWORKS = (
+    "regions/us-central1/subnetworks/mas-test-us-east5"
+)
 H100_INFERENCE_SUBNETWORKS = (
     "regions/us-central1/subnetworks/mas-test-us-central1"
 )
@@ -124,6 +127,7 @@ class Zone(enum.Enum):
   EUROPE_WEST1_B = "europe-west1-b"
   # reserved TRILLIUM capacity
   EUROPE_WEST4_A = "europe-west4-a"
+  SOUTHAMERICA_WEST1_A = "southamerica-west1-a"
   # reserved v5e capacity in tpu-prod-env-multipod
   EUROPE_WEST4_B = "europe-west4-b"
   # reserved l4 in cloud-tpu-inference-test
@@ -144,6 +148,7 @@ class MachineVersion(enum.Enum):
   A2_ULTRAGPU_4G = "a2-ultragpu-4g"
   A2_ULTRAGPU_8G = "a2-ultragpu-8g"
   A3_HIGHGPU_8G = "a3-highgpu-8g"
+  A3_MEGAGPU_8G = "a3-megagpu-8g"
   A3_ULTRAGPU_8G = "a3-ultragpu-8g"
   G2_STAND_4 = "g2-standard-4"
   G2_STAND_16 = "g2-standard-16"  # 64GB memory
@@ -259,13 +264,19 @@ class XpkClusters:
       zone=Zone.US_CENTRAL2_B.value,
   )
   TPU_V6E_256_MLPERF_CLUSTER = XpkClusterConfig(
-      name="bodaborg-v6e-256-dnd-yucmhab",
+      name="bodaborg-v6e-256-lcscld-c",
       device_version=TpuVersion.TRILLIUM,
       core_count=256,
       project=Project.TPU_PROD_ENV_ONE_VM.value,
-      zone=Zone.US_EAST5_B.value,
+      zone=Zone.SOUTHAMERICA_WEST1_A.value,
   )
-
+  TPU_V6E_16_IN_MEM_CLUSTER = XpkClusterConfig(
+      name="in-mem-airflow-v6e-16",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=16,
+      project=Project.TPU_PROD_ENV_ONE_VM.value,
+      zone=Zone.US_EAST5_C.value,
+  )
   GPU_A3_CLUSTER = XpkClusterConfig(
       name="ninacai-maxtext-a3",
       device_version=GpuVersion.XPK_H100,
@@ -329,7 +340,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_stable_stack_nightly_jax:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE = (

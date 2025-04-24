@@ -55,7 +55,7 @@ with models.DAG(
         "legacy",
         "stable",
         "nightly",
-        "mlscale_onduty",
+        "mlscale_devx",
     ],
     start_date=datetime.datetime(2024, 1, 10),
     catchup=False,
