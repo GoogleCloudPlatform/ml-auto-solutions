@@ -313,13 +313,17 @@ def run_internal_sample_aotc_workload(
       print(f"GCS bucket is {gcs_bucket}")
       logs_profile = None
 
-      if config.profiler:
+      if hasattr(config, "profiler"):
         logs_profile = find_xprof_gcs_path(gcs_bucket)
         print(f"logs_profile is {logs_profile}")
         profiler_cmds = sample_workload_gcs_to_cns_cmds(logs_profile)
         profile_success, profiler_error_message = execute_workload_commands(
             profiler_cmds, tmpdir
         )
+        if not profile_success:
+          logger.error(
+              f"Profile command failed with error: {profiler_error_message}"
+          )
 
       write_run(
           model_id=config.HELM_NAME_MODEL_ID,

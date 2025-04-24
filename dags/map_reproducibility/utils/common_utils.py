@@ -140,14 +140,13 @@ def find_xprof_gcs_path(gcs_path):
   """
   from google.cloud import storage
 
-  path_without_prefix = gcs_path.replace("gs://", "")
+  path_without_prefix = gcs_path.removeprefix("gs://")
 
   parts = path_without_prefix.split("/", 1)
   bucket_name = parts[0]
   print(f"Bucket name: {bucket_name}")
 
   prefix = parts[1] if len(parts) > 1 else ""
-  prefix = prefix.rstrip("/")
 
   storage_client = storage.Client()
   bucket = storage_client.get_bucket(bucket_name)
@@ -354,7 +353,9 @@ def get_job_gcs_bucket_folder(job_name, bucket_name=BUCKET_NAME):
     bucket_folder = (
         subprocess.check_output(bucket_folder_cmd, shell=True).decode().strip()
     )
-    print(f"BUCKET_FOLDER: {bucket_folder}")
+    bucket_folder_prefix_removed = bucket_folder.removeprefix("gs://")
+    pantheon_bucket_link = "https://pantheon.corp.google.com/storage/browser/" + bucket_folder_prefix_removed
+    print(f"BUCKET PANTHEON LINK: {pantheon_bucket_link}")
     return bucket_folder
   except subprocess.CalledProcessError as e:
     print(f"Error finding bucket folder: {e}")
