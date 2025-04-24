@@ -354,7 +354,10 @@ def get_job_gcs_bucket_folder(job_name, bucket_name=BUCKET_NAME):
         subprocess.check_output(bucket_folder_cmd, shell=True).decode().strip()
     )
     bucket_folder_prefix_removed = bucket_folder.removeprefix("gs://")
-    pantheon_bucket_link = "https://pantheon.corp.google.com/storage/browser/" + bucket_folder_prefix_removed
+    pantheon_bucket_link = (
+        "https://pantheon.corp.google.com/storage/browser/"
+        + bucket_folder_prefix_removed
+    )
     print(f"BUCKET PANTHEON LINK: {pantheon_bucket_link}")
     return bucket_folder
   except subprocess.CalledProcessError as e:
@@ -516,7 +519,6 @@ def extract_run_details(root, config_path):
     with open(config_path, "r", encoding="utf-8") as file:
       config = yaml.safe_load(file)
       batch_size = config.get("model", {}).get("global_batch_size")
-      precision = config.get("trainer", {}).get("precision")
       optimizer = config.get("model", {}).get("optim", {}).get("name")
       seq_length = config.get("model", {}).get("data", {}).get("seq_length")
       max_steps = config.get("trainer", {}).get("max_steps")
@@ -524,7 +526,7 @@ def extract_run_details(root, config_path):
     print(f"Error: {e}")
     return None
 
-  return batch_size, optimizer, precision, seq_length, max_steps
+  return batch_size, optimizer, seq_length, max_steps
 
 
 def get_accelerator_type(hypercomputer: str):
@@ -837,14 +839,13 @@ def run_nemo_workload(
     (
         global_batch_size,
         optimizer,
-        precision,
         seq_length,
         num_steps,
     ) = extract_run_details(recipe_repo_root, config_yaml_path)
 
     accelerator_type = get_accelerator_type(hypercomputer)
     print(
-        f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, num steps: {num_steps}"
+        f"batch size: {global_batch_size}, num gpus: {num_gpus}, seq length: {seq_length}, num steps: {num_steps}"
     )
 
     additional_cmds = ""
