@@ -31,6 +31,7 @@ from xlml.apis import metric_config
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
+from google.cloud import storage
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -126,6 +127,47 @@ def get_internal_pre_workload_job_name(
     job_name = f"{getpass.getuser()}-{job_name}"
   print(f"{'*' * 20}NAME: {job_name}")
   return job_name
+
+
+def find_xprof_gcs_path(gcs_path):
+  """
+  Find the .xplane.pb file in the latest date blob from the specified GCS path.
+
+  Args:
+      gcs_path (str): Full GCS path in the format gs://bucket-name/folder/path/
+
+  Returns:
+      str: Path to the .xplane.pb file in the latest date blob
+  """
+  path_without_prefix = gcs_path.removeprefix("gs://")
+
+  parts = path_without_prefix.split("/", 1)
+  bucket_name = parts[0]
+  print(f"Bucket name: {bucket_name}")
+
+  prefix = parts[1] if len(parts) > 1 else ""
+
+  storage_client = storage.Client()
+  bucket = storage_client.get_bucket(bucket_name)
+
+  # List all blobs in the bucket with the given prefix
+  print(f"Prefix: {prefix}")
+  blobs = list(bucket.list_blobs(prefix=prefix))
+
+  # Look for .xplane.pb file in the latest directory
+  xplane_pb_file = None
+  for blob in blobs:
+    if blob.name.endswith(".xplane.pb"):
+      xplane_pb_file = blob.name
+      break
+
+  if not xplane_pb_file:
+    print(f"No .xplane.pb file found in {gcs_path}")
+    return None
+
+  full_xplane_pb_file = f"gs://{bucket_name}/{xplane_pb_file}"
+  print(f"Found .xplane.pb file: {full_xplane_pb_file}")
+  return full_xplane_pb_file
 
 
 def get_patheon_job_link(region, cluster_name, job_name):
@@ -291,7 +333,7 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
   return wait_for_job
 
 
-def get_job_gcs_bucket_folder(job_name):
+def get_job_gcs_bucket_folder(job_name, bucket_name=BUCKET_NAME):
   """
   Get the GCS bucket folder for a specific job.
 
@@ -302,14 +344,20 @@ def get_job_gcs_bucket_folder(job_name):
   Returns:
       str: The full path to the bucket folder containing the job
   """
-  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
+  gcs_location = f"gs://{bucket_name}/maxtext/"
   bucket_folder_cmd = f"gcloud storage ls {gcs_location} | grep {job_name}"
+  print(f"bucket_folder_cmd: {bucket_folder_cmd}")
 
   try:
     bucket_folder = (
         subprocess.check_output(bucket_folder_cmd, shell=True).decode().strip()
     )
-    print(f"BUCKET_FOLDER: {bucket_folder}")
+    bucket_folder_prefix_removed = bucket_folder.removeprefix("gs://")
+    pantheon_bucket_link = (
+        "https://pantheon.corp.google.com/storage/browser/"
+        + bucket_folder_prefix_removed
+    )
+    print(f"BUCKET PANTHEON LINK: {pantheon_bucket_link}")
     return bucket_folder
   except subprocess.CalledProcessError as e:
     print(f"Error finding bucket folder: {e}")

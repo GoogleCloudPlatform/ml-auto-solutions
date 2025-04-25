@@ -37,6 +37,7 @@ from dags.map_reproducibility.utils.common_utils import (
     parse_internal_config_filename,
     parse_internal_config_content,
     get_patheon_job_link,
+    find_xprof_gcs_path,
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -149,6 +150,24 @@ def sample_job_configure_project_and_cluster(cluster: str, cluster_region: str):
       f"{cluster} --region {cluster_region}",
   )
   return set_project_command
+
+
+def sample_workload_gcs_to_cns_cmds(log_file_in_gcs, output_file=None):
+  # This function only works for glinux or cloudtop because it is using fileutil_bs
+  # If output_file is not provided, use the same name as the input file
+  log_file_in_gcs = log_file_in_gcs.removeprefix("gs://")
+  if not output_file:
+    output_file = os.path.basename(log_file_in_gcs)
+  print(f"output_file name is: {output_file}")
+
+  cmds = (
+      f"LOG_FILE_IN_GCS={log_file_in_gcs} ",
+      f"filename={output_file} ",
+      "CNS_PATH=/cns/pi-d/home/${USER}/tensorboard/multislice ",
+      "/google/data/ro/projects/cloud/bigstore/mpm/fileutil_bs/stable/bin/fileutil_bs cp /bigstore/${LOG_FILE_IN_GCS} ${CNS_PATH}/${filename} ",
+      "echo file to put into xprof: ${CNS_PATH}/${filename}",
+  )
+  return cmds
 
 
 def write_run_results(
@@ -289,8 +308,26 @@ def run_internal_sample_aotc_workload(
       print(f"mfu: {mfu}")
       print(f"step_time: {step_time}")
       comment = "sample benchmarking run"
-      gcs_bucket = get_job_gcs_bucket_folder(job_name)
+      gcs_bucket = get_job_gcs_bucket_folder(
+          job_name, bucket_name=sample_run_bucket_name
+      )
       print(f"GCS bucket is {gcs_bucket}")
+      logs_profile = None
+
+      if hasattr(config, "profiler"):
+        logs_profile = find_xprof_gcs_path(gcs_bucket)
+        if not logs_profile:
+          logger.error(f"No xprof file found in {gcs_bucket}")
+        else:
+          print(f"logs_profile is {logs_profile}")
+          profiler_cmds = sample_workload_gcs_to_cns_cmds(logs_profile)
+          profile_success, profiler_error_message = execute_workload_commands(
+              profiler_cmds, tmpdir
+          )
+          if not profile_success:
+            logger.error(
+                f"Profile command failed with error: {profiler_error_message}"
+            )
 
       write_run(
           model_id=config.HELM_NAME_MODEL_ID,
@@ -309,11 +346,12 @@ def run_internal_sample_aotc_workload(
           mfu=mfu,
           tokens_per_second=1,
           writer_path=bq_writer_repo_root,
-          run_type="internal_perf_regression",
+          run_type="sample_helm_workload",
           topology="",
           comment=comment,
           is_test=True,
-          logs_profile=gcs_bucket,
+          logs_profile=logs_profile,
+          gcs_metrics_bucket=gcs_bucket,
           workload_others=str(config),
           experiment_id=job_name,
       )
