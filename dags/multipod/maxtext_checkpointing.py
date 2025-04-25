@@ -42,6 +42,8 @@ with models.DAG(
 ) as dag:
   base_output_directory = f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_checkpointing"
   dataset_path = gcs_bucket.MAXTEXT_DIR
+  current_time = datetime.datetime.now()
+  current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
@@ -63,10 +65,11 @@ with models.DAG(
       for slice_num in slices:
         for chkpt_mode in ["sync", "async"]:
           async_checkpointing = chkpt_mode == "async"
+          run_name = f" checkpointing-{mode.value}-{slice_num}x-{accelerator}-{chkpt_mode}-{current_datetime}"
           command = (
               "bash end_to_end/test_checkpointing.sh"
-              f" checkpointing-{mode.value}-{slice_num}x-{accelerator}-{chkpt_mode}"
-              f" {base_output_directory} {dataset_path} true tfds autoselected {async_checkpointing}",
+              f" {run_name} {base_output_directory} {dataset_path}"
+              f" true tfds autoselected {async_checkpointing}",
           )
           maxtext_v4_configs_test = gke_config.get_gke_config(
               num_slices=slice_num,
