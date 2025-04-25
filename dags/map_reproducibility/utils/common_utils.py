@@ -39,6 +39,22 @@ BUCKET_NAME = "regression-testing-xlml"
 MAX_TFLOP = {"a3ultra": 989, "a3mega": 989, "a4": 2237}
 
 
+class Config:
+  """
+  A simple configuration class that allows dot notation access
+  to dictionary keys.
+  """
+
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __repr__(self):
+    return repr(self.__dict__)
+
+  def __str__(self):
+    return str(self.__dict__)
+
+
 # This is required to get auth to access
 def git_cookie_authdaemon():
   auth_cmds = (
@@ -401,13 +417,27 @@ def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
   return cmds
 
 
-def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
+def get_profiler_skip_steps(config: Config):
+  """Extract the number of steps to skip for the profiler from config."""
+  base_skip_steps = getattr(config, "dump_hlo", 1)
+  additional_skip_steps = getattr(config, "profiler_steps", 5)
+  return base_skip_steps + additional_skip_steps
+
+
+def calculate_maxtext_metrics(
+    log_location: str, hardware: str = "a3ultra", skip_first=2, skip_last=2
+):
   metrics, _ = metric.read_from_tb(log_location, None, None)
 
   print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
+
+  # Apply skip_first and skip_last when aggregating
   avg_step_time = metric.aggregate_metrics(
-      step_time_metrics, metric_config.AggregationStrategy.AVERAGE
+      step_time_metrics[skip_first:-skip_last]
+      if skip_last > 0
+      else step_time_metrics[skip_first:],
+      metric_config.AggregationStrategy.AVERAGE,
   )
 
   tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
@@ -705,22 +735,6 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   if hypercomputer == "a3mega":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   return cmd
-
-
-class Config:
-  """
-  A simple configuration class that allows dot notation access
-  to dictionary keys.
-  """
-
-  def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)
-
-  def __repr__(self):
-    return repr(self.__dict__)
-
-  def __str__(self):
-    return str(self.__dict__)
 
 
 def parse_internal_config_filename(filename, config=None):

@@ -38,6 +38,7 @@ from dags.map_reproducibility.utils.common_utils import (
     parse_internal_config_content,
     get_patheon_job_link,
     find_xprof_gcs_path,
+    get_profiler_skip_steps,
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -301,12 +302,6 @@ def run_internal_sample_aotc_workload(
       bq_writer_repo_root = get_bq_writer_path(tmpdir)
       log_location = os.path.join(tmpdir, "tflog/metrics")
 
-      mfu, step_time = calculate_maxtext_metrics(
-          log_location, config.HYPERCOMPUTER
-      )
-
-      print(f"mfu: {mfu}")
-      print(f"step_time: {step_time}")
       comment = "sample benchmarking run"
       gcs_bucket = get_job_gcs_bucket_folder(
           job_name, bucket_name=sample_run_bucket_name
@@ -328,6 +323,16 @@ def run_internal_sample_aotc_workload(
             logger.error(
                 f"Profile command failed with error: {profiler_error_message}"
             )
+
+      # calculate mfu based on the config
+      skip_first_n_steps_for_profiler = get_profiler_skip_steps(config)
+      mfu, step_time = calculate_maxtext_metrics(
+          log_location,
+          config.HYPERCOMPUTER,
+          skip_first=skip_first_n_steps_for_profiler,
+      )
+      print(f"mfu: {mfu}")
+      print(f"step_time: {step_time}")
 
       write_run(
           model_id=config.HELM_NAME_MODEL_ID,
