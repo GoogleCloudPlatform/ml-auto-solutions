@@ -58,6 +58,7 @@ with models.DAG(
       num_slices = (
           [2]
           if model == MaxTextTrilliumModelConfigs.LLAMA3_1_405B_8192
+          or model == MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16
           else [1, 2]
       )
       maxtext_sweep_gke_test = (
