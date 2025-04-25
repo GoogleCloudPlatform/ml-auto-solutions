@@ -31,6 +31,7 @@ from xlml.apis import metric_config
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
+from google.cloud import storage
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -138,8 +139,6 @@ def find_xprof_gcs_path(gcs_path):
   Returns:
       str: Path to the .xplane.pb file in the latest date blob
   """
-  from google.cloud import storage
-
   path_without_prefix = gcs_path.removeprefix("gs://")
 
   parts = path_without_prefix.split("/", 1)

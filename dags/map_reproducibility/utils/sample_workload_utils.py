@@ -153,8 +153,9 @@ def sample_job_configure_project_and_cluster(cluster: str, cluster_region: str):
 
 
 def sample_workload_gcs_to_cns_cmds(log_file_in_gcs, output_file=None):
+  # This function only works for glinux or cloudtop because it is using fileutil_bs
   # If output_file is not provided, use the same name as the input file
-  log_file_in_gcs = log_file_in_gcs.replace("gs://", "")
+  log_file_in_gcs = log_file_in_gcs.removeprefix("gs://")
   if not output_file:
     output_file = os.path.basename(log_file_in_gcs)
   print(f"output_file name is: {output_file}")
@@ -315,15 +316,18 @@ def run_internal_sample_aotc_workload(
 
       if hasattr(config, "profiler"):
         logs_profile = find_xprof_gcs_path(gcs_bucket)
-        print(f"logs_profile is {logs_profile}")
-        profiler_cmds = sample_workload_gcs_to_cns_cmds(logs_profile)
-        profile_success, profiler_error_message = execute_workload_commands(
-            profiler_cmds, tmpdir
-        )
-        if not profile_success:
-          logger.error(
-              f"Profile command failed with error: {profiler_error_message}"
+        if not logs_profile:
+          logger.error(f"No xprof file found in {gcs_bucket}")
+        else:
+          print(f"logs_profile is {logs_profile}")
+          profiler_cmds = sample_workload_gcs_to_cns_cmds(logs_profile)
+          profile_success, profiler_error_message = execute_workload_commands(
+              profiler_cmds, tmpdir
           )
+          if not profile_success:
+            logger.error(
+                f"Profile command failed with error: {profiler_error_message}"
+            )
 
       write_run(
           model_id=config.HELM_NAME_MODEL_ID,
