@@ -427,7 +427,7 @@ def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
 def get_skip_steps_for_metrics_calculation(config: Config):
   """Extract the number of steps to skip for the profiler from config."""
   # case 1: profiler not enabled
-  # skip 1 step
+  # skip 2 steps, this is the default skipping since the first 2 steps' metrics are not accurate
   if not hasattr(config, "profiler"):
     return 2
 
