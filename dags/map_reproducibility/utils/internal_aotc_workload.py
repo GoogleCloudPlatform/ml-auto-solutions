@@ -34,7 +34,7 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics, get_profiler_skip_steps
+from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics, get_metrics_skip_steps
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext, get_job_gcs_bucket_folder
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_content
@@ -168,11 +168,11 @@ def run_internal_aotc_workload(
     print(f"GCS bucket is {gcs_bucket}")
 
     # calculate mfu based on the config
-    skip_first_n_steps_for_profiler = get_profiler_skip_steps(config)
+    skip_first_n_steps = get_metrics_skip_steps(config)
     mfu, step_time = calculate_maxtext_metrics(
         log_location,
         config.HYPERCOMPUTER,
-        skip_first=skip_first_n_steps_for_profiler,
+        skip_first=skip_first_n_steps,
     )
     print(f"mfu: {mfu}")
     print(f"step_time: {step_time}")
