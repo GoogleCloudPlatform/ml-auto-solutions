@@ -34,7 +34,7 @@ from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics
+from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics, get_skip_steps_for_metrics_calculation
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext, get_job_gcs_bucket_folder
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_content
@@ -158,12 +158,6 @@ def run_internal_aotc_workload(
 
     log_location = os.path.join(tmpdir, "tflog/metrics")
 
-    mfu, step_time = calculate_maxtext_metrics(
-        log_location, config.HYPERCOMPUTER
-    )
-
-    print(f"mfu: {mfu}")
-    print(f"step_time: {step_time}")
     comment = (
         "internal recipes regression tests"
         if not backfill
@@ -172,6 +166,16 @@ def run_internal_aotc_workload(
     is_db_test_run = False if backfill else test_run
     gcs_bucket = get_job_gcs_bucket_folder(job_name)
     print(f"GCS bucket is {gcs_bucket}")
+
+    # calculate mfu based on the config
+    skip_first_n_steps = get_skip_steps_for_metrics_calculation(config)
+    mfu, step_time = calculate_maxtext_metrics(
+        log_location,
+        config.HYPERCOMPUTER,
+        skip_first=skip_first_n_steps,
+    )
+    print(f"mfu: {mfu}")
+    print(f"step_time: {step_time}")
 
     write_run(
         model_id=config.HELM_NAME_MODEL_ID,

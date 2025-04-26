@@ -23,6 +23,7 @@ import string
 import time
 import subprocess
 import getpass
+import logging
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
@@ -33,10 +34,32 @@ from datetime import datetime, timezone
 from dags import composer_env
 from google.cloud import storage
 
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
 
 MAX_TFLOP = {"a3ultra": 989, "a3mega": 989, "a4": 2237}
+
+
+class Config:
+  """
+  A simple configuration class that allows dot notation access
+  to dictionary keys.
+  """
+
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __repr__(self):
+    return repr(self.__dict__)
+
+  def __str__(self):
+    return str(self.__dict__)
 
 
 # This is required to get auth to access
@@ -401,13 +424,44 @@ def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
   return cmds
 
 
-def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
+def get_skip_steps_for_metrics_calculation(config: Config):
+  """Extract the number of steps to skip for the profiler from config."""
+  # case 1: profiler not enabled
+  # skip 2 steps, this is the default skipping since the first 2 steps' metrics are not accurate
+  if not hasattr(config, "profiler"):
+    return 2
+
+  # case 2: profiler enabled
+  # skip first n steps for profiler
+  base_skip_steps = getattr(config, "skip_first_n_steps_for_profiler", 1)
+
+  # skip profiler steps also
+  additional_skip_steps = getattr(config, "profiler_steps", 5)
+  return base_skip_steps + additional_skip_steps
+
+
+def calculate_maxtext_metrics(
+    log_location: str, hardware: str = "a3ultra", skip_first=2, skip_last=2
+):
+  assert skip_last >= 0, "skip_last must be a non-negative integer"
   metrics, _ = metric.read_from_tb(log_location, None, None)
 
   print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
+
+  # Calculate the sliced metrics based on skip values
+  sliced_metrics = step_time_metrics[skip_first:-skip_last]
+
+  # Check if the resulting metrics list is empty and raise an error if it is
+  if not sliced_metrics:
+    logger.error(
+        f"Empty metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
+    )
+
+  # Apply skip_first and skip_last when aggregating
   avg_step_time = metric.aggregate_metrics(
-      step_time_metrics, metric_config.AggregationStrategy.AVERAGE
+      sliced_metrics,
+      metric_config.AggregationStrategy.AVERAGE,
   )
 
   tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
@@ -705,22 +759,6 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   if hypercomputer == "a3mega":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   return cmd
-
-
-class Config:
-  """
-  A simple configuration class that allows dot notation access
-  to dictionary keys.
-  """
-
-  def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)
-
-  def __repr__(self):
-    return repr(self.__dict__)
-
-  def __str__(self):
-    return str(self.__dict__)
 
 
 def parse_internal_config_filename(filename, config=None):
