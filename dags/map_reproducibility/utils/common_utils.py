@@ -450,11 +450,7 @@ def calculate_maxtext_metrics(
   step_time_metrics = metrics["perf/step_time_seconds"]
 
   # Calculate the sliced metrics based on skip values
-  sliced_metrics = (
-      step_time_metrics[skip_first:-skip_last]
-      if skip_last > 0
-      else step_time_metrics[skip_first:]
-  )
+  sliced_metrics = step_time_metrics[skip_first:-skip_last]
 
   # Check if the resulting metrics list is empty and raise an error if it is
   if not sliced_metrics:
