@@ -38,7 +38,7 @@ from dags.map_reproducibility.utils.common_utils import (
     parse_internal_config_content,
     get_patheon_job_link,
     find_xprof_gcs_path,
-    get_metrics_skip_steps,
+    get_skip_steps_for_metrics_calculation,
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -325,7 +325,7 @@ def run_internal_sample_aotc_workload(
             )
 
       # calculate mfu based on the config
-      skip_first_n_steps = get_metrics_skip_steps(config)
+      skip_first_n_steps = get_skip_steps_for_metrics_calculation(config)
       mfu, step_time = calculate_maxtext_metrics(
           log_location,
           config.HYPERCOMPUTER,
