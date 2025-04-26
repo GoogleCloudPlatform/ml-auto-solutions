@@ -23,6 +23,7 @@ import string
 import time
 import subprocess
 import getpass
+import logging
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
@@ -32,6 +33,12 @@ from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
 from google.cloud import storage
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -421,7 +428,7 @@ def get_skip_steps_for_metrics_calculation(config: Config):
   """Extract the number of steps to skip for the profiler from config."""
   # case 1: profiler not enabled
   # skip 1 step
-  if not hasattr(config, "hlo_dump"):
+  if not hasattr(config, "profiler"):
     return 2
 
   # case 2: profiler enabled
@@ -436,10 +443,24 @@ def get_skip_steps_for_metrics_calculation(config: Config):
 def calculate_maxtext_metrics(
     log_location: str, hardware: str = "a3ultra", skip_first=2, skip_last=2
 ):
+  assert skip_last >= 0, "skip_last must be a non-negative integer"
   metrics, _ = metric.read_from_tb(log_location, None, None)
 
   print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
+
+  # Calculate the sliced metrics based on skip values
+  sliced_metrics = (
+      step_time_metrics[skip_first:-skip_last]
+      if skip_last > 0
+      else step_time_metrics[skip_first:]
+  )
+
+  # Check if the resulting metrics list is empty and raise an error if it is
+  if not sliced_metrics:
+    logger.error(
+        f"Empty metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
+    )
 
   # Apply skip_first and skip_last when aggregating
   avg_step_time = metric.aggregate_metrics(
