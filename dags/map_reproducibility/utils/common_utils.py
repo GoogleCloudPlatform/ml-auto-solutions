@@ -464,9 +464,7 @@ def calculate_maxtext_metrics(
 
   # Apply skip_first and skip_last when aggregating
   avg_step_time = metric.aggregate_metrics(
-      step_time_metrics[skip_first:-skip_last]
-      if skip_last > 0
-      else step_time_metrics[skip_first:],
+      sliced_metrics,
       metric_config.AggregationStrategy.AVERAGE,
   )
 
