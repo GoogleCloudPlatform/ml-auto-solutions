@@ -30,6 +30,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from collections import namedtuple
 from xlml.utils import metric
 from xlml.apis import metric_config
+from dags.map_reproducibility.utils import gcs_automation_utils
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
@@ -1495,12 +1496,23 @@ def run_nemo_workload(
                     tmpdir,
                     two_node=two_node,
                 )
+                + gcs_automation_utils.gcs_automation_cmds(
+                    gcs_results_generator=gcs_results_generator,
+                    run_details=run_details,
+                    logs_bucket=logs_bucket,
+                    gcs_metrics_bucket=gcs_metrics_bucket,
+                    recipe_repo_root=recipe_repo_root,
+                    gcs_automation_repo_root=gcs_automation_repo_root,
+                )
                 + cleanup_cmds()
             ),
         ],
         cwd=tmpdir,
     )
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+    if gcs_results_generator:
+      return
 
     average_step_time, mfu = get_nemo_metrics(tmpdir)
     if two_node:
