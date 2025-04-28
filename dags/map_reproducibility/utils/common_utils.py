@@ -33,6 +33,7 @@ from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
 from google.cloud import storage
+from typing import Optional
 
 
 # Configure logging
@@ -689,13 +690,16 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
   return None  # Return None if no schedule is found for the given combination
 
 
-def get_docker_image(hardware: str, framework: str):
+def get_docker_image(
+    hardware: str, framework: str, model_id: Optional[str] = None
+):
   """
-  Returns the appropriate Docker image based on the given hardware, model, and framework.
+  Returns the appropriate Docker image based on the given hardware,framework and model.
 
   Args:
       hardware: The hardware type (e.g., "a3ultra", "a3mega").
       framework: The framework (e.g., "nemo", "maxtext").
+      model_id: The model_id. Optional.
 
   Returns:
       A Docker image string or None if no image is defined for the given combination.
@@ -703,22 +707,41 @@ def get_docker_image(hardware: str, framework: str):
 
   image_map = {
       "a3ultra": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
+              "llama3-1-405b": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.12-gib1.0.3-A3U",
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark"
+          },
       },
       "a3mega": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega"
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark"
+          },
       },
       "a4": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4",
-          "maxtext": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4"
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317"
+          },
       },
   }
 
   if hardware in image_map:
     if framework in image_map[hardware]:
-      return image_map[hardware][framework]
+      if model_id:
+        if model_id in image_map[hardware][framework]:
+          return image_map[hardware][framework][model_id]
+        else:
+          return None
+      else:
+        return image_map[hardware][framework]["default"]
 
   return None  # Return None if no image is found for the given combination
 
@@ -912,7 +935,7 @@ def run_nemo_workload(
                     hypercomputer,
                     full_config_yaml_path,
                     recipe_repo_root,
-                    get_docker_image(hypercomputer, framework),
+                    get_docker_image(hypercomputer, framework, model_id),
                     cluster_name=cluster,
                     kueue_name=kueue_name,
                     additional_cmds=additional_cmds,
@@ -948,7 +971,7 @@ def run_nemo_workload(
         software_id=get_software_id(framework),
         number_of_nodes=num_gpus / 8,
         number_of_chips=num_gpus,
-        container_image_name=get_image_version(framework),
+        container_image_name=get_image_version(framework, model_id),
         global_batch_size=global_batch_size,
         precision=precision,
         optimizer=optimizer,
@@ -1091,10 +1114,13 @@ def get_software_id(framework: str):
     return None
 
 
-def get_image_version(framework: str):
+def get_image_version(framework: str, model_id: Optional[str] = None):
   if framework == "maxtext":
     return "maxtext_nightly"
   elif framework == "nemo":
-    return "nemo24.07-A3U"
+    if model_id == "llama3-1-405b":
+      return "nemo24.12-A3U"
+    else:
+      return "nemo24.07-A3U"
   else:
     return None
