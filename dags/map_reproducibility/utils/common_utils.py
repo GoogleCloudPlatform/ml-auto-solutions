@@ -27,6 +27,7 @@ import logging
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
+from collections import namedtuple
 from xlml.utils import metric
 from xlml.apis import metric_config
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -878,23 +879,135 @@ def extract_value_from_yaml(tmpdir, yaml_file, key="workload.image"):
     return None
 
 
-def extract_run_details(root, config_path):
-  batch_size = None
-  optimizer = None
+def extract_run_details(
+    root: str,
+    config_path: str,
+    model_id: str,
+    software_id: str,
+    hardware_id: str,
+    storage_id: str = None,
+    workload_manager: str = None,
+    workload_type: str = None,
+    hardware_num_chips: int = None,
+    hardware_num_nodes: int = None,
+    configs_env: str = None,
+    configs_container_version: str = None,
+    benchmark_type: str = None,
+    gcs_metrics_bucket: str = None,
+    source_bucket: str = None,
+    cloud_region: str = None,
+    cluster_name: str = None,
+    gcsfuse_csi_driver: str = None,
+):
+  """Extract the workload setups from the configs file and populate the
+  RunDetails named tuple.
+
+  Args:
+      root: The root path to the recipe repo.
+      config_path: The path to the workload config file.
+      model_id: The ID of the model used in the run (e.g., nemo, maxtext).
+      software_id: The software ID used in the BQ table. Please see the
+      IDs at `ml-workload-benchmarks.benchmark_dataset_v2.software_info`.
+      hardware_id: The hardware ID used in the BQ table. Please see the
+      IDs at `ml-workload-benchmarks.benchmark_dataset_v2.hardware_info`.
+      storage_id: The storage ID used in the BQ table. Please see the
+      IDs at `ml-workload-benchmarks.benchmark_dataset_v2.storage_info`.
+      workload_manager: The workload manager used in the run.
+      workload_type: The type of the workload, (e.g., system, emulated).
+      hardware_num_chips: The number of chips used in the run.
+      hardware_num_nodes: The number of nodes used in the run
+      configs_env: The environment of the workload.
+      configs_container_version: The container image used in the run.
+      benchmark_type: The type of the benchmark (e.g., checkpointing,
+      data_loading).
+      gcs_metrics_bucket: The GCS bucket in which the metrics files are stored.
+      source_bucket: The GCS bucket name where the dataset is pulled from.
+      cloud_region: The compute region the benchmark was run in, i.e. us-west-4.
+      cluster_name: The name of the cluster used for the benchmark run.
+      gcsfuse_csi_driver: The container hash of the gcsfuse csi driver.
+  Returns:
+      A namedtuple which stores the run details.
+  """
+  RunDetails = namedtuple(
+      "RunDetails",
+      [
+          "model_id",
+          "software_id",
+          "hardware_id",
+          "storage_id",
+          "workload_gbs",
+          "workload_mbs",
+          "workload_type",
+          "workload_manager",
+          "workload_precision",
+          "workload_optimizer",
+          "workload_sequence_length",
+          "max_epochs",
+          "max_steps",
+          "checkpointing_async",
+          "checkpointing_interval_every_n_steps",
+          "checkpointing_file_format",
+          "data_loader_num_workers",
+          "hardware_num_chips",
+          "hardware_num_nodes",
+          "configs_env",
+          "configs_container_version",
+          "benchmark_type",
+          "gcs_metrics_bucket",
+          "source_bucket",
+          "cloud_region",
+          "cluster_name",
+          "project_name",
+          "gcsfuse_csi_driver",
+          "result_success",
+      ],
+  )
 
   try:
     config_path = os.path.join(root, config_path)
     with open(config_path, "r", encoding="utf-8") as file:
       config = yaml.safe_load(file)
-      batch_size = config.get("model", {}).get("global_batch_size")
-      optimizer = config.get("model", {}).get("optim", {}).get("name")
-      seq_length = config.get("model", {}).get("data", {}).get("seq_length")
-      max_steps = config.get("trainer", {}).get("max_steps")
+      run_details = RunDetails(
+          model_id=model_id,
+          software_id=software_id,
+          hardware_id=hardware_id,
+          storage_id=storage_id,
+          workload_gbs=config.get("model", {}).get("global_batch_size"),
+          workload_mbs=config.get("model", {}).get("micro_batch_size"),
+          workload_type=workload_type,
+          workload_manager=workload_manager,
+          workload_precision=config.get("trainer", {}).get("precision"),
+          workload_optimizer=config.get(
+              "model", {}).get("optim", {}).get("name"),
+          workload_sequence_length=config.get(
+              "model", {}).get("data", {}).get("seq_length"),
+          max_epochs=config.get("trainer", {}).get("max_epochs"),
+          max_steps=config.get("trainer", {}).get("max_steps"),
+          checkpointing_async=config.get("exp_manager", {}).get(
+              "checkpoint_callback_params", {}).get("async_save", {}),
+          checkpointing_interval_every_n_steps=config.get("exp_manager", {}).get(
+              "checkpoint_callback_params", {}).get("every_n_train_steps", {}),
+          checkpointing_file_format=config.get(
+              "model", {}).get("dist_ckpt_format"),
+          data_loader_num_workers=config.get("model", {}).get(
+              "data", {}).get("num_workers"),
+          hardware_num_chips=hardware_num_chips,
+          hardware_num_nodes=hardware_num_nodes,
+          configs_env=configs_env,
+          configs_container_version=configs_container_version,
+          benchmark_type=benchmark_type,
+          gcs_metrics_bucket=gcs_metrics_bucket,
+          cloud_region=cloud_region,
+          cluster_name=cluster_name,
+          source_bucket=source_bucket,
+          project_name=PROJECT,
+          gcsfuse_csi_driver=gcsfuse_csi_driver,
+          result_success=True,
+      )
+    return run_details
   except (FileNotFoundError, yaml.YAMLError) as e:
     print(f"Error: {e}")
     return None
-
-  return batch_size, optimizer, seq_length, max_steps
 
 
 def get_accelerator_type(hypercomputer: str):
@@ -1201,7 +1314,12 @@ def run_nemo_workload(
     bq_writer_repo_change_refs: str = None,
     gcs_automation_repo_change_refs: str = None,
     logs_bucket: str = None,
+    gcs_source_bucket: str = None,
+    gcs_metrics_bucket: str = None,
     workload_image: str = None,
+    workload_type: str = None,
+    benchmark_type: str = None,
+    gcsfuse_csi_driver: str = None,
 ):
   """
   The DAG task to run and process the results of NeMo workloads.
@@ -1231,7 +1349,14 @@ def run_nemo_workload(
       gcs_automation_repo_change_refs: The change reference of the gcs
       automation repo.
       logs_bucket: The logs bucket.
+      gcs_source_bucket: The GCS bucket name where the dataset is pulled from.
+      gcs_metrics_bucket: The GCS bucket in which the metrics files are stored.
       workload_image: The frameowrk image used by the workload.
+      workload_type: workload_type: The type of the workload,
+      (e.g., system, emulated).
+      benchmark_type: benchmark_type: The type of the benchmark
+      (e.g., checkpointing, data_loading).
+      gcsfuse_csi_driver: The container hash of the gcsfuse csi driver.
   """
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -1287,17 +1412,7 @@ def run_nemo_workload(
       config_yaml_path = f"src/frameworks/{hypercomputer}/{framework}-configs/{model_id}-{num_gpus_file}gpus-{config_hardware}{precision}.yaml"
     full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
 
-    (
-        global_batch_size,
-        optimizer,
-        seq_length,
-        num_steps,
-    ) = extract_run_details(recipe_repo_root, config_yaml_path)
-
     accelerator_type = get_accelerator_type(hypercomputer)
-    print(
-        f"batch size: {global_batch_size}, num gpus: {num_gpus}, seq length: {seq_length}, num steps: {num_steps}"
-    )
 
     additional_cmds = ""
     if two_node == True:
@@ -1309,6 +1424,35 @@ def run_nemo_workload(
       num_gpus = num_gpus_file
 
     cluster, cluster_region = get_cluster(hypercomputer)
+
+    run_details = extract_run_details(
+        root=recipe_repo_root,
+        config_path=config_yaml_path,
+        model_id=model_id,
+        software_id=get_software_id(framework),
+        hardware_id=hypercomputer,
+        storage_id=get_storage_id(storage_product),
+        workload_manager="GKE",
+        workload_type=workload_type,
+        hardware_num_chips=num_gpus,
+        hardware_num_nodes=int(num_gpus / get_chips_per_node(hypercomputer)),
+        configs_env=("prod" if composer_env.is_prod_env() else "dev"),
+        configs_container_version=workload_image,
+        benchmark_type=benchmark_type,
+        gcs_metrics_bucket=gcs_metrics_bucket,
+        source_bucket=gcs_source_bucket,
+        cloud_region=cluster_region,
+        cluster_name=cluster,
+        gcsfuse_csi_driver=gcsfuse_csi_driver,
+    )
+
+    print(
+        f"batch size: {run_details.workload_mbs}, "
+        f"num gpus: {num_gpus}, "
+        f"seq length: {run_details.workload_sequence_length}, "
+        f"max steps: {run_details.max_steps}"
+    )
+
     result = hook.run_command(
         [
             "bash",
@@ -1343,7 +1487,7 @@ def run_nemo_workload(
                     bucket_name=logs_bucket,
                 )
                 + get_nemo_metrics_cmds(
-                    global_batch_size,
+                    run_details.workload_gbs,
                     num_gpus,
                     precision,
                     metrics_model_id,
@@ -1369,13 +1513,13 @@ def run_nemo_workload(
         number_of_nodes=num_gpus / 8,
         number_of_chips=num_gpus,
         container_image_name=get_image_version(framework, model_id),
-        global_batch_size=global_batch_size,
+        global_batch_size=run_details.workload_gbs,
         precision=precision,
-        optimizer=optimizer,
-        seq_length=seq_length,
+        optimizer=run_details.workload_optimizer,
+        seq_length=run_details.workload_sequence_length,
         median_step_time=average_step_time,
         e2e_time=0,
-        number_of_steps=num_steps,
+        number_of_steps=run_details.max_steps,
         mfu=mfu,
         tokens_per_second=1,
         writer_path=bq_writer_repo_root,
@@ -1673,6 +1817,15 @@ def get_software_id(framework: str):
     return None
 
 
+def get_storage_id(storage_product: str):
+  if storage_product == "gcs":
+    return "gcsfuse"
+  elif storage_product == "parallelstore":
+    return "parallelstore"
+  else:
+    return None
+
+
 def get_image_version(framework: str, model_id: Optional[str] = None):
   if framework == "maxtext":
     return "maxtext_nightly"
@@ -1683,3 +1836,11 @@ def get_image_version(framework: str, model_id: Optional[str] = None):
       return "nemo24.07-A3U"
   else:
     return None
+
+
+def get_chips_per_node(hardware_id: str):
+  match hardware_id:
+    case "a3ultra" | "a3mega" | "a4":
+      return 8
+    case _:
+      raise ValueError(f"Warning: {hardware_id} is not supported.")
