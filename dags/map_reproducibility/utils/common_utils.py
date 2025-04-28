@@ -22,19 +22,44 @@ import random
 import string
 import time
 import subprocess
+import getpass
+import logging
 
-from google.cloud import storage
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from xlml.utils import metric
 from xlml.apis import metric_config
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
+from dags import composer_env
+from google.cloud import storage
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
 
 MAX_TFLOP = {"a3ultra": 989, "a3mega": 989, "a4": 2237}
+
+
+class Config:
+  """
+  A simple configuration class that allows dot notation access
+  to dictionary keys.
+  """
+
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __repr__(self):
+    return repr(self.__dict__)
+
+  def __str__(self):
+    return str(self.__dict__)
 
 
 # This is required to get auth to access
@@ -114,12 +139,64 @@ def get_internal_pre_workload_cmds(job_name):
   return prepare_workload_cmds
 
 
-def get_internal_pre_workload_job_name(model_id, framework):
+def get_internal_pre_workload_job_name(
+    model_id, framework, is_sample_run=False
+):
   helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=4))
   now = int(time.time())
   job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
+  if is_sample_run:
+    job_name = f"{getpass.getuser()}-{job_name}"
+  print(f"{'*' * 20}NAME: {job_name}")
   return job_name
+
+
+def find_xprof_gcs_path(gcs_path):
+  """
+  Find the .xplane.pb file in the latest date blob from the specified GCS path.
+
+  Args:
+      gcs_path (str): Full GCS path in the format gs://bucket-name/folder/path/
+
+  Returns:
+      str: Path to the .xplane.pb file in the latest date blob
+  """
+  path_without_prefix = gcs_path.removeprefix("gs://")
+
+  parts = path_without_prefix.split("/", 1)
+  bucket_name = parts[0]
+  print(f"Bucket name: {bucket_name}")
+
+  prefix = parts[1] if len(parts) > 1 else ""
+
+  storage_client = storage.Client()
+  bucket = storage_client.get_bucket(bucket_name)
+
+  # List all blobs in the bucket with the given prefix
+  print(f"Prefix: {prefix}")
+  blobs = list(bucket.list_blobs(prefix=prefix))
+
+  # Look for .xplane.pb file in the latest directory
+  xplane_pb_file = None
+  for blob in blobs:
+    if blob.name.endswith(".xplane.pb"):
+      xplane_pb_file = blob.name
+      break
+
+  if not xplane_pb_file:
+    print(f"No .xplane.pb file found in {gcs_path}")
+    return None
+
+  full_xplane_pb_file = f"gs://{bucket_name}/{xplane_pb_file}"
+  print(f"Found .xplane.pb file: {full_xplane_pb_file}")
+  return full_xplane_pb_file
+
+
+def get_patheon_job_link(region, cluster_name, job_name):
+  pantheon_link = f"https://pantheon.corp.google.com/kubernetes/job/{region}/{cluster_name}/default/{job_name}"
+  print(f"{'*' * 20}LINK: {pantheon_link}")
+  return pantheon_link
 
 
 def install_helm_cmds():
@@ -206,16 +283,17 @@ def helm_apply_cmds_internal_run(
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
     test_run=False,
+    bucket_name=BUCKET_NAME,
 ):
   gcs_cmd = ""
   if framework == "maxtext":
-    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={BUCKET_NAME} "
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={bucket_name} "
 
   if hypercomputer == "a3ultra":
     if framework != "maxtext":
       gcs_cmd += f" --set queue={kueue_name} "
   else:
-    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={BUCKET_NAME} "
+    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={bucket_name} "
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
@@ -229,8 +307,9 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  if test_run:
-    helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
+  local_helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
+  if test_run and os.path.exists(local_helm_template_path):
+    helm_template_path = local_helm_template_path
   else:
     helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
 
@@ -277,7 +356,7 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
   return wait_for_job
 
 
-def get_job_gcs_bucket_folder(job_name):
+def get_job_gcs_bucket_folder(job_name, bucket_name=BUCKET_NAME):
   """
   Get the GCS bucket folder for a specific job.
 
@@ -288,14 +367,20 @@ def get_job_gcs_bucket_folder(job_name):
   Returns:
       str: The full path to the bucket folder containing the job
   """
-  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
+  gcs_location = f"gs://{bucket_name}/maxtext/"
   bucket_folder_cmd = f"gcloud storage ls {gcs_location} | grep {job_name}"
+  print(f"bucket_folder_cmd: {bucket_folder_cmd}")
 
   try:
     bucket_folder = (
         subprocess.check_output(bucket_folder_cmd, shell=True).decode().strip()
     )
-    print(f"BUCKET_FOLDER: {bucket_folder}")
+    bucket_folder_prefix_removed = bucket_folder.removeprefix("gs://")
+    pantheon_bucket_link = (
+        "https://pantheon.corp.google.com/storage/browser/"
+        + bucket_folder_prefix_removed
+    )
+    print(f"BUCKET PANTHEON LINK: {pantheon_bucket_link}")
     return bucket_folder
   except subprocess.CalledProcessError as e:
     print(f"Error finding bucket folder: {e}")
@@ -320,8 +405,8 @@ def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
   return copy_bucket_contents
 
 
-def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
-  gcs_location = f"gs://{BUCKET_NAME}/maxtext/"
+def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
+  gcs_location = f"gs://{bucket_name}/maxtext/"
 
   cmds = (
       f"METRICS_FILE={tmpdir}/tflog/metrics",
@@ -339,13 +424,44 @@ def copy_bucket_cmds_maxtext(tmpdir, recipe_repo_root):
   return cmds
 
 
-def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
+def get_skip_steps_for_metrics_calculation(config: Config):
+  """Extract the number of steps to skip for the profiler from config."""
+  # case 1: profiler not enabled
+  # skip 2 steps, this is the default skipping since the first 2 steps' metrics are not accurate
+  if not hasattr(config, "profiler"):
+    return 2
+
+  # case 2: profiler enabled
+  # skip first n steps for profiler
+  base_skip_steps = getattr(config, "skip_first_n_steps_for_profiler", 1)
+
+  # skip profiler steps also
+  additional_skip_steps = getattr(config, "profiler_steps", 5)
+  return base_skip_steps + additional_skip_steps
+
+
+def calculate_maxtext_metrics(
+    log_location: str, hardware: str = "a3ultra", skip_first=2, skip_last=2
+):
+  assert skip_last >= 0, "skip_last must be a non-negative integer"
   metrics, _ = metric.read_from_tb(log_location, None, None)
 
   print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
+
+  # Calculate the sliced metrics based on skip values
+  sliced_metrics = step_time_metrics[skip_first:-skip_last]
+
+  # Check if the resulting metrics list is empty and raise an error if it is
+  if not sliced_metrics:
+    logger.error(
+        f"Empty metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
+    )
+
+  # Apply skip_first and skip_last when aggregating
   avg_step_time = metric.aggregate_metrics(
-      step_time_metrics, metric_config.AggregationStrategy.AVERAGE
+      sliced_metrics,
+      metric_config.AggregationStrategy.AVERAGE,
   )
 
   tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
@@ -387,11 +503,25 @@ def get_nemo_metrics_cmds(
 
 def cleanup_cmds():
   cleanup = (
-      "helm uninstall $JOB_NAME -n default",
-      "kubectl get pods "
-      "--no-headers=true | awk '{print $1}' "
-      "| grep $JOB_NAME | xargs kubectl delete pods",
-      'echo "pods cleaned up"',
+      # Attempt Helm uninstall first, continue even if it fails
+      "helm uninstall $JOB_NAME -n default --wait || true ",
+      # Give Helm resources time to fully clean up
+      "echo 'Waiting 60 seconds for helm uninstall... '",
+      "sleep 60 ",
+      "echo 'Attempting regular job and pod deletion... '",
+      # Track if job exists and attempt standard deletion if it does
+      "JOB_EXISTS=false",
+      "if kubectl get job $JOB_NAME &>/dev/null; then JOB_EXISTS=true; kubectl delete job/$JOB_NAME --grace-period=30; else echo 'Job not found, skipping regular deletion'; fi ",
+      # Track if pods exist and attempt standard deletion if they do
+      "PODS_EXIST=false",
+      "if kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'No pods found, skipping deletion'; else PODS_EXIST=true; kubectl delete pods -l job-name=$JOB_NAME --grace-period=30; fi ",
+      # Only wait if there were resources to delete
+      "[ \"$JOB_EXISTS\" = true ] || [ \"$PODS_EXIST\" = true ] && { echo 'Waiting 30 seconds for kubectl graceful termination... '; sleep 30; } || echo 'No resources found, skipping wait period' ",
+      # Attempt force deletion of job if it still exists now
+      "if kubectl get job $JOB_NAME &>/dev/null; then echo 'Job still exists, using force deletion...'; kubectl delete job $JOB_NAME --force --grace-period=0; else echo 'No job to force delete'; fi ",
+      # Attempt force deletion of pods if they existed before and still exist now
+      "if ! kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'Pods still exist, using force deletion...'; kubectl delete pods -l job-name=$JOB_NAME --force --grace-period=0; else echo 'No pods to force delete'; fi ",
+      "echo 'Cleanup completed'",
   )
   return cleanup
 
@@ -442,7 +572,6 @@ def extract_run_details(root, config_path):
     with open(config_path, "r", encoding="utf-8") as file:
       config = yaml.safe_load(file)
       batch_size = config.get("model", {}).get("global_batch_size")
-      precision = config.get("trainer", {}).get("precision")
       optimizer = config.get("model", {}).get("optim", {}).get("name")
       seq_length = config.get("model", {}).get("data", {}).get("seq_length")
       max_steps = config.get("trainer", {}).get("max_steps")
@@ -450,7 +579,7 @@ def extract_run_details(root, config_path):
     print(f"Error: {e}")
     return None
 
-  return batch_size, optimizer, precision, seq_length, max_steps
+  return batch_size, optimizer, seq_length, max_steps
 
 
 def get_accelerator_type(hypercomputer: str):
@@ -632,22 +761,6 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   return cmd
 
 
-class Config:
-  """
-  A simple configuration class that allows dot notation access
-  to dictionary keys.
-  """
-
-  def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)
-
-  def __repr__(self):
-    return repr(self.__dict__)
-
-  def __str__(self):
-    return str(self.__dict__)
-
-
 def parse_internal_config_filename(filename, config=None):
   """
   Parse configuration values embedded in the filename.
@@ -763,14 +876,13 @@ def run_nemo_workload(
     (
         global_batch_size,
         optimizer,
-        precision,
         seq_length,
         num_steps,
     ) = extract_run_details(recipe_repo_root, config_yaml_path)
 
     accelerator_type = get_accelerator_type(hypercomputer)
     print(
-        f"batch size: {global_batch_size}, num gpus: {num_gpus},  precision: {precision}, seq length: {seq_length}, num steps: {num_steps}"
+        f"batch size: {global_batch_size}, num gpus: {num_gpus}, seq length: {seq_length}, num steps: {num_steps}"
     )
 
     additional_cmds = ""
@@ -827,6 +939,8 @@ def run_nemo_workload(
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
     average_step_time, mfu = get_nemo_metrics(tmpdir)
+    if two_node:
+      num_gpus = 16
 
     write_run(
         model_id=model_id,
@@ -847,7 +961,7 @@ def run_nemo_workload(
         writer_path=bq_writer_repo_root,
         topology="2X2",
         comment="Regression tests",
-        is_test=False,
+        is_test=(False if composer_env.is_prod_env() else True),
     )
 
 
@@ -964,7 +1078,7 @@ def run_maxtext_workload(
         writer_path=bq_writer_repo_root,
         topology="",
         comment="Regression tests",
-        is_test=False,
+        is_test=(False if composer_env.is_prod_env() else True),
     )
 
 

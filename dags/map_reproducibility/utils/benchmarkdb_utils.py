@@ -50,6 +50,7 @@ def write_run(
     comment: str = "",
     is_test: bool = False,
     logs_profile="",
+    gcs_metrics_bucket="",
     workload_others="",
     experiment_id="",
 ):
@@ -255,6 +256,7 @@ def write_run(
         hardware_num_superblocks=num_of_superblock,
         logs_comments=comment,
         logs_profile=logs_profile,
+        gcs_metrics_bucket=gcs_metrics_bucket,
         workload_others=workload_others,
         experiment_id=experiment_id,
     )
