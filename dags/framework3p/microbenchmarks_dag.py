@@ -45,17 +45,6 @@ with models.DAG(
       subnetwork=vm_resource.V5P_SUBNETWORKS,
   )
 
-  microbenchmarks_v5p_128 = get_microbenchmark_config(
-      tpu_version=vm_resource.TpuVersion.V5P,
-      tpu_cores=128,
-      tpu_zone=vm_resource.Zone.US_EAST5_A,
-      time_out_in_min=60,
-      runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5,
-      project=vm_resource.Project.TPU_PROD_ENV_AUTOMATED,
-      network=vm_resource.V5_NETWORKS,
-      subnetwork=vm_resource.V5P_SUBNETWORKS,
-  )
-
   microbenchmarks_v5p_256 = get_microbenchmark_config(
       tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=256,
@@ -92,7 +81,7 @@ with models.DAG(
   microbenchmarks_v5e_256 = get_microbenchmark_xpk_config(
       time_out_in_min=60,
       test_name="framework-microbenchmark-v5e-256",
-      docker_image=vm_resource.DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX.value,
+      docker_image=vm_resource.DockerImage.MICROBENCH_NIGHTLY.value,
       test_owner=test_owner.QINY_Y,
       cluster=vm_resource.XpkClusters.TPU_V5E_256_CLUSTER,
   ).run()
@@ -100,7 +89,7 @@ with models.DAG(
   microbenchmarks_v6e_256 = get_microbenchmark_xpk_config(
       time_out_in_min=60,
       test_name="framework-microbenchmark-v6e-256",
-      docker_image=vm_resource.DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX.value,
+      docker_image=vm_resource.DockerImage.MICROBENCH_NIGHTLY.value,
       test_owner=test_owner.QINY_Y,
       cluster=vm_resource.XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
   ).run()
