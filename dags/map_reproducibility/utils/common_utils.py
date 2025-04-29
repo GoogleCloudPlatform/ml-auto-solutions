@@ -608,7 +608,7 @@ def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3ultra":
     return "gke-a3ultra-bm-map-3", "europe-west1"
   if hardware == "a4":
-    return "gke-a4-map", "us-central1"
+    return "gke-a4-shared", "us-central1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
@@ -1042,9 +1042,7 @@ def run_maxtext_workload(
                     num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds_maxtext(
-                    tmpdir, recipe_repo_root=recipe_repo_root
-                )
+                + copy_bucket_cmds_maxtext(tmpdir)
                 + cleanup_cmds()
             ),
         ],
