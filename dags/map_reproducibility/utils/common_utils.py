@@ -1042,9 +1042,7 @@ def run_maxtext_workload(
                     num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds_maxtext(
-                    tmpdir, recipe_repo_root=recipe_repo_root
-                )
+                + copy_bucket_cmds_maxtext(tmpdir)
                 + cleanup_cmds()
             ),
         ],
