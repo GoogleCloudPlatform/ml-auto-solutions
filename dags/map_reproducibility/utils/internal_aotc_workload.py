@@ -75,7 +75,7 @@ def run_internal_aotc_workload(
             ";".join(
                 git_cookie_authdaemon()
                 + clone_recipes_gob()
-                + (() if test_run else clone_internal_recipes_gob())
+                + clone_internal_recipes_gob()
                 + get_bq_writer_repo()
             ),
         ],
@@ -86,11 +86,7 @@ def run_internal_aotc_workload(
     bq_writer_repo_root = get_bq_writer_path(tmpdir)
 
     # Update paths now that we have the repo paths
-    internal_recipe_repo_root = (
-        "/home/airflow/gcs/dags/dags/map_reproducibility"
-    )
-    if not test_run:
-      internal_recipe_repo_root = get_internal_recipe_repo_path(tmpdir)
+    internal_recipe_repo_root = get_internal_recipe_repo_path(tmpdir)
     values_file_path = f"{internal_recipe_repo_root}/values/{values_name}.yaml"
     model_specific_values_file_path = (
         f"{internal_recipe_repo_root}/values/{config_yaml_name}_values.yaml"

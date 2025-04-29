@@ -25,7 +25,7 @@ from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_a
 
 
 # Configuration parameters
-TEST_RUN = False
+TEST_RUN = False if composer_env.is_prod_env() else True
 TURN_ON_SCHEDULE = True if composer_env.is_prod_env() else False
 BACKFILL = False
 
