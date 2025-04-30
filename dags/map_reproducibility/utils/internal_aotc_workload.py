@@ -141,7 +141,6 @@ def run_internal_aotc_workload(
                     cluster_name=cluster,
                     kueue_name=KUEUE_NAME,
                     additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
-                    test_run=test_run,
                 )
                 + internal_wait_for_jobs_cmds(timeout=container_timeout)
                 + copy_bucket_cmds_maxtext(tmpdir)

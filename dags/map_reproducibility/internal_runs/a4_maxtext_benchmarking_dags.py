@@ -33,7 +33,6 @@ BACKFILL = False
 utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
 NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
 RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:{utc_date}"
-NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:2025-04-17"
 
 # Common DAG tags
 DAG_TAGS = [
