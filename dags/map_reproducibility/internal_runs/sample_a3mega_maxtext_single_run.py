@@ -31,6 +31,26 @@ from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_MEGA
 from dags.map_reproducibility.utils.sample_workload_utils import run_internal_sample_aotc_workload
 
 
+# Skip execution when being run as part of the DAG check
+# Checking if the file doesn't exist is a reliable way to detect this context
+base_recipe_repo_root = os.path.abspath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "..",
+        "..",
+        "..",
+        "internal-gpu-recipes",
+    )
+)
+
+if not os.path.exists(base_recipe_repo_root):
+  print(
+      f"Skipping sample_a3ultra_maxtext_single_run.py - required directory not found: {base_recipe_repo_root}"
+  )
+  sys.exit(0)
+
+
 def main():
   utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
   NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
