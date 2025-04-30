@@ -16,25 +16,6 @@
 import sys
 import os
 
-# Skip execution when being run as part of the DAG check
-# Checking if the file doesn't exist is a reliable way to detect this context
-base_recipe_repo_root = os.path.abspath(
-    os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..",
-        "..",
-        "..",
-        "..",
-        "internal-gpu-recipes",
-    )
-)
-
-if not os.path.exists(base_recipe_repo_root):
-  print(
-      f"Skipping sample_a3ultra_maxtext_single_run.py - required directory not found: {base_recipe_repo_root}"
-  )
-  sys.exit(0)
-
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))
 
