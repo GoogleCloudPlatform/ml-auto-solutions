@@ -282,7 +282,6 @@ def helm_apply_cmds_internal_run(
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
-    test_run=False,
     bucket_name=BUCKET_NAME,
 ):
   gcs_cmd = ""
@@ -307,11 +306,9 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  local_helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
-  if test_run and os.path.exists(local_helm_template_path):
-    helm_template_path = local_helm_template_path
-  else:
-    helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  helm_template_path = (
+      f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  )
 
   print(f"helm_template_path is {helm_template_path}")
 

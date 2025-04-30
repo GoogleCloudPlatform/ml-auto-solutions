@@ -20,7 +20,7 @@ import os
 from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.utils.constants import Image
-from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_MEGA
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_A4
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
@@ -33,25 +33,24 @@ utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
 NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
 RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:{utc_date}"
 
-# Define common tags
+# Common DAG tags
 DAG_TAGS = [
     "reproducibility",
     "experimental",
     "xlml",
-    "v1.13",
+    "v1.0",
     "internal",
     "regressiontests",
-    "a3mega",
+    "a4",
 ]
 
+
 # Create DAGs for each configuration
-for config_path, config_info in DAG_CONFIGS_MEGA.items():
+for config_path, config_info in DAG_CONFIGS_A4.items():
   # Extract config name for the DAG ID
   config_name = os.path.basename(config_path).replace(".yaml", "")
-  nightly_schedule = config_info["nightly_schedule"] if not TEST_RUN else None
-  release_schedule = config_info["release_schedule"] if not TEST_RUN else None
+  schedule = config_info["schedule"] if not TEST_RUN else None
   timeout = config_info["timeout_minutes"]
-
   # Set retry parameter based on timeout
   retries = 1 if timeout <= 15 else 2
   retry_delay = datetime.timedelta(minutes=1)
@@ -65,9 +64,9 @@ for config_path, config_info in DAG_CONFIGS_MEGA.items():
   with models.DAG(
       dag_id=f"new_internal_{config_name}",
       default_args=dag_default_args,
-      schedule=nightly_schedule,
+      schedule=schedule,
       tags=DAG_TAGS,
-      start_date=datetime.datetime(2025, 4, 3),
+      start_date=datetime.datetime(2025, 4, 28),
       catchup=False,
   ) as dag:
     run_internal_aotc_workload(
@@ -82,9 +81,9 @@ for config_path, config_info in DAG_CONFIGS_MEGA.items():
   with models.DAG(
       dag_id=f"new_internal_stable_release_{config_name}",
       default_args=dag_default_args,
-      schedule=release_schedule,
+      schedule=schedule,
       tags=DAG_TAGS,
-      start_date=datetime.datetime(2025, 4, 7),
+      start_date=datetime.datetime(2025, 4, 28),
       catchup=False,
   ) as dag:
     run_internal_aotc_workload(

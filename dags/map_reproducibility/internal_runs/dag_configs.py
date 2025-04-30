@@ -149,3 +149,67 @@ DAG_CONFIGS_ULTRA = {
         "schedule": Schedule.WEEKDAY_PDT_2AM_EXCEPT_THURSDAY,
     },
 }
+
+
+DAG_CONFIGS_A4 = {
+    "recipes/a4/a4_llama3.1-8b_8gpus_bf16_maxtext.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_llama3.1-8b_8gpus_fp8_maxtext.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_llama3.1-8b_16gpus_bf16_maxtext.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_llama3.1-8b_16gpus_fp8_maxtext.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_mixtral-8x7b_8gpus_bf16_maxtext.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_mixtral-8x7b_16gpus_bf16_maxtext.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_llama3.1-70b_256gpus_bf16_maxtext.yaml": {
+        "timeout_minutes": 20,
+        "backfill_group_nightly": 2,
+        "backfill_group_release": 2,
+        "schedule": Schedule.WEEKDAY_PDT_12_30AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_llama3.1-70b_256gpus_fp8_maxtext.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 3,
+        "backfill_group_release": 3,
+        "schedule": Schedule.WEEKDAY_PDT_1AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_llama3.1-405b_256gpus_fp8_maxtext.yaml": {
+        "timeout_minutes": 30,
+        "backfill_group_nightly": 4,
+        "backfill_group_release": 4,
+        "schedule": Schedule.WEEKDAY_PDT_1_30AM_EXCEPT_THURSDAY,
+    },
+    "recipes/a4/a4_llama3.1-405b_256gpus_bf16_maxtext.yaml": {
+        "timeout_minutes": 40,
+        "backfill_group_nightly": 5,
+        "backfill_group_release": 5,
+        "schedule": Schedule.WEEKDAY_PDT_2AM_EXCEPT_THURSDAY,
+    },
+}

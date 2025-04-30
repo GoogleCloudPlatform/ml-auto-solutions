@@ -286,7 +286,6 @@ def run_internal_sample_aotc_workload(
             cluster_name=cluster,
             kueue_name=KUEUE_NAME,
             additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
-            test_run=True,
             bucket_name=sample_run_bucket_name,
         )
         + internal_wait_for_jobs_cmds(timeout=container_timeout)
