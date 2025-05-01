@@ -146,7 +146,7 @@ def run_maxtext_tests(dag: models.DAG):
           1,
       ),
       "train-flash": (
-          f"{train_base} run_name=runner-{timestamp}-2 attention=cudnn_flash_te",
+          f"{train_base} run_name=runner-{timestamp}-2 attention=cudnn_flash_te packing=false",
           1,
       ),
       "train-quarter-batch-size": (
