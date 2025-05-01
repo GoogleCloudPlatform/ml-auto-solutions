@@ -16,16 +16,28 @@
 
 
 import datetime
+import os
 from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
 from dags.common.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
 from dags.sparsity_diffusion_devx.configs import gke_config as config
+from xlml.apis import metric_config
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+
+BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
+
+
+def get_tensorboard_file_regex(output_dir, run_name):
+  # Tensorboard file location for maxdiffusion is defined here:
+  # https://github.com/AI-Hypercomputer/maxdiffusion/blob/7284ca0351aaba9bd7e24bf239b79b40bb86b34a/src/maxdiffusion/pyconfig.py#L123
+  return os.path.join(
+      output_dir, run_name, "tensorboard", "events.out.tfevents.*"
+  )
 
 
 with models.DAG(
@@ -42,8 +54,8 @@ with models.DAG(
 ) as dag:
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
-      "v6e-256": [1, 2],
-      "v4-8": [1, 2],
+      #"v6e-256": [1, 2],
+      "v4-8": [1],
   }
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
@@ -53,6 +65,15 @@ with models.DAG(
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
     cluster = config.clusters[accelerator]
     for slice_num in slices:
+      run_name = f"{slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime}"
+      output_dir = f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxdiffusion_sdxl/{current_datetime}"
+      tensorboard_summary_config = metric_config.SummaryConfig(
+          file_location=get_tensorboard_file_regex(output_dir, run_name),
+          aggregation_strategy=metric_config.AggregationStrategy.MEDIAN,
+          use_regex_file_location=True,
+      )
+      print("tensorboard_summary1: ", tensorboard_summary_config)
+
       maxdiffusion_sdxl_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
@@ -64,13 +85,22 @@ with models.DAG(
               f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
               f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
               f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash run_name=sdxl-fsdp-v5p-64-ddp enable_profiler=True "
-              f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
-              f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/maxdiffusion_sdxl/{current_datetime}",
+              f"run_name={run_name} "
+              f"output_dir={output_dir}",
           ),
           test_name=f"maxd-sdxl-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
+          tensorboard_summary_config=tensorboard_summary_config,
       ).run_with_quarantine(quarantine_task_group)
+
+      output_dir = f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdxl-nan/{current_datetime}"
+      tensorboard_summary_config = metric_config.SummaryConfig(
+          file_location=get_tensorboard_file_regex(output_dir, run_name),
+          aggregation_strategy=metric_config.AggregationStrategy.MEDIAN,
+          use_regex_file_location=True,
+      )
+      print("tensorboard_summary_config2: ", tensorboard_summary_config)
       maxdiffusion_sdxl_nan_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
@@ -78,13 +108,14 @@ with models.DAG(
           run_model_cmds=(
               f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               f"pip install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
-              f"OUTPUT_DIR={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion/automated/maxd-sdxl-nan/{current_datetime} "
-              f"RUN_NAME={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+              f"OUTPUT_DIR={output_dir} "
+              f"RUN_NAME={run_name} "
               f"STEPS=20 "
               f"LOSS_THRESHOLD=100",
           ),
           test_name=f"maxd-sdxl-nan-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
+          tensorboard_summary_config=tensorboard_summary_config,
       ).run_with_quarantine(quarantine_task_group)
       maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test
