@@ -498,8 +498,17 @@ def get_nemo_metrics_cmds(
   return cmds
 
 
+def cleanup_all_runs_cmds(cluster, cluster_region, prefix="cml-"):
+  cleanup_cmds = (
+      f"echo 'Getting credentials for cluster {cluster}...' && gcloud container clusters get-credentials {cluster} --region {cluster_region} --project {PROJECT} ",
+      f"echo 'Uninstalling jobs with prefix {prefix}...' && JOBS=$(kubectl get job -n default | grep \"^{prefix}\" | awk '{{print $1}}') && if [ -n \"$JOBS\" ]; then echo \"$JOBS\" | xargs -L1 helm uninstall -n default; else echo 'No matching jobs found'; fi",
+  )
+  return cleanup_cmds
+
+
 def cleanup_cmds():
   cleanup = (
+      "kubectl config set-context --current --namespace=default ",
       # Attempt Helm uninstall first, continue even if it fails
       "helm uninstall $JOB_NAME -n default --wait || true ",
       # Give Helm resources time to fully clean up
