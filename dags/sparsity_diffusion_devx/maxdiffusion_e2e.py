@@ -47,8 +47,8 @@ with models.DAG(
 ) as dag:
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
-      #"v6e-256": [1, 2],
-      "v4-8": [1],
+      "v6e-256": [1, 2],
+      "v4-8": [1, 2],
   }
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
