@@ -32,7 +32,6 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
 
 
-
 with models.DAG(
     dag_id="maxdiffusion_e2e",
     schedule=SCHEDULED_TIME,
@@ -62,7 +61,9 @@ with models.DAG(
       #
       # Also note that the accelerator type, core counts, and slice num will be automatically
       # added by the name gen.
-      base_output_dir = f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxdiffusion_sdxl"
+      base_output_dir = (
+          f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxdiffusion_sdxl"
+      )
       run_name_prefix = f"maxd-sdxl-jax-stable-stack"
       tensorboard_summary_config = metric_config.SummaryConfig(
           file_location=base_output_dir,
@@ -87,9 +88,15 @@ with models.DAG(
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
           tensorboard_summary_config=tensorboard_summary_config,
-      ).run_with_name_gen_and_quarantine(quarantine_task_group, run_name_env="JOBSET_NAME", nested_run_name_in_tb_file_location=False)
+      ).run_with_name_gen_and_quarantine(
+          quarantine_task_group,
+          run_name_env="JOBSET_NAME",
+          nested_run_name_in_tb_file_location=False,
+      )
 
-      base_output_dir = f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdxl-nan"
+      base_output_dir = (
+          f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdxl-nan"
+      )
       run_name_prefix = f"maxd-sdxl-nan-jax-stable-stack"
       tensorboard_summary_config = metric_config.SummaryConfig(
           file_location=base_output_dir,
@@ -112,5 +119,9 @@ with models.DAG(
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
           tensorboard_summary_config=tensorboard_summary_config,
-      ).run_with_name_gen_and_quarantine(quarantine_task_group, run_name_env="JOBSET_NAME", nested_run_name_in_tb_file_location=False)
+      ).run_with_name_gen_and_quarantine(
+          quarantine_task_group,
+          run_name_env="JOBSET_NAME",
+          nested_run_name_in_tb_file_location=False,
+      )
       maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test

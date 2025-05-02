@@ -33,7 +33,9 @@ def generate_run_name(benchmark_id: str) -> str:
 
 
 @task
-def generate_tb_file_location(run_name: str, base_output_directory: str, nested_run_name_dir: bool = True) -> str:
+def generate_tb_file_location(
+    run_name: str, base_output_directory: str, nested_run_name_dir: bool = True
+) -> str:
   """Generates a path to the tensorboard file to be used as a regex. Assumes
   the file is located in:
   <base_output_directory>/<run_name>/tensorboard/events.out.tfevents.*
