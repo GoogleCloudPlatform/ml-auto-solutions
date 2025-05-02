@@ -79,7 +79,8 @@ with models.DAG(
               f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
               f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
               f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
-              f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash run_name=sdxl-fsdp-v5p-64-ddp enable_profiler=True "
+              f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
+              f"run_name='' "
               f"output_dir={base_output_dir}",
           ),
           test_name=run_name_prefix,
@@ -103,6 +104,7 @@ with models.DAG(
               f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               f"pip install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
               f"OUTPUT_DIR={base_output_dir} "
+              f"RUN_NAME='' "
               f"STEPS=20 "
               f"LOSS_THRESHOLD=100",
           ),
