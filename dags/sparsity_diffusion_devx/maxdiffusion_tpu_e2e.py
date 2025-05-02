@@ -33,7 +33,7 @@ BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
 
 
 with models.DAG(
-    dag_id="maxdiffusion_e2e",
+    dag_id="maxdiffusion_tpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
         "sparsity_diffusion_devx",
