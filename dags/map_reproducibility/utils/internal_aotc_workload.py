@@ -24,7 +24,7 @@ from dags.map_reproducibility.utils.common_utils import configure_project_and_cl
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import internal_wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import cleanup_cmds
+from dags.map_reproducibility.utils.common_utils import cleanup_cmds, cleanup_all_runs_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob, clone_internal_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds_internal_run
@@ -208,3 +208,18 @@ def run_internal_aotc_workload(
         workload_others=str(config),
         experiment_id=job_name,
     )
+
+
+@task
+def cleanup_cml_workloads(cluster, cluster_region):
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(cleanup_all_runs_cmds(cluster, cluster_region)),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
