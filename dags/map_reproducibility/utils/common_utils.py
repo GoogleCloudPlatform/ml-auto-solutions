@@ -141,12 +141,12 @@ def get_internal_pre_workload_cmds(job_name):
 
 
 def get_internal_pre_workload_job_name(
-    model_id, framework, is_sample_run=False
+    model_id, precision, num_gpus, framework, cluster, is_sample_run=False
 ):
   helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=4))
   now = int(time.time())
-  job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
+  job_name = f"cml-{helm_model_id}-{precision}-{num_gpus}-{cluster[:3]}-{framework[:1]}-{now}-{random_id}"
   if is_sample_run:
     job_name = f"{getpass.getuser()}-{job_name}"
   print(f"{'*' * 20}NAME: {job_name}")
@@ -283,7 +283,6 @@ def helm_apply_cmds_internal_run(
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
-    test_run=False,
     bucket_name=BUCKET_NAME,
 ):
   gcs_cmd = ""
@@ -308,11 +307,9 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  local_helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
-  if test_run and os.path.exists(local_helm_template_path):
-    helm_template_path = local_helm_template_path
-  else:
-    helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  helm_template_path = (
+      f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  )
 
   print(f"helm_template_path is {helm_template_path}")
 
@@ -502,8 +499,17 @@ def get_nemo_metrics_cmds(
   return cmds
 
 
+def cleanup_all_runs_cmds(cluster, cluster_region, prefix="cml-"):
+  cleanup_cmds = (
+      f"echo 'Getting credentials for cluster {cluster}...' && gcloud container clusters get-credentials {cluster} --region {cluster_region} --project {PROJECT} ",
+      f"echo 'Uninstalling jobs with prefix {prefix}...' && JOBS=$(kubectl get job -n default | grep \"^{prefix}\" | awk '{{print $1}}') && if [ -n \"$JOBS\" ]; then echo \"$JOBS\" | xargs -L1 helm uninstall -n default; else echo 'No matching jobs found'; fi",
+  )
+  return cleanup_cmds
+
+
 def cleanup_cmds():
   cleanup = (
+      "kubectl config set-context --current --namespace=default ",
       # Attempt Helm uninstall first, continue even if it fails
       "helm uninstall $JOB_NAME -n default --wait || true ",
       # Give Helm resources time to fully clean up
@@ -609,7 +615,7 @@ def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3ultra":
     return "gke-a3ultra-bm-map-3", "europe-west1"
   if hardware == "a4":
-    return "gke-a4-map", "us-central1"
+    return "gke-a4-shared", "us-central1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
@@ -1065,9 +1071,7 @@ def run_maxtext_workload(
                     num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds_maxtext(
-                    tmpdir, recipe_repo_root=recipe_repo_root
-                )
+                + copy_bucket_cmds_maxtext(tmpdir)
                 + cleanup_cmds()
             ),
         ],

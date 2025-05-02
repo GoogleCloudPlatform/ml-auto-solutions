@@ -25,8 +25,7 @@ from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_a
 
 
 # Configuration parameters
-TEST_RUN = False
-TURN_ON_SCHEDULE = True if composer_env.is_prod_env() else False
+TEST_RUN = False if composer_env.is_prod_env() else True
 BACKFILL = False
 
 # Get current date for image tags
@@ -49,16 +48,12 @@ DAG_TAGS = [
 for config_path, config_info in DAG_CONFIGS_MEGA.items():
   # Extract config name for the DAG ID
   config_name = os.path.basename(config_path).replace(".yaml", "")
-  nightly_schedule = (
-      config_info["nightly_schedule"] if TURN_ON_SCHEDULE else None
-  )
-  release_schedule = (
-      config_info["release_schedule"] if TURN_ON_SCHEDULE else None
-  )
+  nightly_schedule = config_info["nightly_schedule"] if not TEST_RUN else None
+  release_schedule = config_info["release_schedule"] if not TEST_RUN else None
   timeout = config_info["timeout_minutes"]
 
   # Set retry parameter based on timeout
-  retries = 1 if timeout <= 15 else 2
+  retries = 1 if timeout <= 15 else 0
   retry_delay = datetime.timedelta(minutes=1)
 
   dag_default_args = {

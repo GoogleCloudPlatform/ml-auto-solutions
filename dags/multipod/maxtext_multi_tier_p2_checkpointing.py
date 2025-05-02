@@ -39,7 +39,7 @@ with models.DAG(
     concurrency=2,
 ) as dag:
   base_output_directory = (
-      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_multi_tier_p2_checkpointing"
+      f"{gcs_bucket.MTC_BUCKET}/maxtext_multi_tier_p2_checkpointing"
   )
   dataset_path = gcs_bucket.MAXTEXT_DIR
   docker_images = [
@@ -70,7 +70,7 @@ with models.DAG(
             run_model_cmds=command,
             docker_image=image.value,
             test_owner=test_owner.ABHINAV_S,
-        ).run(ramdisk_directory="local", mtc_enabled=True)
+        ).run(ramdisk_directory="local", mtc_enabled=True, xpk_branch="main")
 
         command = "rm -rf /local/*"
         ramdisk_single_slice_cleanup = gke_config.get_gke_config(
@@ -81,7 +81,7 @@ with models.DAG(
             run_model_cmds=command,
             docker_image=image.value,
             test_owner=test_owner.ABHINAV_S,
-        ).run(ramdisk_directory="local", mtc_enabled=True)
+        ).run(ramdisk_directory="local", mtc_enabled=True, xpk_branch="main")
         command = (
             "bash end_to_end/test_mtc_phase_2_save_path.sh"
             f" multi_tier_checkpointing-{slice_num}x-{accelerator}"
@@ -96,7 +96,7 @@ with models.DAG(
             run_model_cmds=command,
             docker_image=image.value,
             test_owner=test_owner.ABHINAV_S,
-        ).run(ramdisk_directory="local", mtc_enabled=True)
+        ).run(ramdisk_directory="local", mtc_enabled=True, xpk_branch="main")
 
         (
             maxtext_v6e_chkpt_save_test

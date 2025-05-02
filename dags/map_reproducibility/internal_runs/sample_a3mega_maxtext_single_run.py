@@ -27,8 +27,9 @@ if project_root not in sys.path:
 
 import datetime
 from dags.map_reproducibility.utils.constants import Image
-from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_MEGA
 from dags.map_reproducibility.utils.sample_workload_utils import run_internal_sample_aotc_workload
+
 
 # Skip execution when being run as part of the DAG check
 # Checking if the file doesn't exist is a reliable way to detect this context
@@ -62,9 +63,9 @@ def main():
 
   # Setup configuration
   relative_config_yaml_path = (
-      "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml"
+      "recipes/a3mega/a3mega_llama3.1-8b_8gpus_fp8_maxtext.yaml"
   )
-  timeout = DAG_CONFIGS_ULTRA[relative_config_yaml_path]["timeout_minutes"]
+  timeout = DAG_CONFIGS_MEGA[relative_config_yaml_path]["timeout_minutes"]
 
   run_internal_sample_aotc_workload(
       relative_config_yaml_path=relative_config_yaml_path,

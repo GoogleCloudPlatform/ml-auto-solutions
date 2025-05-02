@@ -260,7 +260,12 @@ def run_internal_sample_aotc_workload(
   # Parse the config content now that we have the file path
   config = parse_internal_config_content(full_config_yaml_path, config=config)
   job_name = get_internal_pre_workload_job_name(
-      config.MODEL_ID, config.FRAMEWORK, is_sample_run=True
+      model_id=config.MODEL_ID,
+      precision=config.PRECISION,
+      num_gpus=config.NUM_GPUS,
+      framework=config.FRAMEWORK,
+      cluster=config.HYPERCOMPUTER,
+      is_sample_run=True,
   )
   pantheon_link = get_patheon_job_link(
       region=cluster_region, cluster_name=cluster, job_name=job_name
@@ -286,7 +291,6 @@ def run_internal_sample_aotc_workload(
             cluster_name=cluster,
             kueue_name=KUEUE_NAME,
             additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
-            test_run=True,
             bucket_name=sample_run_bucket_name,
         )
         + internal_wait_for_jobs_cmds(timeout=container_timeout)
