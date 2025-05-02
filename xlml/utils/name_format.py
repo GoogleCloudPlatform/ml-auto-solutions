@@ -58,7 +58,6 @@ def generate_tb_file_location(run_name: str, base_output_directory: str, nested_
         base_output_directory,
         run_name,
         "tensorboard",
-        run_name,
         "events.out.tfevents.*",
     )
 
