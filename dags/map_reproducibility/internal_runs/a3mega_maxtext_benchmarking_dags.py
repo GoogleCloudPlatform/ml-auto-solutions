@@ -53,7 +53,7 @@ for config_path, config_info in DAG_CONFIGS_MEGA.items():
   timeout = config_info["timeout_minutes"]
 
   # Set retry parameter based on timeout
-  retries = 1 if timeout <= 15 else 2
+  retries = 1 if timeout <= 15 else 0
   retry_delay = datetime.timedelta(minutes=1)
 
   dag_default_args = {

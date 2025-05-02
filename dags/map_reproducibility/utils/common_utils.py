@@ -140,12 +140,12 @@ def get_internal_pre_workload_cmds(job_name):
 
 
 def get_internal_pre_workload_job_name(
-    model_id, framework, is_sample_run=False
+    model_id, precision, num_gpus, framework, cluster, is_sample_run=False
 ):
   helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=4))
   now = int(time.time())
-  job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
+  job_name = f"cml-{helm_model_id}-{precision}-{num_gpus}-{cluster[:3]}-{framework[:1]}-{now}-{random_id}"
   if is_sample_run:
     job_name = f"{getpass.getuser()}-{job_name}"
   print(f"{'*' * 20}NAME: {job_name}")
