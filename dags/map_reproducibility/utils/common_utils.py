@@ -346,11 +346,16 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
   if not timeout.endswith("m"):
     timeout += "m"
   wait_for_job = (
+      "kubectl describe job $JOB_NAME --namespace=default",
       "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
       "echo 'will wait for jobs to finish'",
-      "kubectl wait --for=condition=complete "
-      f"job/$JOB_NAME --namespace=default --timeout={timeout}",
+      f"kubectl wait --for=condition=complete job/$JOB_NAME --namespace=default --timeout={timeout}",
+      "helm status $JOB_NAME --namespace=default",
+      "kubectl describe job $JOB_NAME --namespace=default",
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
   )
+  print("**********wait cmd is*********")
+  print(wait_for_job)
   return wait_for_job
 
 
@@ -530,6 +535,8 @@ def cleanup_cmds():
       "if ! kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'Pods still exist, using force deletion...'; kubectl delete pods -l job-name=$JOB_NAME --force --grace-period=0; else echo 'No pods to force delete'; fi ",
       "echo 'Cleanup completed'",
   )
+  print("**********cleanup cmd is*********")
+  print(cleanup)
   return cleanup
 
 
