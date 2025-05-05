@@ -52,24 +52,35 @@ with models.DAG(
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
+
+  # The concrete run_name will be generated at runtime in `run_with_name_gen_and_quarantine`
+  # and passed to the underlying maxdiffusion trainer script via the environment variable
+  # JOBSET_NAME.
+  #
+  # Also note that the accelerator type, core counts, and slice num will be automatically
+  # added by the name gen.
+  sdxl_base_output_dir = (
+      f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxdiffusion_sdxl"
+  )
+  sdxl_run_name_prefix = f"maxd-sdxl-jax-stable-stack"
+  sdxl_tensorboard_summary_config = metric_config.SummaryConfig(
+      file_location=sdxl_base_output_dir,
+      aggregation_strategy=metric_config.AggregationStrategy.MEDIAN,
+      use_regex_file_location=True,
+  )
+  sdxl_nan_base_output_dir = (
+          f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdxl-nan"
+      )
+  sdxl_nan_run_name_prefix = f"maxd-sdxl-nan-jax-stable-stack"
+  sdxl_nan_tensorboard_summary_config = metric_config.SummaryConfig(
+      file_location=sdxl_nan_base_output_dir,
+      aggregation_strategy=metric_config.AggregationStrategy.MEDIAN,
+      use_regex_file_location=True,
+  )
+
   for accelerator, slices in maxdiffusion_test_configs.items():
     cluster = config.clusters[accelerator]
     for slice_num in slices:
-      # The concrete run_name will be generated at runtime in `run_with_name_gen_and_quarantine`
-      # and passed to the underlying maxdiffusion trainer script via the environment variable
-      # JOBSET_NAME.
-      #
-      # Also note that the accelerator type, core counts, and slice num will be automatically
-      # added by the name gen.
-      base_output_dir = (
-          f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxdiffusion_sdxl"
-      )
-      run_name_prefix = f"maxd-sdxl-jax-stable-stack"
-      tensorboard_summary_config = metric_config.SummaryConfig(
-          file_location=base_output_dir,
-          aggregation_strategy=metric_config.AggregationStrategy.MEDIAN,
-          use_regex_file_location=True,
-      )
       maxdiffusion_sdxl_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
@@ -82,27 +93,18 @@ with models.DAG(
               f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
               f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
               f"run_name='' "
-              f"output_dir={base_output_dir}",
+              f"output_dir={sdxl_base_output_dir}",
           ),
-          test_name=run_name_prefix,
+          test_name=sdxl_run_name_prefix,
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-          tensorboard_summary_config=tensorboard_summary_config,
+          tensorboard_summary_config=sdxl_tensorboard_summary_config,
       ).run_with_name_gen_and_quarantine(
           quarantine_task_group,
           run_name_env="JOBSET_NAME",
           nested_run_name_in_tb_file_location=False,
       )
 
-      base_output_dir = (
-          f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdxl-nan"
-      )
-      run_name_prefix = f"maxd-sdxl-nan-jax-stable-stack"
-      tensorboard_summary_config = metric_config.SummaryConfig(
-          file_location=base_output_dir,
-          aggregation_strategy=metric_config.AggregationStrategy.MEDIAN,
-          use_regex_file_location=True,
-      )
       maxdiffusion_sdxl_nan_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
@@ -110,15 +112,15 @@ with models.DAG(
           run_model_cmds=(
               f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               f"pip install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
-              f"OUTPUT_DIR={base_output_dir} "
+              f"OUTPUT_DIR={sdxl_nan_base_output_dir} "
               f"RUN_NAME='' "
               f"STEPS=20 "
               f"LOSS_THRESHOLD=100",
           ),
-          test_name=run_name_prefix,
+          test_name=sdxl_nan_run_name_prefix,
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
-          tensorboard_summary_config=tensorboard_summary_config,
+          tensorboard_summary_config=sdxl_nan_tensorboard_summary_config,
       ).run_with_name_gen_and_quarantine(
           quarantine_task_group,
           run_name_env="JOBSET_NAME",
