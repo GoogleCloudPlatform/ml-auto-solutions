@@ -69,8 +69,8 @@ with models.DAG(
       use_regex_file_location=True,
   )
   sdxl_nan_base_output_dir = (
-          f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdxl-nan"
-      )
+      f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdxl-nan"
+  )
   sdxl_nan_run_name_prefix = f"maxd-sdxl-nan-jax-stable-stack"
   sdxl_nan_tensorboard_summary_config = metric_config.SummaryConfig(
       file_location=sdxl_nan_base_output_dir,
