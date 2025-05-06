@@ -96,7 +96,7 @@ with models.DAG(
       tpu_cores=8,
       tpu_zone=Zone.US_EAST5_B.value,
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
-      model_config="fuji-test-v1",
+      model_config='fuji-test-v1',
       time_out_in_min=180,
       task_owner=test_owner.Maggie_Z,
   )
