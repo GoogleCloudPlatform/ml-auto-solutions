@@ -40,3 +40,4 @@ class MaxTextTrilliumModelConfigs(enum.Enum):
   MIXTRAL_8X7B_DROPLESS = "mixtral_8x7b_dropless"
   MIXTRAL_8X7B_DROPPED = "mixtral_8x7b_dropped"
   MIXTRAL_8X7B_DROPPED_INT8 = "mixtral_8x7b_dropped_int8"
+  DEEPSEEK_V3_EP16 = "deepseek_v3_ep16"

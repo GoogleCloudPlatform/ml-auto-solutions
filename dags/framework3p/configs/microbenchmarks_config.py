@@ -44,6 +44,7 @@ def get_microbenchmark_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
+      " rm -rf accelerator-microbenchmarks ",
       "git clone https://github.com/AI-Hypercomputer/accelerator-microbenchmarks.git  ",
       "cd accelerator-microbenchmarks ",
       "pip install -r requirements.txt ",
@@ -105,22 +106,13 @@ def get_microbenchmark_xpk_config(
       composer_project=composer_project,
   )
 
-  set_up_cmds = (
-      "pip install --upgrade pip",
-      (
-          "pip install jax[tpu] -f"
-          " https://storage.googleapis.com/jax-releases/libtpu_releases.html"
-      ),
-  )
-
   benchmark_config = (
       f"xlml_v{cluster.device_version.value}_{cluster.core_count}.yaml"
   )
   metrics_report = "/tmp/microbenchmarks/outputs/metrics_report.jsonl"
 
   # Initial commands
-  run_model_cmds = set_up_cmds + (
-      "git clone https://github.com/AI-Hypercomputer/accelerator-microbenchmarks.git ",
+  run_model_cmds = (
       # Create the output directory
       "mkdir -p /tmp/microbenchmarks/outputs ",
       # Remove any existing metrics report
@@ -129,9 +121,7 @@ def get_microbenchmark_xpk_config(
 
   # Run the benchmark tests.
   run_model_cmds += (
-      "cd accelerator-microbenchmarks ",
-      "pip install -r requirements.txt ",
-      "JAX_PLATFORMS=cpu ENABLE_PJRT_COMPATIBILITY=true ",
+      "cd /app/accelerator-microbenchmarks ",
       # Run the benchmark script
       f"python3 src/run_benchmark.py " f"--config=configs/{benchmark_config} ",
   )

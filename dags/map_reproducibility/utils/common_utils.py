@@ -23,6 +23,7 @@ import string
 import time
 import subprocess
 import getpass
+import logging
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
@@ -32,11 +33,34 @@ from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
 from google.cloud import storage
+from typing import Optional
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
 
 MAX_TFLOP = {"a3ultra": 989, "a3mega": 989, "a4": 2237}
+
+
+class Config:
+  """
+  A simple configuration class that allows dot notation access
+  to dictionary keys.
+  """
+
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __repr__(self):
+    return repr(self.__dict__)
+
+  def __str__(self):
+    return str(self.__dict__)
 
 
 # This is required to get auth to access
@@ -117,12 +141,12 @@ def get_internal_pre_workload_cmds(job_name):
 
 
 def get_internal_pre_workload_job_name(
-    model_id, framework, is_sample_run=False
+    model_id, precision, num_gpus, framework, cluster, is_sample_run=False
 ):
   helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=4))
   now = int(time.time())
-  job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
+  job_name = f"cml-{helm_model_id}-{precision}-{num_gpus}-{cluster[:3]}-{framework[:1]}-{now}-{random_id}"
   if is_sample_run:
     job_name = f"{getpass.getuser()}-{job_name}"
   print(f"{'*' * 20}NAME: {job_name}")
@@ -259,7 +283,6 @@ def helm_apply_cmds_internal_run(
     cluster_name: str = "a3plus-benchmark",
     kueue_name: str = "a3-ultra",
     additional_cmds: str = "",
-    test_run=False,
     bucket_name=BUCKET_NAME,
 ):
   gcs_cmd = ""
@@ -284,11 +307,9 @@ def helm_apply_cmds_internal_run(
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
 
-  local_helm_template_path = f"/home/airflow/gcs/dags/dags/map_reproducibility/helm-charts/{hypercomputer}/{framework}-training"
-  if test_run and os.path.exists(local_helm_template_path):
-    helm_template_path = local_helm_template_path
-  else:
-    helm_template_path = f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  helm_template_path = (
+      f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training"
+  )
 
   print(f"helm_template_path is {helm_template_path}")
 
@@ -325,11 +346,16 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
   if not timeout.endswith("m"):
     timeout += "m"
   wait_for_job = (
+      "kubectl describe job $JOB_NAME --namespace=default",
       "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
       "echo 'will wait for jobs to finish'",
-      "kubectl wait --for=condition=complete "
-      f"job/$JOB_NAME --namespace=default --timeout={timeout}",
+      f"kubectl wait --for=condition=complete job/$JOB_NAME --namespace=default --timeout={timeout}",
+      "helm status $JOB_NAME --namespace=default",
+      "kubectl describe job $JOB_NAME --namespace=default",
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
   )
+  print("**********wait cmd is*********")
+  print(wait_for_job)
   return wait_for_job
 
 
@@ -401,13 +427,44 @@ def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
   return cmds
 
 
-def calculate_maxtext_metrics(log_location: str, hardware: str = "a3ultra"):
+def get_skip_steps_for_metrics_calculation(config: Config):
+  """Extract the number of steps to skip for the profiler from config."""
+  # case 1: profiler not enabled
+  # skip 2 steps, this is the default skipping since the first 2 steps' metrics are not accurate
+  if not hasattr(config, "profiler"):
+    return 2
+
+  # case 2: profiler enabled
+  # skip first n steps for profiler
+  base_skip_steps = getattr(config, "skip_first_n_steps_for_profiler", 1)
+
+  # skip profiler steps also
+  additional_skip_steps = getattr(config, "profiler_steps", 5)
+  return base_skip_steps + additional_skip_steps
+
+
+def calculate_maxtext_metrics(
+    log_location: str, hardware: str = "a3ultra", skip_first=2, skip_last=2
+):
+  assert skip_last >= 0, "skip_last must be a non-negative integer"
   metrics, _ = metric.read_from_tb(log_location, None, None)
 
   print(f"metrics - {metrics}")
   step_time_metrics = metrics["perf/step_time_seconds"]
+
+  # Calculate the sliced metrics based on skip values
+  sliced_metrics = step_time_metrics[skip_first:-skip_last]
+
+  # Check if the resulting metrics list is empty and raise an error if it is
+  if not sliced_metrics:
+    logger.error(
+        f"Empty metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
+    )
+
+  # Apply skip_first and skip_last when aggregating
   avg_step_time = metric.aggregate_metrics(
-      step_time_metrics, metric_config.AggregationStrategy.AVERAGE
+      sliced_metrics,
+      metric_config.AggregationStrategy.AVERAGE,
   )
 
   tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
@@ -447,8 +504,17 @@ def get_nemo_metrics_cmds(
   return cmds
 
 
+def cleanup_all_runs_cmds(cluster, cluster_region, prefix="cml-"):
+  cleanup_cmds = (
+      f"echo 'Getting credentials for cluster {cluster}...' && gcloud container clusters get-credentials {cluster} --region {cluster_region} --project {PROJECT} ",
+      f"echo 'Uninstalling jobs with prefix {prefix}...' && JOBS=$(kubectl get job -n default | grep \"^{prefix}\" | awk '{{print $1}}') && if [ -n \"$JOBS\" ]; then echo \"$JOBS\" | xargs -L1 helm uninstall -n default; else echo 'No matching jobs found'; fi",
+  )
+  return cleanup_cmds
+
+
 def cleanup_cmds():
   cleanup = (
+      "kubectl config set-context --current --namespace=default ",
       # Attempt Helm uninstall first, continue even if it fails
       "helm uninstall $JOB_NAME -n default --wait || true ",
       # Give Helm resources time to fully clean up
@@ -469,6 +535,8 @@ def cleanup_cmds():
       "if ! kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'Pods still exist, using force deletion...'; kubectl delete pods -l job-name=$JOB_NAME --force --grace-period=0; else echo 'No pods to force delete'; fi ",
       "echo 'Cleanup completed'",
   )
+  print("**********cleanup cmd is*********")
+  print(cleanup)
   return cleanup
 
 
@@ -554,7 +622,7 @@ def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3ultra":
     return "gke-a3ultra-bm-map-3", "europe-west1"
   if hardware == "a4":
-    return "gke-a4-map", "us-central1"
+    return "gke-a4-shared", "us-central1"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
@@ -635,13 +703,16 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
   return None  # Return None if no schedule is found for the given combination
 
 
-def get_docker_image(hardware: str, framework: str):
+def get_docker_image(
+    hardware: str, framework: str, model_id: Optional[str] = None
+):
   """
-  Returns the appropriate Docker image based on the given hardware, model, and framework.
+  Returns the appropriate Docker image based on the given hardware,framework and model.
 
   Args:
       hardware: The hardware type (e.g., "a3ultra", "a3mega").
       framework: The framework (e.g., "nemo", "maxtext").
+      model_id: The model_id. Optional.
 
   Returns:
       A Docker image string or None if no image is defined for the given combination.
@@ -649,23 +720,38 @@ def get_docker_image(hardware: str, framework: str):
 
   image_map = {
       "a3ultra": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
+              "llama3-1-405b": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.12-gib1.0.3-A3U",
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark"
+          },
       },
       "a3mega": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega"
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark"
+          },
       },
       "a4": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4",
-          "maxtext": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4"
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317"
+          },
       },
   }
 
   if hardware in image_map:
     if framework in image_map[hardware]:
-      return image_map[hardware][framework]
-
+      if model_id:
+        if model_id in image_map[hardware][framework]:
+          return image_map[hardware][framework][model_id]
+      return image_map[hardware][framework]["default"]
   return None  # Return None if no image is found for the given combination
 
 
@@ -705,22 +791,6 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   if hypercomputer == "a3mega":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   return cmd
-
-
-class Config:
-  """
-  A simple configuration class that allows dot notation access
-  to dictionary keys.
-  """
-
-  def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)
-
-  def __repr__(self):
-    return repr(self.__dict__)
-
-  def __str__(self):
-    return str(self.__dict__)
 
 
 def parse_internal_config_filename(filename, config=None):
@@ -874,7 +944,7 @@ def run_nemo_workload(
                     hypercomputer,
                     full_config_yaml_path,
                     recipe_repo_root,
-                    get_docker_image(hypercomputer, framework),
+                    get_docker_image(hypercomputer, framework, model_id),
                     cluster_name=cluster,
                     kueue_name=kueue_name,
                     additional_cmds=additional_cmds,
@@ -910,7 +980,7 @@ def run_nemo_workload(
         software_id=get_software_id(framework),
         number_of_nodes=num_gpus / 8,
         number_of_chips=num_gpus,
-        container_image_name=get_image_version(framework),
+        container_image_name=get_image_version(framework, model_id),
         global_batch_size=global_batch_size,
         precision=precision,
         optimizer=optimizer,
@@ -1004,9 +1074,7 @@ def run_maxtext_workload(
                     num_steps=num_steps,
                 )
                 + wait_for_jobs_cmds()
-                + copy_bucket_cmds_maxtext(
-                    tmpdir, recipe_repo_root=recipe_repo_root
-                )
+                + copy_bucket_cmds_maxtext(tmpdir)
                 + cleanup_cmds()
             ),
         ],
@@ -1053,10 +1121,13 @@ def get_software_id(framework: str):
     return None
 
 
-def get_image_version(framework: str):
+def get_image_version(framework: str, model_id: Optional[str] = None):
   if framework == "maxtext":
     return "maxtext_nightly"
   elif framework == "nemo":
-    return "nemo24.07-A3U"
+    if model_id == "llama3-1-405b":
+      return "nemo24.12-A3U"
+    else:
+      return "nemo24.07-A3U"
   else:
     return None

@@ -20,7 +20,7 @@ import os
 from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.utils.constants import Image
-from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_A4
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
 
 
@@ -38,15 +38,15 @@ DAG_TAGS = [
     "reproducibility",
     "experimental",
     "xlml",
-    "v1.17",
+    "v1.0",
     "internal",
     "regressiontests",
-    "a3ultra",
+    "a4",
 ]
 
 
 # Create DAGs for each configuration
-for config_path, config_info in DAG_CONFIGS_ULTRA.items():
+for config_path, config_info in DAG_CONFIGS_A4.items():
   # Extract config name for the DAG ID
   config_name = os.path.basename(config_path).replace(".yaml", "")
   schedule = config_info["schedule"] if not TEST_RUN else None
@@ -66,7 +66,7 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
       default_args=dag_default_args,
       schedule=schedule,
       tags=DAG_TAGS,
-      start_date=datetime.datetime(2025, 4, 3),
+      start_date=datetime.datetime(2025, 4, 28),
       catchup=False,
   ) as dag:
     run_internal_aotc_workload(
@@ -83,7 +83,7 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
       default_args=dag_default_args,
       schedule=schedule,
       tags=DAG_TAGS,
-      start_date=datetime.datetime(2025, 4, 3),
+      start_date=datetime.datetime(2025, 4, 28),
       catchup=False,
   ) as dag:
     run_internal_aotc_workload(

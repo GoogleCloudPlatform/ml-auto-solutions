@@ -371,3 +371,6 @@ class DockerImage(enum.Enum):
       "us-docker.pkg.dev/cloud-tpu-v2-images-dev/hybridsim/cloud_hybridsim_gcloud_python:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
+  MICROBENCH_NIGHTLY = (
+      "gcr.io/tpu-prod-env-one-vm/microbenchmarks_runner:latest"
+  )

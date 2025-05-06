@@ -38,6 +38,7 @@ from dags.map_reproducibility.utils.common_utils import (
     parse_internal_config_content,
     get_patheon_job_link,
     find_xprof_gcs_path,
+    get_skip_steps_for_metrics_calculation,
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -259,7 +260,12 @@ def run_internal_sample_aotc_workload(
   # Parse the config content now that we have the file path
   config = parse_internal_config_content(full_config_yaml_path, config=config)
   job_name = get_internal_pre_workload_job_name(
-      config.MODEL_ID, config.FRAMEWORK, is_sample_run=True
+      model_id=config.MODEL_ID,
+      precision=config.PRECISION,
+      num_gpus=config.NUM_GPUS,
+      framework=config.FRAMEWORK,
+      cluster=config.HYPERCOMPUTER,
+      is_sample_run=True,
   )
   pantheon_link = get_patheon_job_link(
       region=cluster_region, cluster_name=cluster, job_name=job_name
@@ -285,7 +291,6 @@ def run_internal_sample_aotc_workload(
             cluster_name=cluster,
             kueue_name=KUEUE_NAME,
             additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
-            test_run=True,
             bucket_name=sample_run_bucket_name,
         )
         + internal_wait_for_jobs_cmds(timeout=container_timeout)
@@ -301,12 +306,6 @@ def run_internal_sample_aotc_workload(
       bq_writer_repo_root = get_bq_writer_path(tmpdir)
       log_location = os.path.join(tmpdir, "tflog/metrics")
 
-      mfu, step_time = calculate_maxtext_metrics(
-          log_location, config.HYPERCOMPUTER
-      )
-
-      print(f"mfu: {mfu}")
-      print(f"step_time: {step_time}")
       comment = "sample benchmarking run"
       gcs_bucket = get_job_gcs_bucket_folder(
           job_name, bucket_name=sample_run_bucket_name
@@ -328,6 +327,16 @@ def run_internal_sample_aotc_workload(
             logger.error(
                 f"Profile command failed with error: {profiler_error_message}"
             )
+
+      # calculate mfu based on the config
+      skip_first_n_steps = get_skip_steps_for_metrics_calculation(config)
+      mfu, step_time = calculate_maxtext_metrics(
+          log_location,
+          config.HYPERCOMPUTER,
+          skip_first=skip_first_n_steps,
+      )
+      print(f"mfu: {mfu}")
+      print(f"step_time: {step_time}")
 
       write_run(
           model_id=config.HELM_NAME_MODEL_ID,
