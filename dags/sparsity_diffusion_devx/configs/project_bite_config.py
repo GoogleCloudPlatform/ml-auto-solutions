@@ -148,7 +148,6 @@ def get_bite_tpu_unittests_config(
     test_suffix: Optional[str] = None,
     project_name: Optional[Project] = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ):
-
   unittest_setupcmds = (
       # create configuration files needed
       dockerfile_build_cmd(jax_version),
