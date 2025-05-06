@@ -751,8 +751,7 @@ def get_docker_image(
       if model_id:
         if model_id in image_map[hardware][framework]:
           return image_map[hardware][framework][model_id]
-      else:
-        return image_map[hardware][framework]["default"]
+      return image_map[hardware][framework]["default"]
   return None  # Return None if no image is found for the given combination
 
 
