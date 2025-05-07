@@ -28,10 +28,16 @@ from airflow.models.taskmixin import DAGNode
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SPARSITY_DIFFUSION_DEVX.value
 
 
-def set_up_axlearn(pinned_version) -> Tuple[str]:
+def set_up_axlearn(pinned_version, jax_version) -> Tuple[str]:
   reset_version = ""
   if pinned_version:
     reset_version = f"cd axlearn && git reset --hard {pinned_version} && cd .."
+
+  setup_jax = None
+  if jax_version:
+    setup_jax = common.set_up_jax_version(jax_version)
+  else:
+    setup_jax = common.set_up_nightly_jax()
 
   return (
       common.UPGRADE_PIP,
@@ -40,7 +46,7 @@ def set_up_axlearn(pinned_version) -> Tuple[str]:
       "git clone https://github.com/apple/axlearn.git",
       reset_version,
       "python -m pip install ./axlearn[core]",
-      *common.set_up_nightly_jax(),
+      *setup_jax,
   )
 
 
@@ -53,6 +59,7 @@ def get_bite_tpu_config(
     time_out_in_min: int,
     task_owner: str,
     is_tpu_reserved: bool = False,
+    jax_version: Optional[str] = None,
     pinned_version: Optional[str] = None,
     project_name: Optional[Project] = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     network: str = "default",
@@ -64,7 +71,7 @@ def get_bite_tpu_config(
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
   )
 
-  set_up_cmds = set_up_axlearn(pinned_version)
+  set_up_cmds = set_up_axlearn(pinned_version, jax_version)
   run_model_cmds = (
       (
           "cd axlearn && python -m axlearn.common.launch_trainer_main"
@@ -74,7 +81,7 @@ def get_bite_tpu_config(
       ),
   )
 
-  test_name = f"bite_{'pinned_' if pinned_version else ''}{model_config}"
+  test_name = f"bite_training_{'pinned_' if pinned_version else ''}{model_config}_{jax_version.replace('.', '-') if jax_version else 'main'}"
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(
           version=tpu_version,
