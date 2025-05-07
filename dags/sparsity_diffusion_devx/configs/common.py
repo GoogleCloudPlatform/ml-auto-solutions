@@ -34,3 +34,17 @@ def set_up_nightly_jax() -> Tuple[str]:
       ),
       "pip install git+https://github.com/google/jax",
   )
+
+
+def set_up_jax_version(version) -> Tuple[str]:
+  return (
+      (
+          f"pip install jax[tpu]=={version}  -f "
+          "https://storage.googleapis.com/jax-releases/libtpu_releases.html"
+      ),
+      (
+          f"pip install --pre jaxlib=={version} -f"
+          " https://storage.googleapis.com/jax-releases/jaxlib_nightly_releases.html"
+      ),
+      f"pip install jax=={version}",
+  )

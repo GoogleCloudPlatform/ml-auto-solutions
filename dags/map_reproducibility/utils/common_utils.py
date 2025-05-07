@@ -148,7 +148,8 @@ def get_internal_pre_workload_job_name(
   now = int(time.time())
   job_name = f"cml-{helm_model_id}-{precision}-{num_gpus}-{cluster[:3]}-{framework[:1]}-{now}-{random_id}"
   if is_sample_run:
-    job_name = f"{getpass.getuser()}-{job_name}"
+    # use 3 char max for user_name to make sure helm job is within 53 char
+    job_name = f"{getpass.getuser()[:3]}-{job_name}"
   print(f"{'*' * 20}NAME: {job_name}")
   return job_name
 
@@ -564,6 +565,7 @@ def get_skip_steps_for_metrics_calculation(config: Config):
   # case 1: profiler not enabled
   # skip 2 steps, this is the default skipping since the first 2 steps' metrics are not accurate
   if not hasattr(config, "profiler"):
+    logger.info("Profiler not enabled, using default skip steps: 2")
     return 2
 
   # case 2: profiler enabled
@@ -572,7 +574,11 @@ def get_skip_steps_for_metrics_calculation(config: Config):
 
   # skip profiler steps also
   additional_skip_steps = getattr(config, "profiler_steps", 5)
-  return base_skip_steps + additional_skip_steps
+  total_skip_steps = base_skip_steps + additional_skip_steps
+  logger.info(
+      f"Profiler enabled, skipping {total_skip_steps} steps (base: {base_skip_steps}, additional: {additional_skip_steps})"
+  )
+  return total_skip_steps
 
 
 def calculate_maxtext_metrics(
@@ -914,8 +920,7 @@ def get_docker_image(
       if model_id:
         if model_id in image_map[hardware][framework]:
           return image_map[hardware][framework][model_id]
-      else:
-        return image_map[hardware][framework]["default"]
+      return image_map[hardware][framework]["default"]
   return None  # Return None if no image is found for the given combination
 
 
