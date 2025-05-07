@@ -69,7 +69,7 @@ with models.DAG(
     run_model_cmds = []
     for model_size, num_cores in models:
       for n in num_slices:
-        cmd = f"bash MaxText/configs/{tpu}/{model_size}.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY={tpu}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}"
+        cmd = f"bash MaxText/configs/{tpu}/{model_size}.sh EXECUTABLE=train_compile M_COMPILE_TOPOLOGY={tpu}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}"
         run_model_cmds.append(cmd)
     run_model_cmds_dict[tpu] = run_model_cmds
 
@@ -109,7 +109,7 @@ with models.DAG(
     )
 
   # GPU AoT tests
-  cmd = f"bash MaxText/configs/a3/llama_2_7b/16vm.sh EXECUTABLE=train_compile.py M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=16"
+  cmd = f"bash MaxText/configs/a3/llama_2_7b/16vm.sh EXECUTABLE=train_compile M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=16"
   stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
       time_out_in_min=300,
       test_name=f"maxtext-aot-a3-stable",
