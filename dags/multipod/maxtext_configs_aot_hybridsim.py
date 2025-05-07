@@ -61,7 +61,7 @@ def hybridsim_compile_and_run(test_group_id):
     chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
     hybridsim_cmd = (
         "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
-        f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}}estimated_cost_ns.jsonl CHIP_CONFIG={chip_config}",
+        f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump GCS_OUTPUT_PATH=${{GCS_OUTPUT}}estimated_cost_ns.jsonl CHIP_CONFIG={chip_config} MODULE_NAME_PATTERN=jit_train_step*",
     )
     job_metric_config = metric_config.MetricConfig(
         json_lines=metric_config.JSONLinesConfig(
