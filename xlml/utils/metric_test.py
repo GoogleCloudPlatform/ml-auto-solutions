@@ -423,9 +423,11 @@ class BenchmarkMetricTest(parameterized.TestCase, absltest.TestCase):
       expected_path = "path/to/events.out.tfevents.123"
       mock_blob_1 = mock.MagicMock()
       mock_blob_1.name = expected_path
+      mock_blob_1.size = 999
 
       mock_blob_2 = mock.MagicMock()
       mock_blob_2.name = "path/to/events.out.tfevents.234"
+      mock_blob_2.size = 222
 
       mock_gcs_client.list_blobs.return_value = [mock_blob_1, mock_blob_2]
 

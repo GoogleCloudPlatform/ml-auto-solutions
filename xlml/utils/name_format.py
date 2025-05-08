@@ -33,22 +33,35 @@ def generate_run_name(benchmark_id: str) -> str:
 
 
 @task
-def generate_tb_file_location(run_name: str, base_output_directory: str) -> str:
+def generate_tb_file_location(
+    run_name: str, base_output_directory: str, nested_run_name_dir: bool = True
+) -> str:
   """Generates a path to the tensorboard file to be used as a regex. Assumes
   the file is located in:
+  <base_output_directory>/<run_name>/tensorboard/events.out.tfevents.*
+  And if nested_run_name_dir then:
   <base_output_directory>/<run_name>/tensorboard/<run_name>/events.out.tfevents.*
 
   Args:
     run_name: run name for the tensorboard file location
     base_output_directory: GCS bucket path
+    nested_run_name_dir: if True, use <run_name> twice in the path
   """
-  return os.path.join(
-      base_output_directory,
-      run_name,
-      "tensorboard",
-      run_name,
-      "events.out.tfevents.*",
-  )
+  if nested_run_name_dir:
+    return os.path.join(
+        base_output_directory,
+        run_name,
+        "tensorboard",
+        run_name,
+        "events.out.tfevents.*",
+    )
+  else:
+    return os.path.join(
+        base_output_directory,
+        run_name,
+        "tensorboard",
+        "events.out.tfevents.*",
+    )
 
 
 @task
