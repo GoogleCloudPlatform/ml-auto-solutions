@@ -1336,7 +1336,7 @@ def run_workload(
           global_batch_size,
           optimizer,
           seq_length,
-          num_steps,
+          config_num_steps,
       ) = extract_run_details(recipe_repo_root, config_yaml_path)
     else:
       global_batch_size = (
@@ -1348,7 +1348,7 @@ def run_workload(
       seq_length = extract_value_from_yaml(
           recipe_repo_root, config_yaml_path, "max_target_length"
       )
-
+    num_steps = num_steps if num_steps else config_num_steps
     accelerator_type = get_accelerator_type(hypercomputer)
     print(
         f"batch size: {global_batch_size}, num gpus: {workload_num_gpus}, seq length: {seq_length}, num steps: {num_steps}"
@@ -1368,7 +1368,7 @@ def run_workload(
           metrics_model_id,
           accelerator_type,
           tmpdir,
-          two_node=False,
+          two_node=workload_num_gpus == 16,
       )
     else:
       metrics_cmd = ()
