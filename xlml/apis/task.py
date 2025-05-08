@@ -206,16 +206,32 @@ class XpkTask(BaseTask):
       quarantine_task_group,
       use_pathways: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
+      run_name_env: str = "M_RUN_NAME",
+      nested_run_name_in_tb_file_location: bool = True,
   ) -> DAGNode:
     test_name = self.task_test_config.benchmark_id
     if QuarantineTests.is_quarantined(test_name):
       with quarantine_task_group:
-        return self.run_with_run_name_generation(use_pathways, xpk_branch)
+        return self.run_with_run_name_generation(
+            use_pathways,
+            xpk_branch,
+            run_name_env,
+            nested_run_name_in_tb_file_location,
+        )
     else:
-      return self.run_with_run_name_generation(use_pathways, xpk_branch)
+      return self.run_with_run_name_generation(
+          use_pathways,
+          xpk_branch,
+          run_name_env,
+          nested_run_name_in_tb_file_location,
+      )
 
   def run_with_run_name_generation(
-      self, use_pathways: bool = False, xpk_branch: str = xpk.MAIN_BRANCH
+      self,
+      use_pathways: bool = False,
+      xpk_branch: str = xpk.MAIN_BRANCH,
+      run_name_env: str = "M_RUN_NAME",
+      nested_run_name_in_tb_file_location: bool = True,
   ) -> DAGNode:
     """Generate a unique run name and tensorboard file location,
     then run a test job within a docker image.
@@ -231,11 +247,13 @@ class XpkTask(BaseTask):
           self.task_test_config.benchmark_id
       )
       tb_file_location = name_format.generate_tb_file_location(
-          run_name, self.task_metric_config.tensorboard_summary.file_location
+          run_name,
+          self.task_metric_config.tensorboard_summary.file_location,
+          nested_run_name_in_tb_file_location,
       )
 
       # Set run_name in run_model_cmds
-      new_run_model_cmds = [f"export M_RUN_NAME={run_name}"]
+      new_run_model_cmds = [f"export {run_name_env}={run_name}"]
       for cmd in self.task_test_config.run_model_cmds:
         new_run_model_cmds.append(cmd)
       self.task_test_config.run_model_cmds = new_run_model_cmds
