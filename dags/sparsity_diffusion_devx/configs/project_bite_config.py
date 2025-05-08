@@ -62,8 +62,8 @@ def get_bite_tpu_config(
     jax_version: Optional[str] = None,
     pinned_version: Optional[str] = None,
     project_name: Optional[Project] = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-    network: str = "default",
-    subnetwork: str = "default",
+    network: str = 'default',
+    subnetwork: str = 'default',
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -184,8 +184,6 @@ EOF
       "cat run_tpu_tests.sh",
       "sudo docker build -f Dockerfile_CI -t ml-auto-solutions/tpu_unittests .",
   )
-#      f"gcloud storage cp /tmp/test_output.log {metric_config.SshEnvVars.GCS_OUTPUT.value}test_output.txt",
-#      f"gcloud storage cp /tmp/docker_log.log {metric_config.SshEnvVars.GCS_OUTPUT.value}docker_logs.txt",
   # Run the unittest as non-root user, ulimit param req to mmap TPUs inside docker (default limit is 8192)
   unittest_runcmds = (
       "echo '#### Start docker image - tpu_unittests'",
