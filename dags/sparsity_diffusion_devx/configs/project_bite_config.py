@@ -187,7 +187,7 @@ EOF
   # Run the unittest as non-root user, ulimit param req to mmap TPUs inside docker (default limit is 8192)
   unittest_runcmds = (
       "echo '#### Start docker image - tpu_unittests'",
-      "mkdir test-results",
+      "mkdir -p test-results",
       "sudo docker run --network=host --privileged --ulimit memlock=-1:-1 -v ${PWD}:/tmp_docker ml-auto-solutions/tpu_unittests  /bin/bash -c '/workspace/run_tpu_tests.sh' 2>&1 | tee test-results/tests_std_out_err.log",
       "sudo docker logs $( sudo docker ps --latest --quiet ) > test-results/docker_log.log",
       f"gcloud storage cp -R test-results {metric_config.SshEnvVars.GCS_OUTPUT.value}axlearn-test-results",
