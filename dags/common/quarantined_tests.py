@@ -550,6 +550,17 @@ class QuarantineTests:
       "p-maxtext-llama2_70b-nightly-3-2xv5litepod-256": TestInfo(
           team.PRODUCTIVITY, "2024-11-13"
       ),
+      # DAG: maxtext_gpu_end_to_end
+      "maxtext-pinned-mixtral-8x7b-1node-h100-mega-80gb-8": TestInfo(
+          team.LLM_DEVX,
+          "2025-05-07",
+          "b/407807678",
+      ),
+      "maxtext-pinned-mixtral-8x7b-2node-h100-mega-80gb-8": TestInfo(
+          team.LLM_DEVX,
+          "2025-05-07",
+          "b/407807678",
+      ),
   }
 
   @staticmethod
