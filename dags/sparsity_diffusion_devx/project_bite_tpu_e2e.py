@@ -154,42 +154,42 @@ with models.DAG(
   with TaskGroup(
       group_id='bite_tpu_unittests', prefix_group_id=False
   ) as bite_unittests:
-      # Trillium (v6e) with JAX 0.5.3
-      config.get_bite_tpu_unittests_config(
-          **trillium_conf,
-          jax_version='0.5.3',
-          **common,
-      )
-      # Trillium (v6e) with JAX 0.4.38
-      config.get_bite_tpu_unittests_config(
-          **trillium_conf,
-          jax_version='0.4.38',
-          **common,
-      )
-      # Trillium (v6e) with JAX nightly
-      config.get_bite_tpu_unittests_config(
-          **trillium_conf,
-          **common,
-      )
-      # V5P with JAX 0.5.3
-      config.get_bite_tpu_unittests_config(
-          **v5p_conf,
-          jax_version='0.5.3',
-          **common,
-      )
-      # V5P with JAX 0.4.38
-      config.get_bite_tpu_unittests_config(
-          **v5p_conf,
-          jax_version='0.4.38',
-          **common,
-      )
-      # V5P with JAX nightly
-      config.get_bite_tpu_unittests_config(
-          **v5p_conf,
-          **common,
-      )
-      # V5E with JAX nightly
-      config.get_bite_tpu_unittests_config(
-          **v5e_conf,
-          **common,
-      )
+    # Trillium (v6e) with JAX 0.5.3
+    config.get_bite_tpu_unittests_config(
+        **trillium_conf,
+        jax_version='0.5.3',
+        **common,
+    )
+    # Trillium (v6e) with JAX 0.4.38
+    config.get_bite_tpu_unittests_config(
+        **trillium_conf,
+        jax_version='0.4.38',
+        **common,
+    )
+    # Trillium (v6e) with JAX nightly
+    config.get_bite_tpu_unittests_config(
+        **trillium_conf,
+        **common,
+    )
+    # V5P with JAX 0.5.3
+    config.get_bite_tpu_unittests_config(
+        **v5p_conf,
+        jax_version='0.5.3',
+        **common,
+    )
+    # V5P with JAX 0.4.38
+    config.get_bite_tpu_unittests_config(
+        **v5p_conf,
+        jax_version='0.4.38',
+        **common,
+    )
+    # V5P with JAX nightly
+    config.get_bite_tpu_unittests_config(
+        **v5p_conf,
+        **common,
+    )
+    # V5E with JAX nightly
+    config.get_bite_tpu_unittests_config(
+        **v5e_conf,
+        **common,
+    )
