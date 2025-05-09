@@ -1448,7 +1448,7 @@ def run_nemo_workload(
     )
 
     print(
-        f"batch size: {run_details.workload_mbs}, "
+        f"batch size: {run_details.workload_gbs}, "
         f"num gpus: {num_gpus}, "
         f"seq length: {run_details.workload_sequence_length}, "
         f"max steps: {run_details.max_steps}"
