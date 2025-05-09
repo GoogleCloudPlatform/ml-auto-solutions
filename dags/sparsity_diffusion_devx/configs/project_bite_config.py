@@ -155,6 +155,30 @@ def get_bite_tpu_unittests_config(
     jax_version: Optional[str] = None,
     project_name: Optional[Project] = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ):
+  """Function to create Cloud Composer tasks required to run TPU unittests.
+
+  NB! If any of the pytest tests in Axlearn fail, then the whole task will be
+  marked as failed.
+
+  1. Creates list of setup commands which will:
+    - Create a dockerfile configured to install Axlearn from github, including
+      required prerequists and install the desired version of JAX
+    - Create a test script to run inside that docker image (run_tpu_tests.sh)
+      which runs pytest in the axlearn directory
+    - Build a docker image - dockerfile_build_cmd() from dockerfile
+  2. Creates list of test run commands which will:
+    - On the TPU VM, run the docker image and execute the bash test script
+    - Save the STDOUT to a log file, Save the docker logs to a file and copy these
+      logs and the Axlearn XML test result output to the GCS output bucket
+    - Get the exit code of the pytest command (in the container) and pass it back
+      to the TPU VM code which then returns failure for the Airflow task.
+  3. Uses test_config.TpuVmTest() class to generate a TPU VM/SSH keys, etc
+    and run the setup commands (set_up_cmds) and then the test commands
+    (run_model_cmds)
+
+  Returns:
+      A task group generated from the TpuVmTest() class.
+  """
   unittest_setupcmds = (
       # create configuration files needed
       dockerfile_build_cmd(jax_version),
@@ -172,7 +196,7 @@ JAX_ENABLE_X64=True pytest --no-header -v --maxfail=200 -m "not high_cpu or fp64
   --ignore axlearn/common/inference_test.py \
   --ignore axlearn/common/ssm_kernels/mamba_kernels_test.py \
   --ignore axlearn/common/ssm_test.py
-TESTS_EXIT_CODE=$?
+TESTS_EXIT_CODE=\$?
 echo '#### TPU JAX Tests finished.'
 echo "Test exit code is \${TESTS_EXIT_CODE}"
 echo "\${TESTS_EXIT_CODE}" > /workspace/axlearn/test-results/tests_exit_code.txt
