@@ -112,9 +112,9 @@ def _run_results_generator_cmds(
   """
   cmds = (
       "export AVG_STEP_TIME=$(sed -n '1s/.*: //p' $METRICS_FILE)",
-      "export MFU=$(sed -n '2s/.*: //p' $METRICS_FILE)",
-      "echo $AVG_STEP_TIME",
-      "echo $MFU",
+      "export MFU=$(sed -n '3s/.*: //p' $METRICS_FILE)",
+      'echo "AVG_STEP_TIME ${AVG_STEP_TIME}"',
+      'echo "MFU ${MFU}"',
   )
   metrics_cmds = f"python3 {gcs_automation_repo_root}/metrics.py "
   ckpt_cmds = "checkpointing "
