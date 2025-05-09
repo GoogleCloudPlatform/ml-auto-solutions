@@ -25,7 +25,6 @@ class MaxTextV5eModelConfigs(enum.Enum):
   DEFAULT_128B = "default_128b_v5e_256"
   GPT3_175B = "gpt_3_175b_v5e_256"
   LLAMA2_7B = "llama2_7b_v5e_256"
-  LLAMA2_13B = "llama2_13b_v5e_256"
   LLAMA2_70B = "llama2_70b_v5e_256"
 
 
