@@ -62,8 +62,8 @@ def get_bite_tpu_config(
     jax_version: Optional[str] = None,
     pinned_version: Optional[str] = None,
     project_name: Optional[Project] = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-    network: str = 'default',
-    subnetwork: str = 'default',
+    network: str = "default",
+    subnetwork: str = "default",
 ):
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
@@ -148,8 +148,8 @@ def get_bite_tpu_unittests_config(
     runtime_version: str,
     time_out_in_min: int,
     task_owner: str,
-    network: str = 'default',
-    subnetwork: str = 'default',
+    network: str = "default",
+    subnetwork: str = "default",
     is_tpu_reserved: bool = False,
     # JAX version defaults to main if not specified
     jax_version: Optional[str] = None,
