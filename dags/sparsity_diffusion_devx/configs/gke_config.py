@@ -19,7 +19,7 @@ from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from dags import gcs_bucket
 from dags.common.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion, Zone
-from typing import Iterable
+from typing import Iterable, Optional
 import datetime
 
 clusters = {
@@ -50,6 +50,7 @@ def get_gke_config(
     dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    tensorboard_summary_config: Optional[metric_config.SummaryConfig] = None,
 ) -> task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=cluster.project,
@@ -74,9 +75,16 @@ def get_gke_config(
       docker_image=docker_image,
   )
 
+  job_metric_config = None
+  if tensorboard_summary_config:
+    job_metric_config = metric_config.MetricConfig(
+        tensorboard_summary=tensorboard_summary_config,
+    )
+
   return task.XpkTask(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
+      task_metric_config=job_metric_config,
   )
 
 

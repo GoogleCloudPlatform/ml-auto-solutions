@@ -19,7 +19,7 @@ import datetime
 from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
-from dags.map_reproducibility.utils.common_utils import run_nemo_workload
+from dags.map_reproducibility.utils.common_utils import run_workload
 
 
 MODEL_ID = "mixtral-8x7b"
@@ -27,6 +27,8 @@ METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a3ultra"
 FRAMEWORK = "nemo"
+WORKLOAD_LAUNCHER = "nemo-10-launcher.sh"
+
 
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
@@ -35,6 +37,7 @@ SCHEDULED_TIME = (
 )
 
 KUEUE_NAME = "a3-ultra"
+NUM_GPUS = 256
 
 
 with models.DAG(
@@ -50,11 +53,13 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-  run_nemo_workload(
+  run_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
       precision=PRECISION,
       kueue_name=KUEUE_NAME,
       metrics_model_id=METRICS_MODEL_ID,
+      config_model_name=f"{MODEL_ID}-{NUM_GPUS}gpus-a3u-{PRECISION}.yaml",
+      workload_launcher=WORKLOAD_LAUNCHER,
   )

@@ -33,6 +33,7 @@ from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
 from google.cloud import storage
+from typing import Optional, Set, Tuple
 
 
 # Configure logging
@@ -129,7 +130,7 @@ def get_gpu_recipe_cmd(hypercomputer, model_id, framework, recipe_repo_root):
 def get_pre_workload_cmds(model_id, framework):
   prepare_workload_cmds = (
       "NOW=$(date +%s)",
-      f"export JOB_NAME=imo-team-regr-test-{model_id}-$NOW-{framework}",
+      f"export JOB_NAME=imo-{model_id}-$NOW-{framework}",
   )
   return prepare_workload_cmds
 
@@ -140,14 +141,15 @@ def get_internal_pre_workload_cmds(job_name):
 
 
 def get_internal_pre_workload_job_name(
-    model_id, framework, is_sample_run=False
+    model_id, precision, num_gpus, framework, cluster, is_sample_run=False
 ):
   helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=4))
   now = int(time.time())
-  job_name = f"coreml-{helm_model_id}-{now}-{framework}-{random_id}"
+  job_name = f"cml-{helm_model_id}-{precision}-{num_gpus}-{cluster[:3]}-{framework[:1]}-{now}-{random_id}"
   if is_sample_run:
-    job_name = f"{getpass.getuser()}-{job_name}"
+    # use 3 char max for user_name to make sure helm job is within 53 char
+    job_name = f"{getpass.getuser()[:3]}-{job_name}"
   print(f"{'*' * 20}NAME: {job_name}")
   return job_name
 
@@ -330,6 +332,81 @@ def helm_apply_cmds_internal_run(
   return helm_cmds
 
 
+def helm_apply_cmds_workload(
+    framework: str,
+    hypercomputer: str,
+    config_file: str,
+    recipe_repo_root: str,
+    workload_launcher: str,
+    aotc: bool = False,
+    kueue_name: Optional[str] = None,
+    additional_cmds: str = "",
+    num_steps: Optional[int] = None,
+) -> tuple[str, ...]:
+  """
+  Generates the Helm install command string for a workload jobset.
+  """
+  cmd_parts = [
+      "helm",
+      "install",
+      "-f",
+      "values.yaml",
+      "--namespace",
+      "default",
+      "--set",
+      "namespace=default",
+      # Maintaining original quoting for test compatibility:
+      f'--set-file workload_config="{config_file}"',
+      f'--set-file workload_launcher="{workload_launcher}"',
+  ]
+
+  if kueue_name:
+    cmd_parts.append(f"--set queue={kueue_name}")
+
+  # Determine workload arguments and GCS settings based on framework
+  workload_args_value_parts = []
+  gcs_part_for_non_maxtext = None
+
+  if framework == "maxtext":
+    workload_args_value_parts.append(
+        f"base_output_directory=gs://{BUCKET_NAME}/maxtext-experiments"
+    )
+    workload_args_value_parts.append(
+        "jax_distributed_initialization_timeout=600"
+    )
+    if num_steps is not None:
+      workload_args_value_parts.append(f"steps={num_steps}")
+  else:  # Other frameworks (e.g., nemo)
+    if num_steps is not None:
+      workload_args_value_parts.append(f"trainer.max_steps={num_steps}")
+    # GCS command is typically added for non-maxtext frameworks
+    gcs_part_for_non_maxtext = (
+        f"--set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+    )
+
+  if workload_args_value_parts:
+    cmd_parts.append(
+        f'--set workload.arguments[0]="{" ".join(workload_args_value_parts)}"'
+    )
+
+  if gcs_part_for_non_maxtext:
+    cmd_parts.append(gcs_part_for_non_maxtext)
+
+  if aotc:
+    cmd_parts.append("--set-string workload.aotc=true")
+
+  if additional_cmds:
+    # additional_cmds is expected to be a string of pre-formatted Helm arguments
+    cmd_parts.append(additional_cmds)
+
+  # Add job name and chart path
+  cmd_parts.append("$JOB_NAME")
+  cmd_parts.append(f"{recipe_repo_root}/src/helm-charts/{hypercomputer}/jobset")
+
+  # Join all parts with a single space and return as a single-element tuple
+  return (" ".join(cmd_parts),)
+
+
 def wait_for_jobs_cmds():
   wait_for_job = (
       "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
@@ -340,16 +417,45 @@ def wait_for_jobs_cmds():
   return wait_for_job
 
 
+def wait_for_jobsets_cmds(timeout: str = "100m"):
+  """
+  Generates kubectl commands to wait for a JobSet to complete.
+
+  Args:
+    timeout: The duration to wait for the JobSet to complete (e.g., "100m").
+
+  Returns:
+    A tuple of command strings.
+  """
+  wait_for_jobset = (
+      'echo "Listing pods associated with JobSet $JOB_NAME:"',
+      "kubectl get pods --selector=jobset.sigs.k8s.io/jobset-name=$JOB_NAME --namespace=default",
+      'echo "Will wait for JobSet $JOB_NAME to finish..."',
+      # The condition for JobSet completion is typically 'Completed'.
+      f"kubectl wait --for=condition=Completed jobset/$JOB_NAME --namespace=default --timeout={timeout}",
+      'echo "JobSet $JOB_NAME finished. Describing JobSet:"',
+      "kubectl describe jobset $JOB_NAME --namespace=default",
+      'echo "Final pod status for JobSet $JOB_NAME:"',
+      "kubectl get pods --selector=jobset.sigs.k8s.io/jobset-name=$JOB_NAME --namespace=default",
+  )
+  return wait_for_jobset
+
+
 def internal_wait_for_jobs_cmds(timeout="100m"):
   timeout = str(timeout)
   if not timeout.endswith("m"):
     timeout += "m"
   wait_for_job = (
+      "kubectl describe job $JOB_NAME --namespace=default",
       "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
       "echo 'will wait for jobs to finish'",
-      "kubectl wait --for=condition=complete "
-      f"job/$JOB_NAME --namespace=default --timeout={timeout}",
+      f"kubectl wait --for=condition=complete job/$JOB_NAME --namespace=default --timeout={timeout}",
+      "helm status $JOB_NAME --namespace=default",
+      "kubectl describe job $JOB_NAME --namespace=default",
+      "kubectl get pods --selector=job-name=$JOB_NAME --namespace=default",
   )
+  print("**********wait cmd is*********")
+  print(wait_for_job)
   return wait_for_job
 
 
@@ -421,11 +527,45 @@ def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
   return cmds
 
 
+def copy_bucket_cmds_workload(
+    recipe_repo_root: str, tmpdir: str, framework: str
+) -> Tuple[str, ...]:
+  gcs_location = ""
+  if framework == "maxtext":
+    gcs_location = f"gs://{BUCKET_NAME}/maxtext-experiments/"
+    cmds = (
+        f"METRICS_FILE={tmpdir}/tflog/metrics",
+        "export BUCKET_FOLDER=$(gcloud storage ls "
+        f"{gcs_location} | grep $JOB_NAME)",
+        'echo "BUCKET_FOLDER ${BUCKET_FOLDER}"',
+        "export COMPLETE_JOB_NAME=$(gcloud storage ls "
+        "${BUCKET_FOLDER}tensorboard/ | grep $JOB_NAME)",
+        'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
+        "export LOG_FILE=$(gcloud storage ls "
+        "${COMPLETE_JOB_NAME} | grep events)",
+        'echo "LOG_FILE ${LOG_FILE}"',
+        "gcloud storage cp $LOG_FILE $METRICS_FILE",
+    )
+  else:
+    gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/"
+    cmds = (
+        "export COMPLETE_JOB_NAME=$(gcloud storage ls "
+        f"{gcs_location} | grep $JOB_NAME)",
+        'echo "COMPLETE_JOB_NAME ${COMPLETE_JOB_NAME}"',
+        f"cd {recipe_repo_root}/src/utils/training_metrics",
+        "gcloud storage cp ${COMPLETE_JOB_NAME}"
+        "dllogger/rank-0/dllogger.json .",
+    )
+
+  return cmds
+
+
 def get_skip_steps_for_metrics_calculation(config: Config):
   """Extract the number of steps to skip for the profiler from config."""
   # case 1: profiler not enabled
   # skip 2 steps, this is the default skipping since the first 2 steps' metrics are not accurate
   if not hasattr(config, "profiler"):
+    logger.info("Profiler not enabled, using default skip steps: 2")
     return 2
 
   # case 2: profiler enabled
@@ -434,7 +574,11 @@ def get_skip_steps_for_metrics_calculation(config: Config):
 
   # skip profiler steps also
   additional_skip_steps = getattr(config, "profiler_steps", 5)
-  return base_skip_steps + additional_skip_steps
+  total_skip_steps = base_skip_steps + additional_skip_steps
+  logger.info(
+      f"Profiler enabled, skipping {total_skip_steps} steps (base: {base_skip_steps}, additional: {additional_skip_steps})"
+  )
+  return total_skip_steps
 
 
 def calculate_maxtext_metrics(
@@ -498,8 +642,17 @@ def get_nemo_metrics_cmds(
   return cmds
 
 
+def cleanup_all_runs_cmds(cluster, cluster_region, prefix="cml-"):
+  cleanup_cmds = (
+      f"echo 'Getting credentials for cluster {cluster}...' && gcloud container clusters get-credentials {cluster} --region {cluster_region} --project {PROJECT} ",
+      f"echo 'Uninstalling jobs with prefix {prefix}...' && JOBS=$(kubectl get job -n default | grep \"^{prefix}\" | awk '{{print $1}}') && if [ -n \"$JOBS\" ]; then echo \"$JOBS\" | xargs -L1 helm uninstall -n default; else echo 'No matching jobs found'; fi",
+  )
+  return cleanup_cmds
+
+
 def cleanup_cmds():
   cleanup = (
+      "kubectl config set-context --current --namespace=default ",
       # Attempt Helm uninstall first, continue even if it fails
       "helm uninstall $JOB_NAME -n default --wait || true ",
       # Give Helm resources time to fully clean up
@@ -520,6 +673,8 @@ def cleanup_cmds():
       "if ! kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'Pods still exist, using force deletion...'; kubectl delete pods -l job-name=$JOB_NAME --force --grace-period=0; else echo 'No pods to force delete'; fi ",
       "echo 'Cleanup completed'",
   )
+  print("**********cleanup cmd is*********")
+  print(cleanup)
   return cleanup
 
 
@@ -558,6 +713,37 @@ def extract_gpus(tmpdir, yaml_file):
     return None
 
   return gpus
+
+
+def extract_value_from_yaml(tmpdir, yaml_file, key="workload.image"):
+  """
+  Extract a value from a YAML file given a key using dot notation.
+
+  Args:
+      tmpdir (str): Temporary directory where the YAML file is located.
+      yaml_file (str): Name of the YAML file.
+      key (str): Key to extract, using dot notation (e.g., 'workload.image').
+
+  Returns:
+      The value associated with the key, or None if the key is not found or an error occurs.
+  """
+  try:
+    yaml_file_path = os.path.join(tmpdir, yaml_file)
+    with open(yaml_file_path, "r", encoding="utf-8") as file:
+      config = yaml.safe_load(file)
+
+    # Navigate through the dictionary using dot notation
+    keys = key.split(".")
+    value = config
+    for k in keys:
+      if isinstance(value, dict) and k in value:
+        value = value[k]
+      else:
+        return None  # Key not found
+    return value
+  except (FileNotFoundError, yaml.YAMLError) as e:
+    print(f"Error: {e}")
+    return None
 
 
 def extract_run_details(root, config_path):
@@ -686,13 +872,16 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
   return None  # Return None if no schedule is found for the given combination
 
 
-def get_docker_image(hardware: str, framework: str):
+def get_docker_image(
+    hardware: str, framework: str, model_id: Optional[str] = None
+):
   """
-  Returns the appropriate Docker image based on the given hardware, model, and framework.
+  Returns the appropriate Docker image based on the given hardware,framework and model.
 
   Args:
       hardware: The hardware type (e.g., "a3ultra", "a3mega").
       framework: The framework (e.g., "nemo", "maxtext").
+      model_id: The model_id. Optional.
 
   Returns:
       A Docker image string or None if no image is defined for the given combination.
@@ -700,23 +889,38 @@ def get_docker_image(hardware: str, framework: str):
 
   image_map = {
       "a3ultra": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
-          "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U",
+              "llama3-1-405b": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.12-gib1.0.3-A3U",
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark"
+          },
       },
       "a3mega": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega",
-          "maxtext": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo:nemo24.07-A3Mega"
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/supercomputer-testing/gunjanjalori/maxtext-benchmark"
+          },
       },
       "a4": {
-          "nemo": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4",
-          "maxtext": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317",
+          "nemo": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4"
+          },
+          "maxtext": {
+              "default": "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/jax-maxtext-gpu:jax0.5.1-cuda_dl25.02-rev1-maxtext-20150317"
+          },
       },
   }
 
   if hardware in image_map:
     if framework in image_map[hardware]:
-      return image_map[hardware][framework]
-
+      if model_id:
+        if model_id in image_map[hardware][framework]:
+          return image_map[hardware][framework][model_id]
+      return image_map[hardware][framework]["default"]
   return None  # Return None if no image is found for the given combination
 
 
@@ -909,7 +1113,7 @@ def run_nemo_workload(
                     hypercomputer,
                     full_config_yaml_path,
                     recipe_repo_root,
-                    get_docker_image(hypercomputer, framework),
+                    get_docker_image(hypercomputer, framework, model_id),
                     cluster_name=cluster,
                     kueue_name=kueue_name,
                     additional_cmds=additional_cmds,
@@ -945,7 +1149,7 @@ def run_nemo_workload(
         software_id=get_software_id(framework),
         number_of_nodes=num_gpus / 8,
         number_of_chips=num_gpus,
-        container_image_name=get_image_version(framework),
+        container_image_name=get_image_version(framework, model_id),
         global_batch_size=global_batch_size,
         precision=precision,
         optimizer=optimizer,
@@ -1077,6 +1281,170 @@ def run_maxtext_workload(
     )
 
 
+@task
+def run_workload(
+    hypercomputer: str,
+    model_id: str,
+    framework: str,
+    precision: str,
+    metrics_model_id: str,
+    workload_launcher: str,
+    num_gpus: Optional[int] = None,
+    num_steps: Optional[int] = None,
+    kueue_name: str = None,
+    config_model_name: str = None,
+    optimizer: Optional[str] = None,
+):
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                git_cookie_authdaemon()
+                + clone_recipes_gob()
+                + get_bq_writer_repo()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+
+    recipe_repo_root = get_recipe_repo_path(tmpdir)
+    bq_writer_repo_root = get_bq_writer_path(tmpdir)
+    value_yaml_path = f"training/{hypercomputer}/{model_id}/{framework}-pretraining-gke/values.yaml"
+
+    workload_num_gpus = (
+        num_gpus
+        if num_gpus
+        else extract_gpus(recipe_repo_root, value_yaml_path)
+    )
+
+    if config_model_name:
+      config_yaml_path = f"src/frameworks/{hypercomputer}/{framework}-configs/{config_model_name}"
+    else:
+      config_yaml_path = f"src/frameworks/{hypercomputer}/{framework}-configs/{model_id}-{workload_num_gpus}gpus-{hypercomputer}-{precision}.yaml"
+
+    full_config_yaml_path = os.path.join(recipe_repo_root, config_yaml_path)
+    workload_launcher_path = f"src/launchers/{workload_launcher}"
+    full_workload_launcher_path = os.path.join(
+        recipe_repo_root, workload_launcher_path
+    )
+    if framework == "nemo":
+      (
+          global_batch_size,
+          optimizer,
+          seq_length,
+          config_num_steps,
+      ) = extract_run_details(recipe_repo_root, config_yaml_path)
+    else:
+      global_batch_size = (
+          extract_value_from_yaml(
+              recipe_repo_root, config_yaml_path, "per_device_batch_size"
+          )
+          * workload_num_gpus
+      )
+      seq_length = extract_value_from_yaml(
+          recipe_repo_root, config_yaml_path, "max_target_length"
+      )
+    num_steps = num_steps if num_steps else config_num_steps
+    accelerator_type = get_accelerator_type(hypercomputer)
+    print(
+        f"batch size: {global_batch_size}, num gpus: {workload_num_gpus}, seq length: {seq_length}, num steps: {num_steps}"
+    )
+
+    additional_cmds = ""
+
+    if num_gpus:
+      additional_cmds += f" --set workload.gpus={num_gpus} "
+
+    cluster, cluster_region = get_cluster(hypercomputer)
+    if framework == "nemo":
+      metrics_cmd = get_nemo_metrics_cmds(
+          global_batch_size,
+          workload_num_gpus,
+          precision,
+          metrics_model_id,
+          accelerator_type,
+          tmpdir,
+          two_node=workload_num_gpus == 16,
+      )
+    else:
+      metrics_cmd = ()
+
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(
+                configure_project_and_cluster(cluster, cluster_region)
+                + get_gpu_recipe_cmd(
+                    hypercomputer, model_id, framework, recipe_repo_root
+                )
+                + install_helm_cmds()
+                + namespace_cmds()
+                + get_pre_workload_cmds(model_id, framework)
+                + helm_apply_cmds_workload(
+                    framework,
+                    hypercomputer,
+                    full_config_yaml_path,
+                    recipe_repo_root,
+                    workload_launcher=full_workload_launcher_path,
+                    kueue_name=kueue_name,
+                    additional_cmds=additional_cmds,
+                    num_steps=num_steps,
+                )
+                + wait_for_jobsets_cmds()
+                + copy_bucket_cmds_workload(
+                    recipe_repo_root=recipe_repo_root,
+                    tmpdir=tmpdir,
+                    framework=framework,
+                )
+                + metrics_cmd
+                + cleanup_cmds()
+            ),
+        ],
+        cwd=tmpdir,
+    )
+
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
+
+    if framework == "nemo":
+      average_step_time, mfu = get_nemo_metrics(tmpdir)
+    else:
+      log_location = os.path.join(tmpdir, "tflog/metrics")
+      mfu, average_step_time = calculate_maxtext_metrics(
+          log_location, hypercomputer
+      )
+      print(f"mfu: {mfu}")
+      print(f"step_time: {average_step_time}")
+
+    write_run(
+        model_id=model_id,
+        hardware_id=hypercomputer,
+        software_id=get_software_id(framework),
+        number_of_nodes=workload_num_gpus / 8,
+        number_of_chips=workload_num_gpus,
+        container_image_name=extract_value_from_yaml(
+            recipe_repo_root, value_yaml_path, "workload.image"
+        ),
+        global_batch_size=global_batch_size,
+        precision=precision,
+        optimizer=optimizer,
+        seq_length=seq_length,
+        median_step_time=average_step_time,
+        e2e_time=0,
+        number_of_steps=num_steps,
+        mfu=mfu,
+        tokens_per_second=global_batch_size * seq_length / average_step_time,
+        writer_path=bq_writer_repo_root,
+        topology="-",
+        comment="Regression tests",
+        is_test=(False if composer_env.is_prod_env() else True),
+    )
+
+
 def get_software_id(framework: str):
   if framework == "maxtext":
     return "jax_maxtext"
@@ -1086,10 +1454,13 @@ def get_software_id(framework: str):
     return None
 
 
-def get_image_version(framework: str):
+def get_image_version(framework: str, model_id: Optional[str] = None):
   if framework == "maxtext":
     return "maxtext_nightly"
   elif framework == "nemo":
-    return "nemo24.07-A3U"
+    if model_id == "llama3-1-405b":
+      return "nemo24.12-A3U"
+    else:
+      return "nemo24.07-A3U"
   else:
     return None

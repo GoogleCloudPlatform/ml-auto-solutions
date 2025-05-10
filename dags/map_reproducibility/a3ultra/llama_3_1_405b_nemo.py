@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAGs to run Aotc reproducibility benchmarks."""
+"""DAGs to run hypercomputer recipes"""
 
 import datetime
+
 from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
@@ -25,20 +26,17 @@ MODEL_ID = "llama3-1-405b"
 METRICS_MODEL_ID = "llama3.1-405b"
 PRECISION = "fp8"
 HYPERCOMPUTER = "a3ultra"
-FRAMEWORK = "maxtext"
-WORKLOAD_LAUNCHER = "maxtext-launcher.sh"
-OPTIMIZER = "adam"
-NUM_STEPS = 20
-
+FRAMEWORK = "nemo"
+WORKLOAD_LAUNCHER = "nemo-10-launcher.sh"
 
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
     if composer_env.is_prod_env()
     else None
 )
-SOFTWARE_ID = "jax_maxtext"
-KUEUE_NAME = "a3-ultra"
 
+SOFTWARE_ID = "pytorch_nemo"
+KUEUE_NAME = "a3-ultra"
 
 with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
@@ -50,7 +48,7 @@ with models.DAG(
         "regressiontests",
         "a3ultra",
     ],
-    start_date=datetime.datetime(2024, 11, 15),
+    start_date=datetime.datetime(2025, 5, 1),
     catchup=False,
 ) as dag:
   run_workload(
@@ -61,7 +59,4 @@ with models.DAG(
       kueue_name=KUEUE_NAME,
       metrics_model_id=METRICS_MODEL_ID,
       workload_launcher=WORKLOAD_LAUNCHER,
-      config_model_name=f"llama3-1-405b-256gpus-a3u-{PRECISION}.yaml",
-      optimizer=OPTIMIZER,
-      num_steps=NUM_STEPS,
   )

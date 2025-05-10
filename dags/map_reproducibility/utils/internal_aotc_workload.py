@@ -19,11 +19,12 @@ import tempfile
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
+from airflow.operators.python import get_current_context
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
 from dags.map_reproducibility.utils.common_utils import namespace_cmds
 from dags.map_reproducibility.utils.common_utils import internal_wait_for_jobs_cmds
-from dags.map_reproducibility.utils.common_utils import cleanup_cmds
+from dags.map_reproducibility.utils.common_utils import cleanup_cmds, cleanup_all_runs_cmds
 from dags.map_reproducibility.utils.common_utils import git_cookie_authdaemon
 from dags.map_reproducibility.utils.common_utils import clone_recipes_gob, clone_internal_recipes_gob
 from dags.map_reproducibility.utils.common_utils import helm_apply_cmds_internal_run
@@ -54,6 +55,10 @@ def run_internal_aotc_workload(
   Args:
     relative_config_yaml_path: Path to the config YAML relative to the repo root
   """
+  # Get the current context to access DAG ID
+  context = get_current_context()
+  dag_id = context["dag"].dag_id
+
   # Parse config from filename
   config_yaml_name = relative_config_yaml_path.rsplit("/", maxsplit=1)[
       -1
@@ -111,8 +116,14 @@ def run_internal_aotc_workload(
     # Parse the config content now that we have the file path
     config = parse_internal_config_content(full_config_yaml_path, config=config)
     job_name = get_internal_pre_workload_job_name(
-        config.MODEL_ID, config.FRAMEWORK
+        model_id=config.MODEL_ID,
+        precision=config.PRECISION,
+        num_gpus=config.NUM_GPUS,
+        framework=config.FRAMEWORK,
+        cluster=config.HYPERCOMPUTER,
     )
+    # Print DAG ID with job name
+    print(f"Running job '{job_name}' in DAG '{dag_id}'")
 
     container_timeout = int(timeout) - 4
     print(f"container timeout is {container_timeout}")
@@ -197,3 +208,18 @@ def run_internal_aotc_workload(
         workload_others=str(config),
         experiment_id=job_name,
     )
+
+
+@task
+def cleanup_cml_workloads(cluster, cluster_region):
+  with tempfile.TemporaryDirectory() as tmpdir:
+    hook = SubprocessHook()
+    result = hook.run_command(
+        [
+            "bash",
+            "-c",
+            ";".join(cleanup_all_runs_cmds(cluster, cluster_region)),
+        ],
+        cwd=tmpdir,
+    )
+    assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
