@@ -17,7 +17,7 @@ from dags.map_reproducibility.utils.constants import Schedule
 
 DAG_CONFIGS_INFERENCE_MEGA = {
     "recipes/inference/a3mega/a3mega_llama2-70b_8gpus_bf16_maxtext.yaml": {
-        "timeout_minutes": 15,
+        "timeout_minutes": 40,
         "backfill_group_nightly": 1,
         "backfill_group_release": 1,
         "nightly_schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,

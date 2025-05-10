@@ -19,7 +19,6 @@ import tempfile
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
-from xlml.apis import metric_config
 from google.cloud import storage
 from dags.map_reproducibility.utils.common_utils import configure_project_and_cluster
 from dags.map_reproducibility.utils.common_utils import install_helm_cmds
@@ -32,12 +31,10 @@ from dags.map_reproducibility.utils.common_utils import get_internal_pre_workloa
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
 from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
-from dags.map_reproducibility.utils.common_utils_inference import helm_apply_cmds_internal_run_inference, extract_and_write_to_jsonl_pattern
+from dags.map_reproducibility.utils.common_utils_inference import helm_apply_cmds_internal_run_inference, extract_autoregressive_write_to_jsonl, copy_inference_output_cmds, write_jsonl_to_bigquery, get_gcs_output_location, BUCKET_NAME
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_content
 from dags.map_reproducibility.utils.constants import KUEUE_NAME
-
 
 
 @task
@@ -144,9 +141,7 @@ def run_internal_aotc_inference_workload(
                     test_run=test_run,
                 )
                 + internal_wait_for_jobs_cmds(timeout=container_timeout)
-                + copy_bucket_cmds_maxtext(
-                    tmpdir, recipe_repo_root=recipe_repo_root
-                )
+                + copy_inference_output_cmds(tmpdir)
                 + cleanup_cmds()
             ),
         ],
@@ -156,14 +151,19 @@ def run_internal_aotc_inference_workload(
 
     output_location = os.path.join(tmpdir, "output.txt")
     jsonl_location = os.path.join(tmpdir, "output.jsonl")
-    extract_and_write_to_jsonl_pattern(output_location, jsonl_location)
-    gcs_bucket = metric_config.SshEnvVars.GCS_OUTPUT.value
-    print(f"GCS bucket is {gcs_bucket}")
+    extract_autoregressive_write_to_jsonl(
+        job_name, output_location, jsonl_location
+    )
+    write_jsonl_to_bigquery(jsonl_location)
+    gcs_output_location = get_gcs_output_location()
+    print(f"GCS output location is {gcs_output_location}")
 
     storage_client = storage.Client()
-    bucket = storage_client.bucket(gcs_bucket)
-    blob = bucket.blob("output.jsonl")
+    bucket = storage_client.bucket(BUCKET_NAME)
+    destination_file_name = f"{job_name}_results.jsonl"
+    destination_blob_name = os.path.join(
+        gcs_output_location, destination_file_name
+    )
+    blob = bucket.blob(destination_blob_name)
     blob.upload_from_filename(jsonl_location)
-    print(f"File {jsonl_location} uploaded to {gcs_bucket}.")
-
-
+    print(f"File {jsonl_location} uploaded to {gcs_output_location}.")

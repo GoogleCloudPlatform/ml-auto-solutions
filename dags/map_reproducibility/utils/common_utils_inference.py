@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import re
-import jsonlines
+import bigquery
+import jsonlines, json
+from google.cloud.bigquery import Client, LoadJobConfig, SourceFormat, SchemaField
 
 PROJECT = "supercomputer-testing"
 BUCKET_NAME = "regression-testing-xlml"
@@ -70,54 +72,84 @@ def helm_apply_cmds_internal_run_inference(
       f"={docker_image} "
       f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
       f"{additional_cmds}"
-      # f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
       f" $JOB_NAME {helm_template_path}",
   )
   print("*******helm cmd is*******")
   print(helm_cmds)
   return helm_cmds
 
-def extract_and_write_to_jsonl_pattern(input_file, output_file):
+
+def get_gcs_output_location(bucket_name=BUCKET_NAME):
+  return f"gs://{bucket_name}/maxtext-inference/output"
+
+
+def copy_inference_output_cmds(
+    tmpdir, bucket_name=BUCKET_NAME, project=PROJECT
+):
+  gcs_location = f"gs://{bucket_name}/maxtext-inference/"
+
+  cmds = (
+      f"OUTPUT_FILE={tmpdir}/output.txt",
+      f"export LOG_FILE=$(gcloud storage ls {gcs_location} --project={project}  | grep microbenchmark | sort -k 2 -r | head -n 1)",
+      'echo "LOG_FILE ${LOG_FILE}"',
+      "gcloud storage cp $LOG_FILE $OUTPUT_FILE",
+  )
+  return cmds
+
+
+def extract_autoregressive_write_to_jsonl(job_name, input_file, output_file):
   """
-  Extracts AutoRegressive results from a text file using patterns
-  and writes them to a JSONL file.
+    Reads a JSON file, extracts the 'autoregressive' data, and writes them to a JSONL file.
 
   Args:
       input_file (str): Path to the input text file.
       output_file (str): Path to the output JSONL file.
   """
-  extraction_patterns = {
-      "ar_step_average_time_ms": r"AR step average time: (\d+\.\d+) ms",
-      "ar_step_average_time_per_seq_ms": r"AR step average time per seq: (\d+\.\d+) ms",
-      "ar_global_batch_size": r"AR global batch size: (\d+)",
-      "ar_throughput_tokens_per_second": r"AR throughput: (\d+\.\d+) tokens/second",
-      "ar_memory_bandwidth_gb_per_second": r"AR memory bandwidth per device: (\d+\.\d+) GB/s",
-  }
-
-  results = dict()
-  results["dimensions"] = dict()
-  results["metrics"] = dict()
   try:
     with open(input_file, "r") as f:
-      for line in f:
-        line = line.strip()
-        for key, pattern in extraction_patterns.items():
-          match = re.search(pattern, line)
-          if match:
-            if "." in match.group(1):
-              results["metrics"][key] = float(match.group(1))
-            else:
-              results["metrics"][key] = int(match.group(1))
-            break  # Move to the next line once a match is found
-
-    if results:
-      with jsonlines.open(output_file, "w") as writter:
-        writter.write(results)
+      data = json.load(f)
+    autoregressive_data = data["autoregressive"]
+    autoregressive_data["job_name"] = job_name
+    with jsonlines.open(output_file, "w") as writter:
+      writter.write(autoregressive_data)
       print(f"Extracted results written to {output_file}")
-    else:
-      print("No AutoRegressive results found in the input file.")
-
   except FileNotFoundError:
     print(f"Error: Input file '{input_file}' not found.")
   except Exception as e:
-    print(f"An error occurred: {e}")
+    print(f"An error occurred during extract to jsonl: {e}")
+
+
+def write_jsonl_to_bigquery(
+    jsonl_file_path: str,
+    project_id: str = PROJECT,
+    dataset_id: str = "maxtext_inference",
+    table_id: str = "microbenchmark_llama2_70b",
+):
+  try:
+    client = Client(project=project_id)
+    dataset_ref = client.dataset(dataset_id)
+    table_ref = dataset_ref.table(table_id)
+    schema = [
+        SchemaField("job_name", "STRING", mode="REQUIRED"),
+        SchemaField("step_in_ms", "FLOAT", mode="NULLABLE"),
+        SchemaField("step_in_ms_per_seq", "FLOAT", mode="NULLABLE"),
+        SchemaField("global_batch_size", "FLOAT", mode="NULLABLE"),
+        SchemaField("total_throughput_tokens_per_second", "FLOAT", mode="NULLABLE"),
+        SchemaField("bw_per_device_GB_per_second", "FLOAT", mode="NULLABLE"),
+    ]
+    job_config = LoadJobConfig(
+        source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+        schema=schema,
+    )
+    print(f"Uploading {jsonl_file_path} to {table_ref.path}.")
+    with open(jsonl_file_path, "rb") as source_file:
+      load_job = client.load_table_from_file(
+          source_file, table_ref, job_config=job_config
+      )
+    load_job.result()
+    print(
+        f"Successfully loaded data from '{jsonl_file_path}' to '{table_ref.path}'."
+    )
+  except Exception as e:
+    print(f"An unexpected error occurred during uploading to bq: {e}")
+    return False

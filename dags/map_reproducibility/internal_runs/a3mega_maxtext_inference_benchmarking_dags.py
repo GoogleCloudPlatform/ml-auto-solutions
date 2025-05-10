@@ -19,7 +19,6 @@ import os
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.constants import Image
 from dags.map_reproducibility.internal_runs.dag_configs_inference import DAG_CONFIGS_INFERENCE_MEGA
 from dags.map_reproducibility.utils.internal_aotc_inference_workload import run_internal_aotc_inference_workload
 
@@ -27,12 +26,9 @@ from dags.map_reproducibility.utils.internal_aotc_inference_workload import run_
 # Configuration parameters
 TEST_RUN = False
 TURN_ON_SCHEDULE = True if composer_env.is_prod_env() else False
-BACKFILL = False
 
-# Get current date for image tags
-utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
-RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:{utc_date}"
+# Pull the MaxText container from NVIDIA
+IMAGE = "ghcr.io/nvidia/jax:maxtext"
 
 # Define common tags
 DAG_TAGS = [
@@ -69,7 +65,6 @@ for config_path, config_info in DAG_CONFIGS_INFERENCE_MEGA.items():
     run_internal_aotc_inference_workload(
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
-        backfill=BACKFILL,
         timeout=timeout,
-        image_version=NIGHTLY_IMAGE,
+        image_version=IMAGE,
     )
