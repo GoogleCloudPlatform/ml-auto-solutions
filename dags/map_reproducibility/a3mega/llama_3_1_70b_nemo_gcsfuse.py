@@ -44,12 +44,7 @@ default_dag_args = {
 
 with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_gcsfuse_ckpt",
-    tags=[
-        "experimental",
-        "regressiontests",
-        "a3mega",
-        "storage-run"
-    ],
+    tags=["experimental", "regressiontests", "a3mega", "storage-run"],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
     default_args=default_dag_args,
