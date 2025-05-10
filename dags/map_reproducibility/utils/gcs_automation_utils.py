@@ -41,15 +41,19 @@ def gcs_automation_cmds(
   if not gcs_results_generator:
     return ()
 
-  cmds = _get_generated_job_name(
-      logs_bucket=logs_bucket,
-  ) + _logs_scraper_cmds(
-      logs_bucket=logs_bucket,
-      gcs_metrics_bucket=gcs_metrics_bucket,
-      recipe_repo_root=recipe_repo_root,
-  ) + _run_results_generator_cmds(
-      run_details=run_details,
-      gcs_automation_repo_root=gcs_automation_repo_root,
+  cmds = (
+      _get_generated_job_name(
+          logs_bucket=logs_bucket,
+      )
+      + _logs_scraper_cmds(
+          logs_bucket=logs_bucket,
+          gcs_metrics_bucket=gcs_metrics_bucket,
+          recipe_repo_root=recipe_repo_root,
+      )
+      + _run_results_generator_cmds(
+          run_details=run_details,
+          gcs_automation_repo_root=gcs_automation_repo_root,
+      )
   )
 
   return cmds
@@ -129,7 +133,5 @@ def _run_results_generator_cmds(
   if run_details.benchmark_type == "checkpointing":
     metrics_cmds += ckpt_cmds
 
-  cmds += (
-      metrics_cmds,
-  )
+  cmds += (metrics_cmds,)
   return cmds

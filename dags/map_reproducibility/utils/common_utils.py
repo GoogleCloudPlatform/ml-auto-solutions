@@ -184,9 +184,7 @@ def get_bq_writer_repo(
         "git merge FETCH_HEAD)",
     )
   if gcs_results_generator:
-    gob_clone_cmds += (
-        "(cd benchmark-automation && ./install_mantaray.sh)",
-    )
+    gob_clone_cmds += ("(cd benchmark-automation && ./install_mantaray.sh)",)
   return gob_clone_cmds
 
 
@@ -978,20 +976,26 @@ def extract_run_details(
           workload_type=workload_type,
           workload_manager=workload_manager,
           workload_precision=config.get("trainer", {}).get("precision"),
-          workload_optimizer=config.get(
-              "model", {}).get("optim", {}).get("name"),
-          workload_sequence_length=config.get(
-              "model", {}).get("data", {}).get("seq_length"),
+          workload_optimizer=config.get("model", {})
+          .get("optim", {})
+          .get("name"),
+          workload_sequence_length=config.get("model", {})
+          .get("data", {})
+          .get("seq_length"),
           max_epochs=config.get("trainer", {}).get("max_epochs"),
           max_steps=config.get("trainer", {}).get("max_steps"),
-          checkpointing_async=config.get("exp_manager", {}).get(
-              "checkpoint_callback_params", {}).get("async_save", {}),
-          checkpointing_interval_every_n_steps=config.get("exp_manager", {}).get(
-              "checkpoint_callback_params", {}).get("every_n_train_steps", {}),
-          checkpointing_file_format=config.get(
-              "model", {}).get("dist_ckpt_format"),
-          data_loader_num_workers=config.get("model", {}).get(
-              "data", {}).get("num_workers"),
+          checkpointing_async=config.get("exp_manager", {})
+          .get("checkpoint_callback_params", {})
+          .get("async_save", {}),
+          checkpointing_interval_every_n_steps=config.get("exp_manager", {})
+          .get("checkpoint_callback_params", {})
+          .get("every_n_train_steps", {}),
+          checkpointing_file_format=config.get("model", {}).get(
+              "dist_ckpt_format"
+          ),
+          data_loader_num_workers=config.get("model", {})
+          .get("data", {})
+          .get("num_workers"),
           hardware_num_chips=hardware_num_chips,
           hardware_num_nodes=hardware_num_nodes,
           configs_env=configs_env,
@@ -1032,9 +1036,7 @@ def get_recipe_repo_path(tmpdir):
 
 
 def get_gcs_automation_repo_path(tmpdir):
-  return os.path.join(
-      tmpdir, "benchmarks/automation/run_results_generator"
-  )
+  return os.path.join(tmpdir, "benchmarks/automation/run_results_generator")
 
 
 def get_cluster(hardware: str = "a3ultra"):
@@ -1400,8 +1402,11 @@ def run_nemo_workload(
         f"{f'-{storage_product}' if storage_product else ''}/values.yaml"
     )
 
-    workload_image = workload_image if workload_image else get_docker_image(
-        hypercomputer, framework, model_id)
+    workload_image = (
+        workload_image
+        if workload_image
+        else get_docker_image(hypercomputer, framework, model_id)
+    )
     logs_bucket = logs_bucket if logs_bucket else BUCKET_NAME
 
     num_gpus_file = extract_gpus(recipe_repo_root, value_yaml_path)
