@@ -301,7 +301,9 @@ def process_tensorboard_summary(
   return [metric_history_rows], [metadata_history_rows]
 
 
-def get_gcs_file_location_with_regex(file_location: str) -> str:
+def get_gcs_file_location_with_regex(
+    file_location: str, return_largest: bool = True
+) -> str:
   """
   Get a file from GCS given a regex in the form of
   `gs://<your_bucket>/<your_file_path_regex>`. Does not support
@@ -310,9 +312,11 @@ def get_gcs_file_location_with_regex(file_location: str) -> str:
   Args:
     file_location: File location regex in the form of
         `gs://<your_bucket>/<path>/<your_file_name_regex>`.
+    return_largest: If true, returns the largest matching file.
 
   Returns:
-    The file location of the first file that fits the given regex.
+    The file location of the largest (unless return_largest is False)
+    file that fits the given regex.
   """
   storage_client = storage.Client()
 
@@ -322,18 +326,28 @@ def get_gcs_file_location_with_regex(file_location: str) -> str:
   file_path_regex = re.compile(file_path)
   prefix = "/".join(file_path.split("/")[:-1])
 
-  all_blobs_names = [
-      b.name for b in storage_client.list_blobs(bucket_name, prefix=prefix)
+  matched_blobs = [
+      b
+      for b in storage_client.list_blobs(bucket_name, prefix=prefix)
+      if file_path_regex.match(b.name)
   ]
 
-  try:
-    return (
-        f"gs://{bucket_name}/"
-        f"{next(filter(file_path_regex.match, all_blobs_names))}"
-    )
-  except StopIteration:
+  if not matched_blobs:
     logging.warning(f"No objects matched supplied regex: {file_location}")
     return ""
+
+  if return_largest:
+    sizeable_blobs = [b for b in matched_blobs if b.size is not None]
+    if not sizeable_blobs:
+      logging.warning(
+          f"No sizeable objects matched supplied regex: {file_location}"
+      )
+      return ""
+    selected_blob = max(sizeable_blobs, key=lambda b: b.size)
+  else:
+    selected_blob = matched_blobs[0]
+
+  return f"gs://{bucket_name}/{selected_blob.name}"
 
 
 # TODO(qinwen): implement profile metrics & upload to Vertex AI TensorBoard

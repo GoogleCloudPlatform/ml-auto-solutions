@@ -35,13 +35,8 @@ SCHEDULED_TIME = (
     else None
 )
 
-# VALUE_YAML_PATH = (
-#     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
-# )
 SOFTWARE_ID = "pytorch_nemo"
-# IMAGE_VERSION = "nemo_workload:24.12"
 KUEUE_NAME = "a3-ultra"
-# NUM_GPUS = 576
 
 with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
@@ -63,6 +58,5 @@ with models.DAG(
       precision=PRECISION,
       kueue_name=KUEUE_NAME,
       metrics_model_id=METRICS_MODEL_ID,
-      # config_model_name=f"{MODEL_ID}-{NUM_GPUS}gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
       workload_launcher=WORKLOAD_LAUNCHER,
   )
