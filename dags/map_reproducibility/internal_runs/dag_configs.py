@@ -213,3 +213,13 @@ DAG_CONFIGS_A4 = {
         "schedule": Schedule.WEEKDAY_PDT_2AM_EXCEPT_THURSDAY,
     },
 }
+
+DAG_CONFIGS_A4_NEMO = {
+    "recipes/a4/nemo/a4_llama3.1-70b_256gpus_fp8_nemo.yaml": {
+        "timeout_minutes": 15,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "nightly_schedule": Schedule.SATURDAY_PDT_12AM,
+        "release_schedule": Schedule.SATURDAY_PDT_12AM,
+    }
+}

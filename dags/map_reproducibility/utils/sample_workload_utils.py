@@ -39,6 +39,10 @@ from dags.map_reproducibility.utils.common_utils import (
     get_patheon_job_link,
     find_xprof_gcs_path,
     get_skip_steps_for_metrics_calculation,
+    copy_bucket_cmds_nemo,
+    get_accelerator_type,
+    get_nemo_metrics_cmds,
+    get_nemo_metrics,
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -289,7 +293,7 @@ def run_internal_sample_aotc_workload(
             values_file_path,
             docker_image,
             cluster_name=cluster,
-            kueue_name=KUEUE_NAME,
+            kueue_name=None,
             additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
             bucket_name=sample_run_bucket_name,
         )
@@ -349,6 +353,158 @@ def run_internal_sample_aotc_workload(
           precision=config.PRECISION,
           optimizer=Optimizer.ADAM,
           seq_length=config.max_target_length,
+          median_step_time=step_time,
+          e2e_time=step_time * NUM_STEPS,
+          number_of_steps=NUM_STEPS,
+          mfu=mfu,
+          tokens_per_second=1,
+          writer_path=bq_writer_repo_root,
+          run_type="sample_helm_workload",
+          topology="",
+          comment=comment,
+          is_test=True,
+          logs_profile=logs_profile,
+          gcs_metrics_bucket=gcs_bucket,
+          workload_others=str(config),
+          experiment_id=job_name,
+      )
+
+
+def run_internal_sample_aotc_workload_nemo(
+    relative_config_yaml_path: str,
+    base_recipe_repo_root: str,
+    timeout: int,
+    image_version: str,
+    sample_run_bucket_name: str,
+) -> Dict[str, Any]:
+  """Run the internal sample AOTC workload for NeMo framework.
+
+  Args:
+      relative_config_yaml_path: Relative path to config YAML
+      base_recipe_repo_root: Root directory of the recipe repository
+      timeout: Timeout in seconds
+      image_version: Docker image version
+      sample_run_bucket_name: GCS bucket for storing run data
+      two_node: Whether to run with 2-node configuration
+
+  Returns:
+      Dictionary with results
+  """
+  # Parse config from filename
+  config_yaml_name = relative_config_yaml_path.rsplit("/", maxsplit=1)[
+      -1
+  ].replace(".yaml", "")
+  config = parse_internal_config_filename(config_yaml_name)
+
+  # Get derived configuration
+  cluster, cluster_region = get_cluster(config.HYPERCOMPUTER)
+  docker_image = image_version
+
+  # Locate values file
+  values_file_path = get_values_file_path(
+      base_recipe_repo_root,
+      config_yaml_name,
+      config.HYPERCOMPUTER,
+      config.FRAMEWORK,
+  )
+
+  # Locate config yaml
+  full_config_yaml_path = f"{base_recipe_repo_root}/{relative_config_yaml_path}"
+  logger.info(f"Config YAML path: {full_config_yaml_path}")
+  logger.info(f"base_recipe_repo_root is: {base_recipe_repo_root}")
+
+  # Parse the config content now that we have the file path
+  config = parse_internal_config_content(full_config_yaml_path, config=config)
+  logger.info(f"sequence length is: {config.model.data.seq_length}")
+
+  job_name = get_internal_pre_workload_job_name(
+      model_id=config.MODEL_ID,
+      precision=config.PRECISION,
+      num_gpus=config.NUM_GPUS,
+      framework=config.FRAMEWORK,
+      cluster=config.HYPERCOMPUTER,
+      is_sample_run=True,
+  )
+  accelerator_type = get_accelerator_type(config.HYPERCOMPUTER)
+  pantheon_link = get_patheon_job_link(
+      region=cluster_region, cluster_name=cluster, job_name=job_name
+  )
+
+  # Adjust timeout for the container
+  container_timeout = int(timeout) - 4
+  logger.info(f"Container timeout: {container_timeout}")
+  logger.info(f"global_batch_size is: {config.model.global_batch_size}")
+
+  with tempfile.TemporaryDirectory() as tmpdir:
+    # Prepare commands
+    commands = (
+        sample_job_configure_project_and_cluster(cluster, cluster_region)
+        + namespace_cmds()
+        + get_internal_pre_workload_cmds(job_name=job_name)
+        + helm_apply_cmds_internal_run(
+            config.FRAMEWORK,
+            config.HYPERCOMPUTER,
+            full_config_yaml_path,
+            base_recipe_repo_root,
+            values_file_path,
+            docker_image,
+            cluster_name=cluster,
+            kueue_name=None,
+            additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
+            bucket_name=sample_run_bucket_name,
+        )
+        + internal_wait_for_jobs_cmds(timeout=container_timeout)
+        + copy_bucket_cmds_nemo(
+            base_recipe_repo_root,
+            hypercomputer=config.HYPERCOMPUTER,
+            bucket_name=sample_run_bucket_name,
+        )
+        + get_nemo_metrics_cmds(
+            batch_size=config.model.global_batch_size,
+            num_accelerators=config.NUM_GPUS,
+            precision=config.PRECISION,
+            model_id=config.MODEL_ID,
+            accelertator_type=accelerator_type,
+            temdir=tmpdir,
+            two_node=False,
+            start_step=2,
+            end_step=int(NUM_STEPS) - 3,
+        )
+        + cleanup_cmds()
+    )
+
+    # Execute commands
+    success, error_message = execute_workload_commands(commands, tmpdir)
+
+    # Process results
+    if success:
+      bq_writer_repo_root = get_bq_writer_path(tmpdir)
+
+      comment = "sample benchmarking run"
+      gcs_bucket = get_job_gcs_bucket_folder(
+          job_name,
+          bucket_name=sample_run_bucket_name,
+          framework=config.FRAMEWORK,
+      )
+      print(f"GCS bucket is {gcs_bucket}")
+      logs_profile = None
+
+      # calculate mfu based on the config
+      mfu, step_time = get_nemo_metrics(tmpdir)
+      print(f"mfu: {mfu}")
+      print(f"step_time: {step_time}")
+
+      write_run(
+          model_id=config.HELM_NAME_MODEL_ID,
+          hardware_id=config.HYPERCOMPUTER,
+          software_id=config.SOFTWARE_ID,
+          number_of_nodes=config.NUM_GPUS / 8,
+          number_of_chips=config.NUM_GPUS,
+          container_image_name=docker_image,
+          global_batch_size=config.model.global_batch_size,
+          precision=config.PRECISION,
+          optimizer=Optimizer.ADAM,
+          seq_length=config.model.data.seq_length,
           median_step_time=step_time,
           e2e_time=step_time * NUM_STEPS,
           number_of_steps=NUM_STEPS,

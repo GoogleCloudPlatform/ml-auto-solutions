@@ -1,6 +1,6 @@
 KUEUE_NAME = "a3-ultra"
 OPTIMIZER = "adam"
-NUM_STEPS = 20
+NUM_STEPS = 15
 
 
 class Optimizer:
@@ -38,6 +38,8 @@ class Schedule:
   WEEKDAY_PDT_3_30AM_EXCEPT_THURSDAY = "30 10 * * 2,3,4,6"
   WEEKDAY_PDT_6AM_7AM_EXCEPT_THURSDAY = "0 13,14 * * 2,3,4,6"
 
+  SATURDAY_PDT_12AM = "0 7 * * 6"
+
 
 class Image:
   MAXTEXT_JAX_STABLE_NIGHTLY = (
@@ -48,3 +50,5 @@ class Image:
   )
   MAXTEXT_JAX_STABLE_NIGHTLY_OLD = "gcr.io/supercomputer-testing/jax3p_nightly"
   MAXTEXT_JAX_STABLE_RELEASE_OLD = "gcr.io/supercomputer-testing/jax3p_stable"
+  NEMO_STABLE_RELEASE_A3U = "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo24.07-gib1.0.3-A3U"
+  NEMO_STABLE_RELEASE_A4 = "us-central1-docker.pkg.dev/deeplearning-images/reproducibility/pytorch-gpu-nemo-nccl:nemo25.02-gib1.0.5-A4"
