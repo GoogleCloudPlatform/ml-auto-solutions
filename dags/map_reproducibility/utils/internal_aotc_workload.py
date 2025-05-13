@@ -34,7 +34,7 @@ from dags.map_reproducibility.utils.common_utils import get_internal_pre_workloa
 from dags.map_reproducibility.utils.common_utils import get_gpu_recipe_cmd
 from dags.map_reproducibility.utils.common_utils import get_bq_writer_path
 from dags.map_reproducibility.utils.common_utils import get_recipe_repo_path, get_internal_recipe_repo_path
-from dags.map_reproducibility.utils.common_utils import get_cluster
+from dags.map_reproducibility.utils.common_utils import get_cluster, get_patheon_job_link
 from dags.map_reproducibility.utils.common_utils import calculate_maxtext_metrics, get_skip_steps_for_metrics_calculation
 from dags.map_reproducibility.utils.common_utils import copy_bucket_cmds_maxtext, get_job_gcs_bucket_folder
 from dags.map_reproducibility.utils.common_utils import parse_internal_config_filename
@@ -122,6 +122,10 @@ def run_internal_aotc_workload(
         framework=config.FRAMEWORK,
         cluster=config.HYPERCOMPUTER,
     )
+    pantheon_link = get_patheon_job_link(
+        region=cluster_region, cluster_name=cluster, job_name=job_name
+    )
+
     # Print DAG ID with job name
     print(f"Running job '{job_name}' in DAG '{dag_id}'")
 
@@ -150,7 +154,7 @@ def run_internal_aotc_workload(
                     values_file_path,
                     docker_image,
                     cluster_name=cluster,
-                    kueue_name=KUEUE_NAME,
+                    kueue_name=None,  # not enabled until kueue-tas is fixed
                     additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
                 )
                 + internal_wait_for_jobs_cmds(timeout=container_timeout)

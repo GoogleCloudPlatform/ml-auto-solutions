@@ -48,19 +48,38 @@ MAX_TFLOP = {"a3ultra": 989, "a3mega": 989, "a4": 2237}
 
 
 class Config:
-  """
-  A simple configuration class that allows dot notation access
-  to dictionary keys.
-  """
 
-  def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)
+  def __init__(self, **entries):
+    for key, value in entries.items():
+      if isinstance(value, dict):
+        setattr(self, key, Config(**value))
+      elif isinstance(value, list):
+        setattr(
+            self,
+            key,
+            [
+                Config(**item) if isinstance(item, dict) else item
+                for item in value
+            ],
+        )
+      else:
+        setattr(self, key, value)
 
   def __repr__(self):
-    return repr(self.__dict__)
+    return f"{self.__class__.__name__}({self.__dict__})"
 
-  def __str__(self):
-    return str(self.__dict__)
+  def to_dict(self):
+    result = {}
+    for key, value in self.__dict__.items():
+      if isinstance(value, Config):
+        result[key] = value.to_dict()
+      elif isinstance(value, list):
+        result[key] = [
+            v.to_dict() if isinstance(v, Config) else v for v in value
+        ]
+      else:
+        result[key] = value
+    return result
 
 
 # This is required to get auth to access
@@ -282,19 +301,17 @@ def helm_apply_cmds_internal_run(
     docker_image,
     aotc: bool = False,
     cluster_name: str = "a3plus-benchmark",
-    kueue_name: str = "a3-ultra",
+    kueue_name: str = None,
     additional_cmds: str = "",
     bucket_name=BUCKET_NAME,
 ):
   gcs_cmd = ""
-  if framework == "maxtext":
-    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={bucket_name} "
-
-  if hypercomputer == "a3ultra":
-    if framework != "maxtext":
-      gcs_cmd += f" --set queue={kueue_name} "
+  if hypercomputer in ("a3ultra", "a4"):
+    if framework != "maxtext" and kueue_name:
+      gcs_cmd = f" --set queue={kueue_name}"
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={bucket_name}"
   else:
-    gcs_cmd += f" --set workload.gcsBucketForDataCataPath={bucket_name} "
+    gcs_cmd = f" --set workload.gcsBucketForDataCataPath={bucket_name}"
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":
@@ -459,43 +476,55 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
   return wait_for_job
 
 
-def get_job_gcs_bucket_folder(job_name, bucket_name=BUCKET_NAME):
+def get_job_gcs_bucket_folder(
+    job_name, bucket_name=BUCKET_NAME, framework="maxtext", cluster="a3ultra"
+):
   """
-  Get the GCS bucket folder for a specific job.
+  Retrieve the GCS bucket folder path for a specific job.
 
   Args:
-      bucket_name (str): The name of the GCS bucket
-      job_name (str): The job name to search for
+    job_name (str): The job name to search for.
+    bucket_name (str): Name of the GCS bucket.
+    framework (str): Training framework ('maxtext' or 'nemo').
+    cluster (str): Cluster name to determine the path.
 
   Returns:
-      str: The full path to the bucket folder containing the job
+    str | None: Full GCS path to the job folder, or None if not found.
   """
-  gcs_location = f"gs://{bucket_name}/maxtext/"
+  if framework == "maxtext":
+    gcs_location = f"gs://{bucket_name}/maxtext/"
+  elif framework == "nemo":
+    if cluster in ("a4", "a3ultra"):
+      gcs_location = f"gs://{bucket_name}/nemo-experiments/megatron_gpt/"
+    else:
+      gcs_location = f"gs://{bucket_name}/nemo-experiments/"
+  else:
+    raise ValueError(f"Unsupported framework: {framework}")
+
   bucket_folder_cmd = f"gcloud storage ls {gcs_location} | grep {job_name}"
-  print(f"bucket_folder_cmd: {bucket_folder_cmd}")
+  print(f"[INFO] Running: {bucket_folder_cmd}")
 
   try:
     bucket_folder = (
         subprocess.check_output(bucket_folder_cmd, shell=True).decode().strip()
     )
     bucket_folder_prefix_removed = bucket_folder.removeprefix("gs://")
-    pantheon_bucket_link = (
-        "https://pantheon.corp.google.com/storage/browser/"
-        + bucket_folder_prefix_removed
-    )
-    print(f"BUCKET PANTHEON LINK: {pantheon_bucket_link}")
+    pantheon_url = f"https://pantheon.corp.google.com/storage/browser/{bucket_folder_prefix_removed}"
+    print(f"[INFO] Pantheon Link: {pantheon_url}")
     return bucket_folder
   except subprocess.CalledProcessError as e:
-    print(f"Error finding bucket folder: {e}")
+    print(f"[ERROR] Failed to locate bucket folder: {e}")
     return None
 
 
-def copy_bucket_cmds_nemo(recipe_repo_root, hypercomputer: str = "a3mega"):
+def copy_bucket_cmds_nemo(
+    recipe_repo_root, hypercomputer: str = "a3mega", bucket_name=BUCKET_NAME
+):
   gcs_location = ""
   if hypercomputer in ("a3ultra", "a4"):
-    gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/megatron_gpt/"
+    gcs_location = f"gs://{bucket_name}/nemo-experiments/megatron_gpt/"
   else:
-    gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/"
+    gcs_location = f"gs://{bucket_name}/nemo-experiments/"
 
   copy_bucket_contents = (
       "export COMPLETE_JOB_NAME=$(gcloud storage ls "
@@ -624,10 +653,14 @@ def get_nemo_metrics_cmds(
     accelertator_type,
     temdir,
     two_node: bool = False,
+    start_step: int = None,
+    end_step: int = None,
 ):
   step_cmd = ""
   if two_node:
     step_cmd = "--start_step 0 --end_step 0 "
+  if start_step and end_step:
+    step_cmd = f"--start_step {start_step} --end_step {end_step} "
   cmds = (
       f"METRICS_FILE={temdir}/metrics.txt",
       "python3 process_training_results.py --file"
@@ -977,7 +1010,7 @@ def parse_internal_config_filename(filename, config=None):
 
   hypercomputer = parts[0]
   model_id_raw = parts[1]
-  model_id = model_id_raw.replace("llama", "llama-")
+  # model_id = model_id_raw.replace("llama", "llama-")
   num_gpus = int(parts[2].replace("gpus", ""))
   precision = parts[3]
   framework = parts[4]
@@ -986,7 +1019,7 @@ def parse_internal_config_filename(filename, config=None):
   software_id = f"{'jax' if framework == 'maxtext' else 'pytorch'}_{framework}"
 
   filename_config = {
-      "MODEL_ID": model_id,
+      "MODEL_ID": model_id_raw,
       "HELM_NAME_MODEL_ID": model_id_raw.replace(".", "-"),
       "PRECISION": precision,
       "HYPERCOMPUTER": hypercomputer,
@@ -1008,25 +1041,34 @@ def parse_internal_config_content(yaml_path, config=None):
   Parse the internal content of a config YAML file and update the existing config.
 
   Args:
-      yaml_path (str): Path to the YAML file
-      config (Config, optional): Existing Config object to update. If None, a new one is created.
+    yaml_path (str): Path to the YAML file
+    config (Config, optional): Existing Config object to update. If None, a new one is created.
 
   Returns:
-      Config: Updated configuration object with dot notation access
+    Config: Updated configuration object with dot notation access
   """
   try:
     with open(yaml_path, "r") as file:
       result = yaml.safe_load(file)
 
+    def recursive_merge(existing, new):
+      for key, value in new.items():
+        if isinstance(value, dict):
+          sub = getattr(existing, key, Config())
+          recursive_merge(sub, value)
+          setattr(existing, key, sub)
+        else:
+          setattr(existing, key, value)
+
     if config is None:
       config = Config(**result)
     else:
-      config.__dict__.update(result)
+      recursive_merge(config, result)
 
     print("******* configs are ********")
     print(config)
-
     return config
+
   except Exception as e:
     print(f"Unexpected error: {e}")
     raise e
