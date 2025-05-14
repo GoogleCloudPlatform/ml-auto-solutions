@@ -15,6 +15,7 @@
 """Sample job to run Aotc reproducibility benchmarks."""
 import sys
 import os
+import logging
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))
@@ -25,14 +26,17 @@ print(f"Project root: {project_root}")
 if project_root not in sys.path:
   sys.path.insert(0, project_root)
 
-import datetime
 from dags.map_reproducibility.utils.constants import Image, WorkloadLauncher
-from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA_NEMO
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_united_workload
 
 
-# Skip execution when being run as part of the DAG check
-# Checking if the file doesn't exist is a reliable way to detect this context
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# Resolve base paths
 base_recipe_repo_root = os.path.abspath(
     os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
@@ -55,36 +59,32 @@ base_helm_repo_root = os.path.abspath(
     )
 )
 
+# Log the resolved paths
+logging.info(f"Resolved base_recipe_repo_root: {base_recipe_repo_root}")
+logging.info(f"Resolved base_helm_repo_root: {base_helm_repo_root}")
+
+# Check and warn if either path does not exist
 if not os.path.exists(base_recipe_repo_root):
-  print(
-      f"Skipping sample_a3ultra_maxtext_single_run.py - required directory not found: {base_recipe_repo_root}"
+  logging.warning(
+      f"Required directory not found: {base_recipe_repo_root}. Skipping sample_a3ultra_nemo_single_run.py."
   )
   sys.exit(0)
 
+if not os.path.exists(base_helm_repo_root):
+  logging.warning(
+      f"Helm directory not found: {base_helm_repo_root}. Continuing execution, but helm operations may fail."
+  )
+
 
 def main():
-  utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-  NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
-  RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:{utc_date}"
-
-  # The dynamic date-based image is defined above, but can be overridden below
-  # with specific image versions and bucket names as required for testing
-  RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:2025-04-17"
+  RELEASE_IMAGE = Image.NEMO_STABLE_RELEASE_A3U
   SAMPLE_RUN_BUCKET_NAME = "yujunzou-dev-supercomputer-testing"
 
   # Setup configuration
   relative_config_yaml_path = (
-      "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml"
+      "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_bf16_nemo.yaml"
   )
-  timeout = DAG_CONFIGS_ULTRA[relative_config_yaml_path]["timeout_minutes"]
-
-  # run_internal_sample_aotc_workload(
-  #     relative_config_yaml_path=relative_config_yaml_path,
-  #     base_recipe_repo_root=base_recipe_repo_root,
-  #     timeout=timeout,
-  #     image_version=RELEASE_IMAGE,
-  #     sample_run_bucket_name=SAMPLE_RUN_BUCKET_NAME,
-  # )
+  timeout = DAG_CONFIGS_ULTRA_NEMO[relative_config_yaml_path]["timeout_minutes"]
 
   run_internal_united_workload(
       relative_config_yaml_path=relative_config_yaml_path,
@@ -93,7 +93,7 @@ def main():
       timeout=timeout,
       image_version=RELEASE_IMAGE,
       sample_run_bucket_name=SAMPLE_RUN_BUCKET_NAME,
-      workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER,
+      workload_launcher=WorkloadLauncher.NEMO_TEN_LAUNCHER,
   )
 
 
