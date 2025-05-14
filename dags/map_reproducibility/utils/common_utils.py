@@ -1712,12 +1712,17 @@ def run_workload(
         recipe_repo_root, workload_launcher_path
     )
     if framework == "nemo":
-      (
-          global_batch_size,
-          optimizer,
-          seq_length,
-          config_num_steps,
-      ) = extract_run_details(recipe_repo_root, config_yaml_path)
+      run_details = extract_run_details(
+          root=recipe_repo_root,
+          config_path=config_yaml_path,
+          model_id=model_id,
+          software_id=get_software_id(framework),
+          hardware_id=hypercomputer,
+      )
+      global_batch_size = run_details.workload_gbs
+      optimizer = run_details.workload_optimizer
+      seq_length = run_details.workload_sequence_length
+      config_num_steps = run_details.max_steps
     else:
       global_batch_size = (
           extract_value_from_yaml(
