@@ -264,7 +264,9 @@ def get_internal_pre_workload_job_name(
   helm_model_id = model_id.replace(".", "-")
   random_id = "".join(random.choices(string.ascii_lowercase, k=3))
   now = time.strftime("%m%d")
-  # raw job name <= 42 chars: job_name limit  53 chars ->  raw name = 42 chars + "-workload-0"
+  # This job name can be either a job name or a jobset name depending on the Helm chart in use.
+  # It should be <= 42 characters because Helm's job name limit is 53 characters,
+  # and the jobset suffix adds 11 characters ("-workload-0") to the name.
   job_name = f"cml-{helm_model_id}-{precision}{num_gpus}{cluster[:3]}{framework[:1]}{now}-{random_id}"
   if is_sample_run:
     # use 3 char max for user_name to make sure helm job is within 53 char

@@ -78,14 +78,6 @@ def main():
   )
   timeout = DAG_CONFIGS_ULTRA[relative_config_yaml_path]["timeout_minutes"]
 
-  # run_internal_sample_aotc_workload(
-  #     relative_config_yaml_path=relative_config_yaml_path,
-  #     base_recipe_repo_root=base_recipe_repo_root,
-  #     timeout=timeout,
-  #     image_version=RELEASE_IMAGE,
-  #     sample_run_bucket_name=SAMPLE_RUN_BUCKET_NAME,
-  # )
-
   run_internal_united_workload(
       relative_config_yaml_path=relative_config_yaml_path,
       base_recipe_repo_root=base_recipe_repo_root,

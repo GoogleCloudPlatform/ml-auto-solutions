@@ -313,6 +313,7 @@ def run_internal_united_workload(
     workload_launcher: str,
     is_dag_run: bool = False,
     backfill: bool = False,
+    test_run: bool = True,
 ) -> Dict[str, Any]:
   """Run a sample or DAG internal workload (NeMo or MaxText)."""
 
@@ -361,7 +362,7 @@ def run_internal_united_workload(
         num_gpus=config.NUM_GPUS,
         framework=config.FRAMEWORK,
         cluster=config.HYPERCOMPUTER,
-        is_sample_run=True,
+        is_sample_run=not is_dag_run,
     )
 
     get_patheon_job_link(
@@ -416,6 +417,7 @@ def run_internal_united_workload(
         config, gcs_bucket, tmpdir, is_sample_run=not is_dag_run
     )
     run_type, comment = get_internal_run_type_and_comment(is_dag_run, backfill)
+    is_db_test_run = False if backfill else test_run
 
     write_run(
         model_id=config.HELM_NAME_MODEL_ID,
@@ -436,7 +438,7 @@ def run_internal_united_workload(
         writer_path=get_bq_writer_path(tmpdir),
         run_type=run_type,
         comment=comment,
-        is_test=not is_dag_run,
+        is_test=is_db_test_run,
         logs_profile=logs_profile,
         gcs_metrics_bucket=gcs_bucket,
         workload_others=str(config),
@@ -449,6 +451,7 @@ def run_internal_united_workload(
 @task
 def run_internal_dag_united_workload(
     relative_config_yaml_path: str,
+    test_run: bool,
     backfill: bool,
     timeout: int,
     image_version: str,
@@ -465,4 +468,5 @@ def run_internal_dag_united_workload(
       workload_launcher=workload_launcher,
       is_dag_run=True,
       backfill=backfill,
+      test_run=test_run,
   )
