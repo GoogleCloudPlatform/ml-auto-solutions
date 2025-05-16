@@ -47,7 +47,7 @@ class JSONLinesConfig:
   """A class to set up JSON Lines config.
 
   Attributes:
-    file_location: The locatioin of the file in GCS. When
+    file_location: The location of the file in GCS. When
       `use_runtime_generated_gcs_folder` flag is ture, use relative path.
   """
 
@@ -59,7 +59,7 @@ class SummaryConfig:
   """A class to set up TensorBoard summary config.
 
   Attributes:
-    file_location: The locatioin of the file in GCS. When
+    file_location: The location of the file in GCS. When
       `use_runtime_generated_gcs_folder` flag is ture, use relative path.
     aggregation_strategy: The aggregation strategy for metrics.
     include_tag_patterns: The matching patterns of tags that wil be included.
@@ -83,13 +83,14 @@ class ProfileConfig:
   """A class to set up profile config.
 
   Attributes:
-    file_locations: The locatioin of the file in GCS. When
+    file_locations: The location of the file in GCS. When
       `use_runtime_generated_gcs_folder` flag is ture, use relative path.
       If JSON_LINES format type is used for metrics and dimensions, please
       ensure the order of profiles match with test runs in JSON Lines.
   """
 
-  file_locations: List[str]
+  file_location: str
+  metrics: Optional[dict] = None
 
 
 @dataclasses.dataclass

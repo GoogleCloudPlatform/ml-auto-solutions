@@ -263,13 +263,32 @@ class XpkTask(BaseTask):
           tb_file_location
       )
 
-      (
-          run_name
-          >> tb_file_location
-          >> self.run_model(use_pathways=use_pathways, xpk_branch=xpk_branch)
-          >> self.post_process()
-      )
+      # update profile file location
+      if self.task_metric_config.profile:
+        profile_file_location = name_format.generate_profile_file_location(
+            run_name, self.task_metric_config.profile.file_location
+        )
+        self.task_metric_config.profile.file_location = profile_file_location
 
+        run_model, gcs_path = self.run_model(
+            use_pathways=use_pathways, xpk_branch=xpk_branch
+        )
+        (
+            run_name
+            >> (tb_file_location, profile_file_location)
+            >> run_model
+            >> self.post_process(gcs_path)
+        )
+      else:
+        run_model, gcs_path = self.run_model(
+            use_pathways=use_pathways, xpk_branch=xpk_branch
+        )
+        (
+            run_name
+            >> tb_file_location
+            >> run_model
+            >> self.post_process(gcs_path)
+        )
     return group
 
   def run_model(
@@ -384,13 +403,28 @@ class XpkTask(BaseTask):
     """
     with TaskGroup(group_id="post_process") as group:
       process_id = metric.generate_process_id.override(retries=0)()
-      metric.process_metrics.override(retries=0)(
+      post_process_metrics = metric.process_metrics.override(retries=0)(
           process_id,
           self.task_test_config,
           self.task_metric_config,
           self.task_gcp_config,
           folder_location=result_location,
       )
+
+      if self.task_metric_config and self.task_metric_config.profile:
+        profile_tmp_location = metric.download_profile(
+            self.task_metric_config.profile.file_location
+        )
+        self.task_metric_config.profile.metrics = metric.xplane_to_metrics(
+            profile_tmp_location
+        )
+        (
+            (process_id, profile_tmp_location)
+            >> self.task_metric_config.profile.metrics
+            >> post_process_metrics
+        )
+      else:
+        process_id >> post_process_metrics
 
       return group
 

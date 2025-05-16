@@ -171,10 +171,7 @@ def download_object_from_gcs(
   blob = bucket.blob(object_name)
   blob.download_to_filename(destination_location)
   logging.info(
-      (
-          "Download JSON Lines file from"
-          f" {source_location} to {destination_location}"
-      )
+      ("Download file from" f" {source_location} to {destination_location}")
   )
 
 
@@ -350,11 +347,177 @@ def get_gcs_file_location_with_regex(
   return f"gs://{bucket_name}/{selected_blob.name}"
 
 
-# TODO(qinwen): implement profile metrics & upload to Vertex AI TensorBoard
+def get_gcs_profile_locations(
+    dir_location: str, return_largest: bool = True
+) -> str:
+  """
+  Args:
+    dir_location: {base_output_directory}/{run_name}/tensorboard/plugins/profile
+
+  Returns:
+    one of the locations matching pattern: {dir_location}/.*/*xplane.pb
+    or "" if no match
+  return
+  """
+  storage_client = storage.Client()
+  url = urlparse(dir_location)
+  bucket_name = url.netloc
+  file_path = url.path.lstrip("/")
+  file_path_regex = re.compile(file_path + "/.*/*xplane.pb")
+  matched_blobs = [
+      b
+      for b in storage_client.list_blobs(bucket_name, prefix=file_path)
+      if file_path_regex.match(b.name)
+  ]
+  if not matched_blobs:
+    logging.warning(
+        f"No objects matched supplied regex: {dir_location}/.*/*xplane.pb"
+    )
+    return ""
+
+  # not sure if this is needed. sometimes we upload all profiles
+  if return_largest:
+    sizeable_blobs = [b for b in matched_blobs if b.size is not None]
+    if not sizeable_blobs:
+      logging.warning(
+          f"No sizeable objects matched supplied regex: {dir_location}/.*/*xplane.pb"
+      )
+      return ""
+    selected_blob = max(sizeable_blobs, key=lambda b: b.size)
+  else:
+    selected_blob = matched_blobs[0]
+
+  return f"gs://{bucket_name}/{selected_blob.name}"
+
+
+@task
+def download_profile(dir_location: str | airflow.XComArg) -> str:
+  """
+  Example:
+    input dir_location = gs://runner-maxtext-logs/maxtext_stable_mixtral_8x7b_dropped-0-v6e-256-2025-05-16-17-56-59/tensorboard/plugins/profile"
+    find file_location = "gs://runner-maxtext-logs/maxtext_stable_mixtral_8x7b_dropped-0-v6e-256-2025-05-16-17-56-59/tensorboard/plugins/profile/2025_05_16_18_02_41/gke-tpu-bd2459aa-wk1f.xplane.pb"
+    download to tmp_location = "/tmp/maxtext_stable_mixtral_8x7b_dropped-0-v6e-256-2025-05-16-17-56-59/gke-tpu-bd2459aa-wk1f.xplane.pb"
+  """
+  if isinstance(dir_location, airflow.XComArg):
+    dir_location = dir_location.resolve(get_current_context())
+  file_location = get_gcs_profile_locations(dir_location)
+  # no match profile
+  if not file_location:
+    return ""
+  print(f"for local download, run: gcloud storage cp {file_location} .")
+  # must create a unique directory to accomodate intermediate files from profile extraction
+  split = file_location.split("/")
+  dir_name, file_name = split[3], split[-1]
+  os.makedirs(f"/tmp/{dir_name}", exist_ok=False)
+  tmp_location = f"/tmp/{dir_name}/{file_name}"
+  download_object_from_gcs(file_location, tmp_location)
+  return tmp_location
+
+
+@task.virtualenv(
+    task_id="profile_to_metrics",
+    requirements=["tensorboard_plugin_profile==2.19.4"],
+    system_site_packages=False,
+)
+def xplane_to_metrics(input_path: str) -> dict:
+  from tensorboard_plugin_profile.convert import raw_to_tool_data
+  import json
+
+  if input_path == "":
+    return None
+  print(f"processing xplane file: {input_path}")
+
+  def round(number: float | str, decimal: int) -> float:
+    if type(number) is str:
+      number = float(number)
+    return float(f"{number:.{decimal}f}")
+
+  def xplane_tool(input_path: str, tool: str, params={}) -> dict:
+    data, content_type = raw_to_tool_data.xspace_to_tool_data(
+        xspace_paths=[input_path],
+        tool=tool,
+        params=params,
+    )
+    assert content_type == "application/json" and data is not None
+    parsed_data = json.loads(data)
+    return parsed_data
+
+  out = {}
+  # check available tools
+  available_tools = raw_to_tool_data.xspace_to_tool_names(
+      xspace_paths=[input_path]
+  )
+  # 1 overview
+  # generate ALL_HOSTS.op_stats.pb
+  assert "overview_page" in available_tools
+  overview_page = xplane_tool(input_path, tool="overview_page")
+  out.update({
+      # "host_count": int(overview_page[2]["p"]["host_count"]),
+      # "hardware_type": overview_page[1]["p"]["hardware_type"],
+      "device_type": overview_page[2]["p"]["device_type"],
+      "device_core_count": int(overview_page[2]["p"]["device_core_count"]),
+      "Average Tensor Core Step Time (ms)": float(
+          overview_page[1]["p"]["steptime_ms_average"]
+      ),
+  })
+  # 2 op_profile
+  assert "op_profile" in available_tools
+  op_profile = xplane_tool(input_path, tool="op_profile")
+  out.update({
+      "TPU FLOPS Utilization (%): exclude_idle": round(
+          op_profile["byProgramExcludeIdle"]["metrics"]["flops"] * 100, 2
+      ),
+      "HBM Bandwidth Utilization (%): exclude_idle": round(
+          op_profile["byProgramExcludeIdle"]["metrics"]["bandwidthUtils"][0]
+          * 100,
+          2,
+      ),
+  })
+  # 3 memory viewer: jit_train_step
+  # generate jit*.hlo_proto.pb
+  assert "memory_viewer" in available_tools
+  # example: "jit_train_step(4869159985936022652)"
+  jit_train_step = None
+  for program in op_profile["byProgramExcludeIdle"]["children"]:
+    if program["name"].startswith("jit_train_step"):
+      jit_train_step = program["name"]
+      break
+  assert jit_train_step is not None
+  # memory_space: "0" for hbm, "5" for host
+  memory_viewer_hbm = xplane_tool(
+      input_path,
+      "memory_viewer",
+      params={"host": jit_train_step, "memory_space": "0"},
+  )
+  memory_viewer_host = xplane_tool(
+      input_path,
+      "memory_viewer",
+      params={"host": jit_train_step, "memory_space": "5"},
+  )
+  out.update({
+      "Peak memory allocation (MiB): jit_train_step, HBM": round(
+          memory_viewer_hbm["totalBufferAllocationMib"], 2
+      ),
+      "Peak memory allocation (MiB): jit_train_step, host": round(
+          memory_viewer_host["totalBufferAllocationMib"], 2
+      ),
+  })
+  return out
+
+
 def process_profile(
-    uuid: str, file_location: str
+    base_id: str,
+    raw_metric: dict,
 ) -> List[List[bigquery.MetricHistoryRow]]:
-  raise NotImplementedError
+  uuid = generate_row_uuid(base_id, 0)
+  profile_history_rows = []
+  for key, value in raw_metric.items():
+    profile_history_rows.append(
+        bigquery.MetricHistoryRow(
+            job_uuid=uuid, metric_key="xprof/" + key, metric_value=value
+        )
+    )
+  return [profile_history_rows]
 
 
 def encode_url(url: str) -> str:
@@ -761,14 +924,14 @@ def process_metrics(
           folder_location,
       )
 
+    has_profile = False
     if task_metric_config.profile:
-      has_profile = True
-      num_profiles = len(task_metric_config.profile.file_locations)
-      for index in range(num_profiles):
-        profile_history_rows = process_profile(
-            base_id, task_metric_config.profile.file_locations[index]
-        )
-        profile_history_rows_list.append(profile_history_rows)
+      profile_metrics = task_metric_config.profile.metrics
+      if isinstance(profile_metrics, airflow.XComArg):
+        profile_metrics = profile_metrics.resolve(get_current_context())
+      if profile_metrics is not None:
+        profile_history_rows_list = process_profile(base_id, profile_metrics)
+        has_profile = True
 
   # add default airflow metadata
   metadata_history_rows_list = add_airflow_metadata(
