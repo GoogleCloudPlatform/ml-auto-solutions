@@ -65,6 +65,19 @@ def generate_tb_file_location(
 
 
 @task
+def generate_profile_file_location(
+    run_name: str, base_output_directory: str
+) -> str:
+  return os.path.join(
+      base_output_directory,
+      run_name,
+      "tensorboard",
+      "plugins",
+      "profile",
+  )
+
+
+@task
 def generate_gcs_folder_location(subfolder: str, benchmark_id: str) -> str:
   """Generates folder location in GCS.
 
