@@ -43,6 +43,11 @@ from dags.map_reproducibility.utils.common_utils import (
     get_accelerator_type,
     get_nemo_metrics_cmds,
     get_nemo_metrics,
+    get_metrics_cmd,
+    copy_bucket_cmds_workload,
+    wait_for_jobsets_cmds,
+    cleanup_existing_metrics_cmd,
+    helm_apply_cmds_workload,
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -65,39 +70,6 @@ class WorkloadResult:
   gcs_bucket: str
   success: bool
   error_message: Optional[str] = None
-
-
-def get_values_file_path(
-    base_recipe_repo_root: str,
-    config_yaml_name: str,
-    hypercomputer: str,
-    framework: str,
-) -> str:
-  """Determine the appropriate values file path.
-
-  Args:
-      base_recipe_repo_root: Root directory of the recipe repository
-      config_yaml_name: Name of the config YAML file
-      hypercomputer: Type of hypercomputer
-      framework: Framework name
-
-  Returns:
-      Path to the values file
-  """
-  # Default values file based on hypercomputer and framework
-  values_name = f"{hypercomputer}_{framework}_values"
-  values_file_path = f"{base_recipe_repo_root}/values/{values_name}.yaml"
-
-  # Check for model-specific values file
-  model_specific_values_file_path = (
-      f"{base_recipe_repo_root}/values/{config_yaml_name}_values.yaml"
-  )
-  if os.path.exists(model_specific_values_file_path):
-    # Use model-specific values file
-    values_file_path = model_specific_values_file_path
-
-  logger.info(f"Using values file: {values_file_path}")
-  return values_file_path
 
 
 def execute_workload_commands(commands: list, cwd: str) -> Tuple[bool, list]:
@@ -175,6 +147,22 @@ def sample_workload_gcs_to_cns_cmds(log_file_in_gcs, output_file=None):
   return cmds
 
 
+def handle_profiler(config, gcs_bucket, tmpdir, is_sample_run=False):
+  if not hasattr(config, "profiler"):
+    return None
+
+  logs_profile = find_xprof_gcs_path(gcs_bucket)
+  if logs_profile and is_sample_run:
+    profiler_cmds = sample_workload_gcs_to_cns_cmds(logs_profile)
+    success, error_message = execute_workload_commands(profiler_cmds, tmpdir)
+    if not success:
+      logger.error(f"Profiler command failed: {error_message}")
+  else:
+    logger.error(f"No xprof file found in {gcs_bucket}")
+
+  return logs_profile
+
+
 def write_run_results(
     config: Any,
     result: WorkloadResult,
@@ -217,6 +205,54 @@ def write_run_results(
       logs_profile=result.gcs_bucket,
       workload_others=str(config),
       experiment_id=job_name,
+  )
+
+
+def assemble_sample_united_workload_commands(
+    config,
+    cluster,
+    region,
+    job_name,
+    launcher_path,
+    helm_repo_root,
+    full_config_path,
+    values_file_path,
+    bucket_name,
+    timeout,
+    tmpdir,
+):
+  metrics_cmd = get_metrics_cmd(
+      config,
+      get_accelerator_type(config.HYPERCOMPUTER),
+      tmpdir,
+      start_step=2,
+      end_step=NUM_STEPS - 3,
+  )
+  return (
+      sample_job_configure_project_and_cluster(cluster, region)
+      + namespace_cmds()
+      + get_internal_pre_workload_cmds(job_name)
+      + cleanup_existing_metrics_cmd(helm_repo_root)
+      + helm_apply_cmds_workload(
+          config.FRAMEWORK,
+          config.HYPERCOMPUTER,
+          full_config_path,
+          helm_repo_root,
+          workload_launcher=launcher_path,
+          kueue_name=None,
+          additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
+          bucket_name=bucket_name,
+          values_file_path=values_file_path,
+      )
+      + wait_for_jobsets_cmds(timeout)
+      + copy_bucket_cmds_workload(
+          recipe_repo_root=helm_repo_root,
+          tmpdir=tmpdir,
+          framework=config.FRAMEWORK,
+          bucket_name=bucket_name,
+      )
+      + metrics_cmd
+      + cleanup_cmds()
   )
 
 

@@ -30,6 +30,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from collections import namedtuple
 from xlml.utils import metric
 from xlml.apis import metric_config
+from dags.map_reproducibility.utils import constants
 from dags.map_reproducibility.utils import gcs_automation_utils
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
@@ -261,9 +262,12 @@ def get_internal_pre_workload_job_name(
     model_id, precision, num_gpus, framework, cluster, is_sample_run=False
 ):
   helm_model_id = model_id.replace(".", "-")
-  random_id = "".join(random.choices(string.ascii_lowercase, k=4))
-  now = int(time.time())
-  job_name = f"cml-{helm_model_id}-{precision}-{num_gpus}-{cluster[:3]}-{framework[:1]}-{now}-{random_id}"
+  random_id = "".join(random.choices(string.ascii_lowercase, k=3))
+  now = time.strftime("%m%d")
+  # This job name can be either a job name or a jobset name depending on the Helm chart in use.
+  # It should be <= 42 characters because Helm's job name limit is 53 characters,
+  # and the jobset suffix adds 11 characters ("-workload-0") to the name.
+  job_name = f"cml-{helm_model_id}-{precision}{num_gpus}{cluster[:3]}{framework[:1]}{now}-{random_id}"
   if is_sample_run:
     # use 3 char max for user_name to make sure helm job is within 53 char
     job_name = f"{getpass.getuser()[:3]}-{job_name}"
@@ -312,8 +316,10 @@ def find_xprof_gcs_path(gcs_path):
   return full_xplane_pb_file
 
 
-def get_patheon_job_link(region, cluster_name, job_name):
+def get_patheon_job_link(region, cluster_name, job_name, is_jobset=False):
   pantheon_link = f"https://pantheon.corp.google.com/kubernetes/job/{region}/{cluster_name}/default/{job_name}"
+  if is_jobset:
+    pantheon_link += "-workload-0"
   print(f"{'*' * 20}LINK: {pantheon_link}")
   return pantheon_link
 
@@ -458,6 +464,8 @@ def helm_apply_cmds_workload(
     kueue_name: Optional[str] = None,
     additional_cmds: str = "",
     num_steps: Optional[int] = None,
+    bucket_name: str = BUCKET_NAME,
+    values_file_path: str = "values.yaml",
 ) -> tuple[str, ...]:
   """
   Generates the Helm install command string for a workload jobset.
@@ -466,7 +474,7 @@ def helm_apply_cmds_workload(
       "helm",
       "install",
       "-f",
-      "values.yaml",
+      values_file_path,
       "--namespace",
       "default",
       "--set",
@@ -485,7 +493,7 @@ def helm_apply_cmds_workload(
 
   if framework == "maxtext":
     workload_args_value_parts.append(
-        f"base_output_directory=gs://{BUCKET_NAME}/maxtext-experiments"
+        f"base_output_directory=gs://{bucket_name}/maxtext-experiments"
     )
     workload_args_value_parts.append(
         "jax_distributed_initialization_timeout=600"
@@ -497,7 +505,7 @@ def helm_apply_cmds_workload(
       workload_args_value_parts.append(f"trainer.max_steps={num_steps}")
     # GCS command is typically added for non-maxtext frameworks
     gcs_part_for_non_maxtext = (
-        f"--set volumes.gcsMounts[0].bucketName={BUCKET_NAME}"
+        f"--set volumes.gcsMounts[0].bucketName={bucket_name}"
     )
 
   if workload_args_value_parts:
@@ -576,7 +584,10 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
 
 
 def get_job_gcs_bucket_folder(
-    job_name, bucket_name=BUCKET_NAME, framework="maxtext", cluster="a3ultra"
+    job_name,
+    bucket_name=BUCKET_NAME,
+    framework="maxtext",
+    gcs_experiment_folder_name="maxtext",
 ):
   """
   Retrieve the GCS bucket folder path for a specific job.
@@ -590,15 +601,10 @@ def get_job_gcs_bucket_folder(
   Returns:
     str | None: Full GCS path to the job folder, or None if not found.
   """
-  if framework == "maxtext":
-    gcs_location = f"gs://{bucket_name}/maxtext/"
-  elif framework == "nemo":
-    if cluster in ("a4", "a3ultra"):
-      gcs_location = f"gs://{bucket_name}/nemo-experiments/megatron_gpt/"
-    else:
-      gcs_location = f"gs://{bucket_name}/nemo-experiments/"
-  else:
-    raise ValueError(f"Unsupported framework: {framework}")
+  if framework == "nemo":
+    gcs_experiment_folder_name = "nemo-experiments"
+
+  gcs_location = f"gs://{bucket_name}/{gcs_experiment_folder_name}/"
 
   bucket_folder_cmd = f"gcloud storage ls {gcs_location} | grep {job_name}"
   print(f"[INFO] Running: {bucket_folder_cmd}")
@@ -636,6 +642,14 @@ def copy_bucket_cmds_nemo(
   return copy_bucket_contents
 
 
+def cleanup_existing_metrics_cmd(recipe_repo_root):
+  clean_existing_metrics_file_cmd = (
+      f"cd {recipe_repo_root}/src/utils/training_metrics",
+      "rm dllogger.json",
+  )
+  return clean_existing_metrics_file_cmd
+
+
 def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
   gcs_location = f"gs://{bucket_name}/maxtext/"
 
@@ -656,11 +670,14 @@ def copy_bucket_cmds_maxtext(tmpdir, bucket_name=BUCKET_NAME):
 
 
 def copy_bucket_cmds_workload(
-    recipe_repo_root: str, tmpdir: str, framework: str
+    recipe_repo_root: str,
+    tmpdir: str,
+    framework: str,
+    bucket_name: str = BUCKET_NAME,
 ) -> Tuple[str, ...]:
   gcs_location = ""
   if framework == "maxtext":
-    gcs_location = f"gs://{BUCKET_NAME}/maxtext-experiments/"
+    gcs_location = f"gs://{bucket_name}/maxtext-experiments/"
     cmds = (
         f"METRICS_FILE={tmpdir}/tflog/metrics",
         "export BUCKET_FOLDER=$(gcloud storage ls "
@@ -675,7 +692,7 @@ def copy_bucket_cmds_workload(
         "gcloud storage cp $LOG_FILE $METRICS_FILE",
     )
   else:
-    gcs_location = f"gs://{BUCKET_NAME}/nemo-experiments/"
+    gcs_location = f"gs://{bucket_name}/nemo-experiments/"
     cmds = (
         "export COMPLETE_JOB_NAME=$(gcloud storage ls "
         f"{gcs_location} | grep $JOB_NAME)",
@@ -1178,6 +1195,75 @@ def get_docker_image(
   return None  # Return None if no image is found for the given combination
 
 
+def extract_batch_size_and_seq_len(config):
+  if config.FRAMEWORK == "nemo":
+    return config.model.global_batch_size, config.model.data.seq_length
+  return (
+      config.per_device_batch_size * config.NUM_GPUS,
+      config.max_target_length,
+  )
+
+
+def get_metrics_cmd(config, accelerator_type, tmpdir, start_step, end_step):
+  if config.FRAMEWORK != "nemo":
+    return ()
+  return get_nemo_metrics_cmds(
+      batch_size=config.model.global_batch_size,
+      num_accelerators=config.NUM_GPUS,
+      precision=config.PRECISION,
+      model_id=config.MODEL_ID,
+      accelertator_type=accelerator_type,
+      temdir=tmpdir,
+      two_node=False,
+      start_step=start_step,
+      end_step=end_step,
+  )
+
+
+def get_values_file_path(
+    base_recipe_repo_root: str,
+    config_yaml_name: str,
+    hypercomputer: str,
+    framework: str,
+) -> str:
+  """Determine the appropriate values file path.
+
+  Args:
+      base_recipe_repo_root: Root directory of the recipe repository
+      config_yaml_name: Name of the config YAML file
+      hypercomputer: Type of hypercomputer
+      framework: Framework name
+
+  Returns:
+      Path to the values file
+  """
+  # Default values file based on hypercomputer and framework
+  values_name = f"{hypercomputer}_{framework}_values"
+  values_file_path = f"{base_recipe_repo_root}/values/{values_name}.yaml"
+
+  # Check for model-specific values file
+  model_specific_values_file_path = (
+      f"{base_recipe_repo_root}/values/{config_yaml_name}_values.yaml"
+  )
+  if os.path.exists(model_specific_values_file_path):
+    # Use model-specific values file
+    values_file_path = model_specific_values_file_path
+
+  logger.info(f"Using values file: {values_file_path}")
+  return values_file_path
+
+
+def calculate_metrics(config, tmpdir) -> Tuple[float, float]:
+  if config.FRAMEWORK == "nemo":
+    return get_nemo_metrics(tmpdir)
+
+  log_location = os.path.join(tmpdir, "tflog/metrics")
+  skip_first_n_steps = get_skip_steps_for_metrics_calculation(config)
+  return calculate_maxtext_metrics(
+      log_location, config.HYPERCOMPUTER, skip_first=skip_first_n_steps
+  )
+
+
 def get_internal_docker_image(hardware: str, framework: str):
   """
   Returns the appropriate Docker image based on the given hardware, model, and framework.
@@ -1214,6 +1300,32 @@ def get_two_node_cmds(hypercomputer: str = "a3ultra"):
   if hypercomputer == "a3mega":
     cmd += '--set workload.arguments="{model.pipeline_model_parallel_size=2}"'
   return cmd
+
+
+def get_internal_run_type_and_comment(
+    is_dag_run: bool, backfill: bool
+) -> tuple[str, str]:
+  """
+  Determines the run_type and comment for an internal workload.
+
+  Args:
+    is_dag_run: True if the workload is run as part of a DAG, False otherwise (e.g., sample run).
+    backfill: True if the DAG run is a backfill, False otherwise.
+
+  Returns:
+    A tuple containing the run_type (str) and comment (str).
+  """
+  if is_dag_run:
+    run_type = constants.RunTypes.INTERNAL_PERF_REGRESSION
+    if backfill:
+      comment = constants.Comments.INTERNAL_RECIPES_REGRESSION_TESTS_BACKFILL
+    else:
+      comment = constants.Comments.INTERNAL_RECIPES_REGRESSION_TESTS
+  else:
+    # This implies it's a sample run
+    run_type = constants.RunTypes.SAMPLE_HELM_WORKLOAD
+    comment = constants.Comments.SAMPLE_BENCHMARKING_RUN
+  return run_type, comment
 
 
 def parse_internal_config_filename(filename, config=None):
@@ -1780,7 +1892,7 @@ def run_workload(
                     additional_cmds=additional_cmds,
                     num_steps=num_steps,
                 )
-                + wait_for_jobsets_cmds()
+                + wait_for_jobs_cmds()
                 + copy_bucket_cmds_workload(
                     recipe_repo_root=recipe_repo_root,
                     tmpdir=tmpdir,
