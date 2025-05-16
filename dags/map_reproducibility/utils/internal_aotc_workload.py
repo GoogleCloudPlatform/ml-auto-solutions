@@ -61,7 +61,7 @@ from dags.map_reproducibility.utils.common_utils import (
     get_internal_run_type_and_comment,
 )
 from dags.map_reproducibility.utils.sample_workload_utils import handle_profiler, assemble_sample_united_workload_commands, execute_workload_commands
-from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_STEPS
+from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_STEPS, BUCKET_NAME
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -309,7 +309,7 @@ def run_internal_united_workload(
     base_helm_repo_root: str,
     timeout: int,
     image_version: str,
-    sample_run_bucket_name: str,
+    gcs_bucket_name: str,
     workload_launcher: str,
     is_dag_run: bool = False,
     backfill: bool = False,
@@ -393,18 +393,18 @@ def run_internal_united_workload(
         base_helm_repo_root,
         full_config_path,
         values_file_path,
-        sample_run_bucket_name,
+        gcs_bucket_name,
         container_timeout,
         tmpdir,
     )
 
-    success, error = execute_workload_commands(commands, tmpdir)
+    success, error = execute_workload_commands(commands, cwd=tmpdir)
     if not success:
       return {"success": False, "error": error}
 
     gcs_bucket = get_job_gcs_bucket_folder(
         job_name,
-        bucket_name=sample_run_bucket_name,
+        bucket_name=gcs_bucket_name,
         framework=config.FRAMEWORK,
         gcs_experiment_folder_name="maxtext-experiments",
     )
@@ -464,7 +464,7 @@ def run_internal_dag_united_workload(
       base_helm_repo_root=None,
       timeout=timeout,
       image_version=image_version,
-      sample_run_bucket_name=None,
+      gcs_bucket_name=BUCKET_NAME,
       workload_launcher=workload_launcher,
       is_dag_run=True,
       backfill=backfill,

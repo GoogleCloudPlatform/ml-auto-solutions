@@ -225,8 +225,8 @@ DAG_CONFIGS_A4_NEMO = {
 }
 
 DAG_CONFIGS_ULTRA_NEMO = {
-    "recipes/a3ultra/nemo/a3ultra_llama3.1-70b_256gpus_fp8_nemo.yaml": {
-        "timeout_minutes": 25,
+    "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_fp8_nemo.yaml": {
+        "timeout_minutes": 20,
         "backfill_group_nightly": 1,
         "backfill_group_release": 1,
         "nightly_schedule": Schedule.SATURDAY_PDT_12AM,
@@ -234,6 +234,20 @@ DAG_CONFIGS_ULTRA_NEMO = {
     },
     "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_bf16_nemo.yaml": {
         "timeout_minutes": 20,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "nightly_schedule": Schedule.SATURDAY_PDT_12AM,
+        "release_schedule": Schedule.SATURDAY_PDT_12AM,
+    },
+    "recipes/a3ultra/nemo/a3ultra_llama3.1-70b_256gpus_fp8_nemo.yaml": {
+        "timeout_minutes": 25,
+        "backfill_group_nightly": 1,
+        "backfill_group_release": 1,
+        "nightly_schedule": Schedule.SATURDAY_PDT_12AM,
+        "release_schedule": Schedule.SATURDAY_PDT_12AM,
+    },
+    "recipes/a3ultra/nemo/a3ultra_llama3.1-70b_256gpus_bf16_nemo.yaml": {
+        "timeout_minutes": 25,
         "backfill_group_nightly": 1,
         "backfill_group_release": 1,
         "nightly_schedule": Schedule.SATURDAY_PDT_12AM,

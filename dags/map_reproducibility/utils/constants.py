@@ -1,6 +1,7 @@
 KUEUE_NAME = "a3-ultra"
 OPTIMIZER = "adam"
 NUM_STEPS = 15
+BUCKET_NAME = "regression-testing-xlml"
 
 
 class Optimizer:
