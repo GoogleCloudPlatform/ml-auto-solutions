@@ -82,7 +82,7 @@ def main():
 
   # Setup configuration
   relative_config_yaml_path = (
-      "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_bf16_nemo.yaml"
+      "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_fp8_nemo.yaml"
   )
   timeout = DAG_CONFIGS_ULTRA_NEMO[relative_config_yaml_path]["timeout_minutes"]
 
@@ -92,7 +92,7 @@ def main():
       base_helm_repo_root=base_helm_repo_root,
       timeout=timeout,
       image_version=RELEASE_IMAGE,
-      sample_run_bucket_name=SAMPLE_RUN_BUCKET_NAME,
+      gcs_bucket_name=SAMPLE_RUN_BUCKET_NAME,
       workload_launcher=WorkloadLauncher.NEMO_TEN_LAUNCHER,
   )
 

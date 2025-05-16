@@ -84,7 +84,7 @@ def main():
       base_helm_repo_root=base_helm_repo_root,
       timeout=timeout,
       image_version=RELEASE_IMAGE,
-      sample_run_bucket_name=SAMPLE_RUN_BUCKET_NAME,
+      gcs_bucket_name=SAMPLE_RUN_BUCKET_NAME,
       workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER,
   )
 
