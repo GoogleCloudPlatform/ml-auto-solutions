@@ -122,11 +122,13 @@ def configure_git(
   Returns:
       A command to set up git configs.
   """
-  if not any((
-      recipes_repo_change_refs,
-      bq_writer_repo_change_refs,
-      gcs_automation_repo_change_refs,
-  )):
+  if not any(
+      (
+          recipes_repo_change_refs,
+          bq_writer_repo_change_refs,
+          gcs_automation_repo_change_refs,
+      )
+  ):
     return ()
 
   cmds = (

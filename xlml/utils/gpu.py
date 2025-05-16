@@ -168,10 +168,12 @@ def get_existing_resource(
       )
       break
   if not ssh_key_exist:
-    items.append({
-        "key": "ssh-keys",
-        "value": f"cloud-ml-auto-solutions:{ssh_keys.public}",
-    })
+    items.append(
+        {
+            "key": "ssh-keys",
+            "value": f"cloud-ml-auto-solutions:{ssh_keys.public}",
+        }
+    )
     metadata.items = items
   metadata_request = compute_v1.SetMetadataInstanceRequest(
       instance=instance_name,
@@ -327,11 +329,13 @@ def create_resource(
     if accelerator.attach_local_ssd:
       for _ in range(accelerator.count):
         disks.append(local_ssd_disk(gcp.zone))
-    metadata = create_metadata({
-        "install-nvidia-driver": str(install_nvidia_drivers),
-        "proxy-mode": "project_editors",
-        "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
-    })
+    metadata = create_metadata(
+        {
+            "install-nvidia-driver": str(install_nvidia_drivers),
+            "proxy-mode": "project_editors",
+            "ssh-keys": f"cloud-ml-auto-solutions:{ssh_keys.public}",
+        }
+    )
 
     accelerators = [
         compute_v1.AcceleratorConfig(

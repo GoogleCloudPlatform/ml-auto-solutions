@@ -101,13 +101,15 @@ def execute_workload_commands(commands: list, cwd: str) -> Tuple[bool, list]:
   exit_code = process.returncode
 
   # Create result for the combined execution
-  command_results = [{
-      "command": combined_command,
-      "stdout": stdout,
-      "stderr": stderr,
-      "output": stdout + ("\n\nSTDERR:\n" + stderr if stderr else ""),
-      "exit_code": exit_code,
-  }]
+  command_results = [
+      {
+          "command": combined_command,
+          "stdout": stdout,
+          "stderr": stderr,
+          "output": stdout + ("\n\nSTDERR:\n" + stderr if stderr else ""),
+          "exit_code": exit_code,
+      }
+  ]
 
   # Log results
   if stdout:

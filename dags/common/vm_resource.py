@@ -340,7 +340,7 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_GPU_JAX_STABLE = (
-    "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_gpu:latest"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_gpu:latest"
   )
   MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX = (
       "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
