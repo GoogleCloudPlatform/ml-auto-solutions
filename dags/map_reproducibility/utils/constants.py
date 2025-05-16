@@ -40,6 +40,7 @@ class Schedule:
   WEEKDAY_PDT_6AM_7AM_EXCEPT_THURSDAY = "0 13,14 * * 2,3,4,6"
 
   SATURDAY_PDT_12AM = "0 7 * * 6"
+  SATURDAY_PDT_3AM = "0 10 * * 6"
 
 
 class Image:
