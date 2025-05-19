@@ -373,7 +373,12 @@ def helm_apply_cmds(
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={logs_bucket}"
   gcs_cmd += gcs_automation_utils.pv_pvc_workload_opts(
-      storage_product, recipe_branch, logs_bucket, dataset_bucket, checkpoint_bucket)
+      storage_product,
+      recipe_branch,
+      logs_bucket,
+      dataset_bucket,
+      checkpoint_bucket,
+  )
 
   if num_steps:
     additional_cmds += f" --set workload.steps={num_steps} "
@@ -848,7 +853,8 @@ def cleanup_cmds(
       "if ! kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'Pods still exist, using force deletion...'; kubectl delete pods -l job-name=$JOB_NAME --force --grace-period=0; else echo 'No pods to force delete'; fi ",
       "echo 'Cleanup completed'",
   ) + gcs_automation_utils.pv_pvc_cleanup_cmds(
-      storage_product, recipe_branch, user)
+      storage_product, recipe_branch, user
+  )
   print("**********cleanup cmd is*********")
   print(cleanup)
   return cleanup

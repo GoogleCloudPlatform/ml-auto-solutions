@@ -35,8 +35,12 @@ BENCHMARK_TYPE = "checkpointing"
 WORKLOAD_TYPE = "system"
 WORKLOAD_IMAGE = "us-docker.pkg.dev/supercomputer-testing/dlsl-metadata/recipe-release-patched"
 # Please choose the following values based on the recipe branch.
-CONFIG_MODEL_NAME_MAIN_BRANCH = "llama3-1-70b-256gpus-bf16-pile-checkpointing.yaml"
-CONFIG_MODEL_NAME_STORAGE_NEXT_BRANCH = "llama3.1-70b-256gpus-bf16-gcsfuse-checkpointing.yaml"
+CONFIG_MODEL_NAME_MAIN_BRANCH = (
+    "llama3-1-70b-256gpus-bf16-pile-checkpointing.yaml"
+)
+CONFIG_MODEL_NAME_STORAGE_NEXT_BRANCH = (
+    "llama3.1-70b-256gpus-bf16-gcsfuse-checkpointing.yaml"
+)
 HELM_TEMPLATE_FOLDER_NAME_MAIN_BRANCH = "nemo-training-v2"
 STORAGE_NEXT_BRANCH = "storage-next"
 
@@ -77,5 +81,5 @@ with models.DAG(
       dataset_bucket=DATASET_BUCKET,
       workload_type=WORKLOAD_TYPE,
       workload_image=WORKLOAD_IMAGE,
-      helm_template_folder=""
+      helm_template_folder="",
   )
