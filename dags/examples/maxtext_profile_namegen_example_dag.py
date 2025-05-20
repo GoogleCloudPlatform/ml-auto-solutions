@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run end-to-end MoE tests."""
+"""
+An example DAG to extract profile metrics from pretraining mixtral-8x7b model on 1xv4-128.
+Profile extraction can be easily integrated with gke_config & run_with_run_name_generation.
+
+TODO(shuningjin): clean up this dag
+"""
 
 
 import datetime
@@ -23,17 +28,17 @@ from dags.common.quarantined_tests import QuarantineTests
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import gke_config
-from xlml.utils import name_format
 from xlml.apis import metric_config
-import os
 
 
 # Run once a day at 1 am UTC (5 pm PST)
 SCHEDULED_TIME = "0 1 * * *" if composer_env.is_prod_env() else None
 
 
+# TODO(shuningjin): remove comment after testing
 docker_image = {
-    "stable": "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:2025-05-09",
+    "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+    # "stable": "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:2025-05-09",
 }
 
 test_models_tpu = {
@@ -46,7 +51,7 @@ test_models_tpu = {
             " steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3",
         ],
     },
-    "mixtral-8x7b_pretraining-megablox_config-false": {
+    "mixtral-8x7b_pretraining-megablox_config-false_upload-one": {
         "cluster": XpkClusters.TPU_V4_128_CLUSTER,
         "time_out_in_min": 60,
         "base_output_directory": "gs://runner-maxtext-logs",
@@ -90,8 +95,8 @@ with models.DAG(
     ],
     start_date=datetime.datetime(2024, 11, 14),
     catchup=False,
+    concurrency=2,
 ) as dag:
-  tests = []
   for run_name, test_scripts_details in test_models_tpu.items():
     for image in docker_image.keys():
       base_output_directory = test_scripts_details["base_output_directory"]
@@ -107,7 +112,10 @@ with models.DAG(
           use_regex_file_location=True,
       )
       # turn off for config-false testing
-      if run_name != "mixtral-8x7b_pretraining-megablox_config-false":
+      if (
+          run_name
+          != "mixtral-8x7b_pretraining-megablox_config-false_upload-one"
+      ):
         job_metric_config.profile = metric_config.ProfileConfig(
             file_location=base_output_directory,  # init location
         )
@@ -117,14 +125,7 @@ with models.DAG(
           test_name=f"maxtext_{image}_{run_name}",
           run_model_cmds=test_scripts_details["train_command"],
           docker_image=docker_image[image],
-          test_owner=test_owner.RAN_R,
+          test_owner=test_owner.SHUNING_J,
           cluster=test_scripts_details["cluster"],
           user_specified_job_metric_config=job_metric_config,
       ).run_with_run_name_generation(run_name_env="RUN_NAME")
-
-      tests.append(tpu_task)
-
-  for test in tests:
-    test
-  # for i in range(len(tests) - 1):
-  #   tests[i] >> tests[i + 1]

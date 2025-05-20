@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class JSONLinesConfig:
 
   Attributes:
     file_location: The location of the file in GCS. When
-      `use_runtime_generated_gcs_folder` flag is ture, use relative path.
+      `use_runtime_generated_gcs_folder` flag is true, use relative path.
   """
 
   file_location: str
@@ -60,7 +60,7 @@ class SummaryConfig:
 
   Attributes:
     file_location: The location of the file in GCS. When
-      `use_runtime_generated_gcs_folder` flag is ture, use relative path.
+      `use_runtime_generated_gcs_folder` flag is true, use relative path.
     aggregation_strategy: The aggregation strategy for metrics.
     include_tag_patterns: The matching patterns of tags that wil be included.
       All tags are included by default.
@@ -83,10 +83,8 @@ class ProfileConfig:
   """A class to set up profile config.
 
   Attributes:
-    file_locations: The location of the file in GCS. When
-      `use_runtime_generated_gcs_folder` flag is ture, use relative path.
-      If JSON_LINES format type is used for metrics and dimensions, please
-      ensure the order of profiles match with test runs in JSON Lines.
+    file_location: directory holding profile. profile is located in {file_location}/.*/*xplane.pb
+    metrics: placeholder, to be populated by `metric.xplane_to_metrics`
   """
 
   file_location: str

@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,6 +68,15 @@ def generate_tb_file_location(
 def generate_profile_file_location(
     run_name: str, base_output_directory: str
 ) -> str:
+  """
+  Generates a path to the directory containing profile, to be used as a regex.
+  Assumes the profile file is located in:
+  <base_output_directory>/<run_name>/tensorboard/plugins/profile/.*/*xplane.pb
+
+  Args:
+  run_name: run name for the profile file location
+  base_output_directory: GCS bucket path
+  """
   return os.path.join(
       base_output_directory,
       run_name,

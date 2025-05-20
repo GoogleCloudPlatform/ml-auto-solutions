@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ ORTI_B = "Orti B."
 RAN_R = "Ran R."
 PARAM_B = "Param B."
 MICHELLE_Y = "Michelle Y."
+SHUNING_J = "Shuning J."
 
 # Inference
 ANDY_Y = "Andy Y."

@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -351,13 +351,9 @@ def get_gcs_profile_locations(
     dir_location: str, return_largest: bool = True
 ) -> str:
   """
-  Args:
-    dir_location: {base_output_directory}/{run_name}/tensorboard/plugins/profile
-
   Returns:
     one of the locations matching pattern: {dir_location}/.*/*xplane.pb
     or "" if no match
-  return
   """
   storage_client = storage.Client()
   url = urlparse(dir_location)
@@ -391,12 +387,15 @@ def get_gcs_profile_locations(
 
 
 @task
-def download_profile(dir_location: str | airflow.XComArg) -> str:
+def download_profile(
+    process_id: str, dir_location: str | airflow.XComArg
+) -> str:
   """
   Example:
-    input dir_location = gs://runner-maxtext-logs/maxtext_stable_mixtral_8x7b_dropped-0-v6e-256-2025-05-16-17-56-59/tensorboard/plugins/profile"
-    find file_location = "gs://runner-maxtext-logs/maxtext_stable_mixtral_8x7b_dropped-0-v6e-256-2025-05-16-17-56-59/tensorboard/plugins/profile/2025_05_16_18_02_41/gke-tpu-bd2459aa-wk1f.xplane.pb"
-    download to tmp_location = "/tmp/maxtext_stable_mixtral_8x7b_dropped-0-v6e-256-2025-05-16-17-56-59/gke-tpu-bd2459aa-wk1f.xplane.pb"
+    input dir_location = "gs://runner-maxtext-logs/run_name/tensorboard/plugins/profile"
+    find file_location = "gs://runner-maxtext-logs/run_name/tensorboard/plugins/profile/2025_05_16_18_02_41/gke-tpu-bd2459aa-wk1f.xplane.pb"
+    create tmp_dir = f"/tmp/profile-{process_id}"
+    download to tmp_location = f"{tmp_dir}/gke.xplane.pb"
   """
   if isinstance(dir_location, airflow.XComArg):
     dir_location = dir_location.resolve(get_current_context())
@@ -406,25 +405,38 @@ def download_profile(dir_location: str | airflow.XComArg) -> str:
     return ""
   print(f"for local download, run: gcloud storage cp {file_location} .")
   # must create a unique directory to accomodate intermediate files from profile extraction
-  split = file_location.split("/")
-  dir_name, file_name = split[3], split[-1]
-  os.makedirs(f"/tmp/{dir_name}", exist_ok=False)
-  tmp_location = f"/tmp/{dir_name}/{file_name}"
-  download_object_from_gcs(file_location, tmp_location)
-  return tmp_location
+  tmp_dir = f"/tmp/profile-{process_id}"
+  os.makedirs(tmp_dir, exist_ok=False)
+  try:
+    download_object_from_gcs(file_location, f"{tmp_dir}/gke.xplane.pb")
+  except Exception as e:
+    os.rmdir(tmp_dir)
+    logging.error(e)
+    return ""
+  return tmp_dir
 
 
 @task.virtualenv(
-    task_id="profile_to_metrics",
+    task_id="process_profile_metrics",
     requirements=["tensorboard_plugin_profile==2.19.4"],
     system_site_packages=False,
 )
-def xplane_to_metrics(input_path: str) -> dict:
+def xplane_to_metrics(input_dir: str) -> dict:
+  """
+  Process {input_dir}/gke.xplane.pb to metric dict
+  Remove input_dir if starts with "/tmp/profile-"
+
+  Returns:
+    metric dict, or None if input_dir is ""
+  """
   from tensorboard_plugin_profile.convert import raw_to_tool_data
   import json
+  import logging
+  import shutil
 
-  if input_path == "":
+  if not input_dir:
     return None
+  input_path = f"{input_dir}/gke.xplane.pb"
   print(f"processing xplane file: {input_path}")
 
   def round(number: float | str, decimal: int) -> float:
@@ -438,70 +450,83 @@ def xplane_to_metrics(input_path: str) -> dict:
         tool=tool,
         params=params,
     )
-    assert content_type == "application/json" and data is not None
+    if content_type != "application/json" or data is None:
+      raise ValueError("content is not a valid json string")
     parsed_data = json.loads(data)
     return parsed_data
 
   out = {}
   # check available tools
-  available_tools = raw_to_tool_data.xspace_to_tool_names(
-      xspace_paths=[input_path]
+  available_tools = set(
+      raw_to_tool_data.xspace_to_tool_names(xspace_paths=[input_path])
   )
-  # 1 overview
+  # 1 overview_page
   # generate ALL_HOSTS.op_stats.pb
-  assert "overview_page" in available_tools
-  overview_page = xplane_tool(input_path, tool="overview_page")
-  out.update({
-      # "host_count": int(overview_page[2]["p"]["host_count"]),
-      # "hardware_type": overview_page[1]["p"]["hardware_type"],
-      "device_type": overview_page[2]["p"]["device_type"],
-      "device_core_count": int(overview_page[2]["p"]["device_core_count"]),
-      "Average Tensor Core Step Time (ms)": float(
-          overview_page[1]["p"]["steptime_ms_average"]
-      ),
-  })
+  try:
+    assert "overview_page" in available_tools
+    overview_page = xplane_tool(input_path, tool="overview_page")
+    out.update({
+        "device_type": overview_page[2]["p"]["device_type"],
+        "device_core_count": int(overview_page[2]["p"]["device_core_count"]),
+        "Average Tensor Core Step Time (ms)": float(
+            overview_page[1]["p"]["steptime_ms_average"]
+        ),
+    })
+  except Exception as e:
+    logging.error(e)
   # 2 op_profile
-  assert "op_profile" in available_tools
-  op_profile = xplane_tool(input_path, tool="op_profile")
-  out.update({
-      "TPU FLOPS Utilization (%): exclude_idle": round(
-          op_profile["byProgramExcludeIdle"]["metrics"]["flops"] * 100, 2
-      ),
-      "HBM Bandwidth Utilization (%): exclude_idle": round(
-          op_profile["byProgramExcludeIdle"]["metrics"]["bandwidthUtils"][0]
-          * 100,
-          2,
-      ),
-  })
-  # 3 memory viewer: jit_train_step
+  try:
+    assert "op_profile" in available_tools
+    op_profile = xplane_tool(input_path, tool="op_profile")
+    out.update({
+        "TPU FLOPS Utilization (%): exclude_idle": round(
+            op_profile["byProgramExcludeIdle"]["metrics"]["flops"] * 100, 2
+        ),
+        "HBM Bandwidth Utilization (%): exclude_idle": round(
+            op_profile["byProgramExcludeIdle"]["metrics"]["bandwidthUtils"][0]
+            * 100,
+            2,
+        ),
+    })
+  except Exception as e:
+    logging.error(e)
+  # 3 memory_viewer: jit_train_step
   # generate jit*.hlo_proto.pb
-  assert "memory_viewer" in available_tools
-  # example: "jit_train_step(4869159985936022652)"
-  jit_train_step = None
-  for program in op_profile["byProgramExcludeIdle"]["children"]:
-    if program["name"].startswith("jit_train_step"):
-      jit_train_step = program["name"]
-      break
-  assert jit_train_step is not None
-  # memory_space: "0" for hbm, "5" for host
-  memory_viewer_hbm = xplane_tool(
-      input_path,
-      "memory_viewer",
-      params={"host": jit_train_step, "memory_space": "0"},
-  )
-  memory_viewer_host = xplane_tool(
-      input_path,
-      "memory_viewer",
-      params={"host": jit_train_step, "memory_space": "5"},
-  )
-  out.update({
-      "Peak memory allocation (MiB): jit_train_step, HBM": round(
-          memory_viewer_hbm["totalBufferAllocationMib"], 2
-      ),
-      "Peak memory allocation (MiB): jit_train_step, host": round(
-          memory_viewer_host["totalBufferAllocationMib"], 2
-      ),
-  })
+  try:
+    assert "memory_viewer" in available_tools
+    # example: "jit_train_step(4869159985936022652)"
+    jit_train_step = None
+    for program in op_profile["byProgramExcludeIdle"]["children"]:
+      if program["name"].startswith("jit_train_step"):
+        jit_train_step = program["name"]
+        break
+    assert jit_train_step is not None, "cannot find jit_train_step"
+    # memory_space: "0" for hbm, "5" for host
+    memory_viewer_hbm = xplane_tool(
+        input_path,
+        "memory_viewer",
+        params={"host": jit_train_step, "memory_space": "0"},
+    )
+    memory_viewer_host = xplane_tool(
+        input_path,
+        "memory_viewer",
+        params={"host": jit_train_step, "memory_space": "5"},
+    )
+    out.update({
+        "Peak memory allocation (MiB): jit_train_step, HBM": round(
+            memory_viewer_hbm["totalBufferAllocationMib"], 2
+        ),
+        "Peak memory allocation (MiB): jit_train_step, host": round(
+            memory_viewer_host["totalBufferAllocationMib"], 2
+        ),
+    })
+  except Exception as e:
+    logging.error(e)
+
+  # clean up the directory generated in `download_profile`
+  if input_dir.startswith("/tmp/profile-"):
+    shutil.rmtree(input_dir)
+    print(f"remove temporary directory: {input_dir}")
   return out
 
 
@@ -514,7 +539,7 @@ def process_profile(
   for key, value in raw_metric.items():
     profile_history_rows.append(
         bigquery.MetricHistoryRow(
-            job_uuid=uuid, metric_key="xprof/" + key, metric_value=value
+            job_uuid=uuid, metric_key="profile/" + key, metric_value=value
         )
     )
   return [profile_history_rows]
@@ -924,12 +949,11 @@ def process_metrics(
           folder_location,
       )
 
-    has_profile = False
     if task_metric_config.profile:
       profile_metrics = task_metric_config.profile.metrics
       if isinstance(profile_metrics, airflow.XComArg):
         profile_metrics = profile_metrics.resolve(get_current_context())
-      if profile_metrics is not None:
+      if profile_metrics:
         profile_history_rows_list = process_profile(base_id, profile_metrics)
         has_profile = True
 

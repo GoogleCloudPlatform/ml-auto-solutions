@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run end-to-end MoE tests."""
+"""
+An example DAG to extract profile metrics from pretraining mixtral-8x7b model on v6-256.
+Profile extraction is seamlessly integrated with maxtext_sweep_gke_config & run_with_name_gen_and_quarantine.
+"""
 
 
 import datetime
@@ -22,11 +25,8 @@ from dags import composer_env
 from dags.common.quarantined_tests import QuarantineTests
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage, Project
-from dags.multipod.configs import gke_config
-from xlml.utils import name_format
-from xlml.apis import metric_config
-import os
 from dags.multipod.configs import maxtext_sweep_gke_config
+from xlml.apis import metric_config
 
 
 # Run once a day at 1 am UTC (5 pm PST)
@@ -38,17 +38,19 @@ def dict_to_arg(param_dict):
   return " ".join(cmd)
 
 
+# TODO(shuningjin): remove comment after testing
 docker_image = {
-    "stable": "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:2025-05-09",
+    "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+    # "stable": "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:2025-05-09",
 }
 
+BASE_OUTPUT_PATH = "gs://runner-maxtext-logs"
 test_models_tpu = {
     "mixtral_8x7b_dropped": {
         "time_out_in_min": 60,
         "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
-        "base_output_directory": "gs://runner-maxtext-logs",
         "train_command": [
-            "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
+            f"python3 -m MaxText.train MaxText/configs/base.yml base_output_directory={BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
             # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
             "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
             + dict_to_arg({
@@ -83,7 +85,7 @@ test_models_tpu = {
         "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
         "base_output_directory": "gs://runner-maxtext-logs",
         "train_command": [
-            "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
+            f"python3 -m MaxText.train MaxText/configs/base.yml base_output_directory={BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
             # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
             "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
             + dict_to_arg({
@@ -123,31 +125,27 @@ with models.DAG(
     ],
     start_date=datetime.datetime(2024, 11, 14),
     catchup=False,
+    concurrency=2,
 ) as dag:
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
-  # unchained_tests = []
+
   for run_name, test_scripts_details in test_models_tpu.items():
     for image in docker_image.keys():
-      base_output_directory = test_scripts_details["base_output_directory"]
-      test_scripts_details["train_command"] = [
-          f"export BASE_OUTPUT_PATH={base_output_directory}"
-      ] + test_scripts_details["train_command"]
-
       # sweep num_slices and other training params
       # automatically generate run_name and tensorboard/profile location for extraction
       num_slices = [1]
       sweep_params = {}
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
-              test_owner=test_owner.RAN_R,
+              test_owner=test_owner.SHUNING_J,
               dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               dataset_name=metric_config.DatasetOption.XLML_DATASET,
               cluster=test_scripts_details["cluster"],
               time_out_in_min=test_scripts_details["time_out_in_min"],
-              base_output_directory=base_output_directory,
+              base_output_directory=BASE_OUTPUT_PATH,
               num_slices=num_slices,
               docker_image=docker_image[image],
               run_name_prefix=f"maxtext_{image}_{run_name}",
@@ -157,14 +155,5 @@ with models.DAG(
           )
       )
 
-      chain_num = 4
-      prev = maxtext_sweep_gke_test[0].run_with_name_gen_and_quarantine(
-          quarantine_task_group
-      )
-      for i in range(1, len(maxtext_sweep_gke_test)):
-        curr = maxtext_sweep_gke_test[i].run_with_name_gen_and_quarantine(
-            quarantine_task_group
-        )
-        if i % chain_num != 0:
-          prev >> curr
-        prev = curr
+      for test in maxtext_sweep_gke_test:
+        test.run_with_name_gen_and_quarantine(quarantine_task_group)
