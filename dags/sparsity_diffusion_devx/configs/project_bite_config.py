@@ -252,7 +252,7 @@ EOF
       "gcloud storage cp ${DAGS}/dags/sparsity_diffusion_devx/configs/xml_to_html.py xml_to_html.py",
       "gcloud storage cp ${DAGS}/dags/sparsity_diffusion_devx/configs/xml_to_bq.py xml_to_bq.py",
       "ls -al test-results/",
-      # Export XML results to HTML and BQ - ignore errors from parsing output e.g. if the XML file 
+      # Export XML results to HTML and BQ - ignore errors from parsing output e.g. if the XML file
       # does not exist, as we don't want to stop the rest of the post processing
       "set +e ; python xml_to_html.py test-results/testing.xml ${TESTS_HTML_FILENAME}",
       "set +e ; python xml_to_bq.py ${TESTS_EXIT_CODE} test-results/testing.xml ${TESTS_RUN_TYPE} '{{ ts_nodash_with_tz }}' ${COMPOSER_ENVIRONMENT} \"${TEST_TASK_ID}\" \

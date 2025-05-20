@@ -146,8 +146,8 @@ def parse_xml_and_insert_summary_bq(
     task_group_id = task_id
 
   if xml_string is None:
-    # Don't attempt to get details from XML data, just fill in what we can to give 
-    # the user details to assist with debugging e.g. set pytest timestamp to None 
+    # Don't attempt to get details from XML data, just fill in what we can to give
+    # the user details to assist with debugging e.g. set pytest timestamp to None
     # as we don't have a reliable value for the pytest start time
     timestamp = None
 
