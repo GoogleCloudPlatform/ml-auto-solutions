@@ -69,8 +69,9 @@ def generate_profile_file_location(
     run_name: str, base_output_directory: str
 ) -> str:
   """
-  Generates a path to the directory containing profile, to be used as a regex.
-  Assumes the profile file is located in:
+  Generates a path to the directory containing profile:
+  <base_output_directory>/<run_name>/tensorboard/plugins/profile
+  To be used for subsequent regex file search. Assumes the profile file is located in:
   <base_output_directory>/<run_name>/tensorboard/plugins/profile/.*/*xplane.pb
 
   Args:

@@ -14,23 +14,19 @@
 
 """
 An example DAG to extract profile metrics from pretraining mixtral-8x7b model on v6-256.
-Profile extraction is seamlessly integrated with maxtext_sweep_gke_config & run_with_name_gen_and_quarantine.
+Profile extraction can be seamlessly integrated with maxtext_sweep_gke_config + run_with_name_gen_and_quarantine.
 """
-
 
 import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
-from dags import composer_env
-from dags.common.quarantined_tests import QuarantineTests
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage, Project
 from dags.multipod.configs import maxtext_sweep_gke_config
 from xlml.apis import metric_config
 
-
-# Run once a day at 1 am UTC (5 pm PST)
-SCHEDULED_TIME = "0 1 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = None
+BASE_OUTPUT_PATH = "gs://runner-maxtext-logs"
 
 
 def dict_to_arg(param_dict):
@@ -38,19 +34,18 @@ def dict_to_arg(param_dict):
   return " ".join(cmd)
 
 
-# TODO(shuningjin): remove comment after testing
 docker_image = {
     "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-    # "stable": "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:2025-05-09",
 }
 
-BASE_OUTPUT_PATH = "gs://runner-maxtext-logs"
+# https://github.com/AI-Hypercomputer/maxtext/blob/main/benchmarks/maxtext_trillium_model_configs.py
 test_models_tpu = {
     "mixtral_8x7b_dropped": {
         "time_out_in_min": 60,
         "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
         "train_command": [
-            f"python3 -m MaxText.train MaxText/configs/base.yml base_output_directory={BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
+            f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
+            "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
             # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
             "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
             + dict_to_arg({
@@ -85,7 +80,8 @@ test_models_tpu = {
         "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
         "base_output_directory": "gs://runner-maxtext-logs",
         "train_command": [
-            f"python3 -m MaxText.train MaxText/configs/base.yml base_output_directory={BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
+            f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
+            "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
             # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
             "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
             + dict_to_arg({
@@ -125,7 +121,6 @@ with models.DAG(
     ],
     start_date=datetime.datetime(2024, 11, 14),
     catchup=False,
-    concurrency=2,
 ) as dag:
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
