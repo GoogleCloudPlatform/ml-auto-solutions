@@ -351,7 +351,7 @@ if __name__ == "__main__":
     print(
         f"usage: {sys.argv[0]} <tests_exit_code> <xml_input_file> <run_type> <run_date_iso8601> <composer_env> <task_id> <gcs_log_file_folder> <stdout_log_file> <dockerlog_file> <html_file>"
     )
-    sys.exit(1)
+    sys.exit()
 
   tests_exit_code = sys.argv[1]
   xmlfile = sys.argv[2]

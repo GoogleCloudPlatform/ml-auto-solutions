@@ -197,7 +197,7 @@ def generate_junit_html_report(xml_content):
 if __name__ == '__main__':
   if len(sys.argv) < 3:
     print(f'usage: {sys.argv[0]} <xml_input_file> <html_output_filename>')
-    sys.exit(1)
+    sys.exit()
 
   xmlfile = sys.argv[1]
   htmlfile = sys.argv[2]
