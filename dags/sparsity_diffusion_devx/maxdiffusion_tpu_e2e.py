@@ -143,24 +143,27 @@ with models.DAG(
           cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
-            f"LIBTPU_INIT_ARGS='' && "
-            f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
-            f"run_name='' "
-            f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ "
-            f"activations_dtype=float32 "
-            f"weights_dtype=float32 "
-            f"per_device_batch_size=2 "
-            f"precision=DEFAULT "
-            f"dataset_save_location=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl "
-            f"output_dir={sdv2_base_output_dir} "
-            f"attention=flash"
+              f"LIBTPU_INIT_ARGS='' && "
+              f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
+              f"run_name='' "
+              f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ "
+              f"activations_dtype=float32 "
+              f"weights_dtype=float32 "
+              f"per_device_batch_size=2 "
+              f"precision=DEFAULT "
+              f"dataset_save_location=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl "
+              f"output_dir={sdv2_base_output_dir} "
+              f"attention=flash"
           ),
           test_name=f"maxd-sdv2-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
           tensorboard_summary_config=sdxl_tensorboard_summary_config,
-          ).run_with_name_gen_and_quarantine(
-            quarantine_task_group,
-            run_name_env="JOBSET_NAME",
-            nested_run_name_in_tb_file_location=False,)
+      ).run_with_name_gen_and_quarantine(
+          quarantine_task_group,
+          run_name_env="JOBSET_NAME",
+          nested_run_name_in_tb_file_location=False,
+      )
+
+      #running only for sdv2
       maxdiffusion_sdv2_test
