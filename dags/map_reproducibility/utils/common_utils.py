@@ -411,12 +411,8 @@ def helm_apply_cmds_internal_run(
     bucket_name=BUCKET_NAME,
 ):
   gcs_cmd = ""
-  if hypercomputer in ("a3ultra", "a4"):
-    if framework != "maxtext" and kueue_name:
-      gcs_cmd = f" --set queue={kueue_name}"
-    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={bucket_name}"
-  else:
-    gcs_cmd = f" --set workload.gcsBucketForDataCataPath={bucket_name}"
+  if framework == "maxtext":
+    gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={bucket_name} "
 
   cluster_cmd = ""
   if framework == "nemo" and hypercomputer == "a3ultra":

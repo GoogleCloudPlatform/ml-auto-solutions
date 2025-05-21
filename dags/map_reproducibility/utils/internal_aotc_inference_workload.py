@@ -108,7 +108,11 @@ def run_internal_aotc_inference_workload(
     # Parse the config content now that we have the file path
     config = parse_internal_config_content(full_config_yaml_path, config=config)
     job_name = get_internal_pre_workload_job_name(
-        config.MODEL_ID, config.FRAMEWORK
+        model_id=config.MODEL_ID,
+        precision=config.PRECISION,
+        num_gpus=config.NUM_GPUS,
+        framework=config.FRAMEWORK,
+        cluster=config.HYPERCOMPUTER,
     )
 
     container_timeout = int(timeout) - 4
