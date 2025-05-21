@@ -47,7 +47,7 @@ DAG_TAGS = [
 for config_path, config_info in DAG_CONFIGS_ULTRA_NEMO.items():
   # Extract config name for the DAG ID
   config_name = os.path.basename(config_path).replace(".yaml", "")
-  schedule = config_info["schedule"] if not TEST_RUN else None
+  schedule = config_info["release_schedule"] if not TEST_RUN else None
   timeout = config_info["timeout_minutes"]
   # Set retry parameter based on timeout
   retries = 1 if timeout <= 15 else 0
