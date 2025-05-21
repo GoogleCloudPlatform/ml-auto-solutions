@@ -96,6 +96,18 @@ with models.DAG(
               "time_out_in_min": 90,
           },
       ],
+      "llama4": [
+          {
+              "script_name": "tpu/llama4/1_test_llama4",
+              "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+              "time_out_in_min": 240,
+          },
+          {
+              "script_name": "tpu/llama4/2_test_llama4",
+              "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
+              "time_out_in_min": 90,
+          },
+      ],
   }
 
   def convert_checkpoint_and_run_training(

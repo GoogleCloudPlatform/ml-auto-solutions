@@ -25,11 +25,10 @@ print(f"Project root: {project_root}")
 if project_root not in sys.path:
   sys.path.insert(0, project_root)
 
-import datetime
-from dags.map_reproducibility.utils.constants import Image, WorkloadLauncher
-from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA
-from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_united_workload
 
+from dags.map_reproducibility.utils.constants import Image
+from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_A4_NEMO
+from dags.map_reproducibility.utils.sample_workload_utils import run_internal_sample_aotc_workload_nemo
 
 # Skip execution when being run as part of the DAG check
 # Checking if the file doesn't exist is a reliable way to detect this context
@@ -44,48 +43,29 @@ base_recipe_repo_root = os.path.abspath(
     )
 )
 
-base_helm_repo_root = os.path.abspath(
-    os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..",
-        "..",
-        "..",
-        "..",
-        "reproducible-benchmark-recipes/projects/gpu-recipes",
-    )
-)
-
 if not os.path.exists(base_recipe_repo_root):
   print(
-      f"Skipping sample_a3ultra_maxtext_single_run.py - required directory not found: {base_recipe_repo_root}"
+      f"Skipping sample_a4_nemo_single_run.py - required directory not found: {base_recipe_repo_root}"
   )
   sys.exit(0)
 
 
 def main():
-  utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-  NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
-  RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:{utc_date}"
-
-  # The dynamic date-based image is defined above, but can be overridden below
-  # with specific image versions and bucket names as required for testing
-  RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:2025-04-17"
+  RELEASE_IMAGE = Image.NEMO_STABLE_RELEASE_A4
   SAMPLE_RUN_BUCKET_NAME = "yujunzou-dev-supercomputer-testing"
 
   # Setup configuration
   relative_config_yaml_path = (
-      "recipes/a3ultra/a3ultra_llama3.1-8b_8gpus_fp8_maxtext.yaml"
+      "recipes/a4/nemo/a4_llama3.1-70b_256gpus_fp8_nemo.yaml"
   )
-  timeout = DAG_CONFIGS_ULTRA[relative_config_yaml_path]["timeout_minutes"]
+  timeout = DAG_CONFIGS_A4_NEMO[relative_config_yaml_path]["timeout_minutes"]
 
-  run_internal_united_workload(
+  run_internal_sample_aotc_workload_nemo(
       relative_config_yaml_path=relative_config_yaml_path,
       base_recipe_repo_root=base_recipe_repo_root,
-      base_helm_repo_root=base_helm_repo_root,
       timeout=timeout,
       image_version=RELEASE_IMAGE,
-      gcs_bucket_name=SAMPLE_RUN_BUCKET_NAME,
-      workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER,
+      sample_run_bucket_name=SAMPLE_RUN_BUCKET_NAME,
   )
 
 
