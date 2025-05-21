@@ -47,7 +47,8 @@ with models.DAG(
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
       "v6e-256": [1, 2],
-      "v4-8": [1, 2],
+      # "v4-8": [1, 2],
+      # "v5p-8": [1, 2]
   }
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
@@ -78,52 +79,88 @@ with models.DAG(
       use_regex_file_location=True,
   )
 
+  sdv2_base_output_dir = (
+      f"{BASE_OUTPUT_DIRECTORY}/maxdiffusion/automated/maxd-sdv2"
+  )
+  sdv2_run_name_prefix = f"maxd-sdv2-jax-stable-stack"
+  sdv2_tensorboard_summary_config = metric_config.SummaryConfig(
+      file_location=sdv2_base_output_dir,
+      aggregation_strategy=metric_config.AggregationStrategy.MEDIAN,
+      use_regex_file_location=True,
+  )
+
   for accelerator, slices in maxdiffusion_test_configs.items():
     cluster = config.clusters[accelerator]
     for slice_num in slices:
-      maxdiffusion_sdxl_test = config.get_gke_config(
+      # maxdiffusion_sdxl_test = config.get_gke_config(
+      #     num_slices=slice_num,
+      #     cluster=cluster,
+      #     time_out_in_min=60,
+      #     run_model_cmds=(
+      #         f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
+      #         f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
+      #         f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
+      #         f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
+      #         f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
+      #         f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
+      #         f"run_name='' "
+      #         f"output_dir={sdxl_base_output_dir}",
+      #     ),
+      #     test_name=sdxl_run_name_prefix,
+      #     docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
+      #     test_owner=test_owner.PARAM_B,
+      #     tensorboard_summary_config=sdxl_tensorboard_summary_config,
+      # ).run_with_name_gen_and_quarantine(
+      #     quarantine_task_group,
+      #     run_name_env="JOBSET_NAME",
+      #     nested_run_name_in_tb_file_location=False,
+      # )
+
+      # maxdiffusion_sdxl_nan_test = config.get_gke_config(
+      #     num_slices=slice_num,
+      #     cluster=cluster,
+      #     time_out_in_min=60,
+      #     run_model_cmds=(
+      #         f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
+      #         f"pip install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
+      #         f"OUTPUT_DIR={sdxl_nan_base_output_dir} "
+      #         f"RUN_NAME='' "
+      #         f"STEPS=20 "
+      #         f"LOSS_THRESHOLD=100",
+      #     ),
+      #     test_name=sdxl_nan_run_name_prefix,
+      #     docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
+      #     test_owner=test_owner.PARAM_B,
+      #     tensorboard_summary_config=sdxl_nan_tensorboard_summary_config,
+      # ).run_with_name_gen_and_quarantine(
+      #     quarantine_task_group,
+      #     run_name_env="JOBSET_NAME",
+      #     nested_run_name_in_tb_file_location=False,
+      # )
+      # maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test
+      maxdiffusion_sdv2_test = config.get_gke_config(
           num_slices=slice_num,
           cluster=cluster,
           time_out_in_min=60,
           run_model_cmds=(
-              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-              f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
-              f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
-              f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
-              f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
-              f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
-              f"run_name='' "
-              f"output_dir={sdxl_base_output_dir}",
+            f"LIBTPU_INIT_ARGS='' && "
+            f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
+            f"run_name='' "
+            f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ "
+            f"activations_dtype=float32 "
+            f"weights_dtype=float32 "
+            f"per_device_batch_size=2 "
+            f"precision=DEFAULT "
+            f"dataset_save_location=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl "
+            f"output_dir={sdv2_base_output_dir} "
+            f"attention=flash"
           ),
-          test_name=sdxl_run_name_prefix,
+          test_name=f"maxd-sdv2-{accelerator}-{slice_num}x",
           docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
           test_owner=test_owner.PARAM_B,
           tensorboard_summary_config=sdxl_tensorboard_summary_config,
-      ).run_with_name_gen_and_quarantine(
-          quarantine_task_group,
-          run_name_env="JOBSET_NAME",
-          nested_run_name_in_tb_file_location=False,
-      )
-
-      maxdiffusion_sdxl_nan_test = config.get_gke_config(
-          num_slices=slice_num,
-          cluster=cluster,
-          time_out_in_min=60,
-          run_model_cmds=(
-              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-              f"pip install . && bash end_to_end/tpu/test_sdxl_training_loss.sh "
-              f"OUTPUT_DIR={sdxl_nan_base_output_dir} "
-              f"RUN_NAME='' "
-              f"STEPS=20 "
-              f"LOSS_THRESHOLD=100",
-          ),
-          test_name=sdxl_nan_run_name_prefix,
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.PARAM_B,
-          tensorboard_summary_config=sdxl_nan_tensorboard_summary_config,
-      ).run_with_name_gen_and_quarantine(
-          quarantine_task_group,
-          run_name_env="JOBSET_NAME",
-          nested_run_name_in_tb_file_location=False,
-      )
-      maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test
+          ).run_with_name_gen_and_quarantine(
+            quarantine_task_group,
+            run_name_env="JOBSET_NAME",
+            nested_run_name_in_tb_file_location=False,)
+      maxdiffusion_sdv2_test
