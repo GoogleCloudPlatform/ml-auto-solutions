@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -83,7 +83,8 @@ class ProfileConfig:
   """A class to set up profile config.
 
   Attributes:
-    file_location: directory holding profile. profile is located in {file_location}/.*/*xplane.pb
+    file_location: directory holding profile.
+      Profile is located in `{file_location}/.*/*xplane.pb`
     metrics: placeholder, to be populated by `metric.xplane_to_metrics`
   """
 

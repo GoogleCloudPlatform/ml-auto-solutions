@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -233,12 +233,14 @@ class XpkTask(BaseTask):
       run_name_env: str = "M_RUN_NAME",
       nested_run_name_in_tb_file_location: bool = True,
   ) -> DAGNode:
-    """Generate a unique run name and tensorboard file location,
+    """Generate a unique run name, tensorboard file location,
+    and profile file location (if metric config has profile),
     then run a test job within a docker image.
 
     Returns:
       A task group with the following tasks chained: generate_run_name,
-      generate_tb_file_location, run provision, run_model, post_process.
+      generate_tb_file_location, generate_profile_file_location (optional),
+      run provision, run_model, post_process.
     """
     with TaskGroup(
         group_id=self.task_test_config.benchmark_id, prefix_group_id=True
@@ -269,7 +271,6 @@ class XpkTask(BaseTask):
             run_name, self.task_metric_config.profile.file_location
         )
         self.task_metric_config.profile.file_location = profile_file_location
-
         run_model, gcs_path = self.run_model(
             use_pathways=use_pathways, xpk_branch=xpk_branch
         )
