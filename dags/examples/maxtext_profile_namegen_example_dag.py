@@ -28,14 +28,13 @@ SCHEDULED_TIME = None
 BASE_OUTPUT_PATH = "gs://runner-maxtext-logs"
 
 docker_image = {
-    "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+    "stable": "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:2025-05-20",
 }
 
 base_command = (
     f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
     + "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=gs://runner-maxtext-logs run_name=${RUN_NAME} model_name=mixtral-8x7b tokenizer_path=assets/tokenizer.mistral-v1 dataset_path=gs://maxtext-dataset per_device_batch_size=4 enable_checkpointing=false ici_fsdp_parallelism=-1 max_target_length=1024 async_checkpointing=false attention=flash dtype=bfloat16 weight_dtype=bfloat16"
 )
-
 
 test_models_tpu = {
     # use: upload single profile from the first host, extract profile
@@ -121,5 +120,5 @@ with models.DAG(
           docker_image=docker_image[image],
           test_owner=test_owner.SHUNING_J,
           cluster=test_scripts_details["cluster"],
-          user_specified_job_metric_config=job_metric_config,  # add specified config
+          user_specified_job_metric_config=job_metric_config,  # customize config
       ).run_with_run_name_generation(run_name_env="RUN_NAME")
