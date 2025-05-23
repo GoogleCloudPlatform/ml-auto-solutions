@@ -59,6 +59,7 @@ class Image:
 class WorkloadLauncher:
   NEMO_TEN_LAUNCHER = "nemo-10-launcher.sh"
   MAXTEXT_LAUNCHER = "maxtext-launcher.sh"
+  MAXTEXT_LAUNCHER_NIGHTLY = "maxtext-launcher-nightly.sh"
 
 
 class RunTypes:
