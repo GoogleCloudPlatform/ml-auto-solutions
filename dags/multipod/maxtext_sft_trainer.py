@@ -44,14 +44,11 @@ with models.DAG(
     command = (
         f'export HF_TOKEN={HF_TOKEN}',
         'export PRE_TRAINED_MODEL=llama2-7b',
-        'export PRE_TRAINED_MODEL_TOKENIZER=meta-llama/Llama-2-7b-hf',
-        'export PRE_TRAINED_MODEL_CKPT_PATH=gs://maxtext-model-checkpoints/llama2-7b/2025-01-23-19-26/scanned/0/items',
+        'export PRE_TRAINED_MODEL_TOKENIZER=meta-llama/Llama-2-7b-chat-hf',
+        'export PRE_TRAINED_MODEL_CKPT_PATH=gs://maxtext-model-checkpoints/llama2-7b-chat/scanned/0/items',
         f'export BASE_OUTPUT_DIRECTORY={base_output_directory}',
         'export STEPS=2500',
         'export PROMPT="Suggest some famous landmarks in London."',
-        'export RTOL=1e-05',
-        'export ATOL=0.09',
-        'export KL_DIV=7e-05',
         'bash end_to_end/tpu/test_sft_trainer.sh',
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
