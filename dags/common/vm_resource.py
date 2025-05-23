@@ -354,10 +354,6 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXTEXT_GPU_JAX_PINNED = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_pinned:"
-      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  )
   MAXTEXT_GPU_JAX_STABLE_STACK = (
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
@@ -368,6 +364,10 @@ class DockerImage(enum.Enum):
   )
   MAXTEXT_GPU_STABLE_STACK_NIGHTLY_JAX = (
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
+  MAXTEXT_GPU_JAX_AI_CANDIDATE_IMAGE = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_stable_stack_candidate_gpu:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   CLOUD_HYBRIDSIM_NIGHTLY = (
