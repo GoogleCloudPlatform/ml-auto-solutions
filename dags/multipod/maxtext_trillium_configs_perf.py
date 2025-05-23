@@ -33,6 +33,16 @@ DOCKER_IMAGES = [
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
 ]
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
+moe_set = {
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPLESS,
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED,
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED_INT8,
+    MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16,
+}
+need_stable_candidate_set = {
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED_INT8,
+    MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16,
+}
 
 with models.DAG(
     dag_id="maxtext_trillium_configs_perf",
@@ -61,6 +71,13 @@ with models.DAG(
           or model == MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16
           else [1, 2]
       )
+
+      # moe, stable: use candidate image
+      if mode == SetupMode.STABLE and model in need_stable_candidate_set:
+        image = DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE
+      # moe: enable profile config
+      enable_profile_config = True if model in moe_set else False
+
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               test_owner=test_owner.RAYMOND_Z,
@@ -75,6 +92,7 @@ with models.DAG(
               run_name_prefix=f"maxtext-{model.name.lower()}-{mode.value}",
               base_run_model_cmds=base_run_model_cmds,
               sweep_params={},
+              enable_profile_config=enable_profile_config,
           )
       )
 
