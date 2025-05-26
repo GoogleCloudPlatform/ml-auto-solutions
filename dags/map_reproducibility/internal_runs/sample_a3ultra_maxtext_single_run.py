@@ -85,7 +85,7 @@ def main():
       timeout=timeout,
       image_version=RELEASE_IMAGE,
       gcs_bucket_name=SAMPLE_RUN_BUCKET_NAME,
-      workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER,
+      workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER_NIGHTLY,
   )
 
 
