@@ -110,17 +110,10 @@ test_models_tpu = {
 with models.DAG(
     dag_id="maxtext_profile_sweep_example_dag",
     schedule=SCHEDULED_TIME,
-    tags=[
-        "sparsity_diffusion_devx",
-        "multipod_team",
-        "maxtext",
-        "tpu",
-        "stable",
-        "nightly",
-        "mlscale_devx",
-    ],
-    start_date=datetime.datetime(2024, 11, 14),
+    tags=["multipod_team", "maxtext"],
+    start_date=datetime.datetime(2025, 5, 20),
     catchup=False,
+    concurrency=2,
 ) as dag:
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False

@@ -47,7 +47,7 @@ test_models_tpu = {
             + " steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3",
         ],
     },
-    # use: upload profiles from all hosts, extract one of the profile
+    # use: upload profiles from all hosts, extract one of the profiles
     # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
     "mixtral-8x7b_pretraining-megablox_config-true_upload-all": {
         "cluster": XpkClusters.TPU_V4_128_CLUSTER,
@@ -81,17 +81,10 @@ test_models_tpu = {
 with models.DAG(
     dag_id="maxtext_profile_namegen_example_dag",
     schedule=SCHEDULED_TIME,
-    tags=[
-        "sparsity_diffusion_devx",
-        "multipod_team",
-        "maxtext",
-        "tpu",
-        "stable",
-        "nightly",
-        "mlscale_devx",
-    ],
-    start_date=datetime.datetime(2024, 11, 14),
+    tags=["multipod_team", "maxtext"],
+    start_date=datetime.datetime(2025, 5, 20),
     catchup=False,
+    concurrency=2,
 ) as dag:
   for run_name, test_scripts_details in test_models_tpu.items():
     for image in docker_image.keys():
