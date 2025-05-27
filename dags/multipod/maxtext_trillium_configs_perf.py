@@ -35,6 +35,13 @@ DOCKER_IMAGES = [
 ]
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 
+# Use stable-stack-candidate instead of stable-stack
+# int8 needs aqtp>=0.8.3, flash attention needs jax>=0.5.3
+need_stable_candidate_set = {
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED_INT8,
+    MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16,
+}
+
 with models.DAG(
     dag_id="maxtext_trillium_configs_perf",
     schedule=CONIFGS_SCHEDULED_TIME,
@@ -60,6 +67,12 @@ with models.DAG(
           and image == DockerImage.MAXTEXT_JAX_052_RECIPES_012
       ):
         continue
+      if (
+          model in need_stable_candidate_set
+          and image == DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK
+      ):
+        image = DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE
+
       base_run_model_cmds = [
           f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
