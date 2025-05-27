@@ -158,8 +158,6 @@ def handle_profiler(config, gcs_bucket, tmpdir, is_sample_run=False):
     success, error_message = execute_workload_commands(profiler_cmds, tmpdir)
     if not success:
       logger.error(f"Profiler command failed: {error_message}")
-  else:
-    logger.error(f"No xprof file found in {gcs_bucket}")
 
   return logs_profile
 
@@ -221,6 +219,7 @@ def assemble_sample_united_workload_commands(
     bucket_name,
     timeout,
     tmpdir,
+    image_version,
 ):
   metrics_cmd = get_metrics_cmd(
       config,
@@ -241,7 +240,7 @@ def assemble_sample_united_workload_commands(
           helm_repo_root,
           workload_launcher=launcher_path,
           kueue_name=None,
-          additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
+          additional_cmds=f" --set workload.gpus={config.NUM_GPUS} --set workload.image={image_version}",
           bucket_name=bucket_name,
           values_file_path=values_file_path,
       )
