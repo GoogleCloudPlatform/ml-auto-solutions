@@ -65,6 +65,29 @@ def generate_tb_file_location(
 
 
 @task
+def generate_profile_file_location(
+    run_name: str, base_output_directory: str
+) -> str:
+  """
+  Generates a path to the directory containing profile:
+  <base_output_directory>/<run_name>/tensorboard/plugins/profile
+  To be used for subsequent regex file search. Assumes profile is located in:
+  <base_output_directory>/<run_name>/tensorboard/plugins/profile/.*/*xplane.pb
+
+  Args:
+    run_name: run name for the profile file location
+    base_output_directory: GCS bucket path
+  """
+  return os.path.join(
+      base_output_directory,
+      run_name,
+      "tensorboard",
+      "plugins",
+      "profile",
+  )
+
+
+@task
 def generate_gcs_folder_location(subfolder: str, benchmark_id: str) -> str:
   """Generates folder location in GCS.
 
