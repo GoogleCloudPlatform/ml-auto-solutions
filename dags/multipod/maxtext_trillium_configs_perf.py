@@ -34,12 +34,9 @@ DOCKER_IMAGES = [
     (SetupMode.TPU_RECIPES, DockerImage.MAXTEXT_JAX_052_RECIPES_012),
 ]
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
-moe_set = {
-    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPLESS,
-    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED,
-    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED_INT8,
-    MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16,
-}
+
+# Use stable-stack-candidate instead of stable-stack
+# int8 needs aqtp>=0.8.3, flash attention needs jax>=0.5.3
 need_stable_candidate_set = {
     MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED_INT8,
     MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16,
@@ -70,6 +67,12 @@ with models.DAG(
           and image == DockerImage.MAXTEXT_JAX_052_RECIPES_012
       ):
         continue
+      if (
+          model in need_stable_candidate_set
+          and image == DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK
+      ):
+        image = DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE
+
       base_run_model_cmds = [
           f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
@@ -79,12 +82,6 @@ with models.DAG(
           or model == MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16
           else [1, 2]
       )
-
-      # moe, stable: use candidate image
-      if mode == SetupMode.STABLE and model in need_stable_candidate_set:
-        image = DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE
-      # moe: enable profile config
-      enable_profile_config = True if model in moe_set else False
 
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -100,7 +97,6 @@ with models.DAG(
               run_name_prefix=f"maxtext-{model.name.lower()}-{mode.value}",
               base_run_model_cmds=base_run_model_cmds,
               sweep_params={},
-              enable_profile_config=enable_profile_config,
           )
       )
       all_tests += maxtext_sweep_gke_test
