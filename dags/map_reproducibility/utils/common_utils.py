@@ -1216,6 +1216,22 @@ def get_metrics_cmd(config, accelerator_type, tmpdir, start_step, end_step):
   )
 
 
+def find_launcher_path(
+    workload_launcher, base_helm_repo_root, base_recipe_repo_root
+):
+  # Try base_helm_repo_root first
+  helm_path = os.path.join(
+      base_helm_repo_root, f"src/launchers/{workload_launcher}"
+  )
+  if os.path.exists(helm_path):
+    return helm_path
+
+  # Fall back to base_recipe_repo_root
+  return os.path.join(
+      base_recipe_repo_root, f"src/launchers/{workload_launcher}"
+  )
+
+
 def get_values_file_path(
     base_recipe_repo_root: str,
     config_yaml_name: str,
