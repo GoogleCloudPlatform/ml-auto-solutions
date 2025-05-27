@@ -26,11 +26,12 @@ from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config
 
-# Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
-SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 3 am UTC (7 pm PST / 8 pm PDT)
+CONIFGS_SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+    (SetupMode.TPU_RECIPES, DockerImage.MAXTEXT_JAX_052_RECIPES_012),
 ]
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 moe_set = {
@@ -46,7 +47,7 @@ need_stable_candidate_set = {
 
 with models.DAG(
     dag_id="maxtext_trillium_configs_perf",
-    schedule=SCHEDULED_TIME,
+    schedule=CONIFGS_SCHEDULED_TIME,
     tags=[
         "multipod_team",
         "maxtext",
@@ -60,8 +61,15 @@ with models.DAG(
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
+  all_tests = []
   for mode, image in DOCKER_IMAGES:
     for model in MaxTextTrilliumModelConfigs:
+      # No tpu-recipe for DeepSeek v3
+      if (
+          model == MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16
+          and image == DockerImage.MAXTEXT_JAX_052_RECIPES_012
+      ):
+        continue
       base_run_model_cmds = [
           f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
       ]
@@ -95,15 +103,13 @@ with models.DAG(
               enable_profile_config=enable_profile_config,
           )
       )
+      all_tests += maxtext_sweep_gke_test
 
-      chain_num = 4
-      prev = maxtext_sweep_gke_test[0].run_with_name_gen_and_quarantine(
-          quarantine_task_group
-      )
-      for i in range(1, len(maxtext_sweep_gke_test)):
-        curr = maxtext_sweep_gke_test[i].run_with_name_gen_and_quarantine(
-            quarantine_task_group
-        )
-        if i % chain_num != 0:
-          prev >> curr
-        prev = curr
+  # Add dependencies between the tests so they are not all launched at once
+  chain_num = 4
+  prev = all_tests[0].run_with_name_gen_and_quarantine(quarantine_task_group)
+  for i in range(1, len(all_tests)):
+    curr = all_tests[i].run_with_name_gen_and_quarantine(quarantine_task_group)
+    if i % chain_num != 0:
+      prev >> curr
+    prev = curr
