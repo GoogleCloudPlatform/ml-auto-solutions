@@ -82,7 +82,6 @@ with models.DAG(
           or model == MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16
           else [1, 2]
       )
-
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               test_owner=test_owner.RAYMOND_Z,
