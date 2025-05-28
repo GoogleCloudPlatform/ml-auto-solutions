@@ -223,3 +223,18 @@ DAG_CONFIGS_A4_NEMO = {
         "release_schedule": Schedule.SATURDAY_PDT_12AM,
     }
 }
+
+DAG_CONFIGS_ULTRA_NEMO = {
+    "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_fp8_nemo.yaml": {
+        "timeout_minutes": 20,
+        "release_schedule": Schedule.SATURDAY_PDT_12AM,
+    },
+    "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_bf16_nemo.yaml": {
+        "timeout_minutes": 20,
+        "release_schedule": Schedule.SATURDAY_PDT_12AM,
+    },
+    "recipes/a3ultra/nemo/a3ultra_llama3.1-70b_256gpus_fp8_nemo.yaml": {
+        "timeout_minutes": 25,
+        "release_schedule": Schedule.SATURDAY_PDT_3AM,
+    },
+}
