@@ -413,15 +413,13 @@ class XpkTask(BaseTask):
       )
 
       if self.task_metric_config and self.task_metric_config.profile:
-        profile_tmp_dir = metric.download_profile(
-            process_id, self.task_metric_config.profile.file_location
-        )
-        self.task_metric_config.profile.metrics = metric.xplane_to_metrics(
-            profile_tmp_dir
+        self.task_metric_config.profile.metrics = (
+            metric.xplane_to_metrics.override(retries=0)(
+                self.task_metric_config.profile.file_location
+            )
         )
         (
             process_id
-            >> profile_tmp_dir
             >> self.task_metric_config.profile.metrics
             >> post_process_metrics
         )
