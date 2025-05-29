@@ -373,7 +373,7 @@ def xplane_to_metrics(dir_location: str | airflow.XComArg) -> dict:
   # pylint: enable=redefined-outer-name, import-outside-toplevel, reimported
 
   # --- Find and Download Profile ---
-  # copied from `metric.download_object_from_gcs`
+  # pylint: disable-next=redefined-outer-name
   def download_object_from_gcs(
       source_location: str, destination_location: str
   ) -> None:
