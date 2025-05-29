@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-A DAG to run perf tests for MaxText model configs on v5e.
+A DAG to run perf tests for MaxText model configs on v6e.
 """
 import datetime
 from airflow import models
@@ -38,6 +38,12 @@ BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 # Use stable-stack-candidate instead of stable-stack
 # int8 needs aqtp>=0.8.3, flash attention needs jax>=0.5.3
 need_stable_candidate_set = {
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED_INT8,
+    MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16,
+}
+moe_set = {
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPLESS,
+    MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED,
     MaxTextTrilliumModelConfigs.MIXTRAL_8X7B_DROPPED_INT8,
     MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16,
 }
@@ -82,6 +88,9 @@ with models.DAG(
           or model == MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16
           else [1, 2]
       )
+      # Enable profile config to extract metrics for MoE
+      enable_profile_config = True if model in moe_set else False
+
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
               test_owner=test_owner.RAYMOND_Z,
@@ -96,6 +105,7 @@ with models.DAG(
               run_name_prefix=f"maxtext-{model.name.lower()}-{mode.value}",
               base_run_model_cmds=base_run_model_cmds,
               sweep_params={},
+              enable_profile_config=enable_profile_config,
           )
       )
       all_tests += maxtext_sweep_gke_test
