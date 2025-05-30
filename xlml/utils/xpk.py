@@ -120,6 +120,12 @@ def run_workload(
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
     if mtc_enabled:
       workload_create_cmd += " --mtc-enabled"
+    # For Orbax DAG
+    if ramdisk_directory and mtc_enabled:
+      workload_create_cmd = workload_create_cmd.replace(
+          " --restart-on-user-code-failure", ""
+      )
+      workload_create_cmd += " --max-restarts=50"
 
     # If using a valid GPU and the XPK branch is set to "main", then branch is switch to "v0.4.1".
     if is_valid_gpu_version(accelerator_type) and xpk_branch == MAIN_BRANCH:
@@ -282,6 +288,51 @@ def wait_for_workload_completion(
 
   logging.info("All pod(s) phase are succeeded.")
   return True
+
+
+@task.sensor(poke_interval=120, timeout=1200, mode="reschedule")
+def run_interruption_cmd(
+    task_id: str,
+    project_id: str,
+    region: str,
+    cluster_name: str,
+    workload_id: str,
+) -> bool:
+  """Run command to interrupt pod ."""
+  core_api = _get_core_api_client(project_id, region, cluster_name)
+  pods = _list_workload_pods(core_api, workload_id)
+
+  if any(pod.status.phase in ["Pending"] for pod in pods.items):
+    logging.info("Some of the pods is still pending. Waiting to start")
+    return False
+
+  try:
+    for pod in pods.items:
+      if pod.status.phase == "Failed":
+        # Don't keep retrying if the pod has failed
+        raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
+      elif pod.status.phase in ["Unknown"]:
+        raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
+  finally:
+    if all(pod.status.phase in ["Running"] for pod in pods.items):
+      # Pick last one running pod
+      pod = pods.items[len(pods.items) - 1]
+      logs = core_api.read_namespaced_pod_log(
+          name=pod.metadata.name, namespace=pod.metadata.namespace
+      )
+      logging.info(f"Logs for pod {pod.metadata.name}:")
+      for line in logs.split("\n"):
+        logging.info(line)
+
+      # TODO --> More sophisticated way to know when the pod start training.
+      if "completed step:" in logs:
+        # Here where regex expresion to kill pod will go. First test with killing the  pod
+        result = core_api.delete_namespaced_pod(
+            name=pod.metadata.name, namespace=pod.metadata.namespace
+        )
+        logging.info("The {pod.metadata.name} pod was successfully deleted.")
+        return True
+  return False
 
 
 @task(trigger_rule="all_done")
