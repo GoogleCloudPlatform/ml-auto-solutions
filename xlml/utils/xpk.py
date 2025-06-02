@@ -25,9 +25,10 @@ from kubernetes import client as k8s_client
 from xlml.apis import metric_config
 from xlml.utils import gke
 from dags.common.vm_resource import GpuVersion
+from typing import List
 
 # b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
-MAIN_BRANCH = "v0.4.1"
+MAIN_BRANCH = "v0.8.0"
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
     "https://pantheon.corp.google.com/logs/query;"
@@ -51,7 +52,9 @@ def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
   cmds = [
       "set -xue",
       clone_branch,
+      f"cd {tmpdir}/xpk",
       "pip install ruamel.yaml docker",
+      "make install && export PATH=$PATH:$PWD/bin",
   ]
   return cmds
 
@@ -92,6 +95,7 @@ def run_workload(
     ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
     mtc_enabled: bool = False,  # It enables MTC phase-2 drivers
     xpk_branch: str = MAIN_BRANCH,
+    xpk_storage: List[str] = None,
 ):
   """Run workload through xpk tool."""
 
@@ -107,6 +111,10 @@ def run_workload(
     create_field = "create-pathways" if use_pathways else "create"
     type_field = "tpu-type" if use_pathways else "device-type"
 
+    storage_cmd = ""
+    if xpk_storage:
+      storage_cmd = " ".join(f"--storage={s}" for s in xpk_storage)
+
     workload_create_cmd = (
         f"python {tmpdir}/xpk/xpk.py workload {create_field}"
         f" --cluster={cluster_name} --workload={workload_id}"
@@ -115,6 +123,7 @@ def run_workload(
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
         " --restart-on-user-code-failure"
+        f" {storage_cmd}"
     )
     if ramdisk_directory:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"

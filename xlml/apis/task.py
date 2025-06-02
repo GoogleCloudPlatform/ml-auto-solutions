@@ -19,7 +19,7 @@ import dataclasses
 import datetime
 import shlex
 from dags.common.quarantined_tests import QuarantineTests
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
@@ -208,6 +208,7 @@ class XpkTask(BaseTask):
       xpk_branch: str = xpk.MAIN_BRANCH,
       run_name_env: str = "M_RUN_NAME",
       nested_run_name_in_tb_file_location: bool = True,
+      xpk_storage: List[str] = None,
   ) -> DAGNode:
     test_name = self.task_test_config.benchmark_id
     if QuarantineTests.is_quarantined(test_name):
@@ -217,6 +218,7 @@ class XpkTask(BaseTask):
             xpk_branch,
             run_name_env,
             nested_run_name_in_tb_file_location,
+            xpk_storage=xpk_storage,
         )
     else:
       return self.run_with_run_name_generation(
@@ -224,6 +226,7 @@ class XpkTask(BaseTask):
           xpk_branch,
           run_name_env,
           nested_run_name_in_tb_file_location,
+          xpk_storage=xpk_storage,
       )
 
   def run_with_run_name_generation(
@@ -232,6 +235,7 @@ class XpkTask(BaseTask):
       xpk_branch: str = xpk.MAIN_BRANCH,
       run_name_env: str = "M_RUN_NAME",
       nested_run_name_in_tb_file_location: bool = True,
+      xpk_storage: List[str] = None,
   ) -> DAGNode:
     """Generate a unique run name, tensorboard file location,
     and profile file location (if metric config has profile),
@@ -272,7 +276,7 @@ class XpkTask(BaseTask):
         )
         self.task_metric_config.profile.file_location = profile_file_location
         run_model, gcs_path = self.run_model(
-            use_pathways=use_pathways, xpk_branch=xpk_branch
+            use_pathways=use_pathways, xpk_branch=xpk_branch, xpk_storage=xpk_storage
         )
         (
             run_name
@@ -282,7 +286,7 @@ class XpkTask(BaseTask):
         )
       else:
         run_model, gcs_path = self.run_model(
-            use_pathways=use_pathways, xpk_branch=xpk_branch
+            use_pathways=use_pathways, xpk_branch=xpk_branch, xpk_storage=xpk_storage
         )
         (
             run_name
@@ -300,6 +304,7 @@ class XpkTask(BaseTask):
       ramdisk_directory: str = "",
       mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
+      xpk_storage: List[str] = None,
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
 
@@ -328,6 +333,7 @@ class XpkTask(BaseTask):
           ramdisk_directory,
           mtc_enabled,
           xpk_branch,
+          xpk_storage=xpk_storage,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=int(self.task_test_config.timeout.total_seconds()),
@@ -362,6 +368,7 @@ class XpkTask(BaseTask):
       ramdisk_directory: str = "",
       mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
+      xpk_storage: List[str] = None,
   ) -> DAGNode:
     """Create the workload and wait for it to provision."""
     with TaskGroup(group_id="launch_workload") as group:
@@ -384,6 +391,7 @@ class XpkTask(BaseTask):
           ramdisk_directory=ramdisk_directory,
           mtc_enabled=mtc_enabled,
           xpk_branch=xpk_branch,
+          xpk_storage=xpk_storage,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
@@ -530,7 +538,12 @@ class GpuCreateResourceTask(BaseTask):
 
   def provision_via_existing_instance(
       self,
-  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg,]:
+  ) -> Tuple[
+      DAGNode,
+      airflow.XComArg,
+      airflow.XComArg,
+      airflow.XComArg,
+  ]:
     """Provision an existing GPU accelerator.
 
     Returns:
