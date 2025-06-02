@@ -55,7 +55,7 @@ def get_microbenchmark_config(
   # Check if the metrics report exists, and if so, upload it to GCS
   run_model_cmds += (
       f"if [ -f {metrics_report} ]; then "
-      f"gsutil cp {metrics_report} {metric_config.SshEnvVars.GCS_OUTPUT.value}; "
+      f"gcloud storage cp {metrics_report} {metric_config.SshEnvVars.GCS_OUTPUT.value}; "
       "fi",
   )
 
