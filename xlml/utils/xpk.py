@@ -25,9 +25,18 @@ from kubernetes import client as k8s_client
 from xlml.apis import metric_config
 from xlml.utils import gke
 from dags.common.vm_resource import GpuVersion
+from typing import Tuple
+import re
+import sys
+import time
+from google.cloud import compute_v1
+
 
 # b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
 MAIN_BRANCH = "v0.4.1"
+# b/437817546 - Orbax test need to use a branch to bypass the `validate_dependencies()` crash issue
+BRANCH_ABHINAV_MTC = "abhinav-mtc"
+
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
     "https://pantheon.corp.google.com/logs/query;"
@@ -114,12 +123,25 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
-        " --restart-on-user-code-failure"
     )
     if ramdisk_directory:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
+
+    # For now using abhinav-mtc branch with "mtc_enabled" since 0.4.1 does not support this flag and version > 0.4.1 pod crash b/437817546
     if mtc_enabled:
-      workload_create_cmd += " --mtc-enabled"
+      if xpk_branch == BRANCH_ABHINAV_MTC:
+        workload_create_cmd += " --mtc_enabled"
+      else:
+        workload_create_cmd += " --mtc-enabled"
+
+    # For Orbax DAG add flag '--max-restars=50' need it to make it work for xpk version > 0.4.1
+    # For non-orbax runs add flag ' --restart-on-user-code-failure' xpk 0.4.1
+    if ramdisk_directory and mtc_enabled:
+      workload_create_cmd += " --max-restarts=50"
+
+    # Only add restart-on-user-code-failure for v0.4.1
+    if xpk_branch == "v0.4.1":
+      workload_create_cmd += " --restart-on-user-code-failure"
 
     # If using a valid GPU and the XPK branch is set to "main", then branch is switch to "v0.4.1".
     if is_valid_gpu_version(accelerator_type) and xpk_branch == MAIN_BRANCH:
@@ -310,3 +332,133 @@ def clean_up_workload(
     assert (
         result.exit_code == 0
     ), f"XPK clean-up failed with code {result.exit_code}"
+
+
+def extract_numbers(pod_name: str) -> Tuple[int, int]:
+  """Extract slice and pod numbers from pod name."""
+  match = re.search(r"slice-job-(\d+)-(\d+)-", pod_name)
+  if match:
+    return int(match.group(1)), int(match.group(2))
+  return (0, 0)
+
+
+def _find_target_pod_node(
+    project_id: str,
+    region: str,
+    cluster_name: str,
+    workload_id: str,
+    last_node: bool = False,
+) -> str:
+  """find the node name for the workload."""
+  core_api = _get_core_api_client(project_id, region, cluster_name)
+  pods = _list_workload_pods(core_api, workload_id)
+  pod_node_pairs = []
+  pattern = re.compile(r".*slice-job-(\d+)-(\d+)-\w+")
+
+  pod_node_pairs = [
+      (pod.metadata.name, pod.spec.node_name)
+      for pod in pods.items
+      if pod.status.phase == "Running" and pattern.match(pod.metadata.name)
+  ]
+  if not pod_node_pairs:
+    raise AirflowFailException(
+        f"No running pods found for workload {workload_id} matching pattern."
+    )
+
+  # Find the pod with the highest slice and pod numbers.
+  # Sort by slice number, then by pod number, and get the last (highest) one
+  sorted_pairs = sorted(pod_node_pairs, key=lambda x: extract_numbers(x[0]))
+  target_pod, target_node = sorted_pairs[0]
+  if last_node:
+    target_pod, target_node = sorted_pairs[-1]
+
+  logging.info("Identified Pod for node deletion:")
+  logging.info(f"  Pod Name:   {target_pod}")
+  logging.info(f"  Node Name:  {target_node}")
+  logging.info("-" * 72)
+
+  return target_node
+
+
+@task.sensor(poke_interval=120, timeout=3600, mode="reschedule")
+def wait_for_reach_step_to_interrupt(
+    task_id: str,
+    project_id: str,
+    region: str,
+    cluster_name: str,
+    workload_id: str,
+    step_to_interrupt: str,
+) -> bool:
+  """
+  Watch any given training pod, check the given step is already reach before
+  deleting a node
+  """
+  core_api = _get_core_api_client(project_id, region, cluster_name)
+  pods = _list_workload_pods(core_api, workload_id)
+
+  if any(pod.status.phase in ["Pending"] for pod in pods.items):
+    logging.info("Some of the pods is still pending. Waiting to start")
+    return False
+
+  try:
+    for pod in pods.items:
+      if pod.status.phase == "Failed":
+        # Don't keep retrying if the pod has failed
+        raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
+      elif pod.status.phase in ["Unknown"]:
+        raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
+  finally:
+    if all(pod.status.phase in ["Running"] for pod in pods.items):
+      # Pick last one running pod
+      pod = pods.items[len(pods.items) - 1]
+      logs = core_api.read_namespaced_pod_log(
+          name=pod.metadata.name, namespace=pod.metadata.namespace
+      )
+      # If the pod has reach the step (save) we can assume that we can savly interrupt, so make this task return true
+      if f"completed step: {step_to_interrupt}" in logs:
+        logging.info("The step to be interrupt is {step_to_interrupt}")
+        return True
+  return False
+
+
+@task
+def delete_node(
+    cluster_name: str,
+    workload_id: str,
+    zone: str,
+    project: str,
+    dry_run: bool = False,
+    last_node: bool = False,
+) -> None:
+  """Delete node."""
+  node_name = _find_target_pod_node(
+      project,
+      zone[:-2],
+      cluster_name,
+      workload_id,
+      last_node,
+  )
+  # Delete the specified compute instance.
+  if dry_run:
+    logging.info(
+        f"DRY RUN: Would delete node: {node_name}"
+        f"in zone: {zone} (project: {project})"
+    )
+    return
+
+  logging.info(f"Proceeding to delete node: {node_name}")
+  try:
+    # Initialize the Compute Engine client
+    instances_client = compute_v1.InstancesClient()
+
+    # Delete the instance
+    operation = instances_client.delete(
+        project=project, zone=zone, instance=node_name
+    )
+
+    logging.info(f"Deletion operation started for node: {node_name}")
+    logging.info(f"Operation: {operation.name}")
+    logging.info(f"Deletion command executed for node: {node_name}")
+  except Exception as e:
+    logging.info(f"Error deleting node {node_name}: {e}", file=sys.stderr)
+    sys.exit(1)

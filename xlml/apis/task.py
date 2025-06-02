@@ -165,6 +165,182 @@ class XpkTask(BaseTask):
       minutes=300
   )
 
+  def run_with_node_interruption(
+      self,
+      *,
+      gcs_location: Optional[airflow.XComArg] = None,
+      use_vertex_tensorboard: bool = False,
+      use_pathways: bool = False,
+      skip_post_process: bool = False,
+      ramdisk_directory: str = "",
+      mtc_enabled: bool = False,
+      xpk_branch: str = xpk.MAIN_BRANCH,
+      last_node: bool = False,
+  ) -> DAGNode:
+    """Run a test job within a docker image.
+       Will run a workload with an organic interruption of a GKE node.
+       Then is expected to automatically restart and continuing running.
+
+    Attributes:
+      gcs_location: GCS path for all artifacts of the test.
+      use_vertex_tensorboard: Set to True to view workload data on
+        Vertex AI Tensorboard.
+
+    Returns:
+      A task group with the following tasks chained: run_model and
+      post_process.
+    """
+    with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
+      run_model, gcs_path = self.run_model_with_node_interruption(
+          gcs_location,
+          use_vertex_tensorboard,
+          use_pathways,
+          ramdisk_directory,
+          mtc_enabled,
+          xpk_branch,
+          last_node,
+      )
+      if not skip_post_process:
+        run_model >> self.post_process(gcs_path)
+    return group
+
+  def run_model_with_node_interruption(
+      self,
+      gcs_location: Optional[airflow.XComArg] = None,
+      use_vertex_tensorboard: bool = False,
+      use_pathways: bool = False,
+      ramdisk_directory: str = "",
+      mtc_enabled: bool = False,
+      xpk_branch: str = xpk.MAIN_BRANCH,
+      last_node: bool = False,
+  ) -> DAGNode:
+    """Run the TPU/GPU test in `task_test_config` using xpk.
+      Different behaviour for testing node interruption.
+
+    Attributes:
+      gcs_location: GCS path for all artifacts of the test.
+      use_vertex_tensorboard: Set to True to view workload data on
+        Vertex AI Tensorboard.
+
+    Returns:
+      A DAG node that executes the model test.
+    """
+    with TaskGroup(group_id="run_model") as group:
+      workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
+      if gcs_location:
+        gcs_path = gcs_location
+      else:
+        gcs_path = name_format.generate_gcs_folder_location(
+            self.task_test_config.gcs_subfolder,
+            self.task_test_config.benchmark_id,
+        )
+
+      launch_workload_with_interruption = (
+          self.launch_workload_with_node_interruption(
+              workload_id,
+              gcs_path,
+              use_vertex_tensorboard,
+              use_pathways,
+              ramdisk_directory,
+              mtc_enabled,
+              xpk_branch,
+              last_node,
+          )
+      )
+
+      wait_for_workload_completion = xpk.wait_for_workload_completion.override(
+          timeout=int(self.task_test_config.timeout.total_seconds()),
+      )(
+          workload_id=workload_id,
+          project_id=self.task_gcp_config.project_name,
+          region=self.task_gcp_config.zone[:-2],
+          cluster_name=self.task_test_config.cluster_name,
+      )
+
+      clean_up_workload = xpk.clean_up_workload(
+          workload_id=workload_id,
+          project_id=self.task_gcp_config.project_name,
+          zone=self.task_gcp_config.zone,
+          cluster_name=self.task_test_config.cluster_name,
+          xpk_branch=xpk_branch,
+      )
+
+      (
+          (workload_id, gcs_path)
+          >> launch_workload_with_interruption
+          >> wait_for_workload_completion
+          >> clean_up_workload
+      )
+    return group, gcs_path
+
+  def launch_workload_with_node_interruption(
+      self,
+      workload_id: str,
+      gcs_path: str,
+      use_vertex_tensorboard: bool,
+      use_pathways: bool = False,
+      ramdisk_directory: str = "",
+      mtc_enabled: bool = False,
+      xpk_branch: str = xpk.MAIN_BRANCH,
+      last_node: bool = False,
+  ) -> DAGNode:
+    """Create the workload and wait for it to provision."""
+    with TaskGroup(group_id="launch_workload_with_interruption") as group:
+      run_workload = xpk.run_workload.override(
+          owner=self.task_test_config.task_owner
+      )(
+          task_id="run_workload",
+          cluster_project=self.task_gcp_config.project_name,
+          zone=self.task_gcp_config.zone,
+          cluster_name=self.task_test_config.cluster_name,
+          benchmark_id=self.task_test_config.benchmark_id,
+          workload_id=workload_id,
+          gcs_path=gcs_path,
+          docker_image=self.task_test_config.docker_image,
+          accelerator_type=self.task_test_config.accelerator.name,
+          run_cmds=self.task_test_config.test_script,
+          num_slices=self.task_test_config.num_slices,
+          use_vertex_tensorboard=use_vertex_tensorboard,
+          use_pathways=use_pathways,
+          ramdisk_directory=ramdisk_directory,
+          mtc_enabled=mtc_enabled,
+          xpk_branch=xpk_branch,
+      )
+      wait_for_workload_start = xpk.wait_for_workload_start.override(
+          timeout=self.workload_provision_timeout.total_seconds()
+      )(
+          workload_id=workload_id,
+          project_id=self.task_gcp_config.project_name,
+          region=self.task_gcp_config.zone[:-2],
+          cluster_name=self.task_test_config.cluster_name,
+      )
+      wait_to_reach_step_to_interrupt = xpk.wait_for_reach_step_to_interrupt(
+          task_id="wait_to_reach_step_to_interrupt",
+          workload_id=workload_id,
+          project_id=self.task_gcp_config.project_name,
+          region=self.task_gcp_config.zone[:-2],
+          cluster_name=self.task_test_config.cluster_name,
+          step_to_interrupt="40",
+      )
+      run_node_interruption = xpk.delete_node.override(
+          owner=self.task_test_config.task_owner
+      )(
+          project=self.task_gcp_config.project_name,
+          zone=self.task_gcp_config.zone,
+          cluster_name=self.task_test_config.cluster_name,
+          workload_id=workload_id,
+          dry_run=False,
+          last_node=last_node,
+      )
+
+      (
+          run_workload
+          >> wait_for_workload_start
+          >> wait_to_reach_step_to_interrupt
+          >> run_node_interruption
+      )
+      return group
+
   def run(
       self,
       *,

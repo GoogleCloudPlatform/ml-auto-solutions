@@ -55,6 +55,7 @@ RISHABH_B = "Rishabh B."
 # Multi-tier Checkpointing
 ABHINAV_S = "ABHINAV S."
 XUEFENG_G = "XUEFENG G."
+CAMILO = "camiloCienet"
 
 # MLCompass
 ORTI_B = "Orti B."
