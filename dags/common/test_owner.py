@@ -54,6 +54,7 @@ YUWEI_Y = "Yuwei Y."
 # Multi-tier Checkpointing
 ABHINAV_S = "ABHINAV S."
 XUEFENG_G = "XUEFENG G."
+ERNIE_C = "ERNIE C."
 
 # MLCompass
 ORTI_B = "Orti B."
