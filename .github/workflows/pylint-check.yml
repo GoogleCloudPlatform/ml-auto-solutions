@@ -2,11 +2,11 @@ name: Linter
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, orbax]
     types: [opened, synchronize, edited]
 
   push:
-    branches: [master]
+    branches: [master, orbax]
 
 jobs:
   linting_check:
