@@ -36,7 +36,6 @@ with models.DAG(
   local_checkpoint_period = "10"
   replicator_backup_interval_minutes = "1"
   use_replicator = "True"
-  start_time = datetime.datetime.now(timezone.utc)
 
   for mode, image in docker_images:
     for accelerator, slices in test_configs.items():
@@ -94,13 +93,13 @@ with models.DAG(
         validate_gcs = xpk.validate_saving_checkpoint(base_output_directory)
 
         vali_step = int(step) - 1
-        end_time = datetime.datetime.now(timezone.utc) + timedelta(minutes=30)
+        end_time = datetime.datetime.now(timezone.utc)
         validate_log = xpk.list_log_entries(
             project_id=clusters[accelerator].project,
             location=clusters[accelerator].zone[:-2],
             cluster_name=clusters[accelerator].name,
             text_filter=f"completed step: {str(vali_step)},",
-            start_time=start_time,
+            start_time=end_time - timedelta(minutes=30),
             end_time=end_time,
         )
 
