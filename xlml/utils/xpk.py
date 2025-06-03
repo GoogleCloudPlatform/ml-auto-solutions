@@ -453,5 +453,5 @@ def validate_csi_checkpoint(
       response = _execute_command_in_pod(core_api=core_api, pod=pod, command=cmd, container='csi')
       files = response.strip().split("\n")
       logging.info("Files ===> ", files)
-      if len(files) > 0:Add commentMore actions
+      if len(files) > 0:
         return True
