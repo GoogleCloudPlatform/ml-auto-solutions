@@ -106,5 +106,5 @@ with models.DAG(
             text_filter=f"completed step: {str(vali_step)},",
             start_time=start_time,
         )
-        
+
         (maxtext_phase2_chkpt_test >> validate_local_disk >> ram_disk_cleanup)
