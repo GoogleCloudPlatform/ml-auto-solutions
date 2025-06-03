@@ -26,7 +26,7 @@ with models.DAG(
   )
   dataset_path = gcs_bucket.MLPERF_LLM_DIR
   docker_images = [(
-      SetupMode.JAX_STABLE_STACK, 
+      SetupMode.JAX_STABLE_STACK,
       DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
   )]
   ram_disk = "/local"
@@ -43,9 +43,7 @@ with models.DAG(
     for accelerator, slices in test_configs.items():
       for slice_num in slices:
         run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H")
-        run_name = (
-            f"{name_prefix}-{slice_num}x-{accelerator}_{run_time}"
-        )
+        run_name = f"{name_prefix}-{slice_num}x-{accelerator}_{run_time}"
         workload_command = (
             "export TPU_PREMAPPED_BUFFER_SIZE=52428800000 && "
             "export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES=52428800000 && "
@@ -69,15 +67,15 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
         ).run(
-            ramdisk_directory=ram_disk, 
-            mtc_enabled=True, 
-            xpk_branch="main", 
+            ramdisk_directory=ram_disk,
+            mtc_enabled=True,
+            xpk_branch="main",
             skip_post_process=True,
         )
         
         validate_local_disk = xpk.validate_csi_checkpoint(
-            clusters[accelerator].project, 
-            clusters[accelerator].zone[:-2], 
+            clusters[accelerator].project,
+            clusters[accelerator].zone[:-2],
             clusters[accelerator].name,
         )
 
@@ -93,20 +91,19 @@ with models.DAG(
             test_owner=test_owner.ERNIE_C,
         ).run(
             ramdisk_directory=ram_disk, 
-            mtc_enabled=True, 
-            xpk_branch="main", 
+            mtc_enabled=True,
+            xpk_branch="main",
             skip_post_process=True,
         )
 
         validate_gcs = xpk.validate_saving_checkpoint(base_output_directory)
 
-        vali_step = int(step) - 1 
+        vali_step = int(step) - 1
         end_time = datetime.datetime.now(timezone.utc)
         validate_log = xpk.list_log_entries(
             project_id=clusters[accelerator].project,
             location=clusters[accelerator].zone[:-2],
             cluster_name=clusters[accelerator].name,
-            pod_pattern="*",
             text_filter=f"completed step: {str(vali_step)},",
             start_time=start_time,
             end_time=end_time,
