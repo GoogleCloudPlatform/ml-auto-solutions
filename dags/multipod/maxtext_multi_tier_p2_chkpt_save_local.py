@@ -3,6 +3,7 @@ A DAG to run MaxText multi-tier checkpointing tests (phase2: save & validate).
 """
 
 import datetime
+from datetime import timezone
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
@@ -24,9 +25,10 @@ with models.DAG(
       f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_multi_tier_sav01_save_local"
   )
   dataset_path = gcs_bucket.MLPERF_LLM_DIR
-  docker_images = [
-      (SetupMode.JAX_STABLE_STACK, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY)
-  ]
+  docker_images = [(
+      SetupMode.JAX_STABLE_STACK, 
+      DockerImage.MAXTEXT_TPU_JAX_NIGHTLY
+  )]
   ram_disk = "/local"
   test_configs = {"v5p-8": [2]}
   clusters = {"v5p-8": XpkClusters.TPU_V5P_8_CLUSTER}
@@ -34,12 +36,16 @@ with models.DAG(
   local_checkpoint_period = "10"
   replicator_backup_interval_minutes = "1"
   use_replicator = "True"
+  name_prefix = "maxtext_phase2_chkpt_save"
 
+  start_time = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
   for mode, image in docker_images:
     for accelerator, slices in test_configs.items():
       for slice_num in slices:
         run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H")
-        run_name = f"maxtext_phase2_chkpt_test-{slice_num}x-{accelerator}_{run_time}"
+        run_name = (
+            f"{name_prefix}-{slice_num}x-{accelerator}_{run_time}"
+        )
         workload_command = (
             "export TPU_PREMAPPED_BUFFER_SIZE=52428800000 && "
             "export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES=52428800000 && "
@@ -62,7 +68,12 @@ with models.DAG(
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
-        ).run(ramdisk_directory=ram_disk, mtc_enabled=True, xpk_branch="main", skip_post_process=True)
+        ).run(
+            ramdisk_directory=ram_disk, 
+            mtc_enabled=True, 
+            xpk_branch="main", 
+            skip_post_process=True
+        )
         
         validate_local_disk = xpk.validate_csi_checkpoint(clusters[accelerator].project, clusters[accelerator].zone[:-2], clusters[accelerator].name)
 
@@ -76,9 +87,26 @@ with models.DAG(
             run_model_cmds=cleanup_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
-        ).run(ramdisk_directory=ram_disk, mtc_enabled=True, xpk_branch="main", skip_post_process=True)
+        ).run(
+            ramdisk_directory=ram_disk, 
+            mtc_enabled=True, 
+            xpk_branch="main", 
+            skip_post_process=True
+        )
 
         validate_gcs = xpk.validate_saving_checkpoint(base_output_directory)
+
+        vali_step = int(step) - 1 
+        end_time = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        validate_log = xpk.list_log_entries(
+            project_id=clusters[accelerator].project,
+            location=clusters[accelerator].zone[:-2],
+            cluster_name=clusters[accelerator].name,
+            pod_pattern="*",
+            text_filter=f"completed step: {str(vali_step)},",
+            start_time=start_time,
+            end_time=end_time
+        )
         
         (
             maxtext_phase2_chkpt_test >>
