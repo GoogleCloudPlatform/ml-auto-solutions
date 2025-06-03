@@ -60,26 +60,26 @@ def list_log_entries(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> bool:
-    """
-    List log entries for the specified Google Cloud project.
-    This function connects to Google Cloud Logging, constructs a filter for Kubernetes container logs
-    within a specific project, location, cluster, namespace, and pod name pattern, and retrieves log
-    entries from the specified time range. It prints the timestamp, severity, resource information, and payload
-    for each log entry found.
-    Args:
-        project_id: The Google Cloud project ID
-        location: GKE cluster location
-        cluster_name: GKE cluster name
-        namespace: Kubernetes namespace (defaults to "default")
-        pod_pattern: Pattern to match pod names (defaults to "*")
-        container_name: Optional container name to filter logs
-        text_filter: Optional comma-separated string to filter log entries by textPayload content
-        start_time: Optional start time for log retrieval (defaults to 12 hours ago)
-        end_time: Optional end time for log retrieval (defaults to now)
-    
-    Returns:
-        bool: Number of log entries found
-    """
+  """
+  List log entries for the specified Google Cloud project.
+  This function connects to Google Cloud Logging, constructs a filter for Kubernetes container logs
+  within a specific project, location, cluster, namespace, and pod name pattern, and retrieves log
+  entries from the specified time range. It prints the timestamp, severity, resource information, and payload
+  for each log entry found.
+  Args:
+      project_id: The Google Cloud project ID
+      location: GKE cluster location
+      cluster_name: GKE cluster name
+      namespace: Kubernetes namespace (defaults to "default")
+      pod_pattern: Pattern to match pod names (defaults to "*")
+      container_name: Optional container name to filter logs
+      text_filter: Optional comma-separated string to filter log entries by textPayload content
+      start_time: Optional start time for log retrieval (defaults to 12 hours ago)
+      end_time: Optional end time for log retrieval (defaults to now)
+  
+  Returns:
+      bool: Number of log entries found
+  """
     
   # Create a Logging Client for the specified project
   logging_client = log_explorer.Client(project=project_id)
@@ -117,7 +117,7 @@ def list_log_entries(
       log_filter += f' textPayload:"{term.strip()}"'
 
   # Retrieve log entries matching the filter
-  logging.info(log_filter)
+  logging.info(f"Log filter constructed: {log_filter}")
   entries = logging_client.list_entries(filter_=log_filter)
   entry_count = 0
   for entry in entries:
