@@ -27,7 +27,7 @@ with models.DAG(
   dataset_path = gcs_bucket.MLPERF_LLM_DIR
   docker_images = [(
       SetupMode.JAX_STABLE_STACK, 
-      DockerImage.MAXTEXT_TPU_JAX_NIGHTLY
+      DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
   )]
   ram_disk = "/local"
   test_configs = {"v5p-8": [2]}
@@ -36,7 +36,7 @@ with models.DAG(
   local_checkpoint_period = "10"
   replicator_backup_interval_minutes = "1"
   use_replicator = "True"
-  start_time = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+  start_time = datetime.datetime.now(timezone.utc)
 
   for mode, image in docker_images:
     for accelerator, slices in test_configs.items():
@@ -71,7 +71,7 @@ with models.DAG(
             ramdisk_directory=ram_disk, 
             mtc_enabled=True, 
             xpk_branch="main", 
-            skip_post_process=True
+            skip_post_process=True,
         )
         
         # cleanup run: unique test_name
@@ -88,13 +88,13 @@ with models.DAG(
             ramdisk_directory=ram_disk, 
             mtc_enabled=True, 
             xpk_branch="main", 
-            skip_post_process=True
+            skip_post_process=True,
         )
 
         validate_gcs = xpk.validate_saving_checkpoint(base_output_directory)
         
         vali_step = int(step) - 1 
-        end_time = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_time = datetime.datetime.now(timezone.utc)
         validate_log = xpk.list_log_entries(
           project_id=clusters[accelerator].project,
           location=clusters[accelerator].zone[:-2],
@@ -102,7 +102,7 @@ with models.DAG(
           pod_pattern="*",
           text_filter=f"completed step: {str(vali_step)},",
           start_time=start_time,
-          end_time=end_time
+          end_time=end_time,
           )
         
         (
