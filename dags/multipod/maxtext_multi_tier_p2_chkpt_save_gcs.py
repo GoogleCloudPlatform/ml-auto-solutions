@@ -92,7 +92,7 @@ with models.DAG(
         )
 
         validate_gcs = xpk.validate_saving_checkpoint(base_output_directory)
-        
+
         vali_step = int(step) - 1
         end_time = datetime.datetime.now(timezone.utc)
         validate_log = xpk.list_log_entries(
