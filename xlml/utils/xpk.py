@@ -59,7 +59,7 @@ def list_log_entries(
     text_filter: Optional[str] = None,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
-) -> int:
+) -> bool:
     """
     List log entries for the specified Google Cloud project.
     This function connects to Google Cloud Logging, constructs a filter for Kubernetes container logs
@@ -78,7 +78,7 @@ def list_log_entries(
         end_time: Optional end time for log retrieval (defaults to now)
     
     Returns:
-        int: Number of log entries found
+        bool: Number of log entries found
     """
     
   # Create a Logging Client for the specified project
@@ -90,11 +90,11 @@ def list_log_entries(
   if start_time is None:
     start_time = end_time - timedelta(hours=12)
 
-# Format times as RFC3339 UTC "Zulu" format required by the Logging API
+  # Format times as RFC3339 UTC "Zulu" format required by the Logging API
   start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
   end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-# Construct the log filter
+  # Construct the log filter
   log_filter = (
     f'resource.labels.project_id="{project_id}" '
     f'resource.labels.location="{location}" '
