@@ -76,11 +76,11 @@ def list_log_entries(
       text_filter: Optional comma-separated string to filter log entries by textPayload content
       start_time: Optional start time for log retrieval (defaults to 12 hours ago)
       end_time: Optional end time for log retrieval (defaults to now)
-  
+
   Returns:
       bool: Number of log entries found
   """
-    
+
   # Create a Logging Client for the specified project
   logging_client = log_explorer.Client(project=project_id)
 
@@ -101,7 +101,7 @@ def list_log_entries(
       f'resource.labels.cluster_name="{cluster_name}" '
       f'resource.labels.namespace_name="{namespace}" '
       f'resource.labels.pod_name:"{pod_pattern}" '
-      'severity>=DEFAULT '
+      "severity>=DEFAULT "
       f'timestamp>="{start_time_str}" '
       f'timestamp<="{end_time_str}"'
   )
@@ -142,7 +142,7 @@ def list_log_entries(
   if entry_count > 0:
     return True
   return False
-            
+
 
 def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
   clone_branch = (
