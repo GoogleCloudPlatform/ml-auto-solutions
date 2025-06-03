@@ -27,6 +27,9 @@ from xlml.utils import gke
 from dags.common.vm_resource import GpuVersion
 from airflow.providers.google.cloud.operators.gcs import GCSHook
 import re
+from google.cloud import logging as log_explorer
+from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 # b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
 MAIN_BRANCH = "v0.4.1"
