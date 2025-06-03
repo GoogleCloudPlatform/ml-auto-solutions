@@ -26,7 +26,7 @@ with models.DAG(
   )
   dataset_path = gcs_bucket.MLPERF_LLM_DIR
   docker_images = [(
-      SetupMode.JAX_STABLE_STACK, 
+      SetupMode.JAX_STABLE_STACK,
       DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
   )]
   ram_disk = "/local"
@@ -68,12 +68,12 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
         ).run(
-            ramdisk_directory=ram_disk, 
-            mtc_enabled=True, 
-            xpk_branch="main", 
+            ramdisk_directory=ram_disk,
+            mtc_enabled=True,
+            xpk_branch="main",
             skip_post_process=True,
         )
-        
+
         # cleanup run: unique test_name
         cleanup_command = (f"rm -rf {ram_disk}/*",)
         ram_disk_cleanup = gke_config.get_gke_config(
@@ -85,30 +85,30 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
         ).run(
-            ramdisk_directory=ram_disk, 
-            mtc_enabled=True, 
-            xpk_branch="main", 
+            ramdisk_directory=ram_disk,
+            mtc_enabled=True,
+            xpk_branch="main",
             skip_post_process=True,
         )
 
         validate_gcs = xpk.validate_saving_checkpoint(base_output_directory)
         
-        vali_step = int(step) - 1 
+        vali_step = int(step) - 1
         end_time = datetime.datetime.now(timezone.utc)
         validate_log = xpk.list_log_entries(
-          project_id=clusters[accelerator].project,
-          location=clusters[accelerator].zone[:-2],
-          cluster_name=clusters[accelerator].name,
-          pod_pattern="*",
-          text_filter=f"completed step: {str(vali_step)},",
-          start_time=start_time,
-          end_time=end_time,
+            project_id=clusters[accelerator].project,
+            location=clusters[accelerator].zone[:-2],
+            cluster_name=clusters[accelerator].name,
+            pod_pattern="*",
+            text_filter=f"completed step: {str(vali_step)},",
+            start_time=start_time,
+            end_time=end_time,
           )
         
         (
-            maxtext_phase2_chkpt_test >>
-            ram_disk_cleanup >>
-            validate_gcs >>
-            validate_log
+            maxtext_phase2_chkpt_test
+            >> ram_disk_cleanup
+            >> validate_gcs
+            >> validate_log
         )
 
