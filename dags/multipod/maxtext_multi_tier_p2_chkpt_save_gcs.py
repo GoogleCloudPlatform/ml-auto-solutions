@@ -99,7 +99,6 @@ with models.DAG(
             project_id=clusters[accelerator].project,
             location=clusters[accelerator].zone[:-2],
             cluster_name=clusters[accelerator].name,
-            pod_pattern="*",
             text_filter=f"completed step: {str(vali_step)},",
             start_time=start_time,
             end_time=end_time,
