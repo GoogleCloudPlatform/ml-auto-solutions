@@ -96,14 +96,14 @@ def list_log_entries(
 
   # Construct the log filter
   log_filter = (
-    f'resource.labels.project_id="{project_id}" '
-    f'resource.labels.location="{location}" '
-    f'resource.labels.cluster_name="{cluster_name}" '
-    f'resource.labels.namespace_name="{namespace}" '
-    f'resource.labels.pod_name:"{pod_pattern}" '
-    'severity>=DEFAULT '
-    f'timestamp>="{start_time_str}" '
-    f'timestamp<="{end_time_str}"'
+      f'resource.labels.project_id="{project_id}" '
+      f'resource.labels.location="{location}" '
+      f'resource.labels.cluster_name="{cluster_name}" '
+      f'resource.labels.namespace_name="{namespace}" '
+      f'resource.labels.pod_name:"{pod_pattern}" '
+      'severity>=DEFAULT '
+      f'timestamp>="{start_time_str}" '
+      f'timestamp<="{end_time_str}"'
   )
 
   # Add container name filter if provided
@@ -112,7 +112,7 @@ def list_log_entries(
 
   # Add text content filter if provided
   if text_filter:
-    filter_terms = text_filter.split(',')  # Split by comma
+    filter_terms = text_filter.split(",")  # Split by comma
     for term in filter_terms:
       log_filter += f' textPayload:"{term.strip()}"'
 
@@ -131,7 +131,7 @@ def list_log_entries(
       print(f"└─ Payload:")
       # Format payload with indentation
       payload_str = str(entry.payload)
-      for line in payload_str.split('\n'):
+      for line in payload_str.split("\n"):
         print(f"   {line}")
     print("-" * 80)
 
@@ -142,7 +142,7 @@ def list_log_entries(
   if entry_count > 0:
     return True
   return False
-                         
+            
 
 def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
   clone_branch = (
@@ -316,7 +316,7 @@ def _get_pods(
   )
   return pods
 
-  
+
 @task.sensor(poke_interval=60, timeout=600, mode="reschedule")
 def wait_for_workload_start(
     workload_id: str, project_id: str, region: str, cluster_name: str
@@ -439,6 +439,7 @@ def validate_saving_checkpoint(output_path: str) -> bool:
   if not objects or len(objects) <= 0:
     raise AirflowFailException()
 
+
 @task
 def validate_csi_checkpoint(
     project_id: str, region: str, cluster_name: str
@@ -454,11 +455,11 @@ def validate_csi_checkpoint(
   for pod in pods.items:
     # Need to be imporved so it can compare steps with csid driver
     if (
-        pod.status.phase == "Running" 
+        pod.status.phase == "Running"
         and "multitier-driver" in pod.metadata.name
     ):
       response = _execute_command_in_pod(
-          core_api=core_api, pod=pod, command=cmd, container='csi'
+          core_api=core_api, pod=pod, command=cmd, container="csi"
       )
       files = response.strip().split("\n")
       logging.info("Files ===> ", files)
