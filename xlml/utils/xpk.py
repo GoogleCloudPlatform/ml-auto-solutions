@@ -60,8 +60,7 @@ def list_log_entries(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> int:
-"""
-List log entries for the specified Google Cloud project.
+"""List log entries for the specified Google Cloud project.
 This function connects to Google Cloud Logging, constructs a filter for Kubernetes container logs
 within a specific project, location, cluster, namespace, and pod name pattern, and retrieves log
 entries from the specified time range. It prints the timestamp, severity, resource information, and payload
@@ -78,8 +77,7 @@ Args:
     end_time: Optional end time for log retrieval (defaults to now)
 
 Returns:
-    int: Number of log entries found
-"""
+    int: Number of log entries found"""
 
 # Create a Logging Client for the specified project
 logging_client = log_explorer.Client(project=project_id)
