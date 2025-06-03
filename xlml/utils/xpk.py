@@ -60,40 +60,42 @@ def list_log_entries(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> int:
-"""List log entries for the specified Google Cloud project.
-This function connects to Google Cloud Logging, constructs a filter for Kubernetes container logs
-within a specific project, location, cluster, namespace, and pod name pattern, and retrieves log
-entries from the specified time range. It prints the timestamp, severity, resource information, and payload
-for each log entry found.
-Args:
-    project_id: The Google Cloud project ID
-    location: GKE cluster location
-    cluster_name: GKE cluster name
-    namespace: Kubernetes namespace (defaults to "default")
-    pod_pattern: Pattern to match pod names (defaults to "*")
-    container_name: Optional container name to filter logs
-    text_filter: Optional comma-separated string to filter log entries by textPayload content
-    start_time: Optional start time for log retrieval (defaults to 12 hours ago)
-    end_time: Optional end time for log retrieval (defaults to now)
+    """
+    List log entries for the specified Google Cloud project.
+    This function connects to Google Cloud Logging, constructs a filter for Kubernetes container logs
+    within a specific project, location, cluster, namespace, and pod name pattern, and retrieves log
+    entries from the specified time range. It prints the timestamp, severity, resource information, and payload
+    for each log entry found.
+    Args:
+        project_id: The Google Cloud project ID
+        location: GKE cluster location
+        cluster_name: GKE cluster name
+        namespace: Kubernetes namespace (defaults to "default")
+        pod_pattern: Pattern to match pod names (defaults to "*")
+        container_name: Optional container name to filter logs
+        text_filter: Optional comma-separated string to filter log entries by textPayload content
+        start_time: Optional start time for log retrieval (defaults to 12 hours ago)
+        end_time: Optional end time for log retrieval (defaults to now)
+    
+    Returns:
+        int: Number of log entries found
+    """
+    
+  # Create a Logging Client for the specified project
+  logging_client = log_explorer.Client(project=project_id)
 
-Returns:
-    int: Number of log entries found"""
-
-# Create a Logging Client for the specified project
-logging_client = log_explorer.Client(project=project_id)
-
-# Set the time window for log retrieval: default to last 12 hours if not provided
-if end_time is None:
+  # Set the time window for log retrieval: default to last 12 hours if not provided
+  if end_time is None:
     end_time = datetime.now(timezone.utc)
-if start_time is None:
+  if start_time is None:
     start_time = end_time - timedelta(hours=12)
 
 # Format times as RFC3339 UTC "Zulu" format required by the Logging API
-start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+  start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+  end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 # Construct the log filter
-log_filter = (
+  log_filter = (
     f'resource.labels.project_id="{project_id}" '
     f'resource.labels.location="{location}" '
     f'resource.labels.cluster_name="{cluster_name}" '
@@ -102,23 +104,23 @@ log_filter = (
     'severity>=DEFAULT '
     f'timestamp>="{start_time_str}" '
     f'timestamp<="{end_time_str}"'
-)
+  )
 
-# Add container name filter if provided
-if container_name:
+  # Add container name filter if provided
+  if container_name:
     log_filter += f' resource.labels.container_name="{container_name}"'
 
-# Add text content filter if provided
-if text_filter:
+  # Add text content filter if provided
+  if text_filter:
     filter_terms = text_filter.split(',')  # Split by comma
     for term in filter_terms:
-        log_filter += f' textPayload:"{term.strip()}"'
+      log_filter += f' textPayload:"{term.strip()}"'
 
-# Retrieve log entries matching the filter
-logging.info(log_filter)
-entries = logging_client.list_entries(filter_=log_filter)
-entry_count = 0
-for entry in entries:
+  # Retrieve log entries matching the filter
+  logging.info(log_filter)
+  entries = logging_client.list_entries(filter_=log_filter)
+  entry_count = 0
+  for entry in entries:
     entry_count += 1
     print(f"\n[{entry_count}] LOG ENTRY")
     print(f"├─ Timestamp: {entry.timestamp}")
@@ -126,20 +128,20 @@ for entry in entries:
     print(f"├─ Resource: {entry.resource.type}")
     print(f"├─ Labels: {entry.resource.labels}")
     if entry.payload is not None:
-        print(f"└─ Payload:")
-        # Format payload with indentation
-        payload_str = str(entry.payload)
-        for line in payload_str.split('\n'):
-            print(f"   {line}")
+      print(f"└─ Payload:")
+      # Format payload with indentation
+      payload_str = str(entry.payload)
+      for line in payload_str.split('\n'):
+        print(f"   {line}")
     print("-" * 80)
 
-print(f"\n{'='*80}")
-print(f"SUMMARY: {entry_count} log entries found")
-print(f"{'='*80}")
+  print(f"\n{'='*80}")
+  print(f"SUMMARY: {entry_count} log entries found")
+  print(f"{'='*80}")
 
-if entry_count > 0:
-  return True
-return False
+  if entry_count > 0:
+    return True
+  return False
                          
 
 def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
