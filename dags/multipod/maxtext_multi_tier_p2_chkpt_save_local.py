@@ -3,7 +3,7 @@ A DAG to run MaxText multi-tier checkpointing tests (phase2: save & validate).
 """
 
 import datetime
-from datetime import timezone
+from datetime import timezone, timedelta
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
@@ -99,12 +99,14 @@ with models.DAG(
         validate_gcs = xpk.validate_saving_checkpoint(base_output_directory)
 
         vali_step = int(step) - 1
+        end_time = datetime.datetime.now(timezone.utc) + timedelta(minutes=30)
         validate_log = xpk.list_log_entries(
             project_id=clusters[accelerator].project,
             location=clusters[accelerator].zone[:-2],
             cluster_name=clusters[accelerator].name,
             text_filter=f"completed step: {str(vali_step)},",
             start_time=start_time,
+            end_time=end_time,
         )
 
         (maxtext_phase2_chkpt_test >> validate_local_disk >> ram_disk_cleanup)
