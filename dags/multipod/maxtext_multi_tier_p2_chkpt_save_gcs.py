@@ -103,12 +103,11 @@ with models.DAG(
             text_filter=f"completed step: {str(vali_step)},",
             start_time=start_time,
             end_time=end_time,
-          )
-        
+        )
+
         (
             maxtext_phase2_chkpt_test
             >> ram_disk_cleanup
             >> validate_gcs
             >> validate_log
         )
-
