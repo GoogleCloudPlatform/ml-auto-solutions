@@ -20,6 +20,7 @@ import subprocess
 import logging
 from typing import Optional, Tuple, Dict, Any
 from dataclasses import dataclass
+import time
 
 
 from dags.map_reproducibility.utils.common_utils import (
@@ -49,6 +50,7 @@ from dags.map_reproducibility.utils.common_utils import (
     cleanup_existing_metrics_cmd,
     helm_apply_cmds_workload,
     get_values_file_path,
+    get_image_pull_check_cmd
 )
 
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
@@ -71,6 +73,122 @@ class WorkloadResult:
   gcs_bucket: str
   success: bool
   error_message: Optional[str] = None
+
+
+
+class BashSession:
+  def __init__(self, cwd: str = "."):
+    self.cwd = cwd
+    self.process = subprocess.Popen(
+      ["bash"],
+      stdin=subprocess.PIPE,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,  # Keep stderr separate
+      text=True,
+      cwd=self.cwd
+    )
+  
+  def run(self, command: str, timeout=30) -> dict:
+    """
+    Runs a shell command and parses a logical exit code marker,
+    exiting early if output stalls and not waiting for full timeout unless needed.
+    """
+    full_command = f"{command}\necho '___END_OF_COMMAND'\n"
+    self.process.stdin.write(full_command)
+    self.process.stdin.flush()
+    
+    output_lines = []
+    exit_code = None
+
+    # Read output line by line
+    start = time.time()
+    max_blank_reads = 30  # Allow e.g. 3s total if reading every 0.1s
+    blank_reads = 0
+
+    while True:
+      line = self.process.stdout.readline()
+      if not line:
+        # Wait a little and try again (avoid busy waiting)
+        time.sleep(0.1)
+        blank_reads += 1
+        # If too many blank reads, give up
+        if blank_reads > max_blank_reads:
+          output_lines.append("\n(No output received for a while, aborting read.)\n")
+          break
+        if (time.time() - start) > timeout:
+          output_lines.append("\nTimeout waiting for command output.\n")
+          break
+        continue
+      blank_reads = 0  # Reset on any real output
+      if line.startswith("___EXIT_CODE:"):
+        try:
+          exit_code = int(line.split(":")[1].strip())
+        except Exception:
+          output_lines.append(line)
+      elif line.startswith("___END_OF_COMMAND"):
+        break
+      else:
+        output_lines.append(line)
+      if (time.time() - start) > timeout:
+        output_lines.append("\nTimeout waiting for command output.\n")
+        break
+
+    output = ''.join(output_lines).rstrip()
+    if exit_code is None:
+      exit_code = 0
+    return {
+      "command": command,
+      "output": output,
+      "exit_code": exit_code,
+      "success": exit_code == 0,
+    }
+  
+  def close(self):
+    """Close the bash session."""
+    if self.process:
+      self.process.stdin.close()
+      self.process.terminate()
+      self.process.wait()
+
+
+def run_commands(commands: Tuple[str], cwd: str = ".", stop_on_error: bool = True, failure_codes: Tuple[int] = (99,)) -> Tuple[bool, Tuple[dict]]:
+  logger.info(f"Starting batch execution of {len(commands)} commands in directory: {cwd}")
+  
+  session = BashSession(cwd)
+  results = []
+  success = True
+  
+  try:
+    for i, cmd in enumerate(commands, 1):
+      logger.info(f"=== Executing command {i}/{len(commands)} ===")
+      logger.info(f"Command: {cmd}")
+      result = session.run(cmd)
+      results.append(result)
+      
+      # Only consider it a failure if exit code is in failure_codes
+      logger.info(f"Exit code: {result['exit_code']}")
+      if "output" in result and result["output"]:
+        logger.info(f"Output {i}/{len(commands)}: {result['output']}")
+      if result["exit_code"] in failure_codes:
+        success = False
+        logger.error(f"Command {i} failed: {cmd}")
+        logger.error(f"Exit code for {i}/{len(commands)}: {result['exit_code']}")
+        if result.get("stderr"):
+          logger.error(f"Error output: {result['stderr']}")
+        if stop_on_error:
+          logger.error("Stopping execution due to failed command")
+          break
+      elif result["exit_code"] != 0:
+        logger.info(f"Command {i} returned exit code {result['exit_code']} (continuing): {cmd}")
+  except Exception as e:
+    logger.error(f"Error executing commands: {e}")
+    success = False
+          
+  finally:
+    session.close()
+    logger.info(f"Batch execution completed. Overall success: {success}")
+  
+  return success, tuple(results)
 
 
 def execute_workload_commands(commands: list, cwd: str) -> Tuple[bool, list]:
@@ -244,6 +362,7 @@ def assemble_sample_united_workload_commands(
           bucket_name=bucket_name,
           values_file_path=values_file_path,
       )
+      + get_image_pull_check_cmd()
       + wait_for_jobsets_cmds(timeout)
       + copy_bucket_cmds_workload(
           recipe_repo_root=helm_repo_root,
@@ -252,7 +371,6 @@ def assemble_sample_united_workload_commands(
           bucket_name=bucket_name,
       )
       + metrics_cmd
-      + cleanup_cmds()
   )
 
 

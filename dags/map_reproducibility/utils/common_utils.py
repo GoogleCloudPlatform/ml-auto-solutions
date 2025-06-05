@@ -579,6 +579,18 @@ def internal_wait_for_jobs_cmds(timeout="100m"):
   return wait_for_job
 
 
+def get_image_pull_check_cmd() -> Tuple[str]:
+  """
+  Returns command string that checks for image pull errors,
+  prints a marker with a 'logical' exit code, but does not terminate the shell.
+  """
+  return (
+      "sleep 10; "
+      "echo 'Checking for image pull errors...'; "
+      "if kubectl describe pods --selector=jobset.sigs.k8s.io/jobset-name=$JOB_NAME --namespace=default | grep -q -E 'ErrImagePull|ImagePullBackOff'; then echo 'IMAGE PULL ERRORS FOUND - logical exit code 99'; echo '___EXIT_CODE:99'; else echo 'No image pull errors found - logical exit code 0'; echo '___EXIT_CODE:0'; fi",
+  )
+
+
 def get_job_gcs_bucket_folder(
     job_name,
     bucket_name=BUCKET_NAME,

@@ -61,7 +61,7 @@ from dags.map_reproducibility.utils.common_utils import (
     get_internal_run_type_and_comment,
     find_launcher_path,
 )
-from dags.map_reproducibility.utils.sample_workload_utils import handle_profiler, assemble_sample_united_workload_commands, execute_workload_commands
+from dags.map_reproducibility.utils.sample_workload_utils import handle_profiler, assemble_sample_united_workload_commands, execute_workload_commands, run_commands
 from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_STEPS, BUCKET_NAME
 
 # Configure logging
@@ -404,7 +404,11 @@ def run_internal_united_workload(
         image_version,
     )
 
-    success, error = execute_workload_commands(commands, cwd=tmpdir)
+    success, error = run_commands(commands, cwd=tmpdir)
+
+    # cleanup job
+    success, error = run_commands(cleanup_cmds(), cwd=tmpdir)
+
     if not success:
       return {"success": False, "error": error}
 

@@ -66,10 +66,10 @@ def main():
   utc_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
   NIGHTLY_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_NIGHTLY}:{utc_date}"
   RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:{utc_date}"
+  RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:2025-04-17"
 
   # The dynamic date-based image is defined above, but can be overridden below
   # with specific image versions and bucket names as required for testing
-  RELEASE_IMAGE = f"{Image.MAXTEXT_JAX_STABLE_RELEASE}:2025-04-17"
   SAMPLE_RUN_BUCKET_NAME = "yujunzou-dev-supercomputer-testing"
 
   # Setup configuration
