@@ -32,20 +32,23 @@ def validate_log_with_gcs(
       start_time=start_time,
       end_time=end_time,
   )
+  find_str = "backup/gcs/"
   for entry in entries:
     if entry.payload is not None:
       payload_str = str(entry.payload)
       for line in payload_str.split("\n"):
-        print(line)
-        start_index = line.find(bucket_name)
+        start_index = line.find(find_str)
         if start_index != -1:
-          gcs_checkpoint_path = line[start_index:]
+          folder_index = start_index + len(find_str)
+          gcs_checkpoint_path = line[folder_index:]
           if gcs_checkpoint_path is not None:
-            print(gcs_checkpoint_path)
-            checkpoint_validation = gcs.validate_gcs_checkpoint_p2(gcs_checkpoint_path + '/')
-            if checkpoint_validation:
-              return True
-  return False
+            logging.info(f"validate path: {gcs_checkpoint_path}")
+            checkpoint_validation = gcs.validate_gcs_checkpoint_p2(
+                f"{bucket_name}/{gcs_checkpoint_path}/"
+            )
+            if not checkpoint_validation:
+              raise AirflowFailException()
+  return True
 
 
 @task

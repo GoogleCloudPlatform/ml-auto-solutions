@@ -107,7 +107,7 @@ with models.DAG(
             pod_pattern="multitier-driver",
             start_time=start_time,
             end_time=end_time,
-            bucket_name=f"{gcs_bucket.ERNIE_BASE_OUTPUT_DIR}/{run_name}",
+            bucket_name=f"{gcs_bucket.BASE_OUTPUT_DIR}/{run_name}",
         )
 
         (
