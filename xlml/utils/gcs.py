@@ -16,6 +16,6 @@ def validate_gcs_checkpoint_p2(output_path):
   logging.info("Files ===> ", files)
   if len(files) > 0:
     for file in files:
-      if file.endswith(".data"):
+      if ".data" in file:
         return True
   return False

@@ -47,7 +47,7 @@ with models.DAG(
     for accelerator, slices in test_configs.items():
       for slice_num in slices:
         run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H")
-        run_name = f"{name_prefix}-{slice_num}x-{accelerator}_{run_time}"
+        run_name = f"{name_prefix}-{slice_num}x-{accelerator}-{run_time}"
         workload_command = (
             "export TPU_PREMAPPED_BUFFER_SIZE=52428800000 && "
             "export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES=52428800000 && "
