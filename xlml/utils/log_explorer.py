@@ -4,6 +4,48 @@ from google.cloud import logging as log_explorer
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from absl import logging
+from xlml.utils import gcs
+
+
+@task
+def validate_log_with_gcs(
+    project_id: str,
+    location: str,
+    cluster_name: str,
+    bucket_name: str,
+    namespace: str = "default",
+    pod_pattern: str = "*",
+    container_name: Optional[str] = None,
+    text_filter: Optional[str] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+) -> bool:
+  """Validate the workload log is training correct"""
+  entries = list_log_entries(
+      project_id=project_id,
+      location=location,
+      cluster_name=cluster_name,
+      namespace=namespace,
+      pod_pattern=pod_pattern,
+      container_name=container_name,
+      text_filter=text_filter,
+      start_time=start_time,
+      end_time=end_time,
+  )
+  for entry in entries:
+    if entry.payload is not None:
+      payload_str = str(entry.payload)
+      for line in payload_str.split("\n"):
+        print(line)
+        start_index = line.find(bucket_name)
+        if start_index != -1:
+          gcs_checkpoint_path = line[start_index:]
+          if gcs_checkpoint_path is not None:
+            print(gcs_checkpoint_path)
+            checkpoint_validation = gcs.validate_gcs_checkpoint_p2(gcs_checkpoint_path + '/')
+            if checkpoint_validation:
+              return True
+  return False
 
 
 @task
