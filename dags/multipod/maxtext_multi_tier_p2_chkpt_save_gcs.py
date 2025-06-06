@@ -97,7 +97,7 @@ with models.DAG(
         )
 
         end_time = xpk.generate_timestamp()
-        validate_gcs_bucket = log_explorer.validate_log_with_gcs(
+        validate_gcs_bucket = log_explorer.validate_gcs_checkpoint_save(
             project_id=clusters[accelerator].project,
             location=clusters[accelerator].zone[:-2],
             cluster_name=clusters[accelerator].name,
