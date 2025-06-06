@@ -43,7 +43,7 @@ def validate_gcs_checkpoint_save(
           gcs_checkpoint_path = line[folder_index:]
           if gcs_checkpoint_path is not None:
             logging.info(f"validate path: {gcs_checkpoint_path}")
-            bucket_files = gcs.validate_gcs_checkpoint_p2(
+            bucket_files = gcs.validate_gcs_checkpoint(
                 f"{bucket_name}/{gcs_checkpoint_path}/"
             )
             checkpoint_validation = False
