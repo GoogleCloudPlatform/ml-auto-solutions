@@ -8,7 +8,7 @@ from xlml.utils import gcs
 
 
 @task
-def validate_log_with_gcs(
+def validate_gcs_checkpoint_save(
     project_id: str,
     location: str,
     cluster_name: str,
@@ -43,11 +43,16 @@ def validate_log_with_gcs(
           gcs_checkpoint_path = line[folder_index:]
           if gcs_checkpoint_path is not None:
             logging.info(f"validate path: {gcs_checkpoint_path}")
-            checkpoint_validation = gcs.validate_gcs_checkpoint_p2(
+            bucket_files = gcs.validate_gcs_checkpoint_p2(
                 f"{bucket_name}/{gcs_checkpoint_path}/"
             )
+            checkpoint_validation = False
+            if len(bucket_files) > 0:
+              for file in bucket_files:
+                if ".data" in file:
+                  checkpoint_validation = True
             if not checkpoint_validation:
-              raise AirflowFailException()
+              raise AirflowFailException(f"Checkpoint files can not found in {gcs_checkpoint_path}")
   return True
 
 
