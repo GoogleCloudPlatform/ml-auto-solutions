@@ -32,8 +32,10 @@ class MaxTextV5eModelConfigs(enum.Enum):
 class MaxTextV5pModelConfigs(enum.Enum):
   # Refers to model configs in https://github.com/AI-Hypercomputer/maxtext/blob/main/benchmarks/maxtext_v5e_model_configs.py
   GPT3_175B = "gpt_3_175b_v5e_256"
+  GPT3_175B_SC = "gpt_3_175b_v5p_128_sc"
   LLAMA2_7B = "llama2_7b_v5e_256"
   LLAMA2_70B = "llama2_70b_v5e_256"
+
 
 
 class MaxTextTrilliumModelConfigs(enum.Enum):

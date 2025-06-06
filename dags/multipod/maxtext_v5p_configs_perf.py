@@ -59,11 +59,11 @@ with models.DAG(
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
-              test_owner=test_owner.RAYMOND_Z,
+              test_owner=test_owner.RISHABH_B,
               dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               dataset_name=metric_config.DatasetOption.XLML_DATASET,
-              cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+              cluster=XpkClusters.TPU_V5P_128_CLUSTER,
               time_out_in_min=360,
               base_output_directory=BASE_OUTPUT_DIRECTORY,
               num_slices=[1, 2],
