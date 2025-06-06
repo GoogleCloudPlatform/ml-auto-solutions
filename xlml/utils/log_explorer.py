@@ -52,7 +52,9 @@ def validate_gcs_checkpoint_save(
                 if ".data" in file:
                   checkpoint_validation = True
             if not checkpoint_validation:
-              raise AirflowFailException(f"Checkpoint files can not found in {gcs_checkpoint_path}")
+              raise AirflowFailException(
+                  f"Checkpoint files can not found in {gcs_checkpoint_path}"
+              )
   return True
 
 
