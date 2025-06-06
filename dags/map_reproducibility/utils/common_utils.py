@@ -789,8 +789,13 @@ def get_nemo_metrics_cmds(
 
 def cleanup_all_runs_cmds(cluster, cluster_region, prefix="cml-"):
   cleanup_cmds = (
-      f"echo 'Getting credentials for cluster {cluster}...' && gcloud container clusters get-credentials {cluster} --region {cluster_region} --project {PROJECT} ",
-      f"echo 'Uninstalling jobs with prefix {prefix}...' && JOBS=$(kubectl get job -n default | grep \"^{prefix}\" | awk '{{print $1}}') && if [ -n \"$JOBS\" ]; then echo \"$JOBS\" | xargs -L1 helm uninstall -n default; else echo 'No matching jobs found'; fi",
+      f"echo 'Getting credentials for cluster {cluster}...' && gcloud container clusters get-credentials {cluster} --region {cluster_region} --project {PROJECT}",
+      f"echo 'Uninstalling jobs with prefix {prefix}...' && "
+      f"JOBS=$(kubectl get job -n default | grep '^{prefix}' | awk '{{print $1}}' | sed 's/-workload-0$//' | sort -u) && "
+      f'if [ -n "$JOBS" ]; then '
+      f'echo "$JOBS" | xargs -L1 helm uninstall -n default || true && '
+      f'echo "$JOBS" | xargs -L1 kubectl delete job -n default || true; '
+      f"else echo 'No matching jobs found'; fi",
   )
   return cleanup_cmds
 
@@ -1056,9 +1061,9 @@ def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3mega":
     return "a3plus-benchmark", "australia-southeast1"
   if hardware == "a3ultra":
-    return "gke-a3ultra-bm-map-3", "europe-west1"
+    return "imo-a3ultra", "europe-west1"
   if hardware == "a4":
-    return "gke-a4-shared", "us-central1"
+    return "gke-a4-sbrg1", "us-east4"
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):

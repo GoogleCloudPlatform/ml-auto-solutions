@@ -54,15 +54,17 @@ def run_maxtext_tests():
   )
 
   for model, (test_script, nnodes) in test_models_gpu.items():
-    pinned_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-        time_out_in_min=90,
-        test_name=f"{test_name_prefix}-pinned-{model}",
-        run_model_cmds=(test_script,),
-        num_slices=nnodes,
-        cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_PINNED.value,
-        test_owner=test_owner.MICHELLE_Y,
-    ).run_with_quarantine(quarantine_task_group)
+    candidate_a3plus_gpu = (
+        gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
+            time_out_in_min=90,
+            test_name=f"{test_name_prefix}-candidate-{model}",
+            run_model_cmds=(test_script,),
+            num_slices=nnodes,
+            cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
+            docker_image=DockerImage.MAXTEXT_GPU_JAX_AI_CANDIDATE_IMAGE.value,
+            test_owner=test_owner.MICHELLE_Y,
+        ).run_with_quarantine(quarantine_task_group)
+    )
     stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=90,
         test_name=f"{test_name_prefix}-stable-{model}",
@@ -72,7 +74,7 @@ def run_maxtext_tests():
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
         test_owner=test_owner.MICHELLE_Y,
     ).run_with_quarantine(quarantine_task_group)
-    pinned_a3plus_gpu >> stable_a3plus_gpu
+    candidate_a3plus_gpu >> stable_a3plus_gpu
 
 
 with models.DAG(
