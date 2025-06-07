@@ -50,6 +50,7 @@ ZHIYU_L = "Zhiyu L."
 MOHIT_K = "Mohit K."
 ANISHA_M = "Anisha M."
 YUWEI_Y = "Yuwei Y."
+RISHABH_B = "Rishabh B."
 
 # Multi-tier Checkpointing
 ABHINAV_S = "ABHINAV S."
