@@ -20,7 +20,7 @@ with models.DAG(
       tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B,
-      time_out_in_min=120,
+      time_out_in_min=180,
       runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE,
       project=vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
   )
@@ -29,7 +29,7 @@ with models.DAG(
       tpu_version=vm_resource.TpuVersion.V4,
       tpu_cores=16,
       tpu_zone=vm_resource.Zone.US_CENTRAL2_B,
-      time_out_in_min=120,
+      time_out_in_min=180,
       runtime_version=vm_resource.RuntimeVersion.TPU_UBUNTU2204_BASE,
       project=vm_resource.Project.CLOUD_ML_AUTO_SOLUTIONS,
   )
@@ -38,7 +38,7 @@ with models.DAG(
       tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=8,
       tpu_zone=vm_resource.Zone.US_EAST5_A,
-      time_out_in_min=60,
+      time_out_in_min=120,
       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5,
       project=vm_resource.Project.TPU_PROD_ENV_AUTOMATED,
       network=vm_resource.V5_NETWORKS,
@@ -49,7 +49,7 @@ with models.DAG(
       tpu_version=vm_resource.TpuVersion.V5P,
       tpu_cores=256,
       tpu_zone=vm_resource.Zone.US_EAST5_A,
-      time_out_in_min=60,
+      time_out_in_min=120,
       runtime_version=vm_resource.RuntimeVersion.V2_ALPHA_TPUV5,
       project=vm_resource.Project.TPU_PROD_ENV_AUTOMATED,
       network=vm_resource.V5_NETWORKS,
@@ -71,7 +71,7 @@ with models.DAG(
       tpu_version=vm_resource.TpuVersion.V5E,
       tpu_cores=16,
       tpu_zone=vm_resource.Zone.US_EAST1_C,
-      time_out_in_min=60,
+      time_out_in_min=120,
       runtime_version=vm_resource.RuntimeVersion.TPU_VM_TF_NIGHTLY_POD,
       project=vm_resource.Project.TPU_PROD_ENV_AUTOMATED,
       network=vm_resource.V5_NETWORKS,
@@ -79,7 +79,7 @@ with models.DAG(
   )
 
   microbenchmarks_v5e_256 = get_microbenchmark_xpk_config(
-      time_out_in_min=60,
+      time_out_in_min=120,
       test_name="framework-microbenchmark-v5e-256",
       docker_image=vm_resource.DockerImage.MICROBENCH_NIGHTLY.value,
       test_owner=test_owner.QINY_Y,
@@ -87,7 +87,7 @@ with models.DAG(
   ).run()
 
   microbenchmarks_v6e_256 = get_microbenchmark_xpk_config(
-      time_out_in_min=60,
+      time_out_in_min=120,
       test_name="framework-microbenchmark-v6e-256",
       docker_image=vm_resource.DockerImage.MICROBENCH_NIGHTLY.value,
       test_owner=test_owner.QINY_Y,

@@ -53,6 +53,7 @@ def get_maxtext_sweep_gke_config(
     metric_aggregation_strategy: metric_config.AggregationStrategy = metric_config.AggregationStrategy.MEDIAN,
     dataset_project: str = None,
     composer_project: str = None,
+    enable_profile_config: bool = False,
 ) -> List[task.XpkTask]:
   if not dataset_project:
     dataset_project = cluster.project
@@ -116,6 +117,10 @@ def get_maxtext_sweep_gke_config(
             use_regex_file_location=True,
         ),
     )
+    if enable_profile_config:
+      job_metric_config.profile = metric_config.ProfileConfig(
+          file_location=base_output_directory,
+      )
 
     xpk_task = task.XpkTask(
         task_test_config=job_test_config,

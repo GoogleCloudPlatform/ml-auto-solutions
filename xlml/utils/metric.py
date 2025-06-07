@@ -171,10 +171,7 @@ def download_object_from_gcs(
   blob = bucket.blob(object_name)
   blob.download_to_filename(destination_location)
   logging.info(
-      (
-          "Download JSON Lines file from"
-          f" {source_location} to {destination_location}"
-      )
+      ("Download file from" f" {source_location} to {destination_location}")
   )
 
 
@@ -350,11 +347,210 @@ def get_gcs_file_location_with_regex(
   return f"gs://{bucket_name}/{selected_blob.name}"
 
 
-# TODO(qinwen): implement profile metrics & upload to Vertex AI TensorBoard
+@task.virtualenv(
+    task_id="process_profile_metrics",
+    requirements=["tensorboard_plugin_profile==2.19.4"],
+    system_site_packages=True,
+)
+def xplane_to_metrics(dir_location: str | airflow.XComArg) -> dict:
+  """
+  Find the first profile matching regex `{dir_location}/.*/*xplane.pb`.
+    Download profile to temporary directory.
+    Extract metrics from xplane file.
+
+  Returns:
+    A dictionary of profile metrics, or None if no match
+  """
+  # pylint: disable=redefined-outer-name, import-outside-toplevel, reimported
+  import json
+  import logging
+  import re
+  import tempfile
+  from urllib.parse import urlparse
+  import airflow
+  from google.cloud import storage
+  from tensorboard_plugin_profile.convert import raw_to_tool_data
+  # pylint: enable=redefined-outer-name, import-outside-toplevel, reimported
+
+  # --- Find and Download Profile ---
+  # pylint: disable-next=redefined-outer-name
+  def download_object_from_gcs(
+      source_location: str, destination_location: str
+  ) -> None:
+    """Download object from GCS bucket.
+
+    Args:
+      source_location: The full path of a file in GCS.
+      destination_location: The local path of the file.
+    """
+    storage_client = storage.Client()
+    bucket_name = source_location.split("/")[2]
+    object_name = "/".join(source_location.split("/")[3:])
+
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(object_name)
+    blob.download_to_filename(destination_location)
+    logging.info(
+        ("Download file from" f" {source_location} to {destination_location}")
+    )
+
+  def get_gcs_profile_location(dir_location: str) -> str:
+    """
+    Find first gcs location matching regex `{dir_location}/.*/*xplane.pb`.
+
+    Returns:
+      The matched gcs location, or "" if no match
+    """
+    storage_client = storage.Client()
+    url = urlparse(dir_location)
+    bucket_name = url.netloc
+    file_path = url.path.lstrip("/")
+    file_path_regex = re.compile(file_path + "/.*/*xplane.pb")
+    for b in storage_client.list_blobs(bucket_name, prefix=file_path):
+      if file_path_regex.match(b.name):
+        return f"gs://{bucket_name}/{b.name}"
+    logging.warning(
+        f"No objects matched supplied regex: {dir_location}/.*/*xplane.pb"
+    )
+    return ""
+
+  # --- Extract Metrics from Profile ---
+  def round_number(number: float | str, decimal: int) -> float:
+    if isinstance(number, str):
+      number = float(number)
+    return float(f"{number:.{decimal}f}")
+
+  def get_tool_data(input_path: str, tool: str, params: dict) -> dict:
+    data, content_type = raw_to_tool_data.xspace_to_tool_data(
+        xspace_paths=[input_path],
+        tool=tool,
+        params=params,
+    )
+    if content_type != "application/json" or data is None:
+      raise ValueError(f"{tool}: content is not a valid json string")
+    parsed_data = json.loads(data)
+    return parsed_data
+
+  def get_tool_metrics(input_path: str) -> dict:
+    out = {}
+    # check available tools
+    available_tools = set(
+        raw_to_tool_data.xspace_to_tool_names(xspace_paths=[input_path])
+    )
+    # 1 overview_page
+    # generate ALL_HOSTS.op_stats.pb
+    if "overview_page" not in available_tools:
+      logging.warning("overview_page: unavailable tool")
+    else:
+      try:
+        overview_page = get_tool_data(
+            input_path, tool="overview_page", params={}
+        )
+        out.update({
+            "Device Type": overview_page[2]["p"]["device_type"],
+            "Device Core Count": int(
+                overview_page[2]["p"]["device_core_count"]
+            ),
+            "Average Tensor Core Step Time (ms)": float(
+                overview_page[1]["p"]["steptime_ms_average"]
+            ),
+        })
+      except ValueError as e:
+        logging.warning(e)
+
+    # 2 op_profile
+    if "op_profile" not in available_tools:
+      logging.warning("op_profile: unavailable tool")
+      return out
+    try:
+      op_profile = get_tool_data(input_path, tool="op_profile", params={})
+      out.update({
+          "TPU FLOPS Utilization (%): exclude_idle": round_number(
+              op_profile["byProgramExcludeIdle"]["metrics"]["flops"] * 100, 2
+          ),
+          "HBM Bandwidth Utilization (%): exclude_idle": round_number(
+              op_profile["byProgramExcludeIdle"]["metrics"]["bandwidthUtils"][0]
+              * 100,
+              2,
+          ),
+      })
+    except ValueError as e:
+      logging.warning(e)
+      return out
+
+    # 3 memory_viewer: jit_train_step
+    # generate jit*.hlo_proto.pb
+    if "memory_viewer" not in available_tools:
+      logging.warning("memory_viewer: unavailable tool")
+      return out
+    # find jit_train_step from 2
+    # example: "jit_train_step(4869159985936022652)"
+    jit_train_step = None
+    for program in op_profile["byProgramExcludeIdle"]["children"]:
+      if program["name"].startswith("jit_train_step"):
+        jit_train_step = program["name"]
+        break
+    if jit_train_step is None:
+      logging.warning("memory_viewer: cannot find jit_train_step in op_profile")
+      return out
+    # 3.1 hbm
+    MEMORY_SPACE_HBM = "0"
+    try:
+      memory_viewer_hbm = get_tool_data(
+          input_path,
+          "memory_viewer",
+          params={"host": jit_train_step, "memory_space": MEMORY_SPACE_HBM},
+      )
+      out["Peak memory allocation (MiB): jit_train_step, HBM"] = round_number(
+          memory_viewer_hbm["totalBufferAllocationMib"], 2
+      )
+    except ValueError as e:
+      logging.warning(e)
+    # 3.2 host
+    MEMORY_SPACE_HOST = "5"
+    try:
+      memory_viewer_host = get_tool_data(
+          input_path,
+          "memory_viewer",
+          params={"host": jit_train_step, "memory_space": MEMORY_SPACE_HOST},
+      )
+      out["Peak memory allocation (MiB): jit_train_step, host"] = round_number(
+          memory_viewer_host["totalBufferAllocationMib"], 2
+      )
+    except ValueError as e:
+      logging.warning(e)
+    return out
+
+  # --- Main Logic ---
+  # Find the first file_location matching regex `{dir_location}/.*/*xplane.pb`
+  if isinstance(dir_location, airflow.XComArg):
+    dir_location = dir_location.resolve(get_current_context())
+  file_location = get_gcs_profile_location(dir_location)
+  if file_location:
+    print(f"For local download, run: gcloud storage cp {file_location} .")
+    # Temporary directory for file download and extraction cache
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      input_path = f"{tmp_dir}/gke.xplane.pb"
+      download_object_from_gcs(file_location, input_path)
+      # Extract profile
+      return get_tool_metrics(input_path)
+  # No match profile
+  return None
+
+
 def process_profile(
-    uuid: str, file_location: str
+    base_id: str,
+    raw_metric: dict,
 ) -> List[List[bigquery.MetricHistoryRow]]:
-  raise NotImplementedError
+  row_uuid = generate_row_uuid(base_id, 0)
+  profile_history_rows = []
+  for key, value in raw_metric.items():
+    profile_history_rows.append(
+        bigquery.MetricHistoryRow(
+            job_uuid=row_uuid, metric_key="profile/" + key, metric_value=value
+        )
+    )
+  return [profile_history_rows]
 
 
 def encode_url(url: str) -> str:
@@ -762,13 +958,12 @@ def process_metrics(
       )
 
     if task_metric_config.profile:
-      has_profile = True
-      num_profiles = len(task_metric_config.profile.file_locations)
-      for index in range(num_profiles):
-        profile_history_rows = process_profile(
-            base_id, task_metric_config.profile.file_locations[index]
-        )
-        profile_history_rows_list.append(profile_history_rows)
+      profile_metrics = task_metric_config.profile.metrics
+      if isinstance(profile_metrics, airflow.XComArg):
+        profile_metrics = profile_metrics.resolve(get_current_context())
+      if profile_metrics:
+        profile_history_rows_list = process_profile(base_id, profile_metrics)
+        has_profile = True
 
   # add default airflow metadata
   metadata_history_rows_list = add_airflow_metadata(

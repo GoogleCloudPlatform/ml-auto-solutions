@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jsonlines, json
+import jsonlines, json, datetime
 from google.cloud.bigquery import Client, LoadJobConfig, SourceFormat, SchemaField
 
 PROJECT = "supercomputer-testing"
@@ -109,6 +109,8 @@ def extract_autoregressive_write_to_jsonl(job_name, input_file, output_file):
       data = json.load(f)
     autoregressive_data = data["autoregressive"]
     autoregressive_data["job_name"] = job_name
+    autoregressive_data["date"] = datetime.date.today().isoformat()
+    print(f"Extracted results: {autoregressive_data}")
     with jsonlines.open(output_file, "w") as writter:
       writter.write(autoregressive_data)
       print(f"Extracted results written to {output_file}")
@@ -137,6 +139,7 @@ def write_jsonl_to_bigquery(
             "total_throughput_tokens_per_second", "FLOAT", mode="NULLABLE"
         ),
         SchemaField("bw_per_device_GB_per_second", "FLOAT", mode="NULLABLE"),
+        SchemaField("date", "DATE", mode="NULLABLE"),
     ]
     job_config = LoadJobConfig(
         source_format=SourceFormat.NEWLINE_DELIMITED_JSON,

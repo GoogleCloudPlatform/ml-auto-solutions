@@ -1,3 +1,4 @@
+sqlalchemy-spanner==1.11.0
 apache-airflow==2.10.2
 apache-airflow-providers-sendgrid
 fabric
@@ -12,3 +13,4 @@ kubernetes
 pyarrow
 apache-airflow-providers-google
 dacite
+virtualenv

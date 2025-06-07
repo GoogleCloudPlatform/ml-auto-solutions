@@ -75,7 +75,7 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
         backfill=BACKFILL,
         timeout=timeout,
         image_version=NIGHTLY_IMAGE,
-        workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER,
+        workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER_NIGHTLY,
     )
 
   # Create DAG for stable release
@@ -93,5 +93,5 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
         backfill=BACKFILL,
         timeout=timeout,
         image_version=RELEASE_IMAGE,
-        workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER,
+        workload_launcher=WorkloadLauncher.MAXTEXT_LAUNCHER_NIGHTLY,
     )

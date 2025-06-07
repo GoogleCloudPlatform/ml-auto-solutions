@@ -6,7 +6,7 @@ resource "google_composer_environment" "example_environment" {
   config {
     environment_size = "ENVIRONMENT_SIZE_MEDIUM"
     software_config {
-      image_version = "composer-2.10.1-airflow-2.10.2"
+      image_version = "composer-2.13.1-airflow-2.10.5"
       airflow_config_overrides = {
         core-allowed_deserialization_classes_regexp = ".*"
         core-dags_are_paused_at_creation = false

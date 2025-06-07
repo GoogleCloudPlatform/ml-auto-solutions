@@ -59,6 +59,7 @@ from dags.map_reproducibility.utils.common_utils import (
     parse_internal_config_filename,
     wait_for_jobsets_cmds,
     get_internal_run_type_and_comment,
+    find_launcher_path,
 )
 from dags.map_reproducibility.utils.sample_workload_utils import handle_profiler, assemble_sample_united_workload_commands, execute_workload_commands
 from dags.map_reproducibility.utils.constants import Optimizer, KUEUE_NAME, NUM_STEPS, BUCKET_NAME
@@ -267,6 +268,7 @@ def assemble_dag_united_workload_commands(
     bucket_name,
     timeout,
     tmpdir,
+    image_version,
 ):
   metrics_cmd = get_metrics_cmd(
       config,
@@ -287,7 +289,7 @@ def assemble_dag_united_workload_commands(
           helm_repo_root,
           workload_launcher=launcher_path,
           kueue_name=None,
-          additional_cmds=f" --set workload.gpus={config.NUM_GPUS} ",
+          additional_cmds=f" --set workload.gpus={config.NUM_GPUS} --set workload.image={image_version}",
           bucket_name=bucket_name,
           values_file_path=values_file_path,
       )
@@ -369,9 +371,12 @@ def run_internal_united_workload(
         region=region, cluster_name=cluster, job_name=job_name, is_jobset=True
     )
 
-    launcher_path = os.path.join(
-        base_helm_repo_root, f"src/launchers/{workload_launcher}"
+    launcher_path = find_launcher_path(
+        workload_launcher,
+        base_recipe_repo_root=base_recipe_repo_root,
+        base_helm_repo_root=base_helm_repo_root,
     )
+    logger.info(f"Launcher path: {launcher_path}")
 
     global_batch_size, seq_length = extract_batch_size_and_seq_len(config)
     container_timeout = f"{timeout - 4}m"
@@ -396,6 +401,7 @@ def run_internal_united_workload(
         gcs_bucket_name,
         container_timeout,
         tmpdir,
+        image_version,
     )
 
     success, error = execute_workload_commands(commands, cwd=tmpdir)
