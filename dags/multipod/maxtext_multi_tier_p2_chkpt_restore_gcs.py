@@ -6,13 +6,13 @@ import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
+from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.utils import xpk
 from xlml.utils import log_explorer
 
-SCHEDULE = None if not composer_env.is_prod_env() else "0 10 * * *"
+SCHEDULE = "0 10 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="maxtext_multi_tier_res02_restore_gcs",
@@ -28,18 +28,18 @@ with models.DAG(
     concurrency=2,
 ) as dag:
   base_output_directory = (
-      f"{gcs_bucket.ERNIE_BASE_OUTPUT_DIR}/maxtext_multi_tier_res02_restore_gcs"
+      f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_multi_tier_res02_restore_gcs"
   )
-  dataset_path = gcs_bucket.MLPERF_LLM_DIR
-  docker_images = [
-      (SetupMode.JAX_STABLE_STACK, DockerImage.ORBAX_STABLE_PURE_RUNNER)
-  ]
+  docker_images = [(
+      SetupMode.JAX_STABLE_STACK,
+      DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
+  )]
   ram_disk = "/local"
   test_configs = {"v5p-8": [2]}
-  clusters = {"v5p-8": XpkClusters.TPU_V5P_8_CLUSTER_ERNIE_CIENET}
+  clusters = {"v5p-8": XpkClusters.TPU_V5P_8_CLUSTER}
   step = 200
   local_checkpoint_period = 20
-  replicator_backup_interval_minutes = "1"
+  replicator_backup_interval_minutes = 1
   use_replicator = "True"
 
   for mode, image in docker_images:
@@ -57,8 +57,10 @@ with models.DAG(
             "reuse_example_batch=1 enable_emergency_checkpoint=true "
             f"local_checkpoint_directory={ram_disk} local_checkpoint_period={local_checkpoint_period} "
             f"use_replicator_service={use_replicator} replicator_backup_interval_minutes={replicator_backup_interval_minutes} "
-            f"run_name={run_name} dataset_path={dataset_path}",
+            f"run_name={run_name}",
         )
+
+        workload_id = xpk.generate_workload_id(f'{run_name}')
 
         start_time = xpk.generate_timestamp()
 
@@ -72,7 +74,13 @@ with models.DAG(
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
-        ).run(ramdisk_directory=ram_disk, mtc_enabled=True, xpk_branch="main", skip_post_process=True)
+        ).run_with_workload_id(
+            ramdisk_directory=ram_disk,
+            mtc_enabled=True,
+            xpk_branch="main",
+            skip_post_process=True,
+            workload_id=workload_id,
+        )
         
         # cleanup run: unique test_name
         cleanup_command = (f"rm -rf {ram_disk}/*",)
@@ -84,7 +92,12 @@ with models.DAG(
             run_model_cmds=cleanup_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
-        ).run(ramdisk_directory=ram_disk, mtc_enabled=True, xpk_branch="main", skip_post_process=True)
+        ).run(
+            ramdisk_directory=ram_disk,
+            mtc_enabled=True,
+            xpk_branch="main",
+            skip_post_process=True,
+        )
         
         end_time = xpk.generate_timestamp()
         validate_gcs_bucket_save_step = log_explorer.validate_log_with_gcs(
@@ -97,7 +110,7 @@ with models.DAG(
             pod_pattern="multitier-driver",
             start_time=start_time,
             end_time=end_time,
-            bucket_name=f"{gcs_bucket.ERNIE_BASE_OUTPUT_DIR}/{run_name}",
+            bucket_name=f"{gcs_bucket.BASE_OUTPUT_DIR}/{run_name}",
         )
 
         restore_start_time = xpk.generate_timestamp()
@@ -111,7 +124,13 @@ with models.DAG(
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
-        ).run(ramdisk_directory=ram_disk, mtc_enabled=True, xpk_branch="main", skip_post_process=True)
+        ).run_with_workload_id(
+            ramdisk_directory=ram_disk,
+            mtc_enabled=True,
+            xpk_branch="main",
+            skip_post_process=True,
+            workload_id=workload_id,
+        )
         
         # cleanup run: unique test_name
         cleanup_command = (f"rm -rf {ram_disk}/*",)
@@ -123,7 +142,12 @@ with models.DAG(
             run_model_cmds=cleanup_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
-        ).run(ramdisk_directory=ram_disk, mtc_enabled=True, xpk_branch="main", skip_post_process=True)
+        ).run(
+            ramdisk_directory=ram_disk,
+            mtc_enabled=True,
+            xpk_branch="main",
+            skip_post_process=True,
+        )
         
         restore_end_time = xpk.generate_timestamp()
 

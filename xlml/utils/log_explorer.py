@@ -141,7 +141,9 @@ def validate_log_with_step(
     logging.info("Validate success")
     return True
   else:
-    raise AirflowFailException()
+    raise AirflowFailException(
+      f"{len(vali_step_list)} saves are expected, but got {len(new_step_list)}"
+    )
 
 
 def list_log_entries(
