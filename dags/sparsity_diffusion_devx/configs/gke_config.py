@@ -30,6 +30,7 @@ clusters = {
     "v6e-256": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
     "a3": XpkClusters.GPU_A3_CLUSTER,
     "a3plus": XpkClusters.GPU_A3PLUS_CLUSTER,
+    "v5p-128": XpkClusters.TPU_V5P_128_CLUSTER
 }
 
 
