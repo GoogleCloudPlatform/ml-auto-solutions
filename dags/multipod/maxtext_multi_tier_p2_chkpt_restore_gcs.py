@@ -47,8 +47,10 @@ with models.DAG(
     for accelerator, slices in test_configs.items():
       for slice_num in slices:
         run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H")
-        run_name = f"maxtext-phase2-chkpt-test-{slice_num}x-{accelerator}-{run_time}"
-        bucket_name = f"{gcs_bucket.ERNIE_BASE_OUTPUT_DIR}/{run_name}"
+        run_name = (
+            f"maxtext-phase2-chkpt-test-{slice_num}x-{accelerator}-{run_time}"
+        )
+        bucket_name = f"{gcs_bucket.BASE_OUTPUT_DIR}/{run_name}"
         workload_command = (
             "export TPU_PREMAPPED_BUFFER_SIZE=52428800000 && "
             "export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES=52428800000 && "
@@ -74,7 +76,7 @@ with models.DAG(
             f"run_name={run_name}",
         )
 
-        workload_id = xpk.generate_workload_id(f'{run_name}')
+        workload_id = xpk.generate_workload_id(f"{run_name}")
 
         start_time = xpk.generate_timestamp()
 

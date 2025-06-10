@@ -401,7 +401,7 @@ class XpkTask(BaseTask):
       xpk_branch: str = xpk.MAIN_BRANCH,
       workload_id: str = None,
   ) -> DAGNode:
-    """Run the TPU/GPU test in `task_test_config` using xpk 
+    """Run the TPU/GPU test in `task_test_config` using xpk
     with specific workload id.
 
     Attributes:
@@ -414,7 +414,9 @@ class XpkTask(BaseTask):
     """
     with TaskGroup(group_id="run_model") as group:
       if workload_id is None:
-        workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
+        workload_id = xpk.generate_workload_id(
+            self.task_test_config.benchmark_id
+        )
       if gcs_location:
         gcs_path = gcs_location
       else:

@@ -104,7 +104,7 @@ def validate_log_with_gcs(
               step = line[step_number_index:start_index]
               if step not in gcs_save_step_list:
                 gcs_save_step_list.append(int(step))
-  if gcs_save_step_list == []:
+  if not gcs_save_step_list:
     return False
   return max(gcs_save_step_list)
 
@@ -153,7 +153,7 @@ def validate_log_with_step(
     return True
   else:
     raise AirflowFailException(
-      f"{len(vali_step_list)} saves are expected, but got {len(new_step_list)}"
+        f"{len(vali_step_list)} saves are expected, but got {len(new_step_list)}"
     )
 
 
@@ -196,7 +196,8 @@ def list_log_entries(
   # Create a Logging Client for the specified project
   logging_client = log_explorer.Client(project=project_id)
 
-  # Set the time window for log retrieval: default to last 12 hours if not provided
+  # Set the time window for log retrieval: 
+  # default to last 12 hours if not provided
   if end_time is None:
     end_time = datetime.now(timezone.utc)
   if start_time is None:
