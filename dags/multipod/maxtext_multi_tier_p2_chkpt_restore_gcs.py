@@ -38,6 +38,7 @@ with models.DAG(
   test_configs = {"v5p-8": [2]}
   clusters = {"v5p-8": XpkClusters.TPU_V5P_8_CLUSTER}
   step = 200
+  restore_step = 300
   local_checkpoint_period = 20
   replicator_backup_interval_minutes = 1
   use_replicator = "True"
@@ -47,6 +48,7 @@ with models.DAG(
       for slice_num in slices:
         run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H")
         run_name = f"maxtext-phase2-chkpt-test-{slice_num}x-{accelerator}-{run_time}"
+        bucket_name = f"{gcs_bucket.ERNIE_BASE_OUTPUT_DIR}/{run_name}"
         workload_command = (
             "export TPU_PREMAPPED_BUFFER_SIZE=52428800000 && "
             "export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES=52428800000 && "
@@ -59,13 +61,24 @@ with models.DAG(
             f"use_replicator_service={use_replicator} replicator_backup_interval_minutes={replicator_backup_interval_minutes} "
             f"run_name={run_name}",
         )
+        workload_command_restore = (
+            "export TPU_PREMAPPED_BUFFER_SIZE=52428800000 && "
+            "export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES=52428800000 && "
+            "python3 -m MaxText.train MaxText/configs/base.yml remat_policy=full "
+            f"global_parameter_scale=1 base_output_directory={base_output_directory} "
+            f"dataset_type=synthetic steps={restore_step} per_device_batch_size=1 "
+            "max_target_length=256 "
+            "reuse_example_batch=1 enable_emergency_checkpoint=true "
+            f"local_checkpoint_directory={ram_disk} local_checkpoint_period={local_checkpoint_period} "
+            f"use_replicator_service={use_replicator} replicator_backup_interval_minutes={replicator_backup_interval_minutes} "
+            f"run_name={run_name}",
+        )
 
         workload_id = xpk.generate_workload_id(f'{run_name}')
 
         start_time = xpk.generate_timestamp()
 
         # make launch test_name unique
-        step = 200
         maxtext_phase2_chkpt_test = gke_config.get_gke_config(
             num_slices=slice_num,
             cluster=clusters[accelerator],
@@ -81,7 +94,7 @@ with models.DAG(
             skip_post_process=True,
             workload_id=workload_id,
         )
-        
+
         # cleanup run: unique test_name
         cleanup_command = (f"rm -rf {ram_disk}/*",)
         ram_disk_cleanup = gke_config.get_gke_config(
@@ -98,7 +111,7 @@ with models.DAG(
             xpk_branch="main",
             skip_post_process=True,
         )
-        
+
         end_time = xpk.generate_timestamp()
         validate_gcs_bucket_save_step = log_explorer.validate_log_with_gcs(
             project_id=clusters[accelerator].project,
@@ -110,18 +123,17 @@ with models.DAG(
             pod_pattern="multitier-driver",
             start_time=start_time,
             end_time=end_time,
-            bucket_name=f"{gcs_bucket.BASE_OUTPUT_DIR}/{run_name}",
+            bucket_name=bucket_name,
         )
 
         restore_start_time = xpk.generate_timestamp()
 
-        step = 300
         maxtext_phase2_chkpt_restore = gke_config.get_gke_config(
             num_slices=slice_num,
             cluster=clusters[accelerator],
             time_out_in_min=60,
             test_name=f"maxtext_phase2_chkpt_restore",
-            run_model_cmds=workload_command,
+            run_model_cmds=workload_command_restore,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
         ).run_with_workload_id(
@@ -131,7 +143,7 @@ with models.DAG(
             skip_post_process=True,
             workload_id=workload_id,
         )
-        
+
         # cleanup run: unique test_name
         cleanup_command = (f"rm -rf {ram_disk}/*",)
         ram_disk_cleanup_restore = gke_config.get_gke_config(
@@ -148,7 +160,7 @@ with models.DAG(
             xpk_branch="main",
             skip_post_process=True,
         )
-        
+
         restore_end_time = xpk.generate_timestamp()
 
         validate_gcs_bucket_restore_step = log_explorer.validate_log_exist(
@@ -188,4 +200,3 @@ with models.DAG(
             >> validate_gcs_bucket_restore_step
             >> validate_gcs_bucket_restore_file
         )
-
