@@ -196,7 +196,7 @@ def list_log_entries(
   # Create a Logging Client for the specified project
   logging_client = log_explorer.Client(project=project_id)
 
-  # Set the time window for log retrieval: 
+  # Set the time window for log retrieval:
   # default to last 12 hours if not provided
   if end_time is None:
     end_time = datetime.now(timezone.utc)
