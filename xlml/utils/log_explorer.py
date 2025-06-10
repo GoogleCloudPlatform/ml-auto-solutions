@@ -48,7 +48,7 @@ def validate_log_exist(
 
 
 @task
-def validate_gcs_checkpoint_save(
+def validate_log_with_gcs(
     project_id: str,
     location: str,
     cluster_name: str,
@@ -72,7 +72,9 @@ def validate_gcs_checkpoint_save(
       start_time=start_time,
       end_time=end_time,
   )
-  find_str = "backup/gcs/"
+  find_str = " to backup/gcs/"
+  find_step = "step "
+  gcs_save_step_list = []
   for entry in entries:
     if entry.payload is not None:
       payload_str = str(entry.payload)
@@ -82,11 +84,12 @@ def validate_gcs_checkpoint_save(
           folder_index = start_index + len(find_str)
           gcs_checkpoint_path = line[folder_index:]
           if gcs_checkpoint_path is not None:
-            logging.info(f"validate path: {gcs_checkpoint_path}")
-            bucket_files = gcs.validate_gcs_checkpoint(
+            logging.info(f"get gcs path from: {gcs_checkpoint_path}")
+            bucket_files = gcs.validate_gcs_checkpoint_p2(
                 f"{bucket_name}/{gcs_checkpoint_path}/"
             )
             checkpoint_validation = False
+            logging.info(f"gcs bucket files: {bucket_files}")
             if len(bucket_files) > 0:
               for file in bucket_files:
                 if ".data" in file:
@@ -95,7 +98,15 @@ def validate_gcs_checkpoint_save(
               raise AirflowFailException(
                   f"Checkpoint files can not found in {gcs_checkpoint_path}"
               )
-  return True
+            step_index = line.find(find_step)
+            if step_index != -1:
+              step_number_index = step_index + len(find_step)
+              step = line[step_number_index:start_index]
+              if step not in gcs_save_step_list:
+                gcs_save_step_list.append(int(step))
+  if gcs_save_step_list == []:
+    return False
+  return max(gcs_save_step_list)
 
 
 @task
