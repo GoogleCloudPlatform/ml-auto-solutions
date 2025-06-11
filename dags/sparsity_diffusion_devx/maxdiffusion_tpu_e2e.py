@@ -172,7 +172,7 @@ with models.DAG(
 
       # Set dependency if there's a previous task
       if prev_task:
-          prev_task >> maxdiffusion_sdv2_test
+        prev_task >> maxdiffusion_sdv2_test
 
       # Update prev_task for the next iteration
       prev_task = maxdiffusion_sdv2_test
