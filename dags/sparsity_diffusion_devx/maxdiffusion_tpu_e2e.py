@@ -142,8 +142,11 @@ with models.DAG(
           nested_run_name_in_tb_file_location=False,
       )
 
+      maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test
+
   for accelerator, slices in maxdiffusion_test_configs_sdv2.items():
     cluster = config.clusters[accelerator]
+    prev_task = None  # Initialize prev_task to None
     for slice_num in slices:
       maxdiffusion_sdv2_test = config.get_gke_config(
           num_slices=slice_num,
@@ -167,4 +170,9 @@ with models.DAG(
           test_owner=test_owner.PARAM_B,
       ).run_with_quarantine(quarantine_task_group)
 
-      maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test >> maxdiffusion_sdv2_test
+      # Set dependency if there's a previous task
+      if prev_task:
+          prev_task >> maxdiffusion_sdv2_test
+
+      # Update prev_task for the next iteration
+      prev_task = maxdiffusion_sdv2_test
