@@ -11,11 +11,11 @@ dags/legacy_test/tests/pytorch @vanbasten23 @zpcore @ManfeiBai
 
 dags/mantaray @ManfeiBai @tengyifei @zpcore
 
-dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982
+dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/sparsity_diffusion_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh
+dags/sparsity_diffusion_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @notabee
 dags/sparsity_diffusion_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
 dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
 
