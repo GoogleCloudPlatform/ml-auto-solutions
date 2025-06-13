@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,9 +18,7 @@ import datetime
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_cluster
-from dags.map_reproducibility.utils.common_utils import get_docker_image
-from dags.map_reproducibility.utils.common_utils import run_nemo_workload
+from dags.map_reproducibility.utils.common_utils import run_workload
 
 
 MODEL_ID = "mixtral-8x7b"
@@ -28,18 +26,13 @@ METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
 HYPERCOMPUTER = "a4"
 FRAMEWORK = "nemo"
-KUEUE_NAME = "a4-high"
+WORKLOAD_LAUNCHER = "nemo-10-launcher.sh"
 
 SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
-VALUE_YAML_PATH = (
-    f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"
-)
-CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
-SOFTWARE_ID = "pytorch_nemo"
-IMAGE_VERSION = "nemo24.07"
-DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
-
+KUEUE_NAME = "tas-user-queue"
+NUM_GPUS = 16
+NUM_STEPS = 1
 
 with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}",
@@ -54,13 +47,15 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-  run_nemo_workload(
+  run_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
       precision=PRECISION,
+      kueue_name=KUEUE_NAME,
       metrics_model_id=METRICS_MODEL_ID,
-      two_node=True,
+      num_gpus=NUM_GPUS,
+      num_steps=NUM_STEPS,
       config_model_name=f"{MODEL_ID}-16-32-gpus-{HYPERCOMPUTER}-{PRECISION}.yaml",
-      kueue_name="a4-high",
+      workload_launcher=WORKLOAD_LAUNCHER,
   )

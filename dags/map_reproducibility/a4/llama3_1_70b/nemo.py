@@ -19,15 +19,17 @@ import datetime
 from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
-from dags.map_reproducibility.utils.common_utils import run_nemo_workload
+from dags.map_reproducibility.utils.common_utils import run_workload
 
 
 MODEL_ID = "llama3-1-70b"
 METRICS_MODEL_ID = "llama3.1-70b"
 PRECISION = "fp8"
-KUEUE_NAME = "a4-high"
+KUEUE_NAME = "tas-user-queue"
 HYPERCOMPUTER = "a4"
 FRAMEWORK = "nemo"
+WORKLOAD_LAUNCHER = "nemo-10-launcher.sh"
+
 SCHEDULED_TIME = (
     get_scheduled_time(HYPERCOMPUTER, MODEL_ID, FRAMEWORK)
     if composer_env.is_prod_env()
@@ -47,11 +49,12 @@ with models.DAG(
     start_date=datetime.datetime(2025, 3, 1),
     catchup=False,
 ) as dag:
-  run_nemo_workload(
+  run_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
       precision=PRECISION,
+      kueue_name=KUEUE_NAME,
       metrics_model_id=METRICS_MODEL_ID,
-      config_model_name="llama3-1-70b-256gpus-a4-fp8.yaml",
+      workload_launcher=WORKLOAD_LAUNCHER,
   )
