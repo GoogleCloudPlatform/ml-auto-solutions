@@ -51,7 +51,7 @@ with models.DAG(
   }
   maxdiffusion_test_configs_sdv2 = {
       # accelerator: list of slices to test
-      "v5p-128": [1, 2]
+      "v5p-8": [1, 2]
   }
 
   quarantine_task_group = TaskGroup(
