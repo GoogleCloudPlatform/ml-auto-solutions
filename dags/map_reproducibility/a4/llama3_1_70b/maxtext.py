@@ -62,5 +62,4 @@ with models.DAG(
       optimizer=OPTIMIZER,
       workload_launcher=WORKLOAD_LAUNCHER,
       config_model_name=f"llama3-1-70b-256gpus-a4-{PRECISION}.yaml",
-      num_steps=NUM_STEPS,
   )

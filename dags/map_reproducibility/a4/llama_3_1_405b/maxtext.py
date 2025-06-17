@@ -55,10 +55,10 @@ with models.DAG(
       model_id=MODEL_ID,
       framework=FRAMEWORK,
       precision=PRECISION,
+      num_steps=NUM_STEPS,
       kueue_name=KUEUE_NAME,
       metrics_model_id=METRICS_MODEL_ID,
       optimizer=OPTIMIZER,
       workload_launcher=WORKLOAD_LAUNCHER,
       config_model_name=f"llama3-1-405b-256gpus-a4-{PRECISION}.yaml",
-      num_steps=NUM_STEPS,
   )
