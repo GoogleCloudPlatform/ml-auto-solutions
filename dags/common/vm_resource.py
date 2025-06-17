@@ -249,6 +249,13 @@ class XpkClusters:
       project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
       zone=Zone.EUROPE_WEST4_B.value,
   )
+  TPU_V5P_128_CLUSTER = XpkClusterConfig(
+      name="v5p-128-bodaborg-europe-west4-b",
+      device_version=TpuVersion.V5P,
+      core_count=128,
+      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      zone=Zone.EUROPE_WEST4_B.value,
+  )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
       name="v5e-256-bodaborg-europe-west4",
       device_version=TpuVersion.V5E,
@@ -354,10 +361,6 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
-  MAXTEXT_GPU_JAX_PINNED = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_pinned:"
-      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
-  )
   MAXTEXT_GPU_JAX_STABLE_STACK = (
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable_stack:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
@@ -370,10 +373,17 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxtext_gpu_stable_stack_nightly_jax:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
+  MAXTEXT_GPU_JAX_AI_CANDIDATE_IMAGE = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_stable_stack_candidate_gpu:"
+      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+  )
   CLOUD_HYBRIDSIM_NIGHTLY = (
       "us-docker.pkg.dev/cloud-tpu-v2-images-dev/hybridsim/cloud_hybridsim_gcloud_python:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MICROBENCH_NIGHTLY = (
       "gcr.io/tpu-prod-env-one-vm/microbenchmarks_runner:latest"
+  )
+  MAXTEXT_JAX_052_RECIPES_012 = (
+      "gcr.io/tpu-prod-env-multipod/maxtext_tpu_recipes:jax0.5.2-recipes0.1.2"
   )

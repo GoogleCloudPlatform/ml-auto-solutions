@@ -11,9 +11,8 @@ from dags.multipod.configs.common import SetupMode, Platform
 from dags.solutions_team.configs.vllm import vllm_benchmark_config
 
 
-# Run once a day at 6 pm UTC (10 am PST)
-SCHEDULED_TIME = "0 18 * * *" if composer_env.is_prod_env() else None
-
+# Pause this DAG by default.
+SCHEDULED_TIME = None
 
 with models.DAG(
     dag_id="solutionsteam_vllm_benchmark",

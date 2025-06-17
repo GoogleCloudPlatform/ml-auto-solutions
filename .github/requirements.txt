@@ -1,10 +1,11 @@
+sqlalchemy-spanner==1.11.0
 apache-airflow==2.10.2
 apache-airflow-providers-sendgrid
 fabric
-google-cloud-bigquery
-google-cloud-compute
-google-cloud-storage
-google-cloud-container
+google-cloud-bigquery>=3.29.0
+google-cloud-compute>=1.26.0
+google-cloud-storage>=2.18.2
+google-cloud-container>=2.54.0
 google-cloud-tpu>=1.16.0
 jsonlines
 tensorflow-cpu
