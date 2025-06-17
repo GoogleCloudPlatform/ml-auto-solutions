@@ -25,7 +25,7 @@ from dags.map_reproducibility.utils.common_utils import run_workload
 MODEL_ID = "llama3-1-70b"
 METRICS_MODEL_ID = "llama3.1-70b"
 PRECISION = "fp8"
-KUEUE_NAME = "tas-user-queue"
+KUEUE_NAME = None
 HYPERCOMPUTER = "a4"
 FRAMEWORK = "nemo"
 WORKLOAD_LAUNCHER = "nemo-10-launcher.sh"

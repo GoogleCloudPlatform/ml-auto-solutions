@@ -30,7 +30,7 @@ WORKLOAD_LAUNCHER = "nemo-10-launcher.sh"
 
 SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 
-KUEUE_NAME = "tas-user-queue"
+KUEUE_NAME = None
 NUM_GPUS = 16
 NUM_STEPS = 1
 

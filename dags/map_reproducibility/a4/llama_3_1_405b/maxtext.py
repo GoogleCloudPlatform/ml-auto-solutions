@@ -27,7 +27,7 @@ PRECISION = "fp8"
 HYPERCOMPUTER = "a4"
 FRAMEWORK = "maxtext"
 WORKLOAD_LAUNCHER = "maxtext-launcher.sh"
-KUEUE_NAME = "tas-user-queue"
+KUEUE_NAME = None
 OPTIMIZER = "adam"
 NUM_STEPS = 30
 

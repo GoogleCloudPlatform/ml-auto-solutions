@@ -25,7 +25,7 @@ from dags.map_reproducibility.utils.common_utils import run_workload
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
 PRECISION = "bf16"
-KUEUE_NAME = "tas-user-queue"
+KUEUE_NAME = None # "a4-high" # "tas-user-queue"
 HYPERCOMPUTER = "a4"
 FRAMEWORK = "nemo"
 WORKLOAD_LAUNCHER = "nemo-10-launcher.sh"
