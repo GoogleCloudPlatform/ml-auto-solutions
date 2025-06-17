@@ -1803,6 +1803,7 @@ def run_workload(
     kueue_name: str = None,
     config_model_name: str = None,
     optimizer: Optional[str] = None,
+    workload_type: str = "jobset",
 ):
   with tempfile.TemporaryDirectory() as tmpdir:
     hook = SubprocessHook()
@@ -1887,6 +1888,12 @@ def run_workload(
     else:
       metrics_cmd = ()
 
+    wait_cmd = (
+        wait_for_jobsets_cmds
+        if workload_type == "jobset"
+        else wait_for_jobs_cmds
+    )
+
     result = hook.run_command(
         [
             "bash",
@@ -1909,7 +1916,7 @@ def run_workload(
                     additional_cmds=additional_cmds,
                     num_steps=num_steps,
                 )
-                + wait_for_jobs_cmds()
+                + wait_cmd()
                 + copy_bucket_cmds_workload(
                     recipe_repo_root=recipe_repo_root,
                     tmpdir=tmpdir,
