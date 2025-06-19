@@ -10,7 +10,6 @@ from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 from xlml.utils import log_explorer
-from xlml.utils import xpk
 from xlml.utils import orbax
 
 SCHEDULE = "0 10 * * *" if composer_env.is_prod_env() else None
@@ -48,7 +47,7 @@ with models.DAG(
   for mode, image in docker_images:
     for accelerator, slices in test_configs.items():
       for slice_num in slices:
-        delete_cpc = orbax.delete_cpc(
+        cpc = (
             clusters[accelerator].project,
             clusters[accelerator].zone[:-2],
             clusters[accelerator].name,
@@ -57,15 +56,8 @@ with models.DAG(
             "google.com/tpu",
             "800000Mi",
         )
-        apply_cpc = orbax.apply_cpc(
-            clusters[accelerator].project,
-            clusters[accelerator].zone[:-2],
-            clusters[accelerator].name,
-            gcs_bucket.MTC_AUTOMATION_BUCKET.split("gs://")[1],
-            "ct5p-hightpu-4t",
-            "google.com/tpu",
-            "800000Mi",
-        )
+        delete_cpc = orbax.delete_cpc(*cpc)
+        apply_cpc = orbax.apply_cpc(*cpc)
         run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H")
         run_name = f"{name_prefix}-{slice_num}x-{accelerator}_{run_time}"
         workload_command = (
@@ -81,14 +73,14 @@ with models.DAG(
             f"run_name={run_name}",
         )
 
-        start_time = xpk.generate_timestamp()
+        start_time = log_explorer.generate_timestamp()
 
         # make launch test_name unique
         maxtext_phase2_chkpt_test = gke_config.get_gke_config(
             num_slices=slice_num,
             cluster=clusters[accelerator],
             time_out_in_min=60,
-            test_name=f"maxtext_phase2_chkpt_save",
+            test_name=f"{name_prefix}",
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
@@ -105,7 +97,7 @@ with models.DAG(
             num_slices=slice_num,
             cluster=clusters[accelerator],
             time_out_in_min=60,
-            test_name=f"maxtext_phase2_chkpt_test-cleanup",
+            test_name=f"{name_prefix}-cleanup",
             run_model_cmds=cleanup_command,
             docker_image=image.value,
             test_owner=test_owner.ERNIE_C,
@@ -116,7 +108,7 @@ with models.DAG(
             skip_post_process=True,
         )
 
-        end_time = xpk.generate_timestamp()
+        end_time = log_explorer.generate_timestamp()
         vali_step = step - 1
         vali_step_list = [
             i for i in range(0, vali_step, local_checkpoint_period)
