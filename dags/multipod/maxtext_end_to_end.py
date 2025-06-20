@@ -64,7 +64,8 @@ with models.DAG(
             f"bash end_to_end/{test_script}.sh",
         ),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.JON_B,
+        cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+        test_owner=test_owner.MOHIT_K,
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
@@ -74,7 +75,8 @@ with models.DAG(
             f"bash end_to_end/{test_script}.sh",
         ),
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-        test_owner=test_owner.JON_B,
+        cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+        test_owner=test_owner.MOHIT_K,
     ).run_with_quarantine(quarantine_task_group)
     stable_tpu >> nightly_tpu
 
@@ -87,7 +89,7 @@ with models.DAG(
           },
           {
               "script_name": "tpu/gemma/7b/2_test_gemma",
-              "cluster": XpkClusters.TPU_V4_16_CLUSTER,
+              "cluster": XpkClusters.TPU_V5P_8_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
@@ -99,7 +101,7 @@ with models.DAG(
           },
           {
               "script_name": "tpu/llama2/70b/2_test_llama2_70b",
-              "cluster": XpkClusters.TPU_V4_128_CLUSTER,
+              "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
               "time_out_in_min": 60,
           },
       ],
