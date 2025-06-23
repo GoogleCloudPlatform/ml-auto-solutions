@@ -715,7 +715,8 @@ def get_skip_steps_for_metrics_calculation(config: Config):
 
   # skip profiler steps also
   additional_skip_steps = getattr(config, "profiler_steps", 5)
-  total_skip_steps = base_skip_steps + additional_skip_steps
+  # somehow one more step is influnced by profiler from observation
+  total_skip_steps = base_skip_steps + additional_skip_steps + 1
   logger.info(
       f"Profiler enabled, skipping {total_skip_steps} steps (base: {base_skip_steps}, additional: {additional_skip_steps})"
   )
@@ -732,23 +733,30 @@ def calculate_maxtext_metrics(
   step_time_metrics = metrics["perf/step_time_seconds"]
 
   # Calculate the sliced metrics based on skip values
-  sliced_metrics = step_time_metrics[skip_first:-skip_last]
+  sliced_step_time_metrics = step_time_metrics[skip_first:-skip_last]
 
   # Check if the resulting metrics list is empty and raise an error if it is
-  if not sliced_metrics:
+  if not sliced_step_time_metrics:
     logger.error(
-        f"Empty metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
+        f"Empty sliced_step_time_metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
     )
 
   # Apply skip_first and skip_last when aggregating
   avg_step_time = metric.aggregate_metrics(
-      sliced_metrics,
+      sliced_step_time_metrics,
       metric_config.AggregationStrategy.AVERAGE,
   )
 
   tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
+  # Apply the same slicing to tflop metrics
+  sliced_tflop_metrics = tflop_per_device_per_sec_metrics[skip_first:-skip_last]
+  if not sliced_tflop_metrics:
+    logger.error(
+        f"Empty sliced_tflop_metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
+    )
+
   avg_tflop_per_device_per_sec = metric.aggregate_metrics(
-      tflop_per_device_per_sec_metrics,
+      sliced_tflop_metrics,
       metric_config.AggregationStrategy.AVERAGE,
   )
 
