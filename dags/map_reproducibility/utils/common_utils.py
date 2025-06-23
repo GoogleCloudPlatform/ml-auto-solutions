@@ -727,26 +727,26 @@ def calculate_maxtext_metrics(
 ):
   assert skip_last >= 0, "skip_last must be a non-negative integer"
   metrics, _ = metric.read_from_tb(log_location, None, None)
-
   print(f"metrics - {metrics}")
-  step_time_metrics = metrics["perf/step_time_seconds"]
 
   # Calculate the sliced metrics based on skip values
-  sliced_metrics = step_time_metrics[skip_first:-skip_last]
-
-  # Check if the resulting metrics list is empty and raise an error if it is
+  # e.g. skip_first 2 = starts from skip_first + 1 which is 3
+  sliced_metrics = metrics[skip_first + 1 : -skip_last]
   if not sliced_metrics:
     logger.error(
         f"Empty metrics list after applying skip_first={skip_first} and skip_last={skip_last}. Original metrics length: {len(step_time_metrics)}"
     )
 
-  # Apply skip_first and skip_last when aggregating
+  step_time_metrics = sliced_metrics["perf/step_time_seconds"]
+
   avg_step_time = metric.aggregate_metrics(
-      sliced_metrics,
+      step_time_metrics,
       metric_config.AggregationStrategy.AVERAGE,
   )
 
-  tflop_per_device_per_sec_metrics = metrics["perf/per_device_tflops_per_sec"]
+  tflop_per_device_per_sec_metrics = sliced_metrics[
+      "perf/per_device_tflops_per_sec"
+  ]
   avg_tflop_per_device_per_sec = metric.aggregate_metrics(
       tflop_per_device_per_sec_metrics,
       metric_config.AggregationStrategy.AVERAGE,
