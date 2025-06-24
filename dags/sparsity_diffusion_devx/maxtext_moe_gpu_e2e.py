@@ -39,12 +39,14 @@ def run_maxtext_tests():
       "mixtral-8x7b-1node": (
           f"SCANNED_CHECKPOINT={SCANNED_CHECKPOINT} \
             UNSCANNED_CKPT_PATH={UNSCANNED_CKPT_PATH} \
+            BASE_OUTPUT_PATH=$GCS_OUTPUT \
             bash end_to_end/gpu/mixtral/test_8x7b.sh",
           1,
       ),
       "mixtral-8x7b-2node": (
           f"SCANNED_CHECKPOINT={SCANNED_CHECKPOINT} \
             UNSCANNED_CKPT_PATH={UNSCANNED_CKPT_PATH} \
+            BASE_OUTPUT_PATH=$GCS_OUTPUT \
             bash end_to_end/gpu/mixtral/test_8x7b.sh",
           2,
       ),
