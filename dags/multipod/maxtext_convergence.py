@@ -76,7 +76,7 @@ with models.DAG(
         time_out_in_min=300,
         test_name=test_name,
         run_model_cmds=run_command,
-        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE.value,
         test_owner=test_owner.MATT_D,
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
