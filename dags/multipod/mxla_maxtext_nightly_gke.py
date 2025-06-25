@@ -46,6 +46,7 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
+  # v5p tests
   maxtext_nightly_1slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
       cluster=XpkClusters.TPU_V5P_8_CLUSTER,
       time_out_in_min=60,
@@ -81,9 +82,54 @@ with models.DAG(
       test_owner=test_owner.RAYMOND_Z,
   ).run_with_quarantine(quarantine_task_group)
 
+  # v6e tests
+  maxtext_nightly_1slice_v6e_8 = gke_config.get_gke_maxtext_nightly_config(
+      cluster=XpkClusters.TPU_V6E_8_CLUSTER,
+      time_out_in_min=60,
+      test_name=default_test_name,
+      docker_image=jax_nightly_image.value,
+      test_owner=test_owner.RISHABH_B,
+  ).run_with_quarantine(quarantine_task_group)
+
+  maxtext_nightly_2slice_v6e_8 = gke_config.get_gke_maxtext_nightly_config(
+      num_slices=2,
+      cluster=XpkClusters.TPU_V6E_8_CLUSTER,
+      time_out_in_min=60,
+      test_name=default_test_name,
+      docker_image=jax_nightly_image.value,
+      test_owner=test_owner.RISHABH_B,
+  ).run_with_quarantine(quarantine_task_group)
+
+  maxtext_nightly_4slice_v6e_8 = gke_config.get_gke_maxtext_nightly_config(
+      num_slices=4,
+      cluster=XpkClusters.TPU_V6E_8_CLUSTER,
+      time_out_in_min=60,
+      test_name=default_test_name,
+      docker_image=jax_nightly_image.value,
+      test_owner=test_owner.RISHABH_B,
+  ).run_with_quarantine(quarantine_task_group)
+
+  maxtext_nightly_8slice_v6e_8 = gke_config.get_gke_maxtext_nightly_config(
+      num_slices=8,
+      cluster=XpkClusters.TPU_V6E_8_CLUSTER,
+      time_out_in_min=60,
+      test_name=default_test_name,
+      docker_image=jax_nightly_image.value,
+      test_owner=test_owner.RISHABH_B,
+  ).run_with_quarantine(quarantine_task_group)
+
+  # Define dependencies for v5p tests to run sequentially
   (
       maxtext_nightly_1slice_v5p_8
       >> maxtext_nightly_2slice_v5p_8
       >> maxtext_nightly_4slice_v5p_8
       >> maxtext_nightly_8slice_v5p_8
+  )
+
+  # Define dependencies for v6e tests to run sequentially
+  (
+      maxtext_nightly_1slice_v6e_8
+      >> maxtext_nightly_2slice_v6e_8
+      >> maxtext_nightly_4slice_v6e_8
+      >> maxtext_nightly_8slice_v6e_8
   )
