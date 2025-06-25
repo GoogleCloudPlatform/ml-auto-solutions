@@ -134,7 +134,8 @@ def validate_log_with_step(
       start_time=start_time,
       end_time=end_time,
   )
-
+  if vali_step_list is None:
+    return False
   new_step_list = []
   for entry in entries:
     if entry.payload is not None:
