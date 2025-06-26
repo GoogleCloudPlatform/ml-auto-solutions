@@ -263,6 +263,13 @@ class XpkClusters:
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
       zone=Zone.EUROPE_WEST4_B.value,
   )
+  TPU_V6E_8_CLUSTER = XpkClusterConfig(
+      name="bodaborg-v6e-8-yucmhab-c",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=8,
+      project=Project.TPU_PROD_ENV_ONE_VM.value,
+      zone=Zone.US_EAST5_B.value,
+  )
   TPU_V6E_256_CLUSTER = XpkClusterConfig(
       name="bodaborg-v6e-256",
       device_version=TpuVersion.TRILLIUM,
