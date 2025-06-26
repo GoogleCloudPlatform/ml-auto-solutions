@@ -311,8 +311,3 @@ def clean_up_workload(
     assert (
         result.exit_code == 0
     ), f"XPK clean-up failed with code {result.exit_code}"
-
-
-@task
-def generate_timestamp():
-  return datetime.now(timezone.utc)

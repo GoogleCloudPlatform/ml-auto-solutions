@@ -201,44 +201,6 @@ class XpkTask(BaseTask):
 
     return group
 
-  def run_with_workload_id(
-      self,
-      *,
-      gcs_location: Optional[airflow.XComArg] = None,
-      use_vertex_tensorboard: bool = False,
-      use_pathways: bool = False,
-      skip_post_process: bool = False,
-      ramdisk_directory: str = "",
-      mtc_enabled: bool = False,
-      xpk_branch: str = xpk.MAIN_BRANCH,
-      workload_id: str = None,
-  ) -> DAGNode:
-    """Run a test job within a docker image with specific workload id.
-
-    Attributes:
-      gcs_location: GCS path for all artifacts of the test.
-      use_vertex_tensorboard: Set to True to view workload data on
-        Vertex AI Tensorboard.
-
-    Returns:
-      A task group with the following tasks chained: run_model and
-      post_process.
-    """
-    with TaskGroup(group_id=self.task_test_config.benchmark_id) as group:
-      run_model, gcs_path = self.run_model_with_workload_id(
-          gcs_location,
-          use_vertex_tensorboard,
-          use_pathways,
-          ramdisk_directory,
-          mtc_enabled,
-          xpk_branch,
-          workload_id,
-      )
-      if not skip_post_process:
-        run_model >> self.post_process(gcs_path)
-
-    return group
-
   def run_with_name_gen_and_quarantine(
       self,
       quarantine_task_group,
@@ -351,72 +313,6 @@ class XpkTask(BaseTask):
     """
     with TaskGroup(group_id="run_model") as group:
       workload_id = xpk.generate_workload_id(self.task_test_config.benchmark_id)
-      if gcs_location:
-        gcs_path = gcs_location
-      else:
-        gcs_path = name_format.generate_gcs_folder_location(
-            self.task_test_config.gcs_subfolder,
-            self.task_test_config.benchmark_id,
-        )
-      launch_workload = self.launch_workload(
-          workload_id,
-          gcs_path,
-          use_vertex_tensorboard,
-          use_pathways,
-          ramdisk_directory,
-          mtc_enabled,
-          xpk_branch,
-      )
-      wait_for_workload_completion = xpk.wait_for_workload_completion.override(
-          timeout=int(self.task_test_config.timeout.total_seconds()),
-      )(
-          workload_id=workload_id,
-          project_id=self.task_gcp_config.project_name,
-          region=self.task_gcp_config.zone[:-2],
-          cluster_name=self.task_test_config.cluster_name,
-      )
-
-      clean_up_workload = xpk.clean_up_workload(
-          workload_id=workload_id,
-          project_id=self.task_gcp_config.project_name,
-          zone=self.task_gcp_config.zone,
-          cluster_name=self.task_test_config.cluster_name,
-      )
-
-      (
-          (workload_id, gcs_path)
-          >> launch_workload
-          >> wait_for_workload_completion
-          >> clean_up_workload
-      )
-      return group, gcs_path
-
-  def run_model_with_workload_id(
-      self,
-      gcs_location: Optional[airflow.XComArg] = None,
-      use_vertex_tensorboard: bool = False,
-      use_pathways: bool = False,
-      ramdisk_directory: str = "",
-      mtc_enabled: bool = False,
-      xpk_branch: str = xpk.MAIN_BRANCH,
-      workload_id: str = None,
-  ) -> DAGNode:
-    """Run the TPU/GPU test in `task_test_config` using xpk
-    with specific workload id.
-
-    Attributes:
-      gcs_location: GCS path for all artifacts of the test.
-      use_vertex_tensorboard: Set to True to view workload data on
-        Vertex AI Tensorboard.
-
-    Returns:
-      A DAG node that executes the model test.
-    """
-    with TaskGroup(group_id="run_model") as group:
-      if workload_id is None:
-        workload_id = xpk.generate_workload_id(
-            self.task_test_config.benchmark_id
-        )
       if gcs_location:
         gcs_path = gcs_location
       else:
@@ -634,7 +530,12 @@ class GpuCreateResourceTask(BaseTask):
 
   def provision_via_existing_instance(
       self,
-  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg,]:
+  ) -> Tuple[
+      DAGNode,
+      airflow.XComArg,
+      airflow.XComArg,
+      airflow.XComArg,
+  ]:
     """Provision an existing GPU accelerator.
 
     Returns:
