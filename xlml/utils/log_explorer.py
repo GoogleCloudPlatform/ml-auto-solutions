@@ -53,68 +53,6 @@ def validate_log_exist(
 
 
 @task
-def validate_log_with_gcs(
-    project_id: str,
-    location: str,
-    cluster_name: str,
-    bucket_name: str,
-    namespace: str = "default",
-    pod_pattern: str = "*",
-    container_name: Optional[str] = None,
-    text_filter: Optional[str] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-) -> bool:
-  """Validate the workload log is training correct"""
-  entries = list_log_entries(
-      project_id=project_id,
-      location=location,
-      cluster_name=cluster_name,
-      namespace=namespace,
-      pod_pattern=pod_pattern,
-      container_name=container_name,
-      text_filter=text_filter,
-      start_time=start_time,
-      end_time=end_time,
-  )
-  find_str = " to backup/gcs/"
-  find_step = "step "
-  gcs_save_step_list = []
-  for entry in entries:
-    if entry.payload is not None:
-      payload_str = str(entry.payload)
-      for line in payload_str.split("\n"):
-        start_index = line.find(find_str)
-        if start_index != -1:
-          folder_index = start_index + len(find_str)
-          gcs_checkpoint_path = line[folder_index:]
-          if gcs_checkpoint_path is not None:
-            logging.info(f"get gcs path from: {gcs_checkpoint_path}")
-            bucket_files = gcs.validate_gcs_checkpoint_p2(
-                f"{bucket_name}/{gcs_checkpoint_path}/"
-            )
-            checkpoint_validation = False
-            logging.info(f"gcs bucket files: {bucket_files}")
-            if len(bucket_files) > 0:
-              for file in bucket_files:
-                if ".data" in file:
-                  checkpoint_validation = True
-            if not checkpoint_validation:
-              raise AirflowFailException(
-                  f"Checkpoint files can not found in {gcs_checkpoint_path}"
-              )
-            step_index = line.find(find_step)
-            if step_index != -1:
-              step_number_index = step_index + len(find_step)
-              step = line[step_number_index:start_index]
-              if step not in gcs_save_step_list:
-                gcs_save_step_list.append(int(step))
-  if not gcs_save_step_list:
-    return False
-  return max(gcs_save_step_list)
-
-
-@task
 def validate_log_with_step(
     project_id: str,
     location: str,

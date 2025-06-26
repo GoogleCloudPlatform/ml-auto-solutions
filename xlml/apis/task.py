@@ -530,12 +530,7 @@ class GpuCreateResourceTask(BaseTask):
 
   def provision_via_existing_instance(
       self,
-  ) -> Tuple[
-      DAGNode,
-      airflow.XComArg,
-      airflow.XComArg,
-      airflow.XComArg,
-  ]:
+  ) -> Tuple[DAGNode, airflow.XComArg, airflow.XComArg, airflow.XComArg]:
     """Provision an existing GPU accelerator.
 
     Returns:

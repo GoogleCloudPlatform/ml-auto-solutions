@@ -30,12 +30,10 @@ with models.DAG(
   base_output_directory = (
       f"{gcs_bucket.MTC_AUTOMATION_BUCKET}/maxtext_multi_tier_sav01_save_local"
   )
-  docker_images = [
-      (
-          SetupMode.NIGHTLY,
-          DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
-      )
-  ]
+  docker_images = [(
+      SetupMode.NIGHTLY,
+      DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
+  )]
   ram_disk = "/local"
   test_configs = {"v5p-128": [2]}
   clusters = {"v5p-128": XpkClusters.TPU_V5P_128_CLUSTER}
