@@ -548,15 +548,17 @@ def wait_for_jobsets_cmds(timeout: str = "100m"):
     A tuple of command strings.
   """
   wait_for_jobset = (
-      'echo "Listing pods associated with JobSet $JOB_NAME:"',
-      "kubectl get pods --selector=jobset.sigs.k8s.io/jobset-name=$JOB_NAME --namespace=default",
-      'echo "Will wait for JobSet $JOB_NAME to finish..."',
+      """export JOBSET_NAME=$(kubectl get jobset -o custom-columns=NAME:.metadata.name,NAME2:.metadata.annotations  |grep meta.helm.sh/release-name:$JOB_NAME | awk {'print $1'})""",
+      'echo "Release Name: $JOB_NAME - JOBSET_NAME: $JOBSET_NAME"',
+      'echo "Listing pods associated with JobSet $JOBSET_NAME:"',
+      "kubectl get pods --selector=jobset.sigs.k8s.io/jobset-name=$JOBSET_NAME --namespace=default",
+      'echo "Will wait for JobSet $JOBSET_NAME to finish..."',
       # The condition for JobSet completion is typically 'Completed'.
-      f"kubectl wait --for=condition=Completed jobset/$JOB_NAME --namespace=default --timeout={timeout}",
-      'echo "JobSet $JOB_NAME finished. Describing JobSet:"',
-      "kubectl describe jobset $JOB_NAME --namespace=default",
-      'echo "Final pod status for JobSet $JOB_NAME:"',
-      "kubectl get pods --selector=jobset.sigs.k8s.io/jobset-name=$JOB_NAME --namespace=default",
+      f"kubectl wait --for=condition=Completed jobset/$JOBSET_NAME --namespace=default --timeout={timeout}",
+      'echo "JobSet $JOBSET_NAME finished. Describing JobSet:"',
+      "kubectl describe jobset $JOBSET_NAME --namespace=default",
+      'echo "Final pod status for JobSet $JOBSET_NAME:"',
+      "kubectl get pods --selector=jobset.sigs.k8s.io/jobset-name=$JOBSET_NAME --namespace=default",
   )
   return wait_for_jobset
 
