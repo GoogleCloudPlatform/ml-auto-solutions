@@ -20,20 +20,20 @@ local volumes = import 'templates/volumes.libsonnet';
 
 local rcVersion = 'rc5';
 
-// make sure the vision commit aligns with upstream. E.g., for 2.7 release:
-// https://github.com/pytorch/pytorch/blob/release/2.7/.github/ci_commit_pins/vision.txt.
+// make sure the vision commit aligns with upstream. E.g., for 2.8 release:
+// https://github.com/pytorch/pytorch/blob/release/2.8/.github/ci_commit_pins/vision.txt.
 local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
 
 
 {
-  local r2_7 = {
-    frameworkPrefix: 'pt-2-7',
+  local r2_8 = {
+    frameworkPrefix: 'pt-2-8',
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.7.0-%(rc)s_3.10' % {rc: rcVersion},
+    imageTag: 'r2.8.0-%(rc)s_3.10' % {rc: rcVersion},
   },
-  PyTorchTest:: common.PyTorchTest + r2_7 {
+  PyTorchTest:: common.PyTorchTest + r2_8 {
     local config = self,
 
     podTemplate+:: {
@@ -74,7 +74,7 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
 
                 ctc = cloud_tpu_client.Client(tpu=os.path.basename('$(TPU_NAME)'), zone=os.path.dirname('$(TPU_NAME)'))
                 ctc.wait_for_healthy()
-                ctc.configure_tpu_version(f'pytorch-2.7-dev{libtpu_date}', restart_type='always')
+                ctc.configure_tpu_version(f'pytorch-2.8-dev{libtpu_date}', restart_type='always')
                 ctc.wait_for_healthy()
               |||,
             ],
@@ -110,16 +110,16 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
         sudo apt install -y libopenblas-base
         # for huggingface tests
         sudo apt install -y libsndfile-dev
-        # Install torchvision by pinned commit in PyTorch 2.7 release branch.
-        pip install torch==2.7.0 --index-url https://download.pytorch.org/whl/test/cpu
-        # torchvision commit reference: https://github.com/pytorch/pytorch/blob/release/2.7/.github/ci_commit_pins/vision.txt
+        # Install torchvision by pinned commit in PyTorch 2.8 release branch.
+        pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/test/cpu
+        # torchvision commit reference: https://github.com/pytorch/pytorch/blob/release/2.8/.github/ci_commit_pins/vision.txt
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@%(vision_commit)s"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.7.0%(rc)s-cp310-cp310-linux_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.8.0%(rc)s-cp310-cp310-linux_x86_64.whl
         pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html -f https://storage.googleapis.com/libtpu-wheels/index.html
         pip install pillow
         git clone --depth=1 https://github.com/pytorch/pytorch.git
         cd pytorch
-        git clone -b v2.7.0-%(rc)s https://github.com/pytorch/xla.git
+        git clone -b v2.8.0-%(rc)s https://github.com/pytorch/xla.git
       ||| % {rc: rcVersion, vision_commit: vision_commit},
     },
     podTemplate+:: {
@@ -155,12 +155,12 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
 
         nvidia-smi
         pip uninstall -y torch torchvision
-        pip install torch==2.7.0 --index-url https://download.pytorch.org/whl/test/cpu
+        pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/test/cpu
         pip install --user --no-use-pep517 "git+https://github.com/pytorch/vision.git@%(vision_commit)s"
-        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.6/torch_xla-2.7.0%(rc)s-cp310-cp310-linux_x86_64.whl
+        pip install https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.6/torch_xla-2.8.0%(rc)s-cp310-cp310-linux_x86_64.whl
 
         mkdir -p pytorch/xla
-        git clone -b v2.7.0-%(rc)s https://github.com/pytorch/xla.git pytorch/xla
+        git clone -b v2.8.0-%(rc)s https://github.com/pytorch/xla.git pytorch/xla
 
         %(cmd)s
 
@@ -238,5 +238,5 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
   HuggingfacePipVersionConstraints:: common.HuggingfacePipVersionConstraints,
 
   // DEPRECATED: Use PyTorchTpuVmMixin instead
-  tpu_vm_r2_7_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
+  tpu_vm_r2_8_install: self.PyTorchTpuVmMixin.tpuSettings.tpuVmPytorchSetup,
 }
