@@ -138,7 +138,6 @@ class VERSION_MAPPING:
 
   class R2_8(enum.Enum):
     TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.8.0rc1-cp311-cp311-manylinux_2_28_x86_64.whl"
-    TORCH_XLA_CUDA_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.6/torch_xla-2.8.0rc1-cp310-cp310-linux_x86_64.whl"
     TORCH = "torch==2.8.0"
     TORCHVISION = "torchvision"
     TORCHAUDIO = "torchaudio"
