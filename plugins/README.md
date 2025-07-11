@@ -43,6 +43,5 @@ For accurate issue assignment, ensure that the `owner` property defined for test
 
 3. Composer -> Airflow configuration overrides -> Edit, reference: https://cloud.google.com/composer/docs/composer-1/configure-secret-manager
    1. secrets | backend | airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
-   2. secrets | backends_order | custom,environment_variable,metastore
 
 4. Upload 'on_failure_actions.py' to \<DAG Bucket\>/plugins/

@@ -8,11 +8,10 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.github.hooks.github import GithubHook
 from github import Github
 
-from dags.common.vm_resource import Project
 from xlml.utils import composer
 from urllib import parse
 
-_PROJECT_ID = Project.CLOUD_ML_AUTO_SOLUTIONS
+_PROJECT_ID = "cloud-ml-auto-solutions"
 _REPO_NAME = "GoogleCloudPlatform/ml-auto-solutions"
 
 
