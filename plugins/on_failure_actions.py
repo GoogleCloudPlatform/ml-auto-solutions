@@ -1,6 +1,8 @@
 import logging
 import os
 
+import google.auth.transport.requests
+import requests
 from airflow.exceptions import AirflowException
 from airflow.listeners import hookimpl
 from airflow.models import DagRun, TaskInstance
@@ -8,11 +10,9 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.github.hooks.github import GithubHook
 from github import Github
 
-from dags.common.vm_resource import Project
-from xlml.utils import composer
 from urllib import parse
 
-_PROJECT_ID = Project.CLOUD_ML_AUTO_SOLUTIONS
+_PROJECT_ID = "cloud-ml-auto-solutions"
 _REPO_NAME = "GoogleCloudPlatform/ml-auto-solutions"
 
 
@@ -22,7 +22,7 @@ def generate_dag_run_link(
     dag_run_id: str,
     task_id: str,
 ):
-  airflow_link = composer.get_airflow_url(
+  airflow_link = get_airflow_url(
       proj_id,
       os.environ.get("COMPOSER_LOCATION"),
       os.environ.get("COMPOSER_ENVIRONMENT"),
@@ -32,6 +32,55 @@ def generate_dag_run_link(
       f"grid?dag_run_id={parse.quote(dag_run_id)}&task_id={task_id}&tab=logs"
   )
   return airflow_dag_run_link
+
+
+def get_airflow_url(project: str, region: str, env: str) -> str:
+  """Get Airflow web UI.
+
+  Args:
+   project: The project name of the composer.
+   region: The region of the composer.
+   env: The environment name of the composer.
+
+  Returns:
+  The URL of Airflow.
+  """
+  configs = get_composer_data(project, region, env)
+  return configs["config"]["airflowUri"]
+
+
+def get_composer_data(project: str, region: str, env: str):
+  """Get composer metadata.
+
+  Args:
+   project: The project name of the composer.
+   region: The region of the composer.
+   env: The environment name of the composer.
+
+  Returns:
+  A dict mapping metadata.
+  """
+  request_endpoint = (
+      "https://composer.googleapis.com/"
+      f"v1beta1/projects/{project}/locations/"
+      f"{region}/environments/{env}"
+  )
+  response = requests.get(request_endpoint, headers=get_headers())
+  print("response.json()", response.json())
+  return response.json()
+
+
+def get_headers():
+  """Get request headers.
+
+  Returns:
+    A dict mapping credentials.
+  """
+  creds, _ = google.auth.default(
+      scopes=["https://www.googleapis.com/auth/cloud-platform"]
+  )
+  creds.refresh(google.auth.transport.requests.Request())
+  return {"Authorization": f"Bearer {creds.token}"}
 
 
 """
