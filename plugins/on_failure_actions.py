@@ -1,37 +1,133 @@
+import json
 import logging
 import os
+import time
+from typing import List
 
+import google.auth.transport.requests
+import jwt
+import requests
 from airflow.exceptions import AirflowException
 from airflow.listeners import hookimpl
 from airflow.models import DagRun, TaskInstance
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.github.hooks.github import GithubHook
-from github import Github
+from github import Github, Auth
+from github.Issue import Issue
+from google.cloud import secretmanager
 
-from dags.common.vm_resource import Project
-from xlml.utils import composer
 from urllib import parse
 
-_PROJECT_ID = Project.CLOUD_ML_AUTO_SOLUTIONS
-_REPO_NAME = "GoogleCloudPlatform/ml-auto-solutions"
+PROJECT_ID = "cloud-ml-auto-solutions"
+REPO_NAME = "GoogleCloudPlatform/ml-auto-solutions"
+SECRET_MANAGER = (
+    "airflow-connections-"
+    + os.environ.get("COMPOSER_ENVIRONMENT", default="ml-automation-solutions")
+    + "-github_app"
+)
 
 
-def generate_dag_run_link(
-    proj_id: str,
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
+def get_github_client() -> Github:
+  secret_value = fetch_json_secret()
+  app_id = secret_value["app_id"]
+  installation_id = secret_value["installation_id"]
+  private_key = secret_value["private_key"]
+  installation_token = get_installation_token(
+      app_id, installation_id, private_key
+  )
+  return Github(auth=Auth.Token(installation_token))
+
+
+def fetch_json_secret():
+  """
+  Fetches the latest version of a secret from Google Secret Manager,
+  decodes it from UTF-8, and parses it as a JSON object.
+  Assumes the secret is stored in JSON format.
+  Returns:
+      dict: The parsed JSON secret as a Python dictionary.
+  """
+  client = secretmanager.SecretManagerServiceClient()
+  secret_path = (
+      f"projects/{PROJECT_ID}/secrets/{SECRET_MANAGER}/versions/latest"
+  )
+  response = client.access_secret_version(request={"name": secret_path})
+  secret_str = response.payload.data.decode("UTF-8")
+  secret_dict = json.loads(secret_str)
+  return secret_dict
+
+
+def get_installation_token(
+    github_app_id: str, installation_id: str, private_key: str
 ):
-  airflow_link = composer.get_airflow_url(
-      proj_id,
-      os.environ.get("COMPOSER_LOCATION"),
-      os.environ.get("COMPOSER_ENVIRONMENT"),
+  """
+  Retrieves a GitHub App installation access token using the App's ID and private key.
+
+  This token is used to authenticate API requests on behalf of the GitHub App installation.
+  Internally, it first generates a short-lived JWT for the app, then exchanges it
+  for an installation access token.
+
+  Args:
+      github_app_id (str): The GitHub App's numeric identifier (found in the app's settings).
+      installation_id (str): The installation ID for a specific GitHub organization or repository.
+      private_key (str): The PEM-formatted private key associated with the GitHub App.
+
+  Returns:
+      str: The installation access token.
+  """
+  jwt_token = generate_jwt(github_app_id, private_key)
+  token_url = f"https://api.github.com/app/installations/{installation_id}/access_tokens"
+  headers = {
+      "Authorization": f"Bearer {jwt_token}",
+      "Accept": "application/vnd.github+json",
+  }
+  resp = requests.post(token_url, headers=headers)
+  resp.raise_for_status()
+  return resp.json()["token"]
+
+
+def generate_jwt(github_app_id: str, private_key: str) -> str:
+  now = int(time.time())
+  jwt_payload = {"iat": now - 60, "exp": now + (10 * 60), "iss": github_app_id}
+  return jwt.encode(jwt_payload, private_key, algorithm="RS256")
+
+
+def query_latest_issues(client: Github, title: str):
+  query_issues = f"{title} in:title state:open repo:{REPO_NAME} is:issue"
+  issues = list(
+      client.search_issues(query=query_issues, sort="updated", order="desc")
   )
-  airflow_dag_run_link = (
-      f"{airflow_link}/dags/{dag_id}/"
-      f"grid?dag_run_id={parse.quote(dag_run_id)}&task_id={task_id}&tab=logs"
+  return (
+      sorted(issues, key=lambda i: i.updated_at, reverse=True)[0]
+      if (len(issues) > 0)
+      else None
   )
-  return airflow_dag_run_link
+
+
+def add_comment_or_create_issue(
+    client: Github,
+    issue: Issue,
+    title: str,
+    issue_body: str,
+    assignees: List[str] = None,
+):
+  if not assignees:
+    assignees = []
+  if issue:
+    logging.error(f"[DagRunListener] Update the latest one")
+    create_comment(issue, issue_body)
+  else:
+    logging.error(f"[DagRunListener] Create a new one")
+    create_issue(client, REPO_NAME, title, issue_body, assignees)
+
+
+def create_issue(client, repo, title, body, assignees=None):
+  if not assignees:
+    assignees = []
+  repo = client.get_repo(full_name_or_id=repo)
+  repo.create_issue(title=f"{title}", body=f"{body}", assignees=assignees)
+
+
+def create_comment(issue, body):
+  issue.create_comment(body=body)
 
 
 """
@@ -73,12 +169,11 @@ class DagRunListener:
       # Only DAGs with the 'on_failure_alert' tag will be processed.
       if "on_failure_alert" not in dag_run.dag.tags:
         logging.info(
-            f"[{self.log_prefix}] DAG {dag_run.dag_id} isn't "
-            f"'on_failure_alert' by tags. Return"
+            f"[{self.log_prefix}] DAG {dag_run.dag_id} isn't enabled 'on_failure_alert' by tags. Return"
         )
         return
       logging.info(
-          f"[{self.log_prefix}] DAG run {dag_run.dag_id} is 'on_failure_alert'"
+          f"[{self.log_prefix}] DAG run {dag_run.dag_id} is enabled 'on_failure_alert'"
       )
 
       failed_task_instances = [
@@ -94,22 +189,21 @@ class DagRunListener:
           f"- **Run ID**: {dag_run.run_id}\n"
           f"- **Execution Date**: {dag_run.execution_date}\n"
       )
-      group_dict = {}
+      test_name_dict = {}
       for task_instance in failed_task_instances:
-        group_id = self.get_group_id(task_instance)
-        if group_id in group_dict:
-          group_dict[group_id].append(task_instance)
+        test_name = DagRunListener.get_test_name(task_instance)
+        if test_name in test_name_dict:
+          test_name_dict[test_name].append(task_instance)
         else:
-          group_dict[group_id] = [task_instance]
+          test_name_dict[test_name] = [task_instance]
 
-      client = self.get_github_client()
-      for group_id, task_instances in group_dict.items():
-        title = f"[{self.log_prefix}] {dag_run.dag_id} {group_id} failed"
+      for test_name, task_instances in test_name_dict.items():
+        title = f"[{self.log_prefix}] {dag_run.dag_id} {test_name} failed"
         assignees = set()
         issue_body = body
         for task_instance in task_instances:
-          link = generate_dag_run_link(
-              proj_id=str(_PROJECT_ID),
+          link = self.generate_dag_run_link(
+              proj_id=str(PROJECT_ID),
               dag_id=dag_run.dag_id,
               dag_run_id=dag_run.run_id,
               task_id=task_instance.task_id,
@@ -120,22 +214,19 @@ class DagRunListener:
           if task_instance.task.owner and task_instance.task.owner != "airflow":
             assignees.add(task_instance.task.owner)
 
-        issue = self.query_latest_issues(client, title)
+        client = get_github_client()
+        issue = query_latest_issues(client, title)
         try:
-          if issue:
-            self.add_issue_comment(issue, issue_body)
-          else:
-            self.create_issue(client, title, issue_body, list(assignees))
+          add_comment_or_create_issue(
+              client, issue, title, issue_body, list(assignees)
+          )
         except Exception as e:
           if "422" not in str(e):  # Invalid GitHub username as assignees
             raise e
           logging.error(
               f"[{self.log_prefix}] Invalid assignees, retrying without assignees. Original error: {e}"
           )
-          if issue:
-            self.add_issue_comment(issue, issue_body)
-          else:
-            self.create_issue(client, title, issue_body)
+          add_comment_or_create_issue(client, issue, title, issue_body)
 
       logging.error(f"[{self.log_prefix}] GitHub Issue operation completed.")
     except AirflowException as airflow_e:
@@ -148,46 +239,58 @@ class DagRunListener:
       )
 
   @staticmethod
-  def get_group_id(task_instance: TaskInstance):
+  def get_test_name(task_instance: TaskInstance):
     task = task_instance.task
     task_id = task.task_id
-    group_id = task.task_group.group_id
-    if group_id:
+    if task.task_group.group_id:
       # Benchmark ID would be the first section of group_id
-      return group_id.split(".")[0]
+      return task.task_group.group_id.split(".")[0]
     else:
       return task_id
 
-  def get_github_client(self) -> Github:
-    environment_name = os.environ.get(
-        "COMPOSER_ENVIRONMENT", default="ml-automation-solutions"
+  @staticmethod
+  def generate_dag_run_link(
+      proj_id: str,
+      dag_id: str,
+      dag_run_id: str,
+      task_id: str,
+  ):
+    airflow_link = DagRunListener.get_airflow_url(
+        proj_id,
+        os.environ.get("COMPOSER_LOCATION"),
+        os.environ.get("COMPOSER_ENVIRONMENT"),
     )
-    logging.error(f"[{self.log_prefix}] env: {environment_name}")
-    conn_id = environment_name + "-github_default"
-    return GithubHook(github_conn_id=conn_id).get_conn()
-
-  def query_latest_issues(self, client: Github, title: str):
-    logging.error(f"[{self.log_prefix}] query open issues titled {title}")
-    query_issues = f"{title} in:title state:open repo:{_REPO_NAME} is:issue"
-    issues = list(
-        client.search_issues(query=query_issues, sort="updated", order="desc")
+    airflow_dag_run_link = (
+        f"{airflow_link}/dags/{dag_id}/"
+        f"grid?dag_run_id={parse.quote(dag_run_id)}&task_id={task_id}&tab=logs"
     )
-    return (
-        sorted(issues, key=lambda i: i.updated_at, reverse=True)[0]
-        if (len(issues) > 0)
-        else None
+    return airflow_dag_run_link
+
+  @staticmethod
+  def get_airflow_url(project: str, region: str, env: str) -> str:
+    """Get Airflow web UI.
+
+    Args:
+     project: The project name of the composer.
+     region: The region of the composer.
+     env: The environment name of the composer.
+
+    Returns:
+    The URL of Airflow.
+    """
+    request_endpoint = (
+        "https://composer.googleapis.com/"
+        f"v1beta1/projects/{project}/locations/"
+        f"{region}/environments/{env}"
     )
-
-  def create_issue(self, client, title, body, assignees=None):
-    if not assignees:
-      assignees = []
-    logging.error(f"[{self.log_prefix}] Create a new one")
-    repo = client.get_repo(full_name_or_id=_REPO_NAME)
-    repo.create_issue(title=f"{title}", body=f"{body}", assignees=assignees)
-
-  def add_issue_comment(self, issue, body):
-    logging.error(f"[{self.log_prefix}] Update the latest one")
-    issue.create_comment(body=body)
+    creds, _ = google.auth.default(
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
+    creds.refresh(google.auth.transport.requests.Request())
+    headers = {"Authorization": f"Bearer {creds.token}"}
+    response = requests.get(request_endpoint, headers=headers)
+    configs = response.json()
+    return configs["config"]["airflowUri"]
 
 
 class ListenerPlugins(AirflowPlugin):
