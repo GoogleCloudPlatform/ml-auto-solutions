@@ -175,6 +175,8 @@ def get_version_mapping(test_version):
     version_mapping = VERSION_MAPPING.R2_6
   elif test_version == VERSION.R2_7:
     version_mapping = VERSION_MAPPING.R2_7
+  elif test_version == VERSION.R2_8:
+    version_mapping = VERSION_MAPPING.R2_8
   else:
     raise ValueError("version number does not exist in VERSION enum")
   return version_mapping
