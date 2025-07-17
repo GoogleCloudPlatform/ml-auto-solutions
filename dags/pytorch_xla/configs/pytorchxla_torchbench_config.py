@@ -34,6 +34,7 @@ class VERSION(enum.Enum):
   R2_5_1 = enum.auto()
   R2_6 = enum.auto()
   R2_7 = enum.auto()
+  R2_8 = enum.auto()
 
 
 class VERSION_MAPPING:
@@ -135,6 +136,17 @@ class VERSION_MAPPING:
     TORCH_REPO_BRANCH = "-b release/2.7"
     TORCH_XLA_REPO_BRANCH = "-b r2.7"
 
+  class R2_8(enum.Enum):
+    TORCH_XLA_TPU_WHEEL = "https://storage.googleapis.com/pytorch-xla-releases/wheels/tpuvm/torch_xla-2.8.0rc1-cp311-cp311-manylinux_2_28_x86_64.whl"
+    TORCH = "torch==2.8.0"
+    TORCHVISION = "torchvision"
+    TORCHAUDIO = "torchaudio"
+    TORCH_XLA_GPU_DOCKER = "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:r2.8.0-rc1_3.10_cuda_12.6"
+    TORCH_INDEX_CPU_URL = "https://download.pytorch.org/whl/test/cpu"
+    TORCH_INDEX_CUDA_URL = "https://download.pytorch.org/whl/test/cu126"
+    TORCH_REPO_BRANCH = "-b release/2.8"
+    TORCH_XLA_REPO_BRANCH = "-b r2.8"
+
 
 def get_version_mapping(test_version):
   """Get version dependecies based on version type.
@@ -163,6 +175,8 @@ def get_version_mapping(test_version):
     version_mapping = VERSION_MAPPING.R2_6
   elif test_version == VERSION.R2_7:
     version_mapping = VERSION_MAPPING.R2_7
+  elif test_version == VERSION.R2_8:
+    version_mapping = VERSION_MAPPING.R2_8
   else:
     raise ValueError("version number does not exist in VERSION enum")
   return version_mapping
