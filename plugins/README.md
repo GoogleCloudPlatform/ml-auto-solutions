@@ -34,15 +34,12 @@ For accurate issue assignment, ensure that the `owner` property defined for test
 
 2. From GCP console UI, search for "Secret Manager", and add conn_id 'github_default' into Secret Manager.
    1. key: airflow-connections-<composer_environment_name>-github_default
-   2. value:
+   2. secret value:
        {
-           "conn_type": "http",
-           "host": "https://api.github.com",
            "password": "\<GitHub Personal Access Token\>"
        }
 
 3. Composer -> Airflow configuration overrides -> Edit, reference: https://cloud.google.com/composer/docs/composer-1/configure-secret-manager
    1. secrets | backend | airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
-   2. secrets | backends_order | custom,environment_variable,metastore
 
 4. Upload 'on_failure_actions.py' to \<DAG Bucket\>/plugins/
