@@ -18,7 +18,7 @@ local mixins = import 'templates/mixins.libsonnet';
 local utils = import 'templates/utils.libsonnet';
 local volumes = import 'templates/volumes.libsonnet';
 
-local rcVersion = 'rc5';
+local rcVersion = 'rc1';
 
 // make sure the vision commit aligns with upstream. E.g., for 2.8 release:
 // https://github.com/pytorch/pytorch/blob/release/2.8/.github/ci_commit_pins/vision.txt.
@@ -31,7 +31,7 @@ local vision_commit = 'd23a6e1664d20707c11781299611436e1f0c104f';
     tpuSettings+: {
       softwareVersion: 'tpu-ubuntu2204-base',
     },
-    imageTag: 'r2.8.0-%(rc)s_3.10' % {rc: rcVersion},
+    imageTag: 'r2.8.0-%(rc)s_3.12' % {rc: rcVersion},
   },
   PyTorchTest:: common.PyTorchTest + r2_8 {
     local config = self,
