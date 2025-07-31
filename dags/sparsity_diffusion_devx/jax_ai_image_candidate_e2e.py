@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run end-to-end JAX Stable Stack TPU tests."""
+"""A DAG to run end-to-end JAX AI Image Candidate TPU tests before public release."""
 
 
 import datetime
@@ -25,40 +25,30 @@ from dags.sparsity_diffusion_devx.configs import gke_config as config
 from dags.multipod.configs.common import SetupMode
 from xlml.utils import name_format
 
-# Run once a day at 3 am UTC (7 pm PST)
-SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
-
 
 with models.DAG(
-    dag_id="jax_stable_stack_tpu_e2e",
-    schedule=SCHEDULED_TIME,
+    dag_id="jax_ai_image_candidate_tpu_e2e",
     tags=[
         "sparsity_diffusion_devx",
         "multipod_team",
         "maxtext",
         "maxdiffusion",
-        "axlearn",
         "tpu",
         "jax-stable-stack",
         "mlscale_devx",
     ],
-    start_date=datetime.datetime(2024, 6, 7),
+    start_date=datetime.datetime(2025, 7, 24),
     catchup=False,
 ) as dag:
   current_datetime = config.get_current_datetime()
   maxtext_test_configs = {
       # accelerator: list of slices to test
-      "v4-16": [1, 2],
-      "v6e-256": [1],
+      "v4-16": [1],
+      "v5-8": [1, 2],
   }
   maxdiffusion_test_configs = {
       # accelerator: list of slices to test
-      "v4-8": [1],
-      "v6e-256": [1],
-  }
-  axlearn_test_configs = {
-      # accelerator: list of slices to test
-      "v4-16": [1],
+      "v5-8": [1, 2],
   }
 
   quarantine_task_group = TaskGroup(
@@ -66,19 +56,14 @@ with models.DAG(
   )
 
   maxtext_docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE)
   ]
 
   maxdiffusion_docker_images = [
       (
           SetupMode.STABLE,
-          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK,
-      ),
-      (
-          SetupMode.NIGHTLY,
-          DockerImage.MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX,
-      ),
+          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
+      )
   ]
 
   for accelerator, slices in maxtext_test_configs.items():
@@ -113,32 +98,16 @@ with models.DAG(
             cluster=cluster,
             time_out_in_min=60,
             run_model_cmds=(
-                f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-                f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
-                f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
-                f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}/automated/{current_datetime}",
+              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
+              f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
+              f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
+              f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
+              f"dataset_name=jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_sdxl resolution=1024 per_device_batch_size=1 "
+              f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
+              f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+              f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}/automated/{current_datetime}",
             ),
-            test_name=f"maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
-            docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
+            test_name=f"maxdiffusion-jax-stable-stack-sdxl-{mode.value}-{accelerator}-{slice_num}x",
+            docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE.value,
             test_owner=test_owner.PARAM_B,
         ).run_with_quarantine(quarantine_task_group)
-
-  for accelerator, slices in axlearn_test_configs.items():
-    cores = accelerator.rsplit("-", maxsplit=1)[-1]
-    cluster = config.clusters[accelerator]
-    for slice_num in slices:
-      axlearn_jax_stable_stack_test = config.get_gke_config(
-          num_slices=slice_num,
-          cluster=cluster,
-          time_out_in_min=300,
-          run_model_cmds=(
-              "JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-              "cd axlearn && python -m axlearn.common.launch_trainer_main "
-              f"--module=text.gpt.c4_trainer --config=fuji-test-v1 "
-              f"--trainer_dir={gcs_bucket.BASE_OUTPUT_DIR}/bite/jax-stable-stack/automated/{current_datetime} "
-              f"--data_dir={gcs_bucket.AXLEARN_DIR} --jax_backend=tpu ",
-          ),
-          test_name=f"axlearn-jax-stable-stack-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.AXLEARN_TPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.PARAM_B,
-      ).run_with_quarantine(quarantine_task_group)

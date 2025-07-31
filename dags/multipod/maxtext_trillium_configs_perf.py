@@ -77,7 +77,7 @@ with models.DAG(
           model in need_stable_candidate_set
           and image == DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK
       ):
-        image = DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE
+        image = DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK
 
       base_run_model_cmds = [
           f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",

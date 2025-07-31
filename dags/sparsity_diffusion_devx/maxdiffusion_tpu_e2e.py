@@ -111,7 +111,7 @@ with models.DAG(
               f"output_dir={sdxl_base_output_dir}",
           ),
           test_name=sdxl_run_name_prefix,
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE.value,
           test_owner=test_owner.PARAM_B,
           tensorboard_summary_config=sdxl_tensorboard_summary_config,
       ).run_with_name_gen_and_quarantine(
@@ -133,7 +133,7 @@ with models.DAG(
               f"LOSS_THRESHOLD=100",
           ),
           test_name=sdxl_nan_run_name_prefix,
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE.value,
           test_owner=test_owner.PARAM_B,
           tensorboard_summary_config=sdxl_nan_tensorboard_summary_config,
       ).run_with_name_gen_and_quarantine(
@@ -166,7 +166,7 @@ with models.DAG(
               f"output_dir={sdv2_base_output_dir}",
           ),
           test_name=f"maxd-sdv2-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
+          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE.value,
           test_owner=test_owner.PARAM_B,
       ).run_with_quarantine(quarantine_task_group)
 
