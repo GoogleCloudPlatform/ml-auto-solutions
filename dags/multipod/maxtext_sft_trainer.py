@@ -37,7 +37,7 @@ with models.DAG(
   base_output_directory = f'{gcs_bucket.BASE_OUTPUT_DIR}/maxtext_sft_trainer'
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE),
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
   ]
 
   for mode, image in docker_images:
