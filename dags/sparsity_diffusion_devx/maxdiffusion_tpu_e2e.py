@@ -47,7 +47,7 @@ with models.DAG(
   maxdiffusion_test_configs_sdxl = {
       # accelerator: list of slices to test
       "v6e-256": [1, 2],
-      "v4-8": [1, 2],
+      "v5-8": [1, 2],
   }
   maxdiffusion_test_configs_sdv2 = {
       # accelerator: list of slices to test
@@ -105,7 +105,7 @@ with models.DAG(
               f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
               f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
               f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
-              f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl resolution=1024 per_device_batch_size=1 "
+              f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_sdxl resolution=1024 per_device_batch_size=1 "
               f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
               f"run_name='' "
               f"output_dir={sdxl_base_output_dir}",
@@ -156,6 +156,7 @@ with models.DAG(
               f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
               f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
               f"run_name=maxdiffusion-v2-jax-stable-stack "
+              f"jit_initializers=False "
               f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ "
               f"activations_dtype=float32 "
               f"weights_dtype=float32 "
