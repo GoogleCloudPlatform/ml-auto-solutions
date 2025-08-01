@@ -46,7 +46,7 @@ with models.DAG(
   current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
   docker_images = [
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE),
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
   ]
   test_configs = {
       # accelerator: list of slices to test
