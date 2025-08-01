@@ -63,7 +63,7 @@ with models.DAG(
             f"export HF_TOKEN={HF_TOKEN}",
             f"bash end_to_end/{test_script}.sh",
         ),
-        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
         cluster=XpkClusters.TPU_V5P_8_CLUSTER,
         test_owner=test_owner.MOHIT_K,
     ).run_with_quarantine(quarantine_task_group)
@@ -146,7 +146,7 @@ with models.DAG(
       return conversion_cpu, training_tpu
 
   docker_image = {
-      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE.value,
+      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
       "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
   }
   tests = []
