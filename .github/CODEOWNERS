@@ -1,5 +1,5 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
-* @richardsliu @yixinshi @RissyRan @hyeygit
+* @richardsliu @yixinshi @RissyRan @hyeygit @jiangjy1982
 
 dags/common @richardsliu @yixinshi @RissyRan @hyeygit @bhavya01 @pgmoka @qihqi @zhanyong-wan @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1
 
@@ -15,9 +15,9 @@ dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/sparsity_diffusion_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @notabee
-dags/sparsity_diffusion_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
-dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
+dags/sparsity_diffusion_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @entrpn @coolkp @rohan-bierneni @shuningjin
+dags/sparsity_diffusion_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @entrpn @coolkp @rohan-bierneni @shuningjin @jiya-zhang
+dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @entrpn @coolkp @rohan-bierneni @shuningjin @jiya-zhang
 
 dags/inference @vipannalla @mailvijayasingh @sixiang-google @joezijunzhou
 
