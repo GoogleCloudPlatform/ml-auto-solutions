@@ -35,6 +35,7 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_devx",
+        "on_failure_alert",
     ],
     start_date=datetime.datetime(2024, 3, 1),
     catchup=False,
@@ -60,5 +61,5 @@ with models.DAG(
         test_name=f"maxtext-profiling-{mode.value}",
         run_model_cmds=profiling_cmds,
         docker_image=image.value,
-        test_owner=test_owner.SURBHI_J,
+        test_owner=test_owner.BRANDEN_V,
     ).run()
