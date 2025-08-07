@@ -11,7 +11,7 @@ dags/legacy_test/tests/pytorch @bhavya01 @pgmoka @qihqi @zhanyong-wan
 
 dags/mantaray @qihqi @bhavya01 @pgmoka @zhanyong-wan
 
-dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee
+dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee @xibinliu
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
@@ -23,4 +23,6 @@ dags/inference @vipannalla @mailvijayasingh @sixiang-google @joezijunzhou
 
 dags/map_reproducibility @crankshaw-google @polydier1 @gunjanj007 @stingram @utkarshsharma1 @cneel8986 @Doris26 @wang2yn84 @zshu188
 
-dags/orbax @abhinavclemson @xuefgu
+dags/orbax @abhinavclemson @xuefgu @xibinliu @andrewyct @severus-ho 
+
+dags/tpu_observability @xibinliu @andrewyct @severus-ho
