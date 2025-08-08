@@ -2,55 +2,222 @@
 
 import dataclasses
 import datetime
+import enum
 import re
-from typing import Dict, List, Optional, TypedDict
+from typing import ClassVar, Dict, List
+
 from airflow import models
 from airflow.decorators import task
+
+from dags.map_reproducibility.utils.constants import Schedule
+from dags.multipod.configs.common import Platform
+from dags.common.vm_resource import Project
+
+
 from google.api_core import exceptions
 from google.cloud import logging
 from google.cloud import monitoring_v3
 from google.protobuf import timestamp_pb2
-from interruption_config import get_scenario_config
-from interruption_config import InterruptionReason
-from interruption_config import ResourceType
+
 from proto import datetime_helpers
 import pytz
 
 _UNKNOWN_RESOURCE_NAME = 'Unknown'
-SCHEDULED_TIME = None
 
 
-class ResourceDetail(TypedDict):
-  """Details for a single resource record.
+class ConfigKey(enum.Enum):
+  PROJECT_ID = 'project_id'
+  MAX_TIME_DIFF_SEC = 'max_time_diff_sec'
+  MAX_LOG_RESULTS = 'max_log_results'
+  METRIC_AGGREGATION = 'metric_aggregation'
+  DESCRIPTION = 'description'
+  OUTPUT_FILENAME = 'output_filename'
+  METRIC_QUERY_FILTER = 'metric_query_filter'
+  LOG_QUERY_FILTER = 'log_query_filter'
+  RESOURCE_TYPE_HINT = 'resource_type_hint'
+  INTERRUPTION_REASON = 'interruption_reason'
 
-  Attributes:
-      resource_name: The name of the resource.
-      status: The validation status of the resource ("pass" or "fail").
-      reason: A string explaining the reason for a failure.
-  """
 
-  resource_name: str
-  status: str
-  reason: Optional[str]
+# --- BASE CONFIGURATION ---
+# Common default settings that can be overridden by specific scenarios.
+BASE_CONFIG = {
+    ConfigKey.PROJECT_ID.value: Project.TPU_PROD_ENV_ONE_VM,  # Default project ID
+    ConfigKey.MAX_TIME_DIFF_SEC.value: 150,
+    ConfigKey.MAX_LOG_RESULTS.value: 1000,
+    ConfigKey.METRIC_AGGREGATION.value: None,  # Default to no aggregation
+}
 
 
-class ValidationResult(TypedDict):
-  """Information about the validation status of all the resources.
+class InterruptionReason(enum.Enum):
+  DEFRAGMENTATION = 'Defragmentation'
+  EVICTION = 'Eviction'
+  HOST_ERROR = 'HostError'
+  MIGRATE_ON_HWSW_MAINTENANCE = 'MigrateOnHWSWMaintenance'
+  HWSW_MAINTENANCE = 'HWSWMaintenance'
+  OTHER = 'Other'
+  BARE_METAL_PREEMPTION = 'BareMetalPreemption'
+  AUTO_REPAIR = 'AutoRepair'
+  AUTO_UPGRADE = 'AutoUpgrade'
+  AUTO_RESIZE = 'AutoResize'
 
-  Attributes:
-      status: The overall validation status of all the resources ("pass" or
-        "fail").
-      details: A list of `ResourceDetail` objects, each providing details about
-        a status related to every resource.
-  """
 
-  status: str
-  details: List[ResourceDetail]
+# --- RESOURCE TYPE DEFINITIONS ---
+# Defines common metric and log properties for different resource types.
+RESOURCE_TYPES = {
+    Platform.GKE: {
+        'metric_type': 'kubernetes.io/node/interruption_count',
+        'resource_type': 'k8s_node',
+    },
+    Platform.GCE: {
+        'metric_type': 'tpu.googleapis.com/instance/interruption_count',
+        'resource_type': 'tpu.googleapis.com/GceTpuWorker',
+    },
+}
+
+# --- INTERRUPTION REASON DEFINITIONS ---
+# Defines specific metric and log filter parts for different interruption
+# reasons.
+INTERRUPTION_REASONS = {
+    InterruptionReason.DEFRAGMENTATION: {
+        'metric_label': 'Defragmentation',
+        'log_filter_fragment': (
+            'protoPayload.methodName="compute.instances.preempted" '
+        ),
+    },
+    InterruptionReason.EVICTION: {
+        'metric_label': 'Eviction',
+        'log_filter_fragment': (
+            'protoPayload.methodName="compute.instances.preempted" '
+        ),
+    },
+    InterruptionReason.HOST_ERROR: {
+        'metric_label': 'HostError',
+        'log_filter_fragment': (
+            'protoPayload.methodName="compute.instances.hostError" '
+        ),
+    },
+    InterruptionReason.MIGRATE_ON_HWSW_MAINTENANCE: {
+        'metric_label': 'Migrate on HW/SW Maintenance',
+        'log_filter_fragment': (
+            'protoPayload.methodName="compute.instances.migrateOnHostMaintenance" '
+        ),
+    },
+    InterruptionReason.HWSW_MAINTENANCE: {
+        'metric_label': 'HW/SW Maintenance',
+        'log_filter_fragment': (
+            'protoPayload.methodName="compute.instances.terminateOnHostMaintenance" '
+        ),
+    },
+    InterruptionReason.OTHER: {
+        'metric_label': 'Other',
+        'log_filter_fragment': (
+            'protoPayload.methodName="compute.instances.guestTerminate" OR'
+            ' protoPayload.methodName="compute.instances.instanceManagerHaltForRestart" OR'
+            ' protoPayload.methodName="compute.instances.stoppedDueToPdDoubleServe" OR'
+            ' protoPayload.methodName="compute.instances.kmsKeyError" OR'
+            ' protoPayload.methodName="compute.instances.shredmillKeyError" OR'
+            ' protoPayload.methodName="compute.instances.invalidVmImage" OR'
+            ' protoPayload.methodName="compute.instances.scratchDiskCreationFailed" OR'
+            ' protoPayload.methodName="compute.instances.localSsdInitializationError" OR'
+            ' protoPayload.methodName="compute.instances.localSsdInitializationKeyError" OR'
+            ' protoPayload.methodName="compute.instances.localSsdVerifyTarError" OR'
+            ' protoPayload.methodName="compute.instances.localSsdRecoveryAttempting" OR'
+            ' protoPayload.methodName="compute.instances.localSsdRecoveryTimeoutError" OR'
+            ' protoPayload.methodName="compute.instances.localSsdRecoveryFailedError" '
+        ),
+    },
+    InterruptionReason.BARE_METAL_PREEMPTION: {
+        'metric_label': 'Bare Metal Preemption',
+        'log_filter_fragment': (
+            'protoPayload.methodName="compute.instances.baremetalCaretakerPreempted" '
+        ),
+    },
+    InterruptionReason.AUTO_REPAIR: {
+        'metric_label': '',
+        'log_filter_fragment': '',
+    },
+    InterruptionReason.AUTO_UPGRADE: {
+        'metric_label': '',
+        'log_filter_fragment': '',
+    },
+    InterruptionReason.AUTO_RESIZE: {
+        'metric_label': '',
+        'log_filter_fragment': '',
+    },
+}
+
+
+# Combines BASE_CONFIG, RESOURCE_TYPES, and INTERRUPTION_REASONS to build
+# the seleted scenario.
+def get_scenario_config(platform: common.Platform, reason: InterruptionReason):
+  return _generate_scenario_config(
+      platform, reason, RESOURCE_TYPES[platform], INTERRUPTION_REASONS[reason]
+  )
+
+
+def _generate_scenario_config(
+    platform_key: common.Platform,
+    reason_key: InterruptionReason,
+    resource_type_config: dict[str, str],
+    reason_config: dict[str, str],
+) -> dict[ConfigKey, str]:
+  """Generates a single scenario configuration dictionary."""
+  scenario_description = (
+      f"Validation of {platform_key} "
+      f"{'nodes ' if platform_key == 'GKE' else 'instances'}"
+      f"{reason_key} interruption's metrics and logs."
+  )
+  output_filename = f'{platform_key}_{reason_key}_validation_report.json'
+
+  metric_query = (
+      f'resource.labels.project_id = "{BASE_CONFIG[ConfigKey.PROJECT_ID.value]}" '
+      f'metric.type = "{resource_type_config["metric_type"]}" '
+      f'resource.type = "{resource_type_config["resource_type"]}" '
+      f'metric.labels.interruption_reason = "{reason_config["metric_label"]}" '
+  )
+
+  return {
+      ConfigKey.PROJECT_ID: BASE_CONFIG[ConfigKey.PROJECT_ID.value],
+      ConfigKey.MAX_TIME_DIFF_SEC: BASE_CONFIG[ConfigKey.MAX_TIME_DIFF_SEC.value],
+      ConfigKey.MAX_LOG_RESULTS: BASE_CONFIG[ConfigKey.MAX_LOG_RESULTS.value],
+      ConfigKey.METRIC_AGGREGATION: BASE_CONFIG[ConfigKey.METRIC_AGGREGATION.value],
+      ConfigKey.DESCRIPTION: scenario_description,
+      ConfigKey.OUTPUT_FILENAME: output_filename,
+      ConfigKey.METRIC_QUERY_FILTER: metric_query,
+      ConfigKey.LOG_QUERY_FILTER: reason_config['log_filter_fragment'],
+      ConfigKey.RESOURCE_TYPE_HINT: platform_key,
+      ConfigKey.INTERRUPTION_REASON: reason_config['metric_label'],
+  }
 
 
 @dataclasses.dataclass
 class EventRecord:
-  """Represents Lists of metric points and log events for a single resource."""
+  """Represents lists of metric points and log events for a single resource.
+
+  Attributes:
+      overall_status: A class variable indicating whether all validations
+        passed.
+      failed_resource_reason: A class variable storing reasons for failed
+        resources, if any..
+      validation_conf: A class variable storing the validation configuration.
+      proper_start_time: A class variable storing the proper start time for
+        querying metric data and logs.
+      proper_end_time: A class variable storing the proper end time for
+        querying metric data and logs.
+      resource_name: The name of the resource (e.g., node or instance).
+      interruption_reason: The reason for the interruption event.
+      log_filter: The log query filter used to fetch log events.
+      metric_points_timestamps: A list of timestamps for metric points related
+        to the resource.
+      log_events_timestamps: A list of timestamps for log events related to
+        the resource.
+  """
+
+  overall_status: ClassVar[bool] = True
+  failed_resource_reason: ClassVar[List[str]] = []
+  validation_conf: ClassVar[Dict[ConfigKey, str]] = None
+  proper_start_time: ClassVar[datetime.datetime] = None
+  proper_end_time: ClassVar[datetime.datetime] = None
 
   resource_name: str
   interruption_reason: str = ''
@@ -59,74 +226,25 @@ class EventRecord:
   log_events_timestamps: List[str] = dataclasses.field(default_factory=list)
 
 
-@dataclasses.dataclass
-class ProperTimeRange:
-  """They are the proper time range for querying metric data and logs."""
-
-  start_time: str
-  end_time: str
-
-
-@task
-def query_metric_data_by_api_task(
-    selected_scenario: Dict[str, str],
-    proper_time_range: ProperTimeRange,
-) -> List[EventRecord]:
-  """Airflow task to query metric data by API.
-
-  It's just a wrapper function for query_metric_data_by_api.
-
-  Args:
-      selected_scenario: The selected scenario configuration.
-      proper_time_range: The proper time range for the query.
-
-  Returns:
-      A List of EventRecord objects. Each eventRecord must contain the metric
-      points timestamps for the resource name.
-
-  Raises:
-      RuntimeError: If any validation fails.
-      exceptions.GoogleAPIError: If there's an error communicating with the
-      Google Cloud API.
-  """
-  start_time = datetime.datetime.fromisoformat(proper_time_range.start_time)
-  end_time = datetime.datetime.fromisoformat(proper_time_range.end_time)
-  return query_metric_data_by_api(
-      selected_scenario,
-      start_time,
-      end_time,
-  )
-
-
 def query_metric_data_by_api(
-    selected_scenario: Dict[str, str],
     start_time: datetime.datetime,
     end_time: datetime.datetime,
 ) -> List[EventRecord]:
-  """Fetches node interruption count metrics.
-
-  This function queries the monitoring API for a given selected_scenario and
-  time range.
+  """Queries the monitoring API for a given validation_conf and time range to retrieve the timeseries data for each resource.
 
   Args:
-      selected_scenario: The selected scenario configuration.
       start_time: The start of the time interval.
       end_time: The end of the time interval.
 
   Returns:
       A List of EventRecord objects. Each eventRecord must contain the metric
       points timestamps for the resource name.
-
-  Raises:
-      RuntimeError: If any validation fails.
-      exceptions.GoogleAPIError: If there's an error communicating with the
-      Google Cloud API.
   """
-  project_id = selected_scenario['project_id']
-  metric_filter = selected_scenario['metric_query_filter']
-  resource_type_hint = selected_scenario['resource_type_hint']
-  aggregation = selected_scenario['metric_aggregation']
-  interruption_reason = selected_scenario['interruption_reason']
+  project_id = EventRecord.validation_conf[ConfigKey.PROJECT_ID]
+  metric_filter = EventRecord.validation_conf[ConfigKey.METRIC_QUERY_FILTER]
+  resource_type_hint = EventRecord.validation_conf[ConfigKey.RESOURCE_TYPE_HINT]
+  aggregation = EventRecord.validation_conf[ConfigKey.METRIC_AGGREGATION]
+  interruption_reason = EventRecord.validation_conf[ConfigKey.INTERRUPTION_REASON]
 
   project_name = f'projects/{project_id}'
   events_records: dict[str, EventRecord] = {}
@@ -137,7 +255,8 @@ def query_metric_data_by_api(
   end_timestamp.FromDatetime(end_time)
 
   interval = monitoring_v3.TimeInterval(
-      start_time=start_timestamp, end_time=end_timestamp
+      start_time=start_timestamp,
+      end_time=end_timestamp
   )
 
   request = monitoring_v3.ListTimeSeriesRequest(
@@ -158,9 +277,9 @@ def query_metric_data_by_api(
 
   for time_series in response:
     match resource_type_hint:
-      case ResourceType.GKE:
+      case Platform.GKE:
         resource_key = 'node_name'
-      case ResourceType.GCE:
+      case Platform.GCE:
         resource_key = 'instance_name'
       case _:
         print(f"Warning: Unknown resource_type_hint '{resource_type_hint}'.")
@@ -193,7 +312,7 @@ def query_metric_data_by_api(
         case _:
           raise RuntimeError(
               'Unexpected TypedValue:'
-              f' {monitoring_v3.TypedValue.pb(point.value).WhichOneof("value")}.'
+              f" {monitoring_v3.TypedValue.pb(point.value).WhichOneof('value')}."
               f' Full point data: {point}'
           )
 
@@ -226,43 +345,35 @@ def query_metric_data_by_api(
 
 
 @task
-def decide_proper_time_range(
-    initial_start_time: datetime.datetime,
-    initial_end_time: datetime.datetime,
-    selected_scenario: Dict[str, str],
+def fetch_interruption_metrics_timestamps(
     max_start_time_rewind_seconds: int = 3600,
-) -> ProperTimeRange:
-  """Decides the proper time range for the validation.
+) -> List[EventRecord]:
+  """Adjusts the proper time range for the validation and fetches the metric data with the proper time range.
 
   It will adjust the start_time and end_time to ensure there is idle_time_buffer
   before the earliest record and after the latest record by querying the metric
   data with the monitoring API.
-  If the difference between initial_start_time and the adjusted start_time
+  If the difference between the initial start_time and the adjusted start_time
   is more than max_start_time_rewind_seconds, it will raise a RuntimeError.
 
   Args:
-      initial_start_time: The initial start of the time interval.
-      initial_end_time: The initial end of the time interval.
-      selected_scenario: The selected scenario configuration.
       max_start_time_rewind_seconds: The maximum time in seconds the start_time
         can be rewound.
 
   Returns:
-      A ProperTimeRange object containing the adjusted start_time,
-      end_time which is the proper time range for the validation.
-
-  Raises:
-      RuntimeError: If any validation fails.
-      exceptions.GoogleAPIError: If there's an error communicating with the
-      Google Cloud API.
+      A List of EventRecord objects.
   """
-  max_time_diff_sec = selected_scenario['max_time_diff_sec']
+  max_time_diff_sec = EventRecord.validation_conf[ConfigKey.MAX_TIME_DIFF_SEC]
+  initial_start_time = EventRecord.proper_start_time
+  initial_end_time = EventRecord.proper_end_time
 
   current_start_time = initial_start_time
   current_end_time = initial_end_time
   idle_time_buffer = datetime.timedelta(seconds=max_time_diff_sec * 2)
   max_rewind_delta = datetime.timedelta(seconds=max_start_time_rewind_seconds)
 
+  # Continue to adjust the time range until the time range has stabilized or
+  # the start time rewind has reached the maximum limit.
   while True:
     print(
         '\n current range:'
@@ -271,7 +382,7 @@ def decide_proper_time_range(
 
     # Query metric data for the current time range by API.
     metric_records = query_metric_data_by_api(
-        selected_scenario,
+        # validation_conf,
         current_start_time,
         current_end_time,
     )
@@ -362,7 +473,11 @@ def decide_proper_time_range(
         and new_end_time == current_end_time
     ):
       print('Time range has stabilized, no need to adjust again.')
-      break
+
+      # Update the proper_time_range with the new start_time and end_time.
+      EventRecord.proper_start_time = current_start_time + idle_time_buffer / 2
+      EventRecord.proper_end_time = current_end_time - idle_time_buffer / 2
+      return metric_records
     else:
       current_start_time = new_start_time
       current_end_time = new_end_time
@@ -375,53 +490,38 @@ def decide_proper_time_range(
       )
       raise RuntimeError('Start time rewind has reached the maximum limit.')
 
-  return ProperTimeRange(
-      start_time=(current_start_time + idle_time_buffer / 2)
-      .astimezone(datetime.timezone.utc)
-      .isoformat(),
-      end_time=(initial_end_time - idle_time_buffer / 2)
-      .astimezone(datetime.timezone.utc)
-      .isoformat(),
-  )
-
 
 @task
-def query_log_data_by_api(
-    selected_scenario: Dict[str, str],
-    proper_time_range: ProperTimeRange,
+def fetch_interruption_logs_timestamps(
     event_records: List[EventRecord],
 ) -> List[EventRecord]:
-  """Fetches specific interruption logs for instances from gke or gce within a given project and time range.
-
-  It will query the log data from the Google Cloud Logging API using the
-  provided log_query_filter and time range. It will then group the log entries
-  by resource name and populate the log_events_timestamps field in the
-  corresponding EventRecord object.
+  """This function queries the Logging API for a given validation_conf and time range to fetch the log entries.
 
   Args:
-      selected_scenario: The selected scenario configuration.
-      proper_time_range: The proper time range for the query.
       event_records: A list of EventRecord objects, containing metric events
       grouped by resource name.
 
   Returns:
       A list of EventRecord objects. Each EventRecord must contain the log
       events timestamps for the resource name.
-
-  Raises:
-      RuntimeError: If any validation fails.
-      exceptions.GoogleAPIError: If there's an error communicating with the
-      Google Cloud API.
   """
-  project_id = selected_scenario['project_id']
-  interruption_reason = selected_scenario['interruption_reason']
-  log_filter_query = selected_scenario['log_query_filter']
-  max_results = selected_scenario['max_log_results']
+  project_id = EventRecord.validation_conf[ConfigKey.PROJECT_ID]
+  interruption_reason = EventRecord.validation_conf[ConfigKey.INTERRUPTION_REASON]
+  log_filter_query = EventRecord.validation_conf[ConfigKey.LOG_QUERY_FILTER]
+  max_results = EventRecord.validation_conf[ConfigKey.MAX_LOG_RESULTS]
 
   logging_api_client = logging.Client(project=project_id)
 
-  start_time_str = proper_time_range.start_time.replace('+00:00', 'Z')
-  end_time_str = proper_time_range.end_time.replace('+00:00', 'Z')
+  # start_time_str = EventRecord.proper_time_range.start_time.replace('+00:00', 'Z')
+  # end_time_str = EventRecord.proper_time_range.end_time.replace('+00:00', 'Z')
+  start_time_str = (
+      EventRecord.proper_start_time.astimezone(datetime.timezone.utc)
+      .isoformat().replace('+00:00', 'Z')
+  )
+  end_time_str = (
+      EventRecord.proper_end_time.astimezone(datetime.timezone.utc)
+      .isoformat().replace('+00:00', 'Z')
+  )
   time_range_str = (
       f'timestamp>="{start_time_str}" AND timestamp<="{end_time_str}"'
   )
@@ -430,10 +530,10 @@ def query_log_data_by_api(
   event_records = {record.resource_name: record for record in event_records}
   for resource_name in event_records:
     if resource_filter_query is None:
-      resource_filter_query = f'protoPayload.resourceName=~"^projects\\/[^\\/]+\\/zones\\/[^\\/]+\\/instances\\/{resource_name}$"'
+      resource_filter_query = f'protoPayload.resourceName=~"^projects/[\\w-]+/zones/[\\w-]+/instances/{resource_name}$"'
     else:
       resource_filter_query += (
-          f' OR protoPayload.resourceName=~"^projects\\/[^\\/]+\\/zones\\/[^\\/]+\\/instances\\/{resource_name}$"'
+          f' OR protoPayload.resourceName=~"^projects/[\\w-]+/zones/[\\w-]+/instances/{resource_name}$"'
       )
   if resource_filter_query:
     log_filter_query = f'{log_filter_query} AND ({resource_filter_query})'
@@ -453,7 +553,7 @@ def query_log_data_by_api(
     entry_count += 1
     # The 'resourceName' in the log entry payload typically looks like:
     # "projects/{project_id}/zones/{zone}/instances/{node_name}"
-    regex_pattern = r'^projects\/[^\/]+\/zones\/[^\/]+\/instances\/([^\/]+)$'
+    regex_pattern = r'^projects/[\w-]+/zones/[\w-]+/instances/([\w-]+)$'
     resource_name = entry.payload.get('resourceName', '')
     match = re.match(regex_pattern, resource_name)
     if match:
@@ -494,7 +594,7 @@ def query_log_data_by_api(
 @task
 def check_event_count_match(
     event_records: List[EventRecord],
-) -> ValidationResult:
+) -> List[EventRecord]:
   """Checks if the number of metric events matches the number of log events for each resource.
 
   Args:
@@ -502,103 +602,85 @@ def check_event_count_match(
         events grouped by resource name.
 
   Returns:
-      A dictionary containing the updated validation results.
-
-  Raises:
-      RuntimeError: If any validation fails.
+      A list of EventRecord objects, containing the updated validation results.
   """
-  task_failed = False
-  current_results: ValidationResult = {
-      'status': 'pass',
-      'details': [],
-  }
-
   # We are primarily concerned with validating that the number of metric events
   # matches the number of log events.
   for event_record in event_records:
-    # Initialize result for the current node. Assume pass until a failure
-    # condition is met.
-    current_results['details'].append({
-        'resource_name': event_record.resource_name,
-        'status': 'pass',
-        'reason': None,
-    })
-    details: ResourceDetail = current_results['details'][-1]
-
     # Check event count match first
     num_metric_events = len(event_record.metric_points_timestamps)
     num_log_events = len(event_record.log_events_timestamps)
 
     if num_metric_events != num_log_events:
-      task_failed = True
-      details['status'] = 'fail'
-      details['reason'] = (
+      EventRecord.overall_status = False
+      EventRecord.failed_resource_reason.append(
           f'Event count mismatch. Expected {num_metric_events} metric'
           f' events but found {num_log_events} log events for node'
           f' "{event_record.resource_name}". One-to-one correspondence not'
           ' possible.'
       )
+
       continue  # Move to the next node_name in event_records
 
-  if task_failed:
-    print(current_results)
-    raise RuntimeError('Event count mismatch.')
+  if not EventRecord.overall_status:
+    print(
+        'EventRecord.failed_resource_reason:'
+        f' {EventRecord.failed_resource_reason}'
+    )
+    raise RuntimeError('Overall status is failed.')
 
-  current_results['status'] = 'pass' if not task_failed else 'fail'
-  return current_results
+  return event_records
 
 
 with models.DAG(
     dag_id='interruption_event_validation_dag',
-    schedule=SCHEDULED_TIME,
-    tags=['interruption', 'validation', 'gcp'],
     start_date=datetime.datetime(2025, 7, 20),
+    schedule=Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY,
     catchup=False,
+    tags=['gke', 'gce', 'tpu-observability', 'interruption_validation'],
+    description=(
+        'This DAG validates the interruption event metrics and logs for GKE and GCE'
+    ),
+    doc_md="""
+    ### Interruption Event Validation DAG
+    This DAG validates the consistency of interruption events between metrics and logs for both GKE and GCE environments.
+    It performs the following steps:
+    1.  **Fetch Interruption Metrics Timestamps**: Queries Cloud Monitoring API to fetch interruption metric timestamps, adjusting the time range to ensure proper buffer before the earliest and after the latest events.
+    2.  **Fetch Interruption Logs Timestamps**: Queries Cloud Logging API to fetch interruption log timestamps, filtering by the resources identified in the metrics query.
+    3.  **Check Event Count Match**: Validates if the number of metric events matches the number of log events for each resource.
+    """,
 ) as dag:
   # Define time range for data fetching
   now = datetime.datetime.now(pytz.utc)
   start_time_interval = now - datetime.timedelta(hours=12)
   end_time_interval = now
 
+  EventRecord.proper_start_time = start_time_interval
+  EventRecord.proper_end_time = end_time_interval
+
   # Get scenario configuration
-  my_resource_type = ResourceType.GKE
+  my_resource_type = Platform.GKE
   my_interruption_reason = InterruptionReason.MIGRATE_ON_HWSW_MAINTENANCE
-  selected_scenario = get_scenario_config(
+  EventRecord.validation_conf = get_scenario_config(
       my_resource_type, my_interruption_reason
   )
 
-  if not selected_scenario:
-    raise RuntimeError(
-        f"Scenario '{my_resource_type.name}_{my_interruption_reason.name}' not"
-        ' found. DAG cannot be initialized.'
-    )
-
-  proper_time_range = decide_proper_time_range(
-      initial_start_time=start_time_interval,
-      initial_end_time=end_time_interval,
-      selected_scenario=selected_scenario,
+  event_records_after_get_metrics = fetch_interruption_metrics_timestamps(
       max_start_time_rewind_seconds=3600,  # 1 hour, customize as needed
   )
 
-  event_records_after_get_metrics = query_metric_data_by_api_task(
-      selected_scenario=selected_scenario,
-      proper_time_range=proper_time_range,
-  )
-
-  event_records_after_get_logs_and_metrics = query_log_data_by_api(
-      selected_scenario=selected_scenario,
-      proper_time_range=proper_time_range,
+  event_records_after_get_logs_and_metrics = fetch_interruption_logs_timestamps(
       event_records=event_records_after_get_metrics,
   )
-
-  check_event_count_match_results = check_event_count_match(
+  event_records_after_check_count_match = check_event_count_match(
       event_records_after_get_logs_and_metrics
   )
 
   # --- Task Workflow ---
   (
-      proper_time_range
-      >> event_records_after_get_metrics
+      event_records_after_get_metrics
       >> event_records_after_get_logs_and_metrics
-      >> check_event_count_match_results
+      >> event_records_after_check_count_match
   )
+
+
