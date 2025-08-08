@@ -1,5 +1,5 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
-* @richardsliu @yixinshi @RissyRan @hyeygit
+* @richardsliu @yixinshi @RissyRan @hyeygit @jiangjy1982
 
 dags/common @richardsliu @yixinshi @RissyRan @hyeygit @bhavya01 @pgmoka @qihqi @zhanyong-wan @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1
 
@@ -11,16 +11,18 @@ dags/legacy_test/tests/pytorch @bhavya01 @pgmoka @qihqi @zhanyong-wan
 
 dags/mantaray @qihqi @bhavya01 @pgmoka @zhanyong-wan
 
-dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee
+dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee @xibinliu
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
-dags/sparsity_diffusion_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @notabee
-dags/sparsity_diffusion_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
-dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @jiya-zhang
+dags/sparsity_diffusion_devx @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @entrpn @coolkp @rohan-bierneni @shuningjin
+dags/sparsity_diffusion_devx/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @entrpn @coolkp @rohan-bierneni @shuningjin @jiya-zhang
+dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy1982 @aireenmei @michelle-yooh @entrpn @coolkp @rohan-bierneni @shuningjin @jiya-zhang
 
 dags/inference @vipannalla @mailvijayasingh @sixiang-google @joezijunzhou
 
 dags/map_reproducibility @crankshaw-google @polydier1 @gunjanj007 @stingram @utkarshsharma1 @cneel8986 @Doris26 @wang2yn84 @zshu188
 
-dags/orbax @abhinavclemson @xuefgu
+dags/orbax @abhinavclemson @xuefgu @xibinliu @andrewyct @severus-ho 
+
+dags/tpu_observability @xibinliu @andrewyct @severus-ho
