@@ -93,7 +93,7 @@ with models.DAG(
 
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
-              test_owner=test_owner.RAYMOND_Z,
+              test_owner="airflow",
               dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
               dataset_name=metric_config.DatasetOption.XLML_DATASET,
