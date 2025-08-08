@@ -68,7 +68,6 @@ with models.DAG(
   )
 
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_GPU_STABLE_STACK_NIGHTLY_JAX),
   ]
 
@@ -81,5 +80,5 @@ with models.DAG(
           num_slices=nnodes,
           cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
           docker_image=image.value,
-          test_owner=test_owner.PARAM_B,
+          test_owner=test_owner.ROHAN_B,
       ).run_with_quarantine(quarantine_task_group)

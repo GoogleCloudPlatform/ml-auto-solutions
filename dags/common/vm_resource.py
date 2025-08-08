@@ -133,6 +133,7 @@ class Zone(enum.Enum):
   # reserved l4 in cloud-tpu-inference-test
   ASIA_EAST1_A = "asia-east1-a"
   ASIA_EAST1_C = "asia-east1-c"
+  ASIA_EAST1 = "asia-east1"
 
 
 class MachineVersion(enum.Enum):
@@ -299,11 +300,11 @@ class XpkClusters:
       zone=Zone.US_EAST5_A.value,
   )
   GPU_A3PLUS_CLUSTER = XpkClusterConfig(
-      name="a3plus-benchmark",
+      name="a3mega-benchmark",
       device_version=GpuVersion.XPK_H100_MEGA,
       core_count=8,
       project=Project.SUPERCOMPUTER_TESTING.value,
-      zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
+      zone=Zone.ASIA_EAST1.value,
   )
   CPU_M1_MEGAMEM_96_CLUSTER = XpkClusterConfig(
       name="m1-megamem-96-shared",

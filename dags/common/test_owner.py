@@ -66,6 +66,7 @@ PARAM_B = "Param B."
 KUNJAN_P = "Kunjan P."
 MICHELLE_Y = "Michelle Y."
 SHUNING_J = "Shuning J."
+ROHAN_B = "Rohan B."
 
 # Inference
 ANDY_Y = "Andy Y."
