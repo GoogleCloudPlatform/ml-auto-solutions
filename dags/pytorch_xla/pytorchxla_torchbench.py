@@ -24,6 +24,17 @@ import dags.common.vm_resource as resource
 SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 
+# @task_group(prefix_group_id=False)
+# def llama():
+#   llama_3_train_trillium = task.run_queued_resource_test(
+#       test_config.JSonnetTpuVmTest.from_pytorch(
+#           "pt-nightly-llama3-train-func-v6e-4-1vm",
+#           network=V5_NETWORKS,
+#           subnetwork=V6E_SUBNETWORKS,
+#       ),
+#       US_CENTRAL2_B_TPU_PROD_ENV,
+#   )
+
 with models.DAG(
     dag_id="pytorchxla-torchbench",
     schedule=SCHEDULED_TIME,
@@ -31,9 +42,45 @@ with models.DAG(
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
+  # llama()
+
   model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
   torchbench_extra_flags = [f"--filter={model}"]
 
+  # LLaMA3 on V6E:
+  config.get_torchbench_tpu_config(
+      tpu_version=resource.TpuVersion.TRILLIUM,
+      tpu_cores=8,
+      project=resource.Project.CLOUD_ML_BENCHMARKING,
+      tpu_zone=resource.Zone.US_CENTRAL2_B,
+      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV6,
+      network=resource.BM_NETWORKS,
+      subnetwork=resource.V4_BM_SUBNETWORKS,
+      time_out_in_min=1600,
+      model_name="llama3",
+      reserved=False,
+      preemptible=False,
+      extraFlags=" ".join(torchbench_extra_flags),
+      simple_model_test=True,
+  )
+
+  # SD2 on V6E:
+  config.get_torchbench_tpu_config(
+      tpu_version=resource.TpuVersion.TRILLIUM,
+      tpu_cores=8,
+      project=resource.Project.CLOUD_ML_BENCHMARKING,
+      tpu_zone=resource.Zone.US_CENTRAL2_B,
+      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV6,
+      network=resource.BM_NETWORKS,
+      subnetwork=resource.V4_BM_SUBNETWORKS,
+      time_out_in_min=1600,
+      model_name="sd2",
+      reserved=False,
+      preemptible=False,
+      extraFlags=" ".join(torchbench_extra_flags),
+      simple_model_test=True,
+  )
+  
   # Running on V4-8:
   config.get_torchbench_tpu_config(
       tpu_version=resource.TpuVersion.V4,
