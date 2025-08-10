@@ -65,7 +65,7 @@ BRANDEN_V = "bvandermoon"
 # Multi-tier Checkpointing
 ABHINAV_S = "abhinavclemson"
 XUEFENG_G = "xuefgu"
-CAMILO = "CAMILO P."
+CAMILO_Q = "camiloCienet"
 
 # MLCompass
 ORTI_B = "ortibazar"

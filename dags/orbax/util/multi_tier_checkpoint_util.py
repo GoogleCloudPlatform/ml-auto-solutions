@@ -21,14 +21,24 @@ from xlml.utils import gke
 class CheckpointConfiguration:
   """A dataclass to hold attributes of a Cloud Public Compute (CPC) instance."""
 
-  def __init__(self,
-    project_id: str,
-    region: str,
-    cluster_name: str,
-    gcs_bucket: str,
-    machine_type: str,
-    ramdisk_memory: str,
-    toleration_key: str = "google.com/tpu",
+  project_id: str
+  region: str
+  cluster_name: str
+  gcs_bucket: str
+  machine_type: str
+  ramdisk_memory_in_mi: str
+  toleration_key: str
+  cpc_yaml_template: str
+
+  def __init__(
+      self,
+      project_id: str,
+      region: str,
+      cluster_name: str,
+      gcs_bucket: str,
+      machine_type: str,
+      ram_disk_memory_in_mi: str,
+      toleration_key: str = "google.com/tpu",
   ):
     """
     Initializes the CheckpointConfiguration.
@@ -40,7 +50,8 @@ class CheckpointConfiguration:
         gcs_bucket (str): The name of the GCS bucket for checkpoints.
         machine_type (str): The machine type for the instance.
         ramdisk_memory_in_mi (str): The size of the RAM disk in mebibytes (Mi).
-            Defaults to "2G".
+            The unit is in mebibytes (Mi) but the value should be passed as a string
+            with the unit, e.g., "2G" or "2048M". Defaults to "100G"".
         toleration_key (str): The toleration key for the Kubernetes pod.
             Defaults to "google.com/tpu".
     """
@@ -49,80 +60,38 @@ class CheckpointConfiguration:
     self.cluster_name = cluster_name
     self.gcs_bucket = gcs_bucket
     self.machine_type = machine_type
-    self.ramdisk_memory = ramdisk_memory
+    self.ramdisk_memory = ram_disk_memory_in_mi
     self.toleration_key = toleration_key
-
-  def _get_custom_objects_api_client(
-      self, project_id: str, region: str, cluster_name: str
-  ) -> k8s_client.CustomObjectsApi:
-    """Create a CustomObjectsApi client for the given cluster."""
-    return k8s_client.CustomObjectsApi(
-      gke.get_authenticated_client(
-        self.project_id,
-        self.region,
-        self.cluster_name
-      )
-    )
-
-  # memory_size: This should be Mi
-  def _create_cpc_content(
-      self,
-      gcs_bucket: str,
-      machine_type: str,
-      toleration_key: str,
-      memory_size_in_mi: str,
-  ) -> str:
-    """Creates the CheckpointConfiguration YAML content as a string.
-
-    This method generates a templated YAML string for a GKE CheckpointConfiguration
-    resource, including parameters for the GCS bucket, machine type, toleration,
-    and RAM disk size.
-
-    Args:
-        gcs_bucket (str): The name of the GCS bucket for storing checkpoints.
-        machine_type (str): The instance type of the node.
-        toleration_key (str): The toleration key to allow scheduling on specific nodes.
-        memory_size_in_mi (str): The desired size of the in-memory volume.
-          The unit is in mebibytes (Mi) but the value should be passed as a string
-          with the unit, e.g., "2G" or "1024M".
-
-    Returns:
-        str: The templated YAML content as a string.
-    """
-    cpc_yaml_template = f"""
+    self.cpc_yaml_template = f"""
   apiVersion: checkpointing.gke.io/v1
   kind: CheckpointConfiguration
   metadata:
     name: my-checkpointconfiguration # This name will be used for deletion
   spec:
-    cloudStorageBucketName: {gcs_bucket}
+    cloudStorageBucketName: {self.gcs_bucket}
     nodeSelector:
-      node.kubernetes.io/instance-type: {machine_type}
+      node.kubernetes.io/instance-type: {self.machine_type}
     tolerations:
-    - key: {toleration_key}
+    - key: {self.toleration_key}
       operator: Exists
       effect: NoSchedule
-    inMemoryVolumeSize: {memory_size_in_mi}
+    inMemoryVolumeSize: {self.ramdisk_memory}
   """
-    logging.info(f"Generated CPC YAML content: \n{cpc_yaml_template}")
-    return cpc_yaml_template
+
+  def create_custom_objects_api_client(self) -> k8s_client.CustomObjectsApi:
+    """Create a CustomObjectsApi client for the given cluster."""
+    return k8s_client.CustomObjectsApi(
+        gke.get_authenticated_client(
+            self.project_id, self.region, self.cluster_name
+        )
+    )
 
 
 @task
 def apply_cpc(cpc: CheckpointConfiguration) -> None:
   """Applies the CheckpointConfiguration to the cluster (create or replace)."""
-  custom_api = cpc._get_custom_objects_api_client(
-      cpc.project_id, cpc.region, cpc.cluster_name
-  )
-
-  cpc_yaml_string = cpc._create_cpc_content(
-      cpc.gcs_bucket,
-      cpc.machine_type,
-      cpc.toleration_key,
-      cpc.ramdisk_memory,
-  )
-  cpc_body = yaml.safe_load(cpc_yaml_string)
-
+  custom_api = cpc.create_custom_objects_api_client()
+  cpc_body = yaml.safe_load(cpc.cpc_yaml_template)
   api_version = cpc_body.get("apiVersion")
   kind = cpc_body.get("kind")
   name = cpc_body.get("metadata", {}).get("name")
@@ -139,7 +108,6 @@ def apply_cpc(cpc: CheckpointConfiguration) -> None:
     logging.info(f"CheckpointConfiguration '{name}' created successfully.")
 
   except ApiException as api_error:
-
     # If it already exists (409 Conflict), then try to replace it
     # See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409
     if api_error.status == 409:
@@ -174,17 +142,8 @@ def initiate_cpc_deletion(cpc: CheckpointConfiguration) -> None:
   """
   Sends the delete request for the CheckpointConfiguration.
   """
-  custom_api = cpc._get_custom_objects_api_client(
-      cpc.project_id, cpc.region, cpc.cluster_name
-  )
-  cpc_body = yaml.safe_load(
-      cpc._create_cpc_content(
-          cpc.gcs_bucket,
-          cpc.machine_type,
-          cpc.toleration_key,
-          cpc.ramdisk_memory,
-      )
-  )
+  custom_api = cpc.create_custom_objects_api_client()
+  cpc_body = yaml.safe_load(cpc.cpc_yaml_template)
   name_to_delete = cpc_body.get("metadata", {}).get("name")
 
   if not name_to_delete:
@@ -234,17 +193,8 @@ def wait_for_cpc_deletion(cpc: CheckpointConfiguration) -> bool:
   """
   A sensor that waits for the CheckpointConfiguration to be completely deleted.
   """
-  custom_api = cpc._get_custom_objects_api_client(
-      cpc.project_id, cpc.region, cpc.cluster_name
-  )
-  cpc_body = yaml.safe_load(
-      cpc._create_cpc_content(
-          cpc.gcs_bucket,
-          cpc.machine_type,
-          cpc.toleration_key,
-          cpc.ramdisk_memory,
-      )
-  )
+  custom_api = cpc.create_custom_objects_api_client()
+  cpc_body = yaml.safe_load(cpc.cpc_yaml_template)
   name_to_delete = cpc_body.get("metadata", {}).get("name")
 
   if not name_to_delete:

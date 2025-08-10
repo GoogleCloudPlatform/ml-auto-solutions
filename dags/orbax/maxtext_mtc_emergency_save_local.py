@@ -23,53 +23,57 @@ from dags.orbax.util import multi_tier_checkpoint_util as mtc
 from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 from xlml.utils.gke import zone_to_region
 
-# Global variables across test configurations.
 SCHEDULE = "0 10 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_emc_and_mtc_orbax_save_local"
 BASE_OUTPUT_DIRECTORY = gcs_bucket.MTC_AUTOMATION_BUCKET
 
-# The variable DOCKER_IMAGES will hold multiple configurations e.g nightly , stable.
+# For this DAG, only one version of the Docker image is supported at the moment.
+# Other versions (e.g., "stable") may be introduced later.
 DOCKER_IMAGES = [(
     SetupMode.NIGHTLY,
     DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
 )]
 RAM_DISK = "/local"
 
+
 @dataclass
 class Testcase:
-  """Holds a single test case configuration for multi-tier checkpointing.
-
-  This class is used to define the properties of a specific test run,
-  including the name of the checkpoint and whether to use a replicator.
   """
-  checkpointing_name: str
+  Represents the information of a checkpointing mechanism.
+
+  Attributes:
+    name: A unique name for the checkpointing configuration.
+    use_replicator: Indicates whether a replicator is enabled for this test case.
+  """
+
+  name: str
   use_replicator: bool
+
 
 @dataclass
 class Testconfig:
-  """Holds the general configuration for a multi-tier checkpointing test.
+  """Holds the general configuration for a checkpointing test.
 
-  This class defines the environment and parameters for a single test run,
-  including cluster details, model settings, and checkpointing intervals.
-
-  cluster (XpkClusters): The cluster to be used for the test.
-  machine_type (str): The type of machine to run the test on.
-  accelerator (str): The type of accelerator (e.g., GPU, TPU) to use.
-  slices (list[int]): The number of slices to be used.
-  model_name (str): The name of the model being tested.
-  name_prefix (str): A prefix to be used for naming the test run.
-  replicator_min (int): The minimum number of replicators required.
-  step (int): The current step of the training process.
-  local_checkpoint_step (int): The step interval for local checkpoints.
-  checkpoint_step (int): The step interval for global checkpoints.
-  ram_disk_mi (str): Information about the RAM disk.
+  Attributes:
+    cluster: The specified cluster to be used for the test.
+    machine_type: The type of machine (e.g., GPU, TPU).
+    accelerator: The type of accelerator (e.g., GPU, TPU) to use.
+    slices: The number of slices to be used.
+    model_name: The name of the model being tested.
+    short_id (str): A short id to be used for naming the test run.
+    replicator_min: The time the replicator takes to backup checkpoints to bucket.
+    step: The current step of the training process.
+    local_checkpoint_step: The step interval for local checkpoints.
+    checkpoint_step: The step interval for the checkpoints store in the bucket.
+    ram_disk_mi: The size about the RAM disk in the CSI driver, in Mi.
   """
+
   cluster: XpkClusters
   machine_type: str
   accelerator: str
   slices: list[int]
   model_name: str
-  name_prefix: str
+  short_id: str
   replicator_min: int
   step: int
   local_checkpoint_step: int
@@ -102,7 +106,7 @@ with models.DAG(
           accelerator="v5p-128",
           slices=[2],
           model_name="llama2-7b",
-          name_prefix="max-sv",
+          short_id="max-sv",
           replicator_min=30,
           step=100,
           local_checkpoint_step=20,
@@ -113,14 +117,12 @@ with models.DAG(
   tests_to_run_seq = []
   # Individual test cases for Multi-tier Checkpointing and  Emergency Checkpointing
   for tc in [
-      Testcase(checkpointing_name="mtc", use_replicator=True),
-      Testcase(checkpointing_name="emc", use_replicator=False),
+      Testcase(name="mtc", use_replicator=True),
+      Testcase(name="emc", use_replicator=False),
   ]:
-    folder = f"maxtext_{tc.checkpointing_name}_orbax_save_local"
-    BASE_OUTPUT_DIRECTORY = posixpath.join(BASE_OUTPUT_DIRECTORY, folder)
-    with TaskGroup(
-        group_id=f"maxtext_{tc.checkpointing_name}_orbax_save_local"
-    ) as task:
+    folder = f"maxtext_{tc.name}_orbax_save_local"
+    run_dir_out = posixpath.join(BASE_OUTPUT_DIRECTORY, folder)
+    with TaskGroup(group_id=f"maxtext_{tc.name}_orbax_save_local") as task:
       for mode, image in DOCKER_IMAGES:
         for test_config in test_configs:
           cpc_conf = mtc.CheckpointConfiguration(
@@ -128,11 +130,10 @@ with models.DAG(
               region=zone_to_region(test_config.cluster.zone),
               cluster_name=test_config.cluster.name,
               gcs_bucket=gcs_bucket.MTC_AUTOMATION_BUCKET.removeprefix("gs://"),
-              ramdisk_memory=test_config.ram_disk_mi,
+              ram_disk_memory_in_mi=test_config.ram_disk_mi,
               machine_type=test_config.machine_type,
           )
           for slice_num in test_config.slices:
-
             # We conditionally set the trigger_rule on the first task.
             # If first task group failed the next one can execute.
             init_delete_cpc = mtc.initiate_cpc_deletion(cpc_conf)
@@ -141,12 +142,12 @@ with models.DAG(
             )(cpc_conf)
             apply_cpc = mtc.apply_cpc(cpc_conf)
             run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
-            run_name = f"{test_config.name_prefix}-{tc.checkpointing_name}-{slice_num}x-{test_config.accelerator}-{run_time}"
+            run_name = f"{test_config.short_id}-{tc.name}-{slice_num}x-{test_config.accelerator}-{run_time}"
             workload_command = (
                 "export TPU_PREMAPPED_BUFFER_SIZE=52428800000 && "
                 "export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES=52428800000 && "
                 "python3 -m MaxText.train MaxText/configs/base.yml remat_policy=full "
-                f"global_parameter_scale=1 base_output_directory={BASE_OUTPUT_DIRECTORY} "
+                f"global_parameter_scale=1 base_output_directory={run_dir_out} "
                 f"dataset_type=synthetic steps={test_config.step} per_device_batch_size=1 "
                 f"max_target_length=256 model_name={test_config.model_name} per_device_batch_size=2 "
                 "reuse_example_batch=1 enable_emergency_checkpoint=true "
@@ -160,7 +161,7 @@ with models.DAG(
                 num_slices=slice_num,
                 cluster=test_config.cluster,
                 time_out_in_min=60,
-                test_name=f"{test_config.name_prefix}-{tc.checkpointing_name}",
+                test_name=f"{test_config.short_id}-{tc.name}",
                 run_model_cmds=workload_command,
                 docker_image=image.value,
                 test_owner=test_owner.CAMILO_Q,
@@ -176,7 +177,7 @@ with models.DAG(
                 num_slices=slice_num,
                 cluster=test_config.cluster,
                 time_out_in_min=60,
-                test_name=f"{test_config.name_prefix}-cl",
+                test_name=f"{test_config.short_id}-cl",
                 run_model_cmds=cleanup_command,
                 docker_image=image.value,
                 test_owner=test_owner.CAMILO_Q,
@@ -190,7 +191,8 @@ with models.DAG(
             end_time = log.generate_timestamp()
             vali_step = test_config.step - 1
             vali_step_list = [
-                i for i in range(0, vali_step, test_config.local_checkpoint_step)
+                i
+                for i in range(0, vali_step, test_config.local_checkpoint_step)
             ]
             vali_step_list.append(vali_step)
 
