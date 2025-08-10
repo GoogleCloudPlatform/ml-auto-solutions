@@ -1,12 +1,12 @@
 """Utilities to get workloads logs and some utils."""
 
-from airflow.decorators import task
-from airflow.exceptions import AirflowFailException
-from google.cloud import logging as log_explorer
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from absl import logging
 
+from airflow.decorators import task
+from airflow.exceptions import AirflowFailException
+from google.cloud import logging as log_explorer
 
 @task
 def generate_timestamp():

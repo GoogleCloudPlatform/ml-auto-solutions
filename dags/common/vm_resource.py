@@ -257,7 +257,7 @@ class XpkClusters:
       zone=Zone.EUROPE_WEST4_B.value,
   )
   TPU_V5P_128_CLUSTER_ORBAX = XpkClusterConfig(
-      name="b428061876-jf-v5p-128-2",
+      name="orbax-ml-auto-solutions",
       device_version=TpuVersion.V5P,
       core_count=128,
       project=Project.CLOUD_TPU_MULTIPOD_DEV.value,

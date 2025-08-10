@@ -28,6 +28,10 @@ from dags.common.vm_resource import GpuVersion
 
 # b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
 MAIN_BRANCH = "v0.4.1"
+
+# b/437817546 - Orbax test need to use a branch to bypass the `validate_dependencies()` crash issue
+BRANCH_ABHINAV_MTC = "abhinav-mtc"
+
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
     "https://pantheon.corp.google.com/logs/query;"
@@ -51,12 +55,8 @@ def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
   cmds = [
       "set -xue",
       clone_branch,
-      f"cd {tmpdir}/xpk/src/xpk",
-      "sed -i '/validate_dependencies()/s/^/#/' main.py || true",
-      "cat main.py",
       "pip install ruamel.yaml docker",
   ]
-
   return cmds
 
 
@@ -118,18 +118,28 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
-        " --restart-on-user-code-failure"
     )
+
+    # The `restart-on-user-code-failure` flag was supported in v0.4.1,
+    # but has been removed in later versions.
+    if xpk_branch == MAIN_BRANCH:
+      workload_create_cmd += " --restart-on-user-code-failure"
+
     if ramdisk_directory:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
-    if mtc_enabled:
-      workload_create_cmd += " --mtc-enabled"
 
-    # For Orbax DAG
-    if ramdisk_directory and mtc_enabled:
-      workload_create_cmd = workload_create_cmd.replace(
-          " --restart-on-user-code-failure", ""
+    if mtc_enabled:
+      # b/437817546 - The flag is "mtc-enabled" (hyphen) for normal branches;
+      # on BRANCH_ABHINAV_MTC, it's "mtc_enabled" (underscore) instead.
+      flag = (
+        "mtc-enabled" if xpk_branch != BRANCH_ABHINAV_MTC else "mtc_enabled"
       )
+      workload_create_cmd += f" --{flag}"
+
+    # For Orbax DAG add flag '--max-restars=50' it is need it to test
+    # resiliency during Maxtext training with Emergency Checkpointer and
+    # Multi-tier Checkpointing.
+    if ramdisk_directory and mtc_enabled:
       workload_create_cmd += " --max-restarts=50"
 
     # If using a valid GPU and the XPK branch is set to "main", then branch is switch to "v0.4.1".
