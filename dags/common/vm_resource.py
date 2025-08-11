@@ -89,6 +89,7 @@ class Region(enum.Enum):
 
   # used for GKE
   US_CENTRAL1 = "us-central1"
+  ASIA_NORTHEAST1 = "asia-northeast1"
 
 
 class Zone(enum.Enum):
@@ -133,6 +134,8 @@ class Zone(enum.Enum):
   # reserved l4 in cloud-tpu-inference-test
   ASIA_EAST1_A = "asia-east1-a"
   ASIA_EAST1_C = "asia-east1-c"
+  # on-demand v6e in tpu-prod-env-one-vm
+  ASIA_NORTHEAST1_B = "asia-northeast1-b"
 
 
 class MachineVersion(enum.Enum):
