@@ -31,6 +31,7 @@ from dags.map_reproducibility.utils.common_utils import (
     get_internal_pre_workload_job_name,
     get_bq_writer_path,
     get_cluster,
+    get_credentials_command,
     calculate_maxtext_metrics,
     copy_bucket_cmds_maxtext,
     get_job_gcs_bucket_folder,
@@ -124,8 +125,7 @@ def execute_workload_commands(commands: list, cwd: str) -> Tuple[bool, list]:
 def sample_job_configure_project_and_cluster(cluster: str, cluster_region: str):
   set_project_command = (
       f"gcloud config set project {PROJECT}",
-      "gcloud container clusters get-credentials "
-      f"{cluster} --region {cluster_region}",
+      get_credentials_command(cluster, cluster_region),
   )
   return set_project_command
 
