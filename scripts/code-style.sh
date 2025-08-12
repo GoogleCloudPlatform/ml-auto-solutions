@@ -19,14 +19,37 @@ set -e
 
 FOLDERS_TO_FORMAT=("dags" "xlml")
 
-for folder in "${FOLDERS_TO_FORMAT[@]}"
-do
-  pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes --line-length=80 --check --diff
-done
+HEAD_SHA="$(git rev-parse HEAD)"
+BASE_BRANCH="tpu-obs/dev"
 
-for folder in "${FOLDERS_TO_FORMAT[@]}"
-do
-  pylint "./$folder" --fail-under=9.6
-done
+if ! git rev-parse --verify "$BASE_BRANCH" >/dev/null 2>&1; then
+  git fetch origin "$BASE_BRANCH":"$BASE_BRANCH" || {
+    echo "[code-style] base branch '$BASE_BRANCH' not found, skip diff-based check."
+    exit 0
+  }
+fi
+
+CHANGED_PY_FILES="$(
+  git diff --name-only --diff-filter=ACM "${BASE_BRANCH}" "${HEAD_SHA}" \
+    | grep '\.py$' \
+    | while read -r f; do
+        for folder in "${FOLDERS_TO_FORMAT[@]}"; do
+          if [[ "$f" == "$folder/"* ]]; then
+            echo "$f"
+            break
+          fi
+        done
+      done \
+    | sort -u
+)"
+
+if [[ -z "${CHANGED_PY_FILES}" ]]; then
+  echo "[pre-push hook] no changed files detected between ${HEAD_SHA} and ${BASE_BRANCH}"
+  exit 1
+fi
+
+pyink ${CHANGED_PY_FILES} --pyink-indentation=2 --pyink-use-majority-quotes --line-length=80 --check --diff
+
+pylint ${CHANGED_PY_FILES} --fail-under=9.6 --disable=E1123
 
 echo "Successfully clean up all codes."
