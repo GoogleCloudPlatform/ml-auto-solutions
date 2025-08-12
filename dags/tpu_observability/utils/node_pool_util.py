@@ -1,5 +1,4 @@
-"""Manages the lifecycle of a GKE node pool and verifies its status as an Airflow DAG.
-"""
+"""Utility functions for managing GKE node pools."""
 
 import dataclasses
 import enum
@@ -11,13 +10,13 @@ import time
 from typing import List
 
 from airflow.decorators import task
+from airflow.exceptions import AirflowFailException
 from google import auth
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import types
 from googleapiclient import discovery
 
 
-dataclass = dataclasses.dataclass
 logger = logging.getLogger(__name__)
 
 
@@ -75,8 +74,8 @@ def create(node_pool: Info, ignore_failure: bool = False) -> None:
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
   )
-  logger.debug("STDOUT message: %s", process.stdout)
-  logger.debug("STDERR message: %s", process.stderr)
+  logger.info("STDOUT message: %s", process.stdout)
+  logger.info("STDERR message: %s", process.stderr)
 
 
 @task
@@ -94,8 +93,8 @@ def delete(node_pool: Info) -> None:
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
   )
-  logger.debug("STDOUT message: %s", process.stdout)
-  logger.debug("STDERR message: %s", process.stderr)
+  logger.info("STDOUT message: %s", process.stdout)
+  logger.info("STDERR message: %s", process.stderr)
 
 
 def list_nodes(node_pool: Info) -> List[str]:
@@ -135,16 +134,17 @@ def list_nodes(node_pool: Info) -> List[str]:
 
   instance_group = nodepool.get("instanceGroupUrls", [])
   if not instance_group:
-    raise RuntimeError(
+    raise AirflowFailException(
         f"No instance groups found for node pool {node_pool.node_pool_name}."
     )
 
   node_names = []
 
   for url in instance_group:
-    # Extract the the name of an instance group from an URL like this:
+    # Extract the {instance_group_name} segments from an URL:
     # https://www.googleapis.com/compute/v1/projects/tpu-prod-env-one-vm/zones/asia-northeast1-b/instanceGroups/gke-yuna-xpk-v6e-2-yuna-xpk-v6e-2-np--b3a745c7-grp
-    # in which, `gke-yuna-xpk-v6e-2-yuna-xpk-v6e-2-np--b3a745c7-grp` is the of the instance group
+    # in which, `gke-yuna-xpk-v6e-2-yuna-xpk-v6e-2-np--b3a745c7-grp`
+    # is the of the instance group
     match = re.search(r"instanceGroupManagers/([\w-]+)", url)
     if not match:
       logging.warning("Could not parse instance group URL: %s", url)
@@ -195,7 +195,7 @@ def delete_one_random_node(node_pool: Info) -> None:
 
   nodes_list = list_nodes(node_pool)
   if not nodes_list:
-    raise ValueError(
+    raise AirflowFailException(
         f"No nodes found in node pool '{node_pool.node_pool_name}'. "
         "Cannot proceed with node deletion."
     )
@@ -216,8 +216,8 @@ def delete_one_random_node(node_pool: Info) -> None:
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
   )
-  logger.debug("STDOUT message: %s", process.stdout)
-  logger.debug("STDERR message: %s", process.stderr)
+  logger.info("STDOUT message: %s", process.stdout)
+  logger.info("STDERR message: %s", process.stderr)
 
 
 def _query_status_metric(node_pool: Info) -> Status:
@@ -244,18 +244,16 @@ def _query_status_metric(node_pool: Info) -> Status:
           f'resource.labels.cluster_name = "{node_pool.cluster_name}" '
           f'resource.labels.node_pool_name = "{node_pool.node_pool_name}"'
       ),
-      interval=types.TimeInterval(
-          {
-              "end_time": {"seconds": now},
-              # Metrics are sampled every 60s and stored in the GCP backend,
-              # but it may take up to 2 minutes for the data to become
-              # available on the client side.
-              # Therefore, a longer time interval is necessary.
-              # A 5-minute window is an arbitrary but sufficient choice to
-              # ensure we can retrieve the latest metric data.
-              "start_time": {"seconds": now - 300},
-          }
-      ),
+      interval=types.TimeInterval({
+          "end_time": {"seconds": now},
+          # Metrics are sampled every 60s and stored in the GCP backend,
+          # but it may take up to 2 minutes for the data to become
+          # available on the client side.
+          # Therefore, a longer time interval is necessary.
+          # A 5-minute window is an arbitrary but sufficient choice to
+          # ensure we can retrieve the latest metric data.
+          "start_time": {"seconds": now - 300},
+      }),
       view="FULL",
   )
 
