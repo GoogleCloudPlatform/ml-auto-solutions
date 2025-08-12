@@ -2,10 +2,11 @@ name: Formatter
 
 on:
   pull_request:
-    branches: [master]
     types: [opened, synchronize, edited]
   push:
     branches: [master]
+
+  workflow_dispatch: {}
 
 jobs:
   format_check:
