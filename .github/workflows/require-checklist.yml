@@ -1,7 +1,12 @@
 name: Require Checklist
 on:
   pull_request:
+    branch:
+      - tpu-obs/dev/**
     types: [opened, edited, synchronize]
+
+  workflow_dispatch: {}
+
 jobs:
   check_pr_body:
     runs-on: ubuntu-latest
