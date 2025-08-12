@@ -2,10 +2,13 @@ name: Formatter
 
 on:
   pull_request:
-    branches: [master]
+    branch:
+      - tpu-obs/dev/**
     types: [opened, synchronize, edited]
   push:
     branches: [master]
+
+  workflow_dispatch: {}
 
 jobs:
   format_check:
