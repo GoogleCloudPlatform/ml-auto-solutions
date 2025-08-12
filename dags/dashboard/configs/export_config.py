@@ -44,6 +44,32 @@ PG_TO_BQ = {
     "bytea": "BYTES",
 }
 
+COMMON_INT_COLS = [
+    "job_id",
+    "queued_by_job_id",
+    "pid",
+    "trigger_id",
+    "creating_job_id",
+    "map_index",
+    "try_number",
+    "log_template_id",
+]
+
+TABLE_CLEANUP_ACTIONS = {
+    "dag": [lambda df: clean_timestamp(df, "last_parsed_time")],
+    "dag_run": [lambda df: df.get("conf").apply(safe_json)],
+    "task_instance": [lambda df: df.get("executor_config").apply(safe_json)],
+    "task_fail": [lambda df: cast_int(df, "duration")],
+    "rendered_task_instance_fields": [
+        lambda df: df.get("rendered_fields").apply(safe_json)
+    ],
+    "log": [
+        lambda df: clean_timestamp(df, "dttm"),
+        lambda df: df.get("extra").apply(safe_json),
+    ],
+    "serialized_dag": [lambda df: df.get("data").apply(safe_json)],
+}
+
 
 def get_export_operator(source_table: str):
   return PythonOperator(
@@ -155,67 +181,33 @@ def export_table_schema_and_data(table_name, **kwargs):
 
   # Query entire table into a Pandas dataframe
   df = pg.get_pandas_df(f"SELECT * FROM {table_name}")
-  common_int_cols = [
-      "job_id",
-      "queued_by_job_id",
-      "pid",
-      "trigger_id",
-      "creating_job_id",
-      "map_index",
-      "try_number",
-      "log_template_id",
-  ]
 
   # Table-specific cleanup
-  if table_name == "dag":
-    clean_timestamp(df, "last_parsed_time")
-  if table_name == "dag_run":
-    df["conf"] = df.get("conf").apply(safe_json)
-  if table_name == "task_instance":
-    df["executor_config"] = df.get("executor_config").apply(safe_json)
-  if table_name == "task_fail":
-    cast_int(df, "duration")
-  if table_name == "rendered_task_instance_fields":
-    df["rendered_fields"] = df.get("rendered_fields").apply(safe_json)
-  if table_name == "log":
-    clean_timestamp(df, "dttm")
-    df["extra"] = df.get("extra").apply(safe_json)
-  if table_name == "serialized_dag":
-    df["data"] = df.get("data").apply(safe_json)
-  for col in common_int_cols:
-    cast_int(df, col)
+  [action(df) for action in TABLE_CLEANUP_ACTIONS[table_name]]
 
-  chunk_size = 100000  # Upload in chunks for large tables
-  num_chunks = 1
+  for col in COMMON_INT_COLS:
+    cast_int(df, col)
 
   if len(df) == 0:
     logging.warning(f"No data to export for {table_name}.")
     return
-  if len(df) <= chunk_size:
-    # Single chunk export
-    data = df.to_json(orient="records", lines=True, date_format="iso")
-    path = f"{GCS_PREFIX}/{table_name}_part_0.json"
+  chunk_size = 100000  # Upload in chunks for large tables
+  # Calculate the number of chunks for all cases.
+  # If the DataFrame is smaller than chunk_size, num_chunks will be 1.
+  num_chunks = (len(df) + chunk_size - 1) // chunk_size
+  # Loop through all chunks, regardless of the DataFrame's size.
+  for i in range(num_chunks):
+    chunk_df = df.iloc[i * chunk_size : (i + 1) * chunk_size]
+    chunk_data = chunk_df.to_json(
+        orient="records", lines=True, date_format="iso"
+    )
+    path = f"{GCS_PREFIX}/{table_name}_part_{i}.json"
     gcs.upload(
         bucket_name=gcs_bucket_param,
         object_name=path,
-        data=data,
+        data=chunk_data,
         mime_type="application/json",
     )
-  else:
-    # Multiple chunk export to handle large dataframes
-    num_chunks = (len(df) + chunk_size - 1) // chunk_size
-    for i in range(num_chunks):
-      chunk_df = df.iloc[i * chunk_size : (i + 1) * chunk_size]
-      chunk_data = chunk_df.to_json(
-          orient="records", lines=True, date_format="iso"
-      )
-      path = f"{GCS_PREFIX}/{table_name}_part_{i}.json"
-      gcs.upload(
-          bucket_name=gcs_bucket_param,
-          object_name=path,
-          data=chunk_data,
-          mime_type="application/json",
-      )
 
   logging.info(f"Exported {table_name} in {num_chunks} chunk(s)")
 

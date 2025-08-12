@@ -11,13 +11,13 @@ SCHEDULED_TIME = "0 22 * * *" if composer_env.is_prod_env() else None
 
 # List of Airflow metadata tables to export and load
 TABLES = [
-    "dag",
-    "dag_run",
-    "dag_tag",
-    "task_instance",
-    "task_fail",
-    "rendered_task_instance_fields",
-    "serialized_dag",
+    "dag",  # Stores the high-level metadata for each DAG.
+    "dag_run",  # Tracks each execution instance of a DAG.
+    "dag_tag",  # Contains the tags used for filtering and organizing DAGs.
+    "task_instance",  # Records the status and details for each task execution.
+    "task_fail",  # Logs information about failed task instances.
+    "rendered_task_instance_fields",  # Holds the rendered parameters and templates for each task instance.
+    "serialized_dag",  # Stores the serialized DAG files for quick parsing and loading.
 ]
 
 # Load default config values from Airflow Variables
