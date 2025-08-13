@@ -2,6 +2,7 @@
 
 import dataclasses
 import enum
+import json
 import logging
 import random
 import re
@@ -11,10 +12,8 @@ from typing import List
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
-from google import auth
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import types
-from googleapiclient import discovery
 
 
 logger = logging.getLogger(__name__)
@@ -58,16 +57,16 @@ class Info:
 def create(node_pool: Info, ignore_failure: bool = False) -> None:
   """Creates a GKE node pool by the given node pool information."""
 
-  command = f"""
-                gcloud container node-pools create {node_pool.node_pool_name} \\
-                --project={node_pool.project_id} \\
-                --cluster={node_pool.cluster_name} \\
-                --location={node_pool.location} \\
-                --node-locations {node_pool.node_locations} \\
-                --num-nodes={node_pool.num_nodes} \\
-                --machine-type={node_pool.machine_type} \\
-                --tpu-topology={node_pool.tpu_topology}
-            """
+  command = (
+      f"gcloud container node-pools create {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      f"--node-locations {node_pool.node_locations} "
+      f"--num-nodes={node_pool.num_nodes} "
+      f"--machine-type={node_pool.machine_type} "
+      f"--tpu-topology={node_pool.tpu_topology}"
+  )
   if ignore_failure:
     command += " 2>&1 || true"
 
@@ -82,13 +81,13 @@ def create(node_pool: Info, ignore_failure: bool = False) -> None:
 def delete(node_pool: Info) -> None:
   """Deletes the GKE node pool using gcloud command."""
 
-  command = f"""
-                gcloud container node-pools delete {node_pool.node_pool_name} \\
-                --project {node_pool.project_id} \\
-                --cluster {node_pool.cluster_name} \\
-                --location {node_pool.location} \\
-                --quiet
-            """
+  command = (
+      f"gcloud container node-pools delete {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      "--quiet"
+  )
 
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
@@ -104,43 +103,39 @@ def list_nodes(node_pool: Info) -> List[str]:
   to extract VM instance names.
 
   Args:
-      node_pool: An instance of the Info class that encapsulates
-                   the configuration and metadata of a GKE node pool.
+      node_pool: An instance of the Info class that encapsulates the
+        configuration and metadata of a GKE node pool.
   Returns:
       A list of node names within the specified GKE node pool.
   Raises:
       RuntimeError: If no instance groups or zone are found for the node pool.
   """
-  credentials, _ = auth.default()
-  container_client = discovery.build(
-      "container", "v1", credentials=credentials, cache_discovery=False
-  )
-  compute_client = discovery.build(
-      "compute", "v1", credentials=credentials, cache_discovery=False
-  )
-
-  nodepool_path = (
-      f"projects/{node_pool.project_id}/locations/{node_pool.location}"
-      f"/clusters/{node_pool.cluster_name}/nodePools/{node_pool.node_pool_name}"
-  )
-  nodepool = (
-      container_client.projects()
-      .locations()
-      .clusters()
-      .nodePools()
-      .get(name=nodepool_path)
-      .execute()
+  instance_group_urls_key = "instanceGroupUrls"
+  process = subprocess.run(
+      (
+          f"gcloud container node-pools describe {node_pool.node_pool_name} "
+          f"--project={node_pool.project_id} "
+          f"--cluster={node_pool.cluster_name} "
+          f"--location={node_pool.location} "
+          f"--format='json({instance_group_urls_key})'"
+      ),
+      shell=True,
+      check=True,
+      capture_output=True,
+      text=True,
   )
 
-  instance_group = nodepool.get("instanceGroupUrls", [])
-  if not instance_group:
+  instance_group_urls_val = json.loads(process.stdout).get(
+      instance_group_urls_key, []
+  )
+  if not instance_group_urls_val:
     raise AirflowFailException(
         f"No instance groups found for node pool {node_pool.node_pool_name}."
     )
 
   node_names = []
 
-  for url in instance_group:
+  for url in instance_group_urls_val:
     # Extract the {instance_group_name} segments from an URL:
     # https://www.googleapis.com/compute/v1/projects/tpu-prod-env-one-vm/zones/asia-northeast1-b/instanceGroups/gke-yuna-xpk-v6e-2-yuna-xpk-v6e-2-np--b3a745c7-grp
     # in which, `gke-yuna-xpk-v6e-2-yuna-xpk-v6e-2-np--b3a745c7-grp`
@@ -150,20 +145,24 @@ def list_nodes(node_pool: Info) -> List[str]:
       logging.warning("Could not parse instance group URL: %s", url)
       continue
 
-    ig_name = match.group(1)
+    instance_group_name = match.group(1)
 
-    instances = (
-        compute_client.instanceGroups()
-        .listInstances(
-            project=node_pool.project_id,
-            zone=node_pool.node_locations,
-            instanceGroup=ig_name,
-            body={"instanceState": "ALL"},
-        )
-        .execute()
+    process = subprocess.run(
+        (
+            "gcloud compute instance-groups list-instances"
+            f" {instance_group_name} "
+            f"--project={node_pool.project_id} "
+            f"--zone={node_pool.node_locations} "
+            "--format='json(instance)'"
+        ),
+        shell=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
+    instances = json.loads(process.stdout)
 
-    for instance_item in instances.get("items", []):
+    for instance_item in instances:
       instance_url = instance_item["instance"]
       # Extract the {node_name} segments from an URL like this:
       # https://www.googleapis.com/compute/v1/projects/<project>/zones/<zone>/instances/<node_name>
@@ -187,7 +186,7 @@ def delete_one_random_node(node_pool: Info) -> None:
 
   Args:
       node_pool: An instance of the Info class that encapsulates
-                   the configuration and metadata of a GKE node pool.
+        the configuration and metadata of a GKE node pool.
 
   Raises:
       ValueError: If no nodes are found in the specified node pool.
@@ -206,12 +205,12 @@ def delete_one_random_node(node_pool: Info) -> None:
       node_to_delete,
   )
 
-  command = f"""
-                gcloud compute instances delete {node_to_delete} \\
-                    --project={node_pool.project_id} \\
-                    --zone={node_pool.node_locations} \\
-                    --quiet
-            """
+  command = (
+      f"gcloud compute instances delete {node_to_delete} "
+      f"--project={node_pool.project_id} "
+      f"--zone={node_pool.node_locations} "
+      "--quiet"
+  )
 
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
@@ -294,7 +293,7 @@ def wait_for_status(
 
   Args:
       node_pool: An instance of the Info class that encapsulates
-                   the configuration and metadata of a GKE node pool.
+        the configuration and metadata of a GKE node pool.
       status: The target status to wait for, represented as a `Status` enum.
       context: The Airflow context dictionary, which includes task metadata.
   Returns:

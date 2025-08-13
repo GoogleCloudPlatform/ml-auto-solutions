@@ -1,4 +1,4 @@
-"""A Dag to validate the status of a GKE node pool through its lifecycle."""
+"""A DAG to validate the status of a GKE node pool through its lifecycle."""
 
 import copy
 import datetime
@@ -6,9 +6,7 @@ import datetime
 from airflow import models
 from airflow.utils.trigger_rule import TriggerRule
 
-from dags.common.vm_resource import Project
-from dags.common.vm_resource import Region
-from dags.common.vm_resource import Zone
+from dags.common.vm_resource import Project, Region, Zone
 from dags.map_reproducibility.utils import constants
 from dags.tpu_observability.utils import node_pool_util as node_pool
 
@@ -24,18 +22,22 @@ with models.DAG(
         " expected according to its lifecycle."
     ),
     doc_md="""
-        ### GKE Node Pool Status Validation DAG
+      # GKE Node Pool Status Validation DAG
 
-        This DAG automates the process of going through the lifecycle of a GKE
-        node pool and verifies whether the node pool status is reported correctly.
-        This test requires an existing cluster. It will create a node-pool under
-        the specified cluster, and clean it up after the tests.
+      ### Description
+      This DAG automates the process of going through the lifecycle of a GKE
+      node pool and verifies whether the node pool status is reported correctly.
 
-        It creates a node pool, waits for it from provisioning to be running,
-        deletes a random node to trigger reconciliation, waits for it to become
-        running again, and finally cleans up.
-        It also tests the error state by creating a node pool with invalid
-        parameters and verifies that the status changes to error.
+      ### Prerequisites
+      This test requires an existing cluster.
+
+      ### Procedures
+      It creates a node pool, waits for it from provisioning to be running,
+      deletes a random node to trigger reconciliation, waits for it to become
+      running again, and finally cleans up.
+      It also tests the error state by creating a node pool with invalid
+      parameters and verifies that the status changes to error.
+      All node-pool will be cleaned up clean it up after the tests.
     """,
 ) as dag:
   node_pool_info = node_pool.Info(
