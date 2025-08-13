@@ -9,16 +9,6 @@ from dags.dashboard.configs import export_config
 # Scheduled time
 SCHEDULED_TIME = "0 22 * * *" if composer_env.is_prod_env() else None
 
-# List of Airflow metadata tables to export and load
-TABLES = [
-    "dag",  # Stores the high-level metadata for each DAG.
-    "dag_run",  # Tracks each execution instance of a DAG.
-    "dag_tag",  # Contains the tags used for filtering and organizing DAGs.
-    "task_instance",  # Records the status and details for each task execution.
-    "task_fail",  # Logs information about failed task instances.
-    "rendered_task_instance_fields",  # Holds the rendered parameters and templates for each task instance.
-    "serialized_dag",  # Stores the serialized DAG files for quick parsing and loading.
-]
 
 # Load default config values from Airflow Variables
 DEFAULT_GCP_PROJECT_ID = Variable.get(
@@ -64,12 +54,12 @@ with DAG(
     default_args={"retries": 0},
     params=params,
 ) as dag:
-  for source_table in TABLES:
+  for source_table in export_config.TABLES:
     # Define export task to run export_table Python function
     export_task = export_config.get_export_operator(source_table)
     destination_table = (
         "{{ params['target_project_id'] }}.{{ params['target_bigquery_dataset'] }}.%s"
-        % source_table
+        % source_table.table_name
     )
     load_task = export_config.get_gcs_to_bq_operator(
         source_table, "{{ params['target_gcs_bucket'] }}", destination_table

@@ -1,5 +1,7 @@
 import json
 import logging
+from typing import Callable
+from dataclasses import dataclass
 
 import pandas as pd
 from airflow.operators.python import PythonOperator
@@ -55,40 +57,108 @@ COMMON_INT_COLS = [
     "log_template_id",
 ]
 
-TABLE_CLEANUP_ACTIONS = {
-    "dag": [lambda df: clean_timestamp(df, "last_parsed_time")],
-    "dag_run": [lambda df: df.get("conf").apply(safe_json)],
-    "task_instance": [lambda df: df.get("executor_config").apply(safe_json)],
-    "task_fail": [lambda df: cast_int(df, "duration")],
-    "rendered_task_instance_fields": [
-        lambda df: df.get("rendered_fields").apply(safe_json)
-    ],
-    "log": [
-        lambda df: clean_timestamp(df, "dttm"),
-        lambda df: df.get("extra").apply(safe_json),
-    ],
-    "serialized_dag": [lambda df: df.get("data").apply(safe_json)],
-}
+
+@dataclass
+class AirflowTable:
+  """A class to set up Airflow table
+
+  Attributes:
+    table_name (str): The name of the source table to query for data.
+    time_field_for_filtering (str): The name of the column containing
+        the timestamp or date used for filtering.
+    time_frame (str): A string specifying the time duration for filtering,
+        e.g., '1 year', '30 days'.
+    post_actions (list[Callable[[pd.DataFrame], any]]): A list of functions
+        to be executed sequentially on the pandas DataFrame.
+  """
+
+  table_name: str
+  time_field_for_filtering: str
+  time_frame: str
+  post_actions: list[Callable[[pd.DataFrame], any]]
 
 
-def get_export_operator(source_table: str):
+# List of Airflow metadata tables to export and load
+TABLES: list[AirflowTable] = [
+    # Stores the high-level metadata for each DAG.
+    AirflowTable(
+        table_name="dag",
+        time_field_for_filtering="",
+        time_frame="",
+        post_actions=[lambda df: clean_timestamp(df, "last_parsed_time")],
+    ),
+    # Tracks each execution instance of a DAG.
+    AirflowTable(
+        table_name="dag_run",
+        time_field_for_filtering="updated_at",
+        time_frame="1 year",
+        post_actions=[
+            lambda df: dataframe_inplace_apply(df, "conf", safe_json)
+        ],
+    ),
+    # Contains the tags used for filtering and organizing DAGs.
+    AirflowTable(
+        table_name="dag_tag",
+        time_field_for_filtering="",
+        time_frame="",
+        post_actions=[],
+    ),
+    # Records the status and details for each task execution.
+    AirflowTable(
+        table_name="task_instance",
+        time_field_for_filtering="updated_at",
+        time_frame="1 year",
+        post_actions=[
+            lambda df: dataframe_inplace_apply(df, "executor_config", safe_json)
+        ],
+    ),
+    # Logs information about failed task instances.
+    AirflowTable(
+        table_name="task_fail",
+        time_field_for_filtering="start_date",
+        time_frame="1 year",
+        post_actions=[lambda df: cast_int(df, "duration")],
+    ),
+    # Holds the rendered parameters and templates for each task instance.
+    AirflowTable(
+        table_name="rendered_task_instance_fields",
+        time_field_for_filtering="",
+        time_frame="",
+        post_actions=[
+            lambda df: dataframe_inplace_apply(df, "rendered_fields", safe_json)
+        ],
+    ),
+    # Stores the serialized DAG files for quick parsing and loading.
+    AirflowTable(
+        table_name="serialized_dag",
+        time_field_for_filtering="",
+        time_frame="",
+        post_actions=[
+            lambda df: dataframe_inplace_apply(df, "data", safe_json)
+        ],
+    ),
+]
+
+
+def get_export_operator(source_table: AirflowTable):
   return PythonOperator(
-      task_id=f"export_{source_table}",
+      task_id=f"export_{source_table.table_name}",
       python_callable=export_table_schema_and_data,
-      op_kwargs={"table_name": source_table},
+      op_kwargs={"table": source_table},
   )
 
 
 def get_gcs_to_bq_operator(
-    source_table: str, source_bucket: str, destination_table: str
+    source_table: AirflowTable, source_bucket: str, destination_table: str
 ):
   # Loads files from Google Cloud Storage into BigQuery
+  table_name = source_table.table_name
   return GCSToBigQueryOperator(
-      task_id=f"load_{source_table}_to_bq",
+      task_id=f"load_{table_name}_to_bq",
       bucket=source_bucket,
-      source_objects=[f"{GCS_PREFIX}/{source_table}_part_*.json"],
+      source_objects=[f"{GCS_PREFIX}/{table_name}_part_*.json"],
       destination_project_dataset_table=destination_table,
-      schema_object=f"{GCS_SCHEMA_PREFIX}/{source_table}_schema.json",
+      schema_object=f"{GCS_SCHEMA_PREFIX}/{table_name}_schema.json",
       source_format="NEWLINE_DELIMITED_JSON",
       write_disposition="WRITE_TRUNCATE",
       autodetect=False,
@@ -120,7 +190,7 @@ def fetch_schema(table):
 
 
 def cast_int(df, col):
-  """
+  """Please look into the errors[] collection for more details
   Cast a column to nullable integer (Int64) after coercing errors.
   """
   if col in df:
@@ -138,6 +208,10 @@ def clean_timestamp(df, col):
     )
 
 
+def dataframe_inplace_apply(df: pd.DataFrame, col: str, apply_func: Callable):
+  df[col] = df.get(col).apply(apply_func)
+
+
 def safe_json(obj):
   """
   Safely convert Python objects to JSON strings, return None if error.
@@ -150,7 +224,7 @@ def safe_json(obj):
     logging.error(f"Exception: {e}")
 
 
-def export_table_schema_and_data(table_name, **kwargs):
+def export_table_schema_and_data(table: AirflowTable, **kwargs):
   """
   Export data from Postgres to GCS as newline-delimited JSON.
   Cleans old exported files before upload to prevent stale data.
@@ -159,6 +233,7 @@ def export_table_schema_and_data(table_name, **kwargs):
   gcs_bucket_param = kwargs["dag_run"].conf.get("target_gcs_bucket") or kwargs[
       "params"
   ].get("target_gcs_bucket")
+  table_name = table.table_name
   logging.info(f"export table {table_name}.")
   pg = PostgresHook(postgres_conn_id=POSTGRES_CONN_ID)
   gcs = GCSHook(gcp_conn_id=GCP_CONN_ID)
@@ -180,10 +255,16 @@ def export_table_schema_and_data(table_name, **kwargs):
     )
 
   # Query entire table into a Pandas dataframe
-  df = pg.get_pandas_df(f"SELECT * FROM {table_name}")
+  select_clause = f"SELECT * FROM {table_name}"
+  if table.time_field_for_filtering and table.time_frame:
+    select_clause += f" WHERE {table.time_field_for_filtering} >= NOW() - INTERVAL '{table.time_frame}'"
 
-  # Table-specific cleanup
-  [action(df) for action in TABLE_CLEANUP_ACTIONS[table_name]]
+  logging.info(f"sql = '{select_clause}'")
+  df = pg.get_pandas_df(select_clause)
+
+  # Table-specific post actions
+  for action in table.post_actions:
+    action(df)
 
   for col in COMMON_INT_COLS:
     cast_int(df, col)
