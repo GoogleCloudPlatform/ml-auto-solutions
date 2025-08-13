@@ -143,37 +143,3 @@ with models.DAG(
       )
 
       maxdiffusion_sdxl_test >> maxdiffusion_sdxl_nan_test
-
-  for accelerator, slices in maxdiffusion_test_configs_sdv2.items():
-    cluster = config.clusters[accelerator]
-    prev_task = None  # Initialize prev_task to None
-    for slice_num in slices:
-      maxdiffusion_sdv2_test = config.get_gke_config(
-          num_slices=slice_num,
-          cluster=cluster,
-          time_out_in_min=60,
-          run_model_cmds=(
-              f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
-              f"pip install . && python src/maxdiffusion/train.py src/maxdiffusion/configs/base_2_base.yml "
-              f"run_name=maxdiffusion-v2-jax-stable-stack "
-              f"jit_initializers=False "
-              f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ "
-              f"activations_dtype=float32 "
-              f"weights_dtype=float32 "
-              f"per_device_batch_size=2 "
-              f"precision=DEFAULT "
-              f"dataset_save_location=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_xl "
-              f"attention=flash "
-              f"output_dir={sdv2_base_output_dir}",
-          ),
-          test_name=f"maxd-sdv2-{accelerator}-{slice_num}x",
-          docker_image=DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK.value,
-          test_owner=test_owner.PARAM_B,
-      ).run_with_quarantine(quarantine_task_group)
-
-      # Set dependency if there's a previous task
-      if prev_task:
-        prev_task >> maxdiffusion_sdv2_test
-
-      # Update prev_task for the next iteration
-      prev_task = maxdiffusion_sdv2_test
