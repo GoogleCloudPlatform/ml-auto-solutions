@@ -39,7 +39,6 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_devx",
-        "on_failure_alert",
     ],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
