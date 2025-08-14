@@ -13,17 +13,19 @@ from airflow.models import DagRun, TaskInstance
 from airflow.plugins_manager import AirflowPlugin
 from github import Github, Auth
 from github.Issue import Issue
-from google.cloud import secretmanager
+from google.cloud import secretmanager, storage
 
 from urllib import parse
 
-PROJECT_ID = "cienet-cmcs"
-REPO_NAME = "CIeNET-International/ml-auto-solutions-2"
+PROJECT_ID = "cloud-ml-auto-solutions"
+REPO_NAME = "GoogleCloudPlatform/ml-auto-solutions"
 SECRET_MANAGER = (
     "airflow-connections-"
     + os.environ.get("COMPOSER_ENVIRONMENT", default="ml-automation-solutions")
     + "-github_app"
 )
+ALLOW_LIST_PATH = "plugins/allow_list.txt"
+BLOCK_LIST_PATH = "plugins/block_list.txt"
 
 
 def get_github_client() -> Github:
@@ -130,6 +132,15 @@ def create_comment(issue, body):
   issue.create_comment(body=body)
 
 
+def read_txt_from_gcs(bucket_name: str, blob_name: str) -> set[str]:
+  storage_client = storage.Client()
+  bucket = storage_client.bucket(bucket_name)
+  blob = bucket.blob(blob_name)
+  content = blob.download_as_text(encoding="utf-8")
+  lines = [line.strip() for line in content.splitlines() if line.strip()]
+  return set(lines)
+
+
 """
 Airflow Listener class to handle DAG run failures.
 
@@ -166,7 +177,13 @@ class DagRunListener:
     logging.info(f"[{self.log_prefix}] msg: {msg}")
 
     try:
-      # Only DAGs with the 'on_failure_alert' tag will be processed.
+      if not DagRunListener.is_in_allow_list(
+          dag_run.dag_id
+      ) or DagRunListener.is_in_block_list(dag_run.dag_id):
+        logging.info(
+            f"[{self.log_prefix}] DAG {dag_run.dag_id} didn't enable plugin. Return"
+        )
+        return
 
       failed_task_instances = [
           ti for ti in dag_run.task_instances if ti.state == "failed"
@@ -283,6 +300,21 @@ class DagRunListener:
     response = requests.get(request_endpoint, headers=headers)
     configs = response.json()
     return configs["config"]["airflowUri"]
+
+  @staticmethod
+  def is_in_allow_list(dag_id: str):
+    logging.info(f"[DagRunListener] BUCKET {os.environ.get('GCS_BUCKET')}")
+    allow_list = read_txt_from_gcs(
+        os.environ.get("GCS_BUCKET"), ALLOW_LIST_PATH
+    )
+    return True if dag_id in allow_list else False
+
+  @staticmethod
+  def is_in_block_list(dag_id: str):
+    block_list = read_txt_from_gcs(
+        os.environ.get("GCS_BUCKET"), BLOCK_LIST_PATH
+    )
+    return True if dag_id in block_list else False
 
 
 class ListenerPlugins(AirflowPlugin):
