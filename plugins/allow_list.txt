@@ -1,1 +1,6 @@
 on_failure_actions_trigger
+maxtext_sft_trainer
+maxtext_configs_aot
+maxtext_convergence
+maxtext_end_to_end
+maxtext_profiling
