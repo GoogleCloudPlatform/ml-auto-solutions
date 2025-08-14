@@ -48,7 +48,7 @@ with DAG(
   load them into a BigQuery dataset.
   """,
     start_date=datetime(2025, 7, 1),
-    schedule_interval=None,
+    schedule_interval=SCHEDULED_TIME,
     catchup=False,
     tags=["airflow", "bigquery", "gcs", "metadata", "export"],
     default_args={"retries": 0},
