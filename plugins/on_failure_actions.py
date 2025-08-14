@@ -17,8 +17,8 @@ from google.cloud import secretmanager
 
 from urllib import parse
 
-PROJECT_ID = "cloud-ml-auto-solutions"
-REPO_NAME = "GoogleCloudPlatform/ml-auto-solutions"
+PROJECT_ID = "cienet-cmcs"
+REPO_NAME = "CIeNET-International/ml-auto-solutions-2"
 SECRET_MANAGER = (
     "airflow-connections-"
     + os.environ.get("COMPOSER_ENVIRONMENT", default="ml-automation-solutions")
@@ -167,14 +167,6 @@ class DagRunListener:
 
     try:
       # Only DAGs with the 'on_failure_alert' tag will be processed.
-      if "on_failure_alert" not in dag_run.dag.tags:
-        logging.info(
-            f"[{self.log_prefix}] DAG {dag_run.dag_id} isn't enabled 'on_failure_alert' by tags. Return"
-        )
-        return
-      logging.info(
-          f"[{self.log_prefix}] DAG run {dag_run.dag_id} is enabled 'on_failure_alert'"
-      )
 
       failed_task_instances = [
           ti for ti in dag_run.task_instances if ti.state == "failed"
