@@ -83,7 +83,7 @@ with models.DAG(
         test_name=f"maxtext-aot-v4-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v4"],
         docker_image=image.value,
-        test_owner=test_owner.RAYMOND_Z,
+        test_owner=test_owner.NUOJIN_C,
     ).run_with_quarantine(quarantine_task_group)
 
     maxtext_v5e_configs_test = gke_config.get_gke_config(
@@ -91,7 +91,7 @@ with models.DAG(
         test_name=f"maxtext-aot-v5e-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v5e"],
         docker_image=image.value,
-        test_owner=test_owner.RAYMOND_Z,
+        test_owner=test_owner.NUOJIN_C,
     ).run_with_quarantine(quarantine_task_group)
 
     maxtext_v5p_configs_test = gke_config.get_gke_config(
@@ -99,7 +99,7 @@ with models.DAG(
         test_name=f"maxtext-aot-v5p-{mode.value}",
         run_model_cmds=run_model_cmds_dict["v5p"],
         docker_image=image.value,
-        test_owner=test_owner.RAYMOND_Z,
+        test_owner=test_owner.NUOJIN_C,
     ).run_with_quarantine(quarantine_task_group)
 
     (
@@ -115,7 +115,7 @@ with models.DAG(
       test_name=f"maxtext-aot-a3-stable",
       run_model_cmds=(cmd,),
       num_slices=1,
-      cluster=XpkClusters.GPU_A3_CLUSTER,
+      cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
       docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-      test_owner=test_owner.JON_B,
+      test_owner=test_owner.NUOJIN_C,
   ).run_with_quarantine(quarantine_task_group)

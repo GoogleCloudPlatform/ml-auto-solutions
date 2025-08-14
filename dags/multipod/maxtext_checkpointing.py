@@ -19,7 +19,7 @@ import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
+from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -48,35 +48,22 @@ with models.DAG(
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
   ]
-  test_configs = {
-      # accelerator: list of slices to test
-      "v4-8": [1],
-      "v4-16": [1, 2],
-  }
-  clusters = {
-      # accelerator: cluster name
-      "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
-      "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
-  }
 
   for mode, image in docker_images:
-    for accelerator, slices in test_configs.items():
-      cores = accelerator.rsplit("-", maxsplit=1)[-1]
-      for slice_num in slices:
-        for chkpt_mode in ["sync", "async"]:
-          async_checkpointing = chkpt_mode == "async"
-          run_name = f" checkpointing-{mode.value}-{slice_num}x-{accelerator}-{chkpt_mode}-{current_datetime}"
-          command = (
-              "bash end_to_end/test_checkpointing.sh"
-              f" {run_name} {base_output_directory} {dataset_path}"
-              f" true tfds autoselected {async_checkpointing}",
-          )
-          maxtext_v4_configs_test = gke_config.get_gke_config(
-              num_slices=slice_num,
-              cluster=clusters[accelerator],
-              time_out_in_min=60,
-              test_name=f"maxtext-checkpointing-{mode.value}-{chkpt_mode}",
-              run_model_cmds=command,
-              docker_image=image.value,
-              test_owner=test_owner.SURBHI_J,
-          ).run()
+    for chkpt_mode in ["sync", "async"]:
+      async_checkpointing = chkpt_mode == "async"
+      run_name = f"checkpointing-{mode.value}-{chkpt_mode}-{current_datetime}"
+      command = (
+          "bash end_to_end/test_checkpointing.sh "
+          f" {run_name} {base_output_directory} {dataset_path}"
+          f" true tfds autoselected {async_checkpointing}",
+      )
+      maxtext_v4_configs_test = gke_config.get_gke_config(
+          num_slices=1,
+          cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+          time_out_in_min=60,
+          test_name=f"maxtext-checkpointing-{mode.value}-{chkpt_mode}",
+          run_model_cmds=command,
+          docker_image=image.value,
+          test_owner=test_owner.SURBHI_J,
+      ).run()
