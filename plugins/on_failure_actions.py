@@ -177,6 +177,7 @@ class DagRunListener:
     logging.info(f"[{self.log_prefix}] msg: {msg}")
 
     try:
+      # A DAG would trigger the following logic if the DAG ID is in allow list and not in block list.
       if not DagRunListener.is_in_allow_list(
           dag_run.dag_id
       ) or DagRunListener.is_in_block_list(dag_run.dag_id):
