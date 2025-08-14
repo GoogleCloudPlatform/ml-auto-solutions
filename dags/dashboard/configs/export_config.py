@@ -91,7 +91,7 @@ TABLES: list[AirflowTable] = [
     AirflowTable(
         table_name="dag_run",
         time_field_for_filtering="updated_at",
-        time_frame="1 year",
+        time_frame="30 days",
         post_actions=[
             lambda df: dataframe_inplace_apply(df, "conf", safe_json)
         ],
@@ -107,7 +107,7 @@ TABLES: list[AirflowTable] = [
     AirflowTable(
         table_name="task_instance",
         time_field_for_filtering="updated_at",
-        time_frame="1 year",
+        time_frame="30 days",
         post_actions=[
             lambda df: dataframe_inplace_apply(df, "executor_config", safe_json)
         ],
@@ -116,7 +116,7 @@ TABLES: list[AirflowTable] = [
     AirflowTable(
         table_name="task_fail",
         time_field_for_filtering="start_date",
-        time_frame="1 year",
+        time_frame="30 days",
         post_actions=[lambda df: cast_int(df, "duration")],
     ),
     # Holds the rendered parameters and templates for each task instance.
