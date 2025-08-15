@@ -4,18 +4,29 @@ The "on_failure_actions" plugin listens to the DAGs run results and takes action
 To leverage the "on_failure_actions" plugin, ensure the following conditions are met:
 
 ### 1.  **DAG Opt-In:**
-Each DAG intended to utilize this feature **must include the `"on_failure_alert"` tag** within its DAG definition. DAGs without this specific tag will be ignored by the plugin's failure-handling logic, and no GitHub issue will be filed for their failures.
+#### Plugin Activation Instructions
 
-    with DAG(
-        dag_id='my_critical_dag',
-        # ... other DAG parameters ...
-        tags = [
-                   'data_ingestion',
-                   'critical',
-                   'on_failure_alert' # <--- Add this tag
-               ],
-    ) as dag:
-        # ... tasks ...
+By default, this plugin is **disabled** for all DAGs.
+
+##### Enabling the Plugin for a DAG
+
+If you want your DAG to **trigger this plugin**, add your DAG ID as a new line in **plugins/allow_list.txt**.
+
+##### Disabling the Plugin for a DAG
+
+To prevent your DAG from ever triggering this plugin, add your DAG ID as a new line in **plugins/block_list.txt**. This list is intended to avoid repeated issue postings for DAGs that are not currently resolvable.
+
+> **Note:** Each DAG ID should be placed on its own line, without extra spaces or quotes.
+
+> **Note:** The priority of block list is higher than the one of allow list.
+
+##### Example
+
+```
+<DAG_ID 1>
+<DAG_ID 2>
+...
+```
 
 ### 2.  **GitHub Owner Mapping:**
 For accurate issue assignment, ensure that the `owner` property defined for tests within your DAGs corresponds directly to valid **GitHub usernames**. The plugin will collect unique test owners from the failed DAG and attempt to assign the GitHub issue to these users.
