@@ -235,8 +235,8 @@ def export_table_schema_and_data(table: AirflowTable, **kwargs):
   ].get("target_gcs_bucket")
   if not gcs_bucket_param:
     raise AirflowException(
-      f"Missing required 'target_gcs_bucket' parameter for export_table. "
-      f"Please ensure a value is provided via Airflow Variables or manual trigger."
+        f"Missing required 'target_gcs_bucket' parameter for export_table. "
+        f"Please ensure a value is provided via Airflow Variables or manual trigger."
     )
 
   table_name = table.table_name
