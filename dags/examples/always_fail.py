@@ -35,7 +35,6 @@ with models.DAG(
     schedule=None,
     tags=[
         "test_dag",
-        "on_failure_alert",  # Add this to enable DagRunListener
     ],
     catchup=False,
     default_args={
