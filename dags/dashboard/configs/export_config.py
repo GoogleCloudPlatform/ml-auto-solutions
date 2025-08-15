@@ -233,6 +233,12 @@ def export_table_schema_and_data(table: AirflowTable, **kwargs):
   gcs_bucket_param = kwargs["dag_run"].conf.get("target_gcs_bucket") or kwargs[
       "params"
   ].get("target_gcs_bucket")
+  if not gcs_bucket_param:
+    raise AirflowException(
+      f"Missing required 'target_gcs_bucket' parameter for export_table. "
+      f"Please ensure a value is provided via Airflow Variables or manual trigger."
+    )
+
   table_name = table.table_name
   logging.info(f"export table {table_name}.")
   pg = PostgresHook(postgres_conn_id=POSTGRES_CONN_ID)
@@ -247,12 +253,6 @@ def export_table_schema_and_data(table: AirflowTable, **kwargs):
   logging.info(
       f"Cleaned up {len(existing_objects)} existing JSON files for {table_name}."
   )
-
-  if not gcs_bucket_param:
-    raise AirflowException(
-        f"Missing required 'target_gcs_bucket' parameter for export_table. "
-        f"Please ensure a value is provided via Airflow Variables or manual trigger."
-    )
 
   # Query entire table into a Pandas dataframe
   select_clause = f"SELECT * FROM {table_name}"
