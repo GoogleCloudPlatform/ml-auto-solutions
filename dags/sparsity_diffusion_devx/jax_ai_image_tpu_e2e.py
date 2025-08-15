@@ -32,7 +32,7 @@ BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
 
 
 with models.DAG(
-    dag_id="jax_stable_stack_tpu_e2e",
+    dag_id="jax_ai_image_tpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
         "sparsity_diffusion_devx",
@@ -90,13 +90,13 @@ with models.DAG(
                 "dataset_type=synthetic async_checkpointing=false "
                 f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-stable-stack/automated/{current_datetime}",
             ),
-            test_name=f"maxtext-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
+            test_name=f"maxtext-jax-stable-stack-{mode.value}",
             docker_image=image.value,
             test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)
 
   for accelerator, slices in maxdiffusion_test_configs.items():
-    # cores = accelerator.rsplit("-", maxsplit=1)[-1]
+    cores = accelerator.rsplit("-", maxsplit=1)[-1]
     cluster = config.clusters[accelerator]
     for slice_num in slices:
       for mode, image in maxdiffusion_docker_images:
@@ -111,11 +111,10 @@ with models.DAG(
                 f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
                 f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_sdxl resolution=1024 per_device_batch_size=1 "
                 f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
-                f"run_name='' "
-                # f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+                f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
                 f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}/automated/{current_datetime}",
             ),
-            test_name=f"maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
+            test_name=f"maxdiffusion-jax-ai-image-{mode.value}",
             docker_image=image.value,
             test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)

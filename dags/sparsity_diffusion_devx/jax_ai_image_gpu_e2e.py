@@ -30,7 +30,7 @@ SCHEDULED_TIME = "0 7 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="jax_stable_stack_gpu_e2e",
+    dag_id="jax_ai_image_gpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
         "sparsity_diffusion_devx",
