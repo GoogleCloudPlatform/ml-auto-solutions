@@ -18,8 +18,8 @@ with models.DAG(
     catchup=False,
     tags=["gke", "tpu-observability", "node-pool-status"],
     description=(
-        "This DAG tests whether the status of a GKE node pool changes as"
-        " expected according to its lifecycle."
+        "This DAG tests whether the status of a GKE node pool changes as "
+        "expected according to its lifecycle."
     ),
     doc_md="""
       # GKE Node Pool Status Validation DAG

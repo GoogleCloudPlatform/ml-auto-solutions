@@ -16,9 +16,6 @@ from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import types
 
 
-logger = logging.getLogger(__name__)
-
-
 class Status(enum.Enum):
   """Enum for GKE node pool status."""
 
@@ -73,8 +70,8 @@ def create(node_pool: Info, ignore_failure: bool = False) -> None:
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
   )
-  logger.info("STDOUT message: %s", process.stdout)
-  logger.info("STDERR message: %s", process.stderr)
+  logging.info("STDOUT message: %s", process.stdout)
+  logging.info("STDERR message: %s", process.stderr)
 
 
 @task
@@ -92,8 +89,8 @@ def delete(node_pool: Info) -> None:
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
   )
-  logger.info("STDOUT message: %s", process.stdout)
-  logger.info("STDERR message: %s", process.stderr)
+  logging.info("STDOUT message: %s", process.stdout)
+  logging.info("STDERR message: %s", process.stderr)
 
 
 def list_nodes(node_pool: Info) -> List[str]:
@@ -215,8 +212,8 @@ def delete_one_random_node(node_pool: Info) -> None:
   process = subprocess.run(
       command, shell=True, check=True, capture_output=True, text=True
   )
-  logger.info("STDOUT message: %s", process.stdout)
-  logger.info("STDERR message: %s", process.stderr)
+  logging.info("STDOUT message: %s", process.stdout)
+  logging.info("STDERR message: %s", process.stderr)
 
 
 def _query_status_metric(node_pool: Info) -> Status:
