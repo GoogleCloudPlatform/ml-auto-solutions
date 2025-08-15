@@ -1,7 +1,7 @@
 # Default owners for everything in the repo, unless a later match takes precedence.
-* @richardsliu @yixinshi @RissyRan @hyeygit @jiangjy1982
+* @richardsliu @yixinshi @RissyRan @hyeygit @jiangjy1982 @xibinliu @andrewyct @severus-ho
 
-dags/common @richardsliu @yixinshi @RissyRan @hyeygit @bhavya01 @pgmoka @qihqi @zhanyong-wan @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1
+dags/common @richardsliu @yixinshi @RissyRan @hyeygit @bhavya01 @pgmoka @qihqi @zhanyong-wan @gobbleturk @shralex @jiangjy1982 @ortibazar @parambole @vipannalla @crankshaw-google @polydier1 @xibinliu @andrewyct @severus-ho
 
 dags/solutions_team/configs/tensorflow @chandrasekhard2 @ZhaoyueCheng @richardsliu
 dags/solutions_team/solutionsteam_tf* @chandrasekhard2 @ZhaoyueCheng @richardsliu
@@ -11,7 +11,7 @@ dags/legacy_test/tests/pytorch @bhavya01 @pgmoka @qihqi @zhanyong-wan
 
 dags/mantaray @qihqi @bhavya01 @pgmoka @zhanyong-wan
 
-dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee @xibinliu
+dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee @xibinliu @andrewyct @severus-ho
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg
 
@@ -21,7 +21,7 @@ dags/sparsity_diffusion_devx/configs/project_bite* @RissyRan @parambole @jiangjy
 
 dags/inference @vipannalla @mailvijayasingh @sixiang-google @joezijunzhou
 
-dags/map_reproducibility @crankshaw-google @polydier1 @gunjanj007 @stingram @utkarshsharma1 @cneel8986 @Doris26 @wang2yn84 @zshu188
+dags/map_reproducibility @crankshaw-google @polydier1 @gunjanj007 @stingram @utkarshsharma1 @cneel8986 @Doris26 @wang2yn84 @zshu188 @xibinliu @andrewyct @severus-ho
 
 dags/orbax @abhinavclemson @xuefgu @xibinliu @andrewyct @severus-ho 
 
