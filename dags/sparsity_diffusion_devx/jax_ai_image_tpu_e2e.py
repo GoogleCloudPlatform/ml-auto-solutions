@@ -32,7 +32,7 @@ BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
 
 
 with models.DAG(
-    dag_id="jax_stable_stack_tpu_e2e",
+    dag_id="jax_ai_image_tpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
         "sparsity_diffusion_devx",
