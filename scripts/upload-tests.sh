@@ -12,18 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Upload tests and utilities to a specificed GCS dags folder
+# Upload tests and utilities to a specified GCS dags folder
 
 set -e
 
 COMPOSER_ENVIRONMENT="test_env"
 GCS_DAGS_FOLDER=$1
-FOLDERS_TO_UPLOAD=("dags" "xlml" "plugins")
+FOLDERS_TO_UPLOAD=("dags" "xlml")
 
 # TODO(ranran): handle tests from Jsonnet
 for folder in "${FOLDERS_TO_UPLOAD[@]}"
 do
-  gsutil -m rsync -c -d -r -x '.*\.md$' "$folder" "$GCS_DAGS_FOLDER"/"$folder"
+  gsutil -m rsync -c -d -r "$folder" "$GCS_DAGS_FOLDER"/"$folder"
 done
+
+ROOT_PATH=$GCS_DAGS_FOLDER
+if [[ "$GCS_DAGS_FOLDER" == */dags ]]; then
+    ROOT_PATH="${GCS_DAGS_FOLDER%/dags}"
+fi
+
+gsutil -m rsync -r -d -x '.*\.md$' plugins "$ROOT_PATH"/plugins
+
 
 echo "Successfully uploaded tests."
