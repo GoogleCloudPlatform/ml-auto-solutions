@@ -14,7 +14,7 @@ If you want your DAG to **trigger this plugin**, add your DAG ID as a new line i
 
 ##### Disabling the Plugin for a DAG
 
-If you want your DAG to **never trigger this plugin**, add your DAG ID as a new line in **plugins/block_list.txt**. This block list is intended to prevent repeated issue postings for DAGs that cannot be resolved at the moment.
+To prevent your DAG from ever triggering this plugin, add your DAG ID as a new line in **plugins/block_list.txt**. This list is intended to avoid repeated issue postings for DAGs that are not currently resolvable.
 
 > **Note:** Each DAG ID should be placed on its own line, without extra spaces or quotes.
 
