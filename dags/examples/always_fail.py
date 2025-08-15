@@ -6,6 +6,8 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.utils.task_group import TaskGroup
 
+from dags.common import test_owner
+
 """
 A DAG that always fails when triggered. This DAG is an example DAG used to
 trigger the on_failure_actions.py/DagRunListener plugin and post a Github
@@ -19,7 +21,7 @@ def task_a():
 
 
 # Add or override the owner of the task, in order to assign issue assignees.
-@task(owner="airflow")
+@task(owner=test_owner.AIRFLOW)
 def task_b():
   logging.info("task B")
   raise AirflowException("task B failed")

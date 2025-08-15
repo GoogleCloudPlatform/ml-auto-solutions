@@ -74,7 +74,7 @@ with models.DAG(
           time_out_in_min=60,
           test_name=f"gpt1-like-{test_mode.value}",
           docker_image=DOCKER_IMAGE[test_mode].value,
-          test_owner="airflow",
+          test_owner=test_owner.AIRFLOW,
           num_slices=n_slice,
           cluster=XpkClusters.TPU_V4_16_CLUSTER,
       ).run()
@@ -87,7 +87,7 @@ with models.DAG(
             f"bash end_to_end/tpu/test_decode.sh 10 gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-decode-v4-8-1slice-{test_mode.value}",
         ),
         docker_image=DOCKER_IMAGE[test_mode].value,
-        test_owner="airflow",
+        test_owner=test_owner.AIRFLOW,
     ).run()
 
     # v4-8 1 slice TFLOPS test
@@ -98,7 +98,7 @@ with models.DAG(
             f"bash end_to_end/tpu/test_tflops.sh xlml {tflop_thresholds['v4-8']['1']} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
         ),
         docker_image=DOCKER_IMAGE[test_mode].value,
-        test_owner="airflow",
+        test_owner=test_owner.AIRFLOW,
     ).run()
 
     # v4-16 1 and 2 slice TFLOPS test
@@ -112,7 +112,7 @@ with models.DAG(
           ),
           cluster=XpkClusters.TPU_V4_16_CLUSTER,
           docker_image=DOCKER_IMAGE[test_mode].value,
-          test_owner="airflow",
+          test_owner=test_owner.AIRFLOW,
       ).run()
 
     # v4-16 two slices determinism test
@@ -164,5 +164,5 @@ with models.DAG(
           f"bash end_to_end/tpu/test_checkpoint_resharding.sh xlml-checkpoint-resharding-v4-8-2slice-{SetupMode.STABLE.value} gs://maxtext-xlml gs://maxtext-xlml/dataset",
       ),
       docker_image=DOCKER_IMAGE[SetupMode.STABLE].value,
-      test_owner="airflow",
+      test_owner=test_owner.AIRFLOW,
   ).run()

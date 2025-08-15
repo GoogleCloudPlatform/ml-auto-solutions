@@ -36,6 +36,8 @@ class Team(enum.Enum):
   PRODUCTIVITY = "productivity"
 
 
+# Default test owner
+AIRFLOW = "airflow"
 # XLML - TensorFlow
 CHANDRA_D = "chandrasekhard2"
 GAGIK_A = "gagika"
