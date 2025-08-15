@@ -69,7 +69,7 @@ SHUNING_J = "shuningjin"
 
 # Inference
 XIANG_S = "sixiang-google"
-YIJIA_J = "Yijia J."
+YIJIA_J = "jyj0w0"
 PATE_M = "patemotter"
 
 # 3P Ecosystems
@@ -80,11 +80,11 @@ WENXIN_D = "wenxindongwork"
 QINY_Y = "qinyiyan"
 
 # JAX
-AKANKSHA_G = "Akanksha G."
+AKANKSHA_G = "guptaaka"
 
 # MAP_REPRODUCIBILITY
 GUNJAN_J = "gunjanj007"
 
 # Bite
 Maggie_Z = "jiya-zhang"
-Andrew_S = "Andrew S."
+Andrew_S = "asall"
