@@ -24,9 +24,11 @@ from dags.common.vm_resource import Project, TpuVersion, CpuVersion, Zone, Docke
 from dags.sparsity_diffusion_devx.configs import gke_config as config
 from dags.multipod.configs.common import SetupMode
 from xlml.utils import name_format
+from xlml.apis import metric_config
 
 # Run once a day at 3 am UTC (7 pm PST)
 SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
+BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
 
 
 with models.DAG(
@@ -94,7 +96,7 @@ with models.DAG(
         ).run_with_quarantine(quarantine_task_group)
 
   for accelerator, slices in maxdiffusion_test_configs.items():
-    cores = accelerator.rsplit("-", maxsplit=1)[-1]
+    # cores = accelerator.rsplit("-", maxsplit=1)[-1]
     cluster = config.clusters[accelerator]
     for slice_num in slices:
       for mode, image in maxdiffusion_docker_images:
@@ -109,7 +111,8 @@ with models.DAG(
                 f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
                 f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_sdxl resolution=1024 per_device_batch_size=1 "
                 f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
-                f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
+                f"run_name='' "
+                # f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
                 f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}/automated/{current_datetime}",
             ),
             test_name=f"maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
