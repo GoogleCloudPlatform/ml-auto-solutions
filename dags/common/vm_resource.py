@@ -357,7 +357,7 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_gpu:latest"
   )
   MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX = (
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_nightly:"
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_jax_stable_stack_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE = (
