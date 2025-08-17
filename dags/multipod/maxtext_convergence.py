@@ -70,9 +70,9 @@ with models.DAG(
       ),
   }
 
-  maxtext_v4_config_tests = {}
+  maxtext_v6e_config_tests = {}
   for test_name, run_command in convergence_tests.items():
-    maxtext_v4_config_tests[test_name] = gke_config.get_gke_config(
+    maxtext_v6e_config_tests[test_name] = gke_config.get_gke_config(
         cluster=XpkClusters.TPU_V6E_256_CLUSTER,
         time_out_in_min=300,
         test_name=test_name,
@@ -85,6 +85,6 @@ with models.DAG(
 
 # Test dependencies
 (
-    maxtext_v4_config_tests["maxtext-convergence-bf16"]
-    >> maxtext_v4_config_tests["maxtext-convergence-subset-hosts"]
+    maxtext_v6e_config_tests["maxtext-convergence-bf16"]
+    >> maxtext_v6e_config_tests["maxtext-convergence-subset-hosts"]
 )
