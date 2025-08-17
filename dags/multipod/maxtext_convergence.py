@@ -49,8 +49,9 @@ with models.DAG(
 
   steps = 10200  # Half Chinchilla
   loss_threshold = 2.7
+  per_device_batch_size = 2.0 # Assuming 256 chips (v6e-256), we need global batch of 512
 
-  base_convergence_command = f"bash end_to_end/tpu/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path} LOSS_THRESHOLD={loss_threshold} STEPS={steps}"
+  base_convergence_command = f"bash end_to_end/tpu/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path} LOSS_THRESHOLD={loss_threshold} STEPS={steps} PER_DEVICE_BATCH_SIZE={per_device_batch_size}"
   convergence_tests = {
       "maxtext-convergence-bf16": ((base_convergence_command),),
       "maxtext-convergence-int8": (
@@ -72,7 +73,7 @@ with models.DAG(
   maxtext_v4_config_tests = {}
   for test_name, run_command in convergence_tests.items():
     maxtext_v4_config_tests[test_name] = gke_config.get_gke_config(
-        cluster=XpkClusters.TPU_V4_128_CLUSTER,
+        cluster=XpkClusters.TPU_V6E_256_CLUSTER,
         time_out_in_min=300,
         test_name=test_name,
         run_model_cmds=run_command,
