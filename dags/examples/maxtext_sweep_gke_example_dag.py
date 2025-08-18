@@ -43,7 +43,7 @@ with models.DAG(
   # Get list of MaxText GKE XPK jobs
   maxtext_sweep_gke_test = (
       maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
-          test_owner=test_owner.RAYMOND_Z,
+          test_owner=test_owner.AIRFLOW,
           cluster=XpkClusters.TPU_V4_128_CLUSTER,
           time_out_in_min=60,
           base_output_directory=base_output_directory,
