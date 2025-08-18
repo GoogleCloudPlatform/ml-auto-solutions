@@ -216,8 +216,7 @@ def configure_project_and_cluster(cluster: str, cluster_region: str):
   set_project_command = (
       f"gcloud config set project {PROJECT}",
       "sudo chown -R airflow:airflow /home/airflow/composer_kube_config",
-      "gcloud container clusters get-credentials "
-      f"{cluster} --region {cluster_region}",
+      get_credentials_command(cluster, cluster_region),
   )
   return set_project_command
 
@@ -799,7 +798,8 @@ def get_nemo_metrics_cmds(
 
 def cleanup_all_runs_cmds(cluster, cluster_region, prefix="cml-"):
   cleanup_cmds = (
-      f"echo 'Getting credentials for cluster {cluster}...' && gcloud container clusters get-credentials {cluster} --region {cluster_region} --project {PROJECT}",
+      f"echo 'Uninstalling jobs with prefix {prefix}...'",
+      get_credentials_command(cluster, cluster_region, PROJECT),
       f"echo 'Uninstalling jobs with prefix {prefix}...' && "
       f"JOBS=$(kubectl get job -n default | grep '^{prefix}' | awk '{{print $1}}' | sed 's/-workload-0$//' | sort -u) && "
       f'if [ -n "$JOBS" ]; then '
@@ -1074,6 +1074,28 @@ def get_cluster(hardware: str = "a3ultra"):
     return "imo-a3ultra", "europe-west1"
   if hardware == "a4":
     return "gke-a4-sbrg1", "us-east4"
+
+
+def is_dns_endpoint(cluster: str):
+  """Indicate if the cluster needs dns-endpoint flag."""
+  if cluster == "imo-a3ultra":
+    return True
+  return False
+
+
+def get_credentials_command(
+    cluster: str, cluster_region: str, project: None | str = None
+):
+  """
+  Returns the gcloud get-credentials command string.
+  Includes the --dns-endpoint flag if required.
+  """
+  base_command = f"gcloud container clusters get-credentials {cluster} --region {cluster_region}"
+  if project is not None:
+    base_command += f" --project {project}"
+  if is_dns_endpoint(cluster):
+    return f"{base_command} --dns-endpoint"
+  return base_command
 
 
 def get_scheduled_time(hardware: str, model: str, framework: str):
