@@ -47,7 +47,7 @@ with models.DAG(
         'export PRE_TRAINED_MODEL_TOKENIZER=meta-llama/Llama-2-7b-chat-hf',
         'export PRE_TRAINED_MODEL_CKPT_PATH=gs://maxtext-model-checkpoints/llama2-7b-chat/scanned/0/items',
         f'export BASE_OUTPUT_DIRECTORY={base_output_directory}',
-        'export STEPS=2500',
+        'export STEPS=1000',
         'export PROMPT="Suggest some famous landmarks in London."',
         'bash end_to_end/tpu/test_sft_trainer.sh',
     )
