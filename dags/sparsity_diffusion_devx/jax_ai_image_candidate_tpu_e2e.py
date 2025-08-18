@@ -89,7 +89,7 @@ with models.DAG(
             ),
             test_name=f"maxtext-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
             docker_image=image,
-            test_owner=test_owner.AIRFLOW,
+            test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)
 
   for accelerator, slices in maxdiffusion_test_configs.items():
@@ -113,5 +113,5 @@ with models.DAG(
             ),
             test_name=f"maxdiffusion-jax-stable-stack-sdxl-{mode.value}-{accelerator}-{slice_num}x",
             docker_image=image,
-            test_owner=test_owner.AIRFLOW,
+            test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)
