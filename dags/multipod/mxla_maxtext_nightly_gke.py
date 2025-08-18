@@ -52,7 +52,7 @@ with models.DAG(
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
-      test_owner=test_owner.AIRFLOW,
+      test_owner=test_owner.RAYMOND_Z,
   ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_2slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
@@ -61,7 +61,7 @@ with models.DAG(
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
-      test_owner=test_owner.AIRFLOW,
+      test_owner=test_owner.RAYMOND_Z,
   ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_4slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
@@ -70,7 +70,7 @@ with models.DAG(
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
-      test_owner=test_owner.AIRFLOW,
+      test_owner=test_owner.RAYMOND_Z,
   ).run_with_quarantine(quarantine_task_group)
 
   maxtext_nightly_8slice_v5p_8 = gke_config.get_gke_maxtext_nightly_config(
@@ -79,7 +79,7 @@ with models.DAG(
       time_out_in_min=60,
       test_name=default_test_name,
       docker_image=jax_nightly_image.value,
-      test_owner=test_owner.AIRFLOW,
+      test_owner=test_owner.RAYMOND_Z,
   ).run_with_quarantine(quarantine_task_group)
 
   # v6e tests

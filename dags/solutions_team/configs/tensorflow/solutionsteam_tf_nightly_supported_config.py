@@ -81,7 +81,7 @@ def get_tf_keras_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.AIRFLOW,
+      task_owner=test_owner.ERIC_L,
   )
 
   return task.run_queued_resource_test(

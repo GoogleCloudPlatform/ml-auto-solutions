@@ -148,7 +148,7 @@ This listener specifically triggers actions when a DAG run fails.
 It checks for the 'on_failure_alert' tag on the failed DAG. If the tag is present,
 it proceeds to create a GitHub issue with details about the failed DAG run
 and its failed tasks. The issue is assigned to the owners of the failed tasks
-(excluding "airflow" as an owner).
+(excluding 'airflow' as an owner).
 
 TODO: Implement more sophisticated issue filing strategies beyond a single failure, such as:
 -   Consecutive Failures: Only file an issue if a DAG has failed for two or more
