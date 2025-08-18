@@ -31,7 +31,6 @@ if [[ "$GCS_DAGS_FOLDER" == */dags ]]; then
     ROOT_PATH="${GCS_DAGS_FOLDER%/dags}"
 fi
 
-gsutil -m rsync -r -d -x '.*\.md$' plugins "$ROOT_PATH"/plugins
-
+gsutil -m rsync -c -d -r -x '.*\.(md|txt)$' plugins "$ROOT_PATH"/plugins
 
 echo "Successfully uploaded tests."
