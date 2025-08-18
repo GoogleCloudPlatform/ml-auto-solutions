@@ -50,7 +50,7 @@ with models.DAG(
   )
   docker_image = {
       "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-      "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
+      "nightly": DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX.value,
   }
 
   # Unchained tests
