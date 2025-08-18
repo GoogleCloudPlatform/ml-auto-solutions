@@ -75,7 +75,7 @@ PARAM_B = "parambole"
 KUNJAN_P = "coolkp"
 MICHELLE_Y = "michelle-yooh"
 SHUNING_J = "shuningjin"
-ROHAN_B = "Rohan B."
+ROHAN_B = "Rohan-Bierneni"
 
 # Inference
 ANDY_Y = "Andy Y."
