@@ -306,7 +306,7 @@ class XpkClusters:
       device_version=GpuVersion.XPK_H100_MEGA,
       core_count=8,
       project=Project.SUPERCOMPUTER_TESTING.value,
-      zone=Zone.AUSTRALIA_SOUTHEAST1_C.value,
+      zone=Zone.US_EAST5_A.value,
   )
   CPU_M1_MEGAMEM_96_CLUSTER = XpkClusterConfig(
       name="m1-megamem-96-shared",
