@@ -39,25 +39,18 @@ class Team(enum.Enum):
 # Default test owner
 AIRFLOW = "airflow"
 # XLML - TensorFlow
-ERIC_L = "Eric L."
 CHANDRA_D = "chandrasekhard2"
 GAGIK_A = "gagika"
 
 # PYTORCH
-PEI_Z = "Pei Z."
 MANFEI_B = "manfeiBai"
 
 # MaxText
 TONY_C = "tonyjohnchen"
-JON_B = "Jon B."
-RAYMOND_Z = "Raymond Z."
 MATT_D = "gobbleturk"
-PRIYANKA_G = "Priyanka G."
 SURBHI_J = "SurbhiJainUSC"
-ZHIYU_L = "Zhiyu L."
 MOHIT_K = "khatwanimohit"
 ANISHA_M = "A9isha"
-YUWEI_Y = "Yuwei Y."
 RISHABH_B = "notabee"
 NUOJIN_C = "NuojCheng"
 BRANDEN_V = "bvandermoon"
@@ -83,9 +76,7 @@ SHUNING_J = "shuningjin"
 ROHAN_B = "Rohan-Bierneni"
 
 # Inference
-ANDY_Y = "Andy Y."
 XIANG_S = "sixiang-google"
-MORGAN_D = "Morgan D."
 YIJIA_J = "jyj0w0"
 PATE_M = "patemotter"
 

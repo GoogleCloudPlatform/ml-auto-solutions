@@ -48,7 +48,7 @@ with models.DAG(
     )
     pytorch_config.get_nightly_pytorch_config(
         test_name="shardings",
-        test_owner=test_owner.JON_B,
+        test_owner=test_owner.AIRFLOW,
         run_commands=run_cmds,
         cluster=cluster,
         num_slices=num_slices,
@@ -56,7 +56,7 @@ with models.DAG(
 
   pytorch_config.get_nightly_pytorch_config(
       test_name="checkpoint",
-      test_owner=test_owner.JON_B,
+      test_owner=test_owner.AIRFLOW,
       run_commands=(
           f"export CHKPT_PATH={metric_config.SshEnvVars.GCS_OUTPUT.value}",
           "pip install gcsfs",

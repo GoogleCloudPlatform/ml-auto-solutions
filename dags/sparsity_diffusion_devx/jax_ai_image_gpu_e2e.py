@@ -82,5 +82,5 @@ with models.DAG(
           num_slices=nnodes,
           cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
           docker_image=image.value,
-          test_owner=test_owner.ROHAN_B,
+          test_owner=test_owner.AIRFLOW,
       ).run_with_quarantine(quarantine_task_group)
