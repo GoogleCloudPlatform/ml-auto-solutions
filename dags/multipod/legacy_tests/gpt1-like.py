@@ -153,7 +153,7 @@ multiply_layers_and_grad = jax.value_and_grad(
 
 def training_loop(in_act, in_layers):
   _, grad_layers = multiply_layers_and_grad(in_act, in_layers)
-  out_layers = jax.tree_map(
+  out_layers = jax.tree_util.tree_map(
       lambda param, grad: param - 1e-4 * grad, in_layers, grad_layers[0]
   )
   return out_layers
