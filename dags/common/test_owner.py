@@ -12,7 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The file of test owners."""
+"""
+This file is used to look up the GitHub username of a test owner.
+
+The GitHub username is then used to assign the GitHub Issue created by the alert plugin.
+
+Please append your GitHub username if you need to add your test owner item.
+"""
 
 import enum
 
@@ -30,64 +36,67 @@ class Team(enum.Enum):
   PRODUCTIVITY = "productivity"
 
 
+# Default test owner
+AIRFLOW = "airflow"
 # XLML - TensorFlow
 ERIC_L = "Eric L."
-CHANDRA_D = "Chandra D."
-GAGIK_A = "Gagik A."
+CHANDRA_D = "chandrasekhard2"
+GAGIK_A = "gagika"
 
 # PYTORCH
 PEI_Z = "Pei Z."
-MANFEI_B = "Manfei B."
+MANFEI_B = "manfeiBai"
 
 # MaxText
-TONY_C = "Tony C."
+TONY_C = "tonyjohnchen"
 JON_B = "Jon B."
 RAYMOND_Z = "Raymond Z."
-MATT_D = "Matt D."
+MATT_D = "gobbleturk"
 PRIYANKA_G = "Priyanka G."
-SURBHI_J = "Surbhi J."
+SURBHI_J = "SurbhiJainUSC"
 ZHIYU_L = "Zhiyu L."
-MOHIT_K = "Mohit K."
-ANISHA_M = "Anisha M."
+MOHIT_K = "khatwanimohit"
+ANISHA_M = "A9isha"
 YUWEI_Y = "Yuwei Y."
-RISHABH_B = "Rishabh B."
-NUOJIN_C = "Nuojin C."
+RISHABH_B = "notabee"
+NUOJIN_C = "NuojCheng"
+BRANDEN_V = "bvandermoon"
 
 # Multi-tier Checkpointing
-ABHINAV_S = "ABHINAV S."
-XUEFENG_G = "XUEFENG G."
+ABHINAV_S = "abhinavclemson"
+XUEFENG_G = "xuefgu"
 
 # MLCompass
-ORTI_B = "Orti B."
+ORTI_B = "ortibazar"
 
 # Sparsity & Diffusion DevX
-RAN_R = "Ran R."
-PARAM_B = "Param B."
-KUNJAN_P = "Kunjan P."
-MICHELLE_Y = "Michelle Y."
-SHUNING_J = "Shuning J."
-ROHAN_B = "Rohan B."
+RAN_R = "RissyRan"
+PARAM_B = "parambole"
+KUNJAN_P = "coolkp"
+MICHELLE_Y = "michelle-yooh"
+SHUNING_J = "shuningjin"
+ROHAN_B = "Rohan-Bierneni"
 
 # Inference
 ANDY_Y = "Andy Y."
-XIANG_S = "Xiang S."
+XIANG_S = "sixiang-google"
 MORGAN_D = "Morgan D."
-YIJIA_J = "Yijia J."
-PATE_M = "Pate M."
+YIJIA_J = "jyj0w0"
+PATE_M = "patemotter"
 
 # 3P Ecosystems
-RICHARD_L = "Richard L."
-WENXIN_D = "Wenxin D."
+RICHARD_L = "richardsliu"
+WENXIN_D = "wenxindongwork"
 
 # FRAMEWORK
-QINY_Y = "Qinyi Y."
+QINY_Y = "qinyiyan"
 
 # JAX
-AKANKSHA_G = "Akanksha G."
+AKANKSHA_G = "guptaaka"
 
 # MAP_REPRODUCIBILITY
-GUNJAN_J = "Gunjan J."
+GUNJAN_J = "gunjanj007"
 
 # Bite
-Maggie_Z = "Maggie Z."
-Andrew_S = "Andrew S."
+Maggie_Z = "jiya-zhang"
+Andrew_S = "asall"
