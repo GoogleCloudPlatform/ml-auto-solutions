@@ -1069,7 +1069,7 @@ def get_gcs_automation_repo_path(tmpdir):
 
 def get_cluster(hardware: str = "a3ultra"):
   if hardware == "a3mega":
-    return "a3plus-benchmark", "australia-southeast1"
+    return "a3plus-benchmark", "us-east5"
   if hardware == "a3ultra":
     return "imo-a3ultra", "europe-west1"
   if hardware == "a4":
