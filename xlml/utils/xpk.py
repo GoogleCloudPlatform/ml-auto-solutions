@@ -27,11 +27,10 @@ from xlml.utils import gke
 from dags.common.vm_resource import GpuVersion
 
 # b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
-BRANCH_V0_4_1 = "v0.4.1"
-MAIN_BRANCH = BRANCH_V0_4_1
+MAIN_BRANCH = "v0.4.1"
 
-
-# b/437817546 - Orbax test need to use a branch to bypass the `validate_dependencies()` crash issue
+# TODO(b/437817546): Switch back to the main branch after the issue is resolved.
+# This branch includes changes fixing the `validate_dependencies()` crash issue.
 BRANCH_ABHINAV_MTC = "abhinav-mtc"
 
 # Duration = past 7 days
@@ -120,12 +119,8 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
+        " --restart-on-user-code-failure"
     )
-
-    # The `restart-on-user-code-failure` flag was supported in v0.4.1,
-    # but has been removed in later versions.
-    if xpk_branch == BRANCH_V0_4_1:
-      workload_create_cmd += " --restart-on-user-code-failure"
 
     if ramdisk_directory:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
