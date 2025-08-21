@@ -1,12 +1,11 @@
 """Utility functions for managing Multi-tier Cluster Configuration.
 
 This module provides tasks for creating, applying, and deleting
-Multi-tier Driver cluster Configurations for enebale Multi Tier Checkpointing.
+Multi-tier Driver cluster Configurations for enable Multi Tier Checkpointing.
 """
 
 from absl import logging
 import yaml
-import time
 from dataclasses import dataclass
 
 from kubernetes import client as k8s_client
@@ -17,7 +16,7 @@ from airflow.exceptions import AirflowFailException
 from xlml.utils import gke
 
 
-# ramdisk_memory_in_mi: This should be Mi
+@dataclass
 class CheckpointConfiguration:
   """A dataclass to hold attributes of a Cloud Public Compute (CPC) instance."""
 
@@ -26,7 +25,7 @@ class CheckpointConfiguration:
   cluster_name: str
   gcs_bucket: str
   machine_type: str
-  ramdisk_memory_in_mi: str
+  ramdisk_memory: str
   toleration_key: str
   cpc_yaml_template: str
 
@@ -37,30 +36,30 @@ class CheckpointConfiguration:
       cluster_name: str,
       gcs_bucket: str,
       machine_type: str,
-      ram_disk_memory_in_mi: str,
+      ramdisk_memory_in_mi: str,
       toleration_key: str = "google.com/tpu",
   ):
     """
     Initializes the CheckpointConfiguration.
 
     Args:
-        project_id (str): The Google Cloud project ID.
-        region (str): The Google Cloud region.
-        cluster_name (str): The name of the GKE cluster.
-        gcs_bucket (str): The name of the GCS bucket for checkpoints.
-        machine_type (str): The machine type for the instance.
-        ramdisk_memory_in_mi (str): The size of the RAM disk in mebibytes (Mi).
-            The unit is in mebibytes (Mi) but the value should be passed as a string
-            with the unit, e.g., "2G" or "2048M". Defaults to "100G"".
-        toleration_key (str): The toleration key for the Kubernetes pod.
-            Defaults to "google.com/tpu".
+      project_id (str): The Google Cloud project ID.
+      region (str): The Google Cloud region.
+      cluster_name (str): The name of the GKE cluster.
+      gcs_bucket (str): The name of the GCS bucket for checkpoints.
+      machine_type (str): The machine type for the instance.
+      ram_disk_memory_in_mi (str): The size of the RAM disk in mebibytes (Mi).
+        The unit is in mebibytes (Mi) but the value should be passed as a
+        string with the unit, e.g., "2G" or "2048M". Defaults to "100G"".
+      toleration_key (str): The toleration key for the Kubernetes pod.
+        Defaults to "google.com/tpu".
     """
     self.project_id = project_id
     self.region = region
     self.cluster_name = cluster_name
     self.gcs_bucket = gcs_bucket
     self.machine_type = machine_type
-    self.ramdisk_memory = ram_disk_memory_in_mi
+    self.ramdisk_memory = ramdisk_memory_in_mi
     self.toleration_key = toleration_key
     self.cpc_yaml_template = f"""
   apiVersion: checkpointing.gke.io/v1
