@@ -10,6 +10,7 @@ multi-pod cluster.
 import datetime
 from dataclasses import dataclass
 import posixpath
+from typing import Optional
 
 from airflow import models
 from airflow.utils.task_group import TaskGroup
@@ -19,16 +20,16 @@ from dags.common import test_owner
 from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
-from dags.orbax.util import logging_mtc as log
-from dags.orbax.util import multi_tier_checkpoint_util as mtc
+from dags.orbax.util import validation_util
+from dags.orbax.util import checkpoint_util
 from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 from xlml.utils.gke import zone_to_region
 
 SCHEDULE = "0 10 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_emc_and_mtc_orbax_save_local"
-BASE_OUTPUT_DIRECTORY = gcs_bucket.MTC_AUTOMATION_BUCKET
+BASE_OUTPUT_DIR = gcs_bucket.MTC_AUTOMATION_BUCKET
 
-# For this DAG, only one version of the Docker image is supported at the moment.
+# Only one version of the Docker image is supported at the moment.
 # Other versions (e.g., "stable") may be introduced later.
 DOCKER_IMAGES = [(
     SetupMode.NIGHTLY,
@@ -66,7 +67,7 @@ class TestConfig:
   local_checkpoint_step: int
   checkpoint_step: int
   ram_disk_size: str
-  cpc_config: mtc.CheckpointConfiguration
+  cpc_config: checkpoint_util.CheckpointConfiguration
 
   def __init__(
       self,
@@ -79,8 +80,8 @@ class TestConfig:
       replicator_backup_time: int,
       step: int,
       local_checkpoint_step: int,
-      checkpoint_step: int,
       ram_disk_size_in_mi: str,
+      checkpoint_step: Optional[int] = None,
   ):
     """
     Initializes the test configurations.
@@ -114,7 +115,7 @@ class TestConfig:
     self.local_checkpoint_step = local_checkpoint_step
     self.checkpoint_step = checkpoint_step
     self.ram_disk_size = ram_disk_size_in_mi
-    self.cpc_config = mtc.CheckpointConfiguration(
+    self.cpc_config = checkpoint_util.CheckpointConfiguration(
         project_id=self.cluster.project,
         region=zone_to_region(self.cluster.zone),
         cluster_name=self.cluster.name,
@@ -127,7 +128,7 @@ class TestConfig:
       self,
       cp: Checkpointing,
       checkpoint_dir: str,
-      out_dir: str,
+      out_folder: str,
       slice_number: int,
   ) -> str:
     run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
@@ -138,7 +139,7 @@ class TestConfig:
         "python3 -m MaxText.train MaxText/configs/base.yml "
         "remat_policy=full "
         "global_parameter_scale=1 "
-        f"base_output_directory={out_dir} "
+        f"base_output_directory={posixpath.join(BASE_OUTPUT_DIR, out_folder)} "
         "dataset_type=synthetic "
         f"steps={self.step} "
         "per_device_batch_size=1 "
@@ -169,9 +170,38 @@ with models.DAG(
         "orbax",
     ],
     description="A DAG to run MaxText multi-tier checkpointing tests.",
-    doc_md="",
+    doc_md="""
+      # Emergency Checkpoint Manager and Multi-tier Checkpoint Validation DAG
+
+      ### Description
+      This DAG (Directed Acyclic Graph) automates the process of validating
+      checkpoint saving when using both **Emergency Checkpoint Manager**
+      and **Multi-tier Checkpoint** features. The flag that controls the
+      behaviour of using MTC or EMC is **user_replicatior**.
+      Also the steps flag controls how many steps the job will run.
+
+      ### Prerequisites
+      To run this test, you need an existing cluster with the Multi-tier
+      Checkpointing configuration enabled, as well as a bucket with HNS
+      (Hierarchical Namespace) enabled.
+
+      ### Procedures
+      1.  **Apply Configuration:** A Checkpoint Configuration YAML file is
+      applied to the cluster, enabling Multi-tier Checkpoint (MTC) features.
+      2.  **Run Maxtext Jobsets:** The DAG runs a Maxtext jobset twice.
+      One run has `replicator_enabled` set to `True` (for MTC), and the
+      other has it set to `False` (for Emergency Checkpoint Manager).
+      3.  **Validate Checkpoints:** The DAG validates that **local checkpoints**
+      are being saved correctly in the `local/` directory for both job runs.
+
+      4.  The validation logic is the same for both the MTC and Emergency
+      Checkpoint Manager job runs because their local checkpoint saving
+      behavior is similar. This is why a single validation task is used for both.
+    """,
     concurrency=2,
 ) as dag:
+  # Only one set of test configurations (e.g., v5p-128) is supported at the moment.
+  # Other configurations (e.g., v5e and/or v6e) may be introduced later.
   test_configs = [
       TestConfig(
           cluster=XpkClusters.TPU_V5P_128_CLUSTER_ORBAX,
@@ -179,11 +209,10 @@ with models.DAG(
           accelerator="v5p-128",
           slices=[2],
           model_name="llama2-7b",
-          short_id="max-sv",
+          short_id="max-sv-loc",
           replicator_backup_time=30,
           step=100,
           local_checkpoint_step=20,
-          checkpoint_step=25,
           ram_disk_size_in_mi="800000Mi",
       ),
   ]
@@ -200,9 +229,6 @@ with models.DAG(
           use_replicator=False,
       ),
   ]:
-    folder = f"maxtext_{checkpointing.name}_orbax_save_local"
-    output_dir = posixpath.join(BASE_OUTPUT_DIRECTORY, folder)
-
     with TaskGroup(
         group_id=f"maxtext_{checkpointing.name}_orbax_save_local",
     ) as group:
@@ -211,19 +237,21 @@ with models.DAG(
           for slice_num in test_config.slices:
             # We conditionally set the trigger_rule on the first task.
             # If first task group failed the next one can execute.
-            init_delete_cpc = mtc.initiate_cpc_deletion(test_config.cpc_config)
-            wait_delete_cpc = mtc.wait_for_cpc_deletion.override(
+            init_delete_cpc = checkpoint_util.initiate_cpc_deletion(
+                test_config.cpc_config
+            )
+            wait_delete_cpc = checkpoint_util.wait_for_cpc_deletion.override(
                 trigger_rule="all_done"
             )(test_config.cpc_config)
-            apply_cpc = mtc.apply_cpc(test_config.cpc_config)
+            apply_cpc = checkpoint_util.apply_cpc(test_config.cpc_config)
             workload_command = test_config.generate_workload_command(
                 cp=checkpointing,
                 checkpoint_dir=RAM_DISK,
-                out_dir=output_dir,
+                out_folder=group.group_id,
                 slice_number=slice_num,
             )
 
-            start_time = log.generate_timestamp()
+            start_time = validation_util.generate_timestamp()
             maxtext_chkpt_run_test = gke_config.get_gke_config(
                 num_slices=slice_num,
                 cluster=test_config.cluster,
@@ -255,7 +283,7 @@ with models.DAG(
                 skip_post_process=True,
             )
 
-            end_time = log.generate_timestamp()
+            end_time = validation_util.generate_timestamp()
             vali_step = test_config.step - 1
             vali_step_list = [
                 i
@@ -263,12 +291,7 @@ with models.DAG(
             ]
             vali_step_list.append(vali_step)
 
-            # Here we are looking for the string '(blocking + background)'.
-            # We will compare expected steps with the ones we found when query
-            # this regex. Should be the same. If for some reason the restore
-            # start from 0 this task will fail
-            # because len(valid_step_list) != len(founded_steps)
-            validate_log = log.validate_log_with_step(
+            validate_log = validation_util.validate_log_with_step(
                 project_id=test_config.cluster.project,
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,

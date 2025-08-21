@@ -6,7 +6,7 @@ from absl import logging
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
-from google.cloud import logging as log_explorer
+from google.cloud import logging as logging_api
 
 
 @task
@@ -28,22 +28,31 @@ def validate_log_with_step(
     vali_step_list: Optional[list] = None,
 ) -> bool:
   """
-  Validate the workload log is training correct
+  Validates that a workload is training correctly by checking for specific log steps.
+
+  This function queries logs from a specified GKE cluster and namespace.
+  It searches for a log entry containing the string '(blocking + background)'
+  and then compares the number of steps found against an expected list of steps.
+
+  A mismatch in the number of steps will cause the validation to fail. This can
+  happen if, for example, a restore operation causes the step count to restart
+  from zero, leading to `len(vali_step_list) != len(found_steps)`.
+
   Args:
-      project_id: The Google Cloud project ID
-      location: GKE cluster location
-      cluster_name: GKE cluster name
-      namespace: Kubernetes namespace (defaults to "default")
-      pod_pattern: Pattern to match pod names (defaults to "*")
-      container_name: Optional container name to filter logs
-      text_filter: Optional comma-separated string to
+    project_id: The Google Cloud project ID
+    location: GKE cluster location
+    cluster_name: GKE cluster name
+    namespace: Kubernetes namespace (defaults to "default")
+    pod_pattern: Pattern to match pod names (defaults to "*")
+    container_name: Optional container name to filter logs
+    text_filter: Optional comma-separated string to
       filter log entries by textPayload content
-      start_time: Optional start time for log retrieval
+    start_time: Optional start time for log retrieval
       (defaults to 12 hours ago)
-      end_time: Optional end time for log retrieval (defaults to now)
-      vali_step_list: optional to validate list of steps
+    end_time: Optional end time for log retrieval (defaults to now)
+    vali_step_list: Optional to validate list of steps
   Returns:
-      bool: validate success or not
+    bool: validate success or not
   """
   entries = list_log_entries(
       project_id=project_id,
@@ -64,14 +73,13 @@ def validate_log_with_step(
       continue
     payload_str = str(entry.payload)
     for line in payload_str.split("\n"):
-      if vali_step_list is not None:
-        for step in vali_step_list:
-          vali_str = "directory=/local/" + str(step)
-          if vali_str in line and step not in new_step_list:
-            logging.info(f"├─ Timestamp: {entry.timestamp}")
-            logging.info("└─ Payload:")
-            logging.info(f"   {line}")
-            new_step_list.append(step)
+      for step in vali_step_list:
+        vali_str = "directory=/local/" + str(step)
+        if vali_str in line and step not in new_step_list:
+          logging.info(f"├─ Timestamp: {entry.timestamp}")
+          logging.info("└─ Payload:")
+          logging.info(f"   {line}")
+          new_step_list.append(step)
   if len(vali_step_list) == len(new_step_list):
     logging.info("Validate success")
     return True
@@ -102,24 +110,24 @@ def list_log_entries(
   entries from the specified time range.
   It prints the timestamp, severity, resource information,
   and payload for each log entry found.
+
   Args:
-      project_id: The Google Cloud project ID
-      location: GKE cluster location
-      cluster_name: GKE cluster name
-      namespace: Kubernetes namespace (defaults to "default")
-      pod_pattern: Pattern to match pod names (defaults to "*")
-      container_name: Optional container name to filter logs
-      text_filter: Optional comma-separated string to
+    project_id: The Google Cloud project ID
+    location: GKE cluster location
+    cluster_name: GKE cluster name
+    namespace: Kubernetes namespace (defaults to "default")
+    pod_pattern: Pattern to match pod names (defaults to "*")
+    container_name: Optional container name to filter logs
+    text_filter: Optional comma-separated string to
       filter log entries by textPayload content
-      start_time: Optional start time for log retrieval
+    start_time: Optional start time for log retrieval
       (defaults to 12 hours ago)
-      end_time: Optional end time for log retrieval (defaults to now)
+    end_time: Optional end time for log retrieval (defaults to now)
   Returns:
-      bool: Number of log entries found
+    bool: Number of log entries found
   """
 
-  # Create a Logging Client for the specified project
-  logging_client = log_explorer.Client(project=project_id)
+  logging_client = logging_api.Client(project=project_id)
 
   # Set the time window for log retrieval:
   # default to last 12 hours if not provided
@@ -144,11 +152,9 @@ def list_log_entries(
       f'timestamp<="{end_time_str}"'
   )
 
-  # Add container name filter if provided
   if container_name:
     log_filter += f' resource.labels.container_name="{container_name}"'
 
-  # Add text content filter if provided
   if text_filter:
     log_filter += f' SEARCH("{text_filter}")'
 
