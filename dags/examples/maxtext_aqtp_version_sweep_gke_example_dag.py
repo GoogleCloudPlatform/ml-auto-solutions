@@ -41,7 +41,7 @@ with models.DAG(
   }
 
   shared_task_config = {
-      "test_owner": test_owner.ZHIYU_L,
+      "test_owner": test_owner.AIRFLOW,
       "cluster": XpkClusters.TPU_V5E_256_CLUSTER,
       "time_out_in_min": 60,
       "base_output_directory": base_output_directory,
