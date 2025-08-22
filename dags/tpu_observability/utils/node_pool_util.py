@@ -307,3 +307,101 @@ def wait_for_status(
 
   latest_status = _query_status_metric(node_pool)
   return latest_status == status
+
+
+@task
+def rollback(node_pool: Info) -> None:
+  """Performs a rollback on given GKE node pool using the gcloud command.
+
+  Args:
+      node_pool: An instance of the Info class that encapsulates the
+        configuration and metadata of a GKE node pool.
+  """
+  command = (
+      f"gcloud container node-pools rollback {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--region={node_pool.location} "
+      f"--quiet"
+  )
+
+  process = subprocess.run(
+      command, shell=True, check=True, capture_output=True, text=True
+  )
+  logging.info("STDOUT message: %s", process.stdout)
+  logging.info("STDERR message: %s", process.stderr)
+
+
+@task.sensor(poke_interval=30, timeout=1200, mode="reschedule")
+def wait_for_availability(
+    node_pool: Info,
+    availability: bool,
+    **context,
+) -> bool:
+  """Check current multi-host nodepool availability.
+
+  This is a sensor task which retrieves the current list of the
+  multi_host availability outputs for the last 600s, aggregated
+  to 60s intervals. The results are then sorted, and the most recent
+  result is checked to determine if it matches the desired result,
+  either True or False.
+  The default task runs every 30s for 1200s.
+
+  Args:
+      node_pool: An instance of the Info class that encapsulates
+        the configuration and metadata of a GKE node pool.
+      availability(bool): True if the function is checking for the
+        nodepool to become available, False if the function is checking for
+        it to become unavailble.
+      context: The Airflow context dictionary, which includes task metadata.
+
+  """
+  now = int(time.time())
+  api_client = monitoring_v3.MetricServiceClient()
+  request = monitoring_v3.ListTimeSeriesRequest(
+      name=f"projects/{node_pool.project_id}",
+      filter=(
+          'metric.type="kubernetes.io/node_pool/multi_host/available" '
+          f'resource.labels.project_id = "{node_pool.project_id}" '
+          f'resource.labels.cluster_name="{node_pool.cluster_name}" '
+          f'resource.labels.node_pool_name="{node_pool.node_pool_name}"'
+      ),
+      interval=monitoring_v3.TimeInterval({
+          "end_time": {"seconds": now},
+          # Metrics are sampled every 60s and stored in the GCP backend,
+          # but it may take up to 2 minute for the metric data to become
+          # available on the client side.
+          # Therefore, a longer time interval is necessary.
+          # A 10-minute window is an arbitrary but sufficient choice to
+          # ensure we can retrieve the latest metric data.
+          "start_time": {"seconds": now - 600},
+      }),
+      view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+  )
+  page_result = api_client.list_time_series(request=request)
+
+  # We only want the most recent point, so we record all points in all
+  # time series in a dictionary with their corresponding bool values to
+  # ensure no overlapping time series can interfere.
+  records = []
+  for time_series in page_result:
+    for point in time_series.points:
+      end_ts_dt = point.interval.end_time
+      pb = monitoring_v3.TypedValue.pb
+      if pb(point.value).WhichOneof("value") == "bool_value":
+        records.append((end_ts_dt, point.value.bool_value))
+
+  if not records:
+    logging.info("No records returned")
+    return False
+
+  _, state = max(records, key=lambda x: x[0])
+
+  timeout = context["task"].timeout
+  logging.info(
+      "Waiting for node pool '%s' to become '%s' within %s seconds...",
+      node_pool.node_pool_name,
+      availability,
+      timeout,
+  )
+  return availability == state
