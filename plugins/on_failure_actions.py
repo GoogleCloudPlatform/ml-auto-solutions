@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import time
-from typing import List
+from typing import List, Dict, Any
 
 import google.auth.transport.requests
 import jwt
@@ -26,6 +26,7 @@ SECRET_MANAGER = (
 )
 ALLOW_LIST_PATH = "plugins/allow_list.txt"
 BLOCK_LIST_PATH = "plugins/block_list.txt"
+CONFIG_PATH = "plugins/config.json"
 
 
 def get_github_client() -> Github:
@@ -54,6 +55,7 @@ def fetch_json_secret():
   response = client.access_secret_version(request={"name": secret_path})
   secret_str = response.payload.data.decode("UTF-8")
   secret_dict = json.loads(secret_str)
+  logging.info("[DagRunListener] Secret value received")
   return secret_dict
 
 
@@ -83,6 +85,7 @@ def get_installation_token(
   }
   resp = requests.post(token_url, headers=headers)
   resp.raise_for_status()
+  logging.info("[DagRunListener] GitHub token received")
   return resp.json()["token"]
 
 
@@ -132,13 +135,21 @@ def create_comment(issue, body):
   issue.create_comment(body=body)
 
 
-def read_txt_from_gcs(bucket_name: str, blob_name: str) -> set[str]:
+def read_list_from_gcs(bucket_name: str, blob_name: str) -> set[str]:
   storage_client = storage.Client()
   bucket = storage_client.bucket(bucket_name)
   blob = bucket.blob(blob_name)
   content = blob.download_as_text(encoding="utf-8")
   lines = [line.strip() for line in content.splitlines() if line.strip()]
   return set(lines)
+
+
+def read_json_from_gcs(bucket_name: str, blob_name: str) -> Dict[str, Any]:
+  storage_client = storage.Client()
+  bucket = storage_client.bucket(bucket_name)
+  blob = bucket.blob(blob_name)
+  content = blob.download_as_text(encoding="utf-8")
+  return json.loads(content)
 
 
 """
@@ -178,14 +189,28 @@ class DagRunListener:
 
     try:
       # A DAG would trigger the following logic if the DAG ID is in allow list and not in block list.
-      if not DagRunListener.is_in_allow_list(
-          dag_run.dag_id
-      ) or DagRunListener.is_in_block_list(dag_run.dag_id):
+      enable_plugin = None
+      if DagRunListener.is_in_allow_list(dag_run.dag_id):
+        enable_plugin = True
         logging.info(
-            f"[{self.log_prefix}] DAG {dag_run.dag_id} didn't enable plugin. Return"
+            f"[{self.log_prefix}] DAG {dag_run.dag_id} is in allow_list.txt"
+        )
+      if DagRunListener.is_in_block_list(dag_run.dag_id):
+        enable_plugin = False
+        logging.info(
+            f"[{self.log_prefix}] DAG {dag_run.dag_id} is in block_list.txt"
+        )
+
+      default_enabled = DagRunListener.enable_plugin_by_default(dag_run.dag_id)
+
+      if enable_plugin is False or (
+          enable_plugin is None and not default_enabled
+      ):
+        logging.info(
+            f"[{self.log_prefix}] DAG {dag_run.dag_id} isn't enabled. Return"
         )
         return
-
+      logging.info(f"[{self.log_prefix}] DAG {dag_run.dag_id} enabled plugin.")
       failed_task_instances = [
           ti for ti in dag_run.task_instances if ti.state == "failed"
       ]
@@ -195,6 +220,9 @@ class DagRunListener:
         )
         return
 
+      logging.info(
+          f"[{self.log_prefix}] Failed tasks found. Prepare to send GitHub Issue."
+      )
       body = (
           f"- **Run ID**: {dag_run.run_id}\n"
           f"- **Execution Date**: {dag_run.execution_date}\n"
@@ -303,19 +331,26 @@ class DagRunListener:
     return configs["config"]["airflowUri"]
 
   @staticmethod
-  def is_in_allow_list(dag_id: str):
-    logging.info(f"[DagRunListener] BUCKET {os.environ.get('GCS_BUCKET')}")
-    allow_list = read_txt_from_gcs(
+  def is_in_allow_list(dag_id: str) -> bool:
+    allow_list = read_list_from_gcs(
         os.environ.get("GCS_BUCKET"), ALLOW_LIST_PATH
     )
     return True if dag_id in allow_list else False
 
   @staticmethod
-  def is_in_block_list(dag_id: str):
-    block_list = read_txt_from_gcs(
+  def is_in_block_list(dag_id: str) -> bool:
+    block_list = read_list_from_gcs(
         os.environ.get("GCS_BUCKET"), BLOCK_LIST_PATH
     )
     return True if dag_id in block_list else False
+
+  @staticmethod
+  def enable_plugin_by_default(dag_id: str) -> bool:
+    config = read_json_from_gcs(os.environ.get("GCS_BUCKET"), CONFIG_PATH)
+    logging.info(
+        f"[DagRunListener] Enable plugin by default: {config['enable_plugin_by_default']}"
+    )
+    return config["enable_plugin_by_default"]
 
 
 class ListenerPlugins(AirflowPlugin):
