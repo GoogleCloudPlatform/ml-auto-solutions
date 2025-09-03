@@ -39,7 +39,7 @@ with models.DAG(
     concurrency=2,
 ) as dag:
   base_output_directory = (
-      f"{gcs_bucket.MTC_BUCKET}/maxtext_multi_tier_p2_checkpointing"
+      f"{gcs_bucket.MTC_AUTOMATION_BUCKET}/maxtext_multi_tier_p2_checkpointing"
   )
   dataset_path = gcs_bucket.MAXTEXT_DIR
   docker_images = [
