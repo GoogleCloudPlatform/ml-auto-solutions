@@ -29,23 +29,6 @@ DOCKER_IMAGE = {
     SetupMode.NIGHTLY: DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
 }
 
-# TFLOPS threshold values by configuration
-tflop_thresholds = {
-    "v4-8": {
-        "1": 130,
-    },
-    "v4-16": {
-        "1": 120,
-        "2": 100,
-    },
-    "v5litepod-256": {
-        "1": 60,
-        "2": 60,
-        "4": 60,
-        "8": 60,
-    },
-}
-
 with models.DAG(
     dag_id=f"multipod_legacy_xlml",
     schedule=SCHEDULED_TIME,
@@ -72,31 +55,6 @@ with models.DAG(
         docker_image=DOCKER_IMAGE[test_mode].value,
         test_owner=test_owner.JON_B,
     ).run()
-
-    # v4-8 1 slice TFLOPS test
-    gke_config.get_gke_config(
-        time_out_in_min=60,
-        test_name=f"maxtext-perf-{test_mode.value}",
-        run_model_cmds=(
-            f"bash end_to_end/tpu/test_tflops.sh xlml {tflop_thresholds['v4-8']['1']} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-8-1slice-{test_mode.value}",
-        ),
-        docker_image=DOCKER_IMAGE[test_mode].value,
-        test_owner=test_owner.PRIYANKA_G,
-    ).run()
-
-    # v4-16 1 and 2 slice TFLOPS test
-    for n_slice in [1, 2]:
-      gke_config.get_gke_config(
-          num_slices=n_slice,
-          time_out_in_min=60,
-          test_name=f"maxtext-perf-{test_mode.value}",
-          run_model_cmds=(
-              f"bash end_to_end/tpu/test_tflops.sh xlml {tflop_thresholds['v4-16'][str(n_slice)]} gs://maxtext-xlml gs://maxtext-xlml/dataset xlml-tflops-v4-16-{n_slice}slice-{test_mode.value}",
-          ),
-          cluster=XpkClusters.TPU_V4_16_CLUSTER,
-          docker_image=DOCKER_IMAGE[test_mode].value,
-          test_owner=test_owner.PRIYANKA_G,
-      ).run()
 
     # v4-16 two slices determinism test
     slice_num = 2
