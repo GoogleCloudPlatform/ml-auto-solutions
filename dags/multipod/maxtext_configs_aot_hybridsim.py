@@ -53,7 +53,7 @@ def hybridsim_compile_and_run(test_group_id):
         test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-aot",
         run_model_cmds=aot_cmd,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-        test_owner=test_owner.RAYMOND_Z,
+        test_owner=test_owner.AIRFLOW,
     ).run(gcs_location=shared_gcs_location)
 
     # Run HybridSim workload: read HLO from GCS, generate estimated step time
@@ -75,7 +75,7 @@ def hybridsim_compile_and_run(test_group_id):
         test_name=f"maxtext-{model_size}-{n}xv{tpu.value}-{num_cores}-hybridsim",
         run_model_cmds=hybridsim_cmd,
         docker_image=DockerImage.CLOUD_HYBRIDSIM_NIGHTLY.value,
-        test_owner=test_owner.RAYMOND_Z,
+        test_owner=test_owner.AIRFLOW,
         user_specified_job_metric_config=job_metric_config,
     ).run(gcs_location=shared_gcs_location)
 
