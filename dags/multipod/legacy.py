@@ -19,7 +19,7 @@ from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
 from dags.common.vm_resource import TpuVersion, Zone, Project, DockerImage, XpkClusters
-from dags.multipod.configs import legacy_unit_test, gke_config
+from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode, Platform
 
 # Run once a day at 9 am UTC (1 am PST)
@@ -62,23 +62,6 @@ with models.DAG(
     concurrency=2,
 ) as dag:
   for test_mode in [SetupMode.STABLE, SetupMode.NIGHTLY]:
-    # Tests that require scripts from the `jax/unit_tests` folder should follow
-    # this pattern.
-    # TODO(jonbolin): Example for legacy unit test migration - evaluate whether
-    # to remove gpt1-like tests once test migration is complete.
-
-    for n_slice in [1, 2]:
-      legacy_unit_test.get_legacy_unit_test_config(
-          script_to_copy="gpt1-like.py",
-          test_cmd=("python3 gpt1-like.py",),
-          time_out_in_min=60,
-          test_name=f"gpt1-like-{test_mode.value}",
-          docker_image=DOCKER_IMAGE[test_mode].value,
-          test_owner=test_owner.JON_B,
-          num_slices=n_slice,
-          cluster=XpkClusters.TPU_V4_16_CLUSTER,
-      ).run()
-
     # Tests that run MaxText end_to_end tests should follow this pattern.
     gke_config.get_gke_config(
         time_out_in_min=60,
