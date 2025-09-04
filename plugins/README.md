@@ -18,8 +18,6 @@ To prevent your DAG from ever triggering this plugin, add your DAG ID as a new l
 
 > **Note:** Each DAG ID should be placed on its own line, without extra spaces or quotes.
 
-> **Note:** The priority of block list is higher than the one of allow list.
-
 ##### Example
 
 ```
@@ -27,6 +25,12 @@ To prevent your DAG from ever triggering this plugin, add your DAG ID as a new l
 <DAG_ID 2>
 ...
 ```
+
+##### Plugin Default Toggle
+The `enable_plugin_by_default` attribute in `config.json` should be set to true to have all completed DAGs trigger this plugin, unless those DAGs are explicitly listed in the `allow_list.txt` or `block_list.txt`.
+If you don't want this plugin to be triggered by default, please set `enable_plugin_by_default` to false.
+
+> **Note:** Priority is determined in this order: block list > allow list > default toggle.
 
 ### 2.  **GitHub Owner Mapping:**
 For accurate issue assignment, ensure that the `owner` property defined for tests within your DAGs corresponds directly to valid **GitHub usernames**. The plugin will collect unique test owners from the failed DAG and attempt to assign the GitHub issue to these users.
