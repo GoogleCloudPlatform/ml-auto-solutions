@@ -95,15 +95,3 @@ with models.DAG(
             docker_image=DOCKER_IMAGE[test_mode].value,
             test_owner=test_owner.MOHIT_K,
         ).run()
-
-  # v4-8 2 slices checkpoint resharding test
-  gke_config.get_gke_config(
-      num_slices=2,
-      time_out_in_min=60,
-      test_name=f"maxtext-checkpoint-reshard-{SetupMode.STABLE.value}",
-      run_model_cmds=(
-          f"bash end_to_end/tpu/test_checkpoint_resharding.sh xlml-checkpoint-resharding-v4-8-2slice-{SetupMode.STABLE.value} gs://maxtext-xlml gs://maxtext-xlml/dataset",
-      ),
-      docker_image=DOCKER_IMAGE[SetupMode.STABLE].value,
-      test_owner=test_owner.PRIYANKA_G,
-  ).run()

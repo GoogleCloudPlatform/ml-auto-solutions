@@ -67,3 +67,18 @@ with models.DAG(
           docker_image=image.value,
           test_owner=test_owner.SURBHI_J,
       ).run()
+
+    # Checkpoint resharding test - trains a model with a specific sharding strategy and saves a checkpoint.
+    # Then train again by restoring this checkpoint using a different sharding strategy.
+    # Finally, asserts that the learning metrics are consistent, ensuring that checkpoints can be successfully loaded across different sharding strategies.
+    gke_config.get_gke_config(
+        num_slices=2,
+        cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+        time_out_in_min=60,
+        test_name=f"maxtext-checkpoint-resharding-{mode.value}",
+        run_model_cmds=(
+            f"bash end_to_end/tpu/test_checkpoint_resharding.sh checkpoint-resharding-{mode.value} {base_output_directory} {dataset_path}",
+        ),
+        docker_image=image.value,
+        test_owner=test_owner.SURBHI_J,
+    ).run()
