@@ -10,6 +10,12 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from google.cloud import logging as logging_api
 
+<<<<<<< HEAD
+=======
+from dags.orbax.util import gcs
+from xlml.utils import xpk
+
+>>>>>>> 8e5eef9e (Add a new DAG that tests orbax emergency checkpointing manager saving feature to GCS Bucket feature.)
 
 @task
 def generate_timestamp():
@@ -246,6 +252,62 @@ def validate_log_with_gcs(
         f"Replicator log steps found: {len(gcs_save_step_list)}."
     )
   return max(gcs_save_step_list), max(gcs_save_step_list_bucket)
+
+
+@task
+def validate_gcs_checkpoint_files(
+    bucket_path: str,
+    steps_to_validate: Optional[list] = None,
+) -> None:
+  """
+  Validates that checkpoint files exist in GCS bucket for expected steps.
+  This function uses the GCS utility to check that checkpoint files
+  are properly saved in the bucket for each expected step.
+  Args:
+    bucket_path: The full gs:// path to the GCS bucket
+    vali_step_list: Optional list of steps to validate
+  Returns:
+    None: Raises AirflowFailException if checkpoint validation fails
+  """
+  if steps_to_validate is None:
+    logging.info(
+        "No validation steps provided, skipping GCS checkpoint validation"
+    )
+    return
+
+  try:
+    checkpoint_files = gcs.get_gcs_checkpoint(bucket_path)
+    logging.info(f"Found checkpoint files in GCS: {checkpoint_files}")
+
+    # Extract step directories from checkpoint files
+    found_steps = set()
+    for file_path in checkpoint_files:
+      # Extract directory names that are numeric (step numbers)
+      path_parts = file_path.split("/")
+      for part in path_parts:
+        if part.isdigit():
+          found_steps.add(int(part))
+
+    expected_steps = set(steps_to_validate)
+    missing_steps = expected_steps - found_steps
+
+    logging.info(f"Expected steps: {sorted(expected_steps)}")
+    logging.info(f"Found steps: {sorted(found_steps)}")
+
+    if missing_steps:
+      raise AirflowFailException(
+          f"GCS checkpoint validation failed: Missing checkpoint files for steps {sorted(missing_steps)}. "
+          f"Expected steps: {sorted(steps_to_validate)}, Found steps: {sorted(found_steps)}"
+      )
+
+    logging.info(f"GCS checkpoint validation successful!")
+    logging.info(
+        f"All {len(steps_to_validate)} expected checkpoint files found in GCS"
+    )
+    logging.info(f"Validated steps: {sorted(found_steps)}")
+
+  except Exception as e:
+    raise AirflowFailException(f"Error validating GCS checkpoints: {str(e)}")
 
 
 def list_log_entries(
