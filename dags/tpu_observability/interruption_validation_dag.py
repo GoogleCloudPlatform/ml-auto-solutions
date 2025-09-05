@@ -1,4 +1,4 @@
-"""A DAG to validate the accuracy of interruption counts from metrics"""
+"""A DAG to validate the accuracy of interruption counts from metrics."""
 
 import dataclasses
 import datetime
@@ -8,6 +8,7 @@ from typing import List
 
 from airflow import models
 from airflow.decorators import task
+from airflow.exceptions import AirflowSkipException
 from dags.common.vm_resource import Project
 from dags.map_reproducibility.utils.constants import Schedule
 from dags.multipod.configs.common import Platform
@@ -47,7 +48,7 @@ class InterruptionReason(str, enum.Enum):
   def log_filter(self) -> str:
     """Returns the corresponding filter for the interruption reason.
 
-    These filters are in accordance with the defintions in this file from Google3:
+    These filters are in accordance with the definitions in this file from Google3:
     //depot/google3/java/com/google/cloud/cluster/manager/compute/services/instancemanagerevent/InstanceEventNotificationAction.java
     """
 
@@ -115,7 +116,7 @@ class EventRecord:
   record_timestamps: List[int] = dataclasses.field(default_factory=list)
 
 
-def fetch_gcp_metrics(
+def fetch_interruption_metric_records(
     configs: Configs,
     time_range: TimeRange,
 ) -> List[EventRecord]:
@@ -130,12 +131,12 @@ def fetch_gcp_metrics(
     time_range: The time range to query for metrics.
 
   Returns:
-    A List of EventRecord objects. Each eventRecord must contains the metric
+    A List of EventRecord objects. Each EventRecord must contains the metric
     points timestamps for the resource name.
 
   Raises:
-    RuntimeError: If no metric events are found in the specified time range or
-      if the resource name cannot be determined from the time series data.
+    RuntimeError: If the resource name cannot be determined from the time series
+      data or encounter an unexpected TypedValue.
   """
   project_id = configs.project_id
   interruption_reason = configs.interruption_reason.metric_label()
@@ -221,14 +222,11 @@ def fetch_gcp_metrics(
           [int(end_time_obj.timestamp())] * event_count
       )
 
-  if not event_records:
-    raise RuntimeError('No metric events found in the specified time range.')
-
   return list(event_records.values())
 
 
 @task
-def fetch_gcp_logs(
+def fetch_interruption_log_records(
     configs: Configs,
     time_range: TimeRange,
 ) -> List[EventRecord]:
@@ -246,8 +244,8 @@ def fetch_gcp_logs(
     events for each resource.
 
   Raises:
-    RuntimeError: If no log entries are found in the specified time range or
-      if the number of log entries reaches the `max_log_results` limit.
+    RuntimeError: If the number of log entries reaches the `max_log_results`
+      limit.
   """
   start_time = datetime.datetime.fromtimestamp(
       time_range.start, tz=datetime.timezone.utc
@@ -273,9 +271,6 @@ def fetch_gcp_logs(
       order_by=logging.DESCENDING,
       max_results=max_results,
   )
-
-  if not log_entries:
-    raise RuntimeError('No log entries found in the specified time range.')
 
   # key: resource_name, value: EventRecord
   event_records: dict[str, EventRecord] = {}
@@ -308,7 +303,7 @@ def fetch_gcp_logs(
 
 
 @task
-def determinate_time_range(
+def determine_time_range(
     configs: Configs,
     **context,
 ) -> TimeRange:
@@ -332,8 +327,8 @@ def determinate_time_range(
     window.
 
   Raises:
-    RuntimeError: If a suitable time window cannot be found within a
-      reasonable time range, indicating that the metric data is too dense.
+    AirflowSkipException: Raised to notify Airflow to skip the task and DAG when
+      no suitable time window is found.
   """
   # We assume the max shift of the log is 30 minutes. (call it max_shift)
   # The allowed_gap should be 2 * 30 minutes. Here's why we need this buffer:
@@ -362,16 +357,22 @@ def determinate_time_range(
 
   found_right = False
   while not found_right:
-    # Fail the test to indicate that manual inspection is required,
-    # as the data has been too dense for a significant duration.
+    # If the search for the right boundary has to go back more than three days
+    # from the task start time, it indicates that the data in the past few days
+    # is too dense. In such a case, validating the interruption count (three
+    # days ago) does not make sense, and manual inspection is required.
     if abs(task_start_time - right_bound) > int(
         datetime.timedelta(days=3).total_seconds()
     ):
-      raise RuntimeError('the data has been too dense in past few days')
+      raise AirflowSkipException('the data has been too dense in past few days')
 
-    metric_records = fetch_gcp_metrics(
+    metric_records = fetch_interruption_metric_records(
         configs, TimeRange(start=left_bound, end=right_bound)
     )
+    if not metric_records:
+      raise AirflowSkipException(
+          'No metric events found in the specified time range.'
+      )
 
     total_metric_timestamps = []
     for record in metric_records:
@@ -407,9 +408,9 @@ def determinate_time_range(
     if right_bound - left_bound > int(
         datetime.timedelta(days=5).total_seconds()
     ):
-      raise RuntimeError('the time window has been too long')
+      raise AirflowSkipException('the time window has been too long')
 
-    metric_records = fetch_gcp_metrics(
+    metric_records = fetch_interruption_metric_records(
         configs, TimeRange(start=left_bound, end=right_bound)
     )
 
@@ -427,7 +428,7 @@ def determinate_time_range(
       left_bound = r
 
     if not found_left or (right_bound - left_bound) < min_time_window:
-      # The initial left bound is 2 * time_window_step before task_start_tim.
+      # The initial left bound is 2 * time_window_step before task_start_time.
       # Extend the time range by additional time_window_step.
       left_bound = task_start_time - (2 + iteration_count) * time_window_step
       continue
@@ -442,11 +443,11 @@ def determinate_time_range(
 
 
 @task
-def check_event_count_match(
+def validate_interruption_count(
     metric_records: List[EventRecord],
     log_records: List[EventRecord],
 ):
-  """Verifies that the metric and log event counts match for each resource.
+  """Validates that the metric and log event counts match for each resource.
 
   This function compares the number of interruption events found in the metrics
   with the number of events found in the logs for each resource.
@@ -454,38 +455,26 @@ def check_event_count_match(
   Args:
     metric_records: A list of EventRecord objects containing metric timestamps
       for a specific resource.
-    log_records: A list of EventRecord objects containing log timestamps for
-      a specific resource.
+    log_records: A list of EventRecord objects containing log timestamps for a
+      specific resource.
 
   Raises:
     RuntimeError: If there is a mismatch between the metric and log event
       counts for any resource.
   """
 
-  count_diff_records = []
+  log_map = {log.resource_name: log.record_timestamps for log in log_records}
+
   for metric in metric_records:
     resource_name = metric.resource_name
-    found_match = False
-    log_timestamps = []
-    for log in log_records:
-      if log.resource_name == resource_name:
-        if len(log.record_timestamps) == len(metric.record_timestamps):
-          found_match = True
-        else:
-          log_timestamps = log.record_timestamps
-        break
+    log_timestamps = log_map.get(resource_name, [])
 
-    if not found_match:
-      count_diff_records.append({
-          'resource_name': resource_name,
-          'metric_records': metric.record_timestamps,
-          'log_records': log_timestamps,
-      })
-  if count_diff_records:
-    raise RuntimeError(
-        'Event count mismatch for this following event records:'
-        f' {count_diff_records}'
-    )
+    if len(log_timestamps) != len(metric.record_timestamps):
+      raise RuntimeError(
+          'Event count mismatch. \n'
+          f'Metric records count for {resource_name}: {len(metric.record_timestamps)} \n'
+          f'Log records count for {resource_name}: {len(log_timestamps)}'
+      )
 
 
 def create_interruption_dag(
@@ -511,7 +500,7 @@ def create_interruption_dag(
       start_date=datetime.datetime(2025, 7, 20),
       schedule=Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY,
       catchup=False,
-      tags=['gke', 'gce', 'tpu-observability', 'interruption_validation'],
+      tags=[platform.value, 'tpu-observability', 'interruption-count'],
       description=(
           'This DAG validates the accuracy of the interruption count metric by '
           'comparing it against logs.'
@@ -541,29 +530,29 @@ def create_interruption_dag(
     )
 
     @task
-    def fetch_gcp_metrics_task(
+    def fetch_interruption_metric_records_task(
         configs: Configs,
         proper_time_range: TimeRange,
     ) -> List[EventRecord]:
-      return fetch_gcp_metrics(configs, proper_time_range)
+      return fetch_interruption_metric_records(configs, proper_time_range)
 
-    proper_time_range = determinate_time_range(configs)
-    metric_records = fetch_gcp_metrics_task(
+    proper_time_range = determine_time_range(configs)
+    metric_records = fetch_interruption_metric_records_task(
         configs,
         proper_time_range,
     )
-    log_records = fetch_gcp_logs(
+    log_records = fetch_interruption_log_records(
         configs,
         proper_time_range,
     )
-    check_event_count = check_event_count_match(metric_records, log_records)
+    check_event_count = validate_interruption_count(metric_records, log_records)
 
     proper_time_range >> [metric_records, log_records] >> check_event_count
 
     return dag
 
 
-dag_id_prefix = 'interruption_validation'
+dag_id_prefix = 'validate_interruption_count'
 for platform in [Platform.GCE, Platform.GKE]:
   for reason in InterruptionReason:
     reason_value = reason.name.lower()
