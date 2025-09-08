@@ -56,19 +56,15 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
-  maxtext_docker_images = [
-      (
-          SetupMode.STABLE,
-          DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE,
-      )
-  ]
+  maxtext_docker_images = [(
+      SetupMode.STABLE,
+      DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE,
+  )]
 
-  maxdiffusion_docker_images = [
-      (
-          SetupMode.STABLE,
-          DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
-      )
-  ]
+  maxdiffusion_docker_images = [(
+      SetupMode.STABLE,
+      DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
+  )]
 
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
