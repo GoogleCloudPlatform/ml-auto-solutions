@@ -244,8 +244,8 @@ def fetch_interruption_log_records(
     events for each resource.
 
   Raises:
-    RuntimeError: If the number of log entries reaches the `max_log_results`
-      limit.
+    RuntimeError: Raised when log entries exceed a hardcoded limit, in
+      which case a manual inspection may be more appropriate.
   """
   start_time = datetime.datetime.fromtimestamp(
       time_range.start, tz=datetime.timezone.utc
@@ -296,7 +296,7 @@ def fetch_interruption_log_records(
           int(aware_timestamp.timestamp())
       )
 
-  if entry_count == max_results:
+  if entry_count >= max_results:
     raise RuntimeError(f'Log entries limit reached ({max_results} entries).')
 
   return list(event_records.values())
