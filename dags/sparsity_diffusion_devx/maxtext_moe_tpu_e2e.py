@@ -33,7 +33,7 @@ with models.DAG(
     dag_id="maxtext_moe_tpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
-        "sparsity_diffusion_devx",
+        "jax_models_and_performance",
         "multipod_team",
         "maxtext",
         "tpu",
@@ -150,7 +150,7 @@ with models.DAG(
 
   tests = []
   for model, test_scripts_details in multicluster_test_models.items():
-    gcs_subfolder = f"{test_owner.Team.SPARSITY_DIFFUSION_DEVX.value}/maxtext"
+    gcs_subfolder = f"{test_owner.Team.JAX_MODELS_AND_PERFORMANCE.value}/maxtext"
     for image in docker_image.keys():
       test_group_id = "chained_tests" + "_" + model + "_" + image
       if QuarantineTests.is_quarantined(test_group_id):
