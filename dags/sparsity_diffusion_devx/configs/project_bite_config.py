@@ -25,7 +25,7 @@ from dags.common.vm_resource import TpuVersion, Project
 from airflow.models.taskmixin import DAGNode
 
 
-GCS_SUBFOLDER_PREFIX = test_owner.Team.SPARSITY_DIFFUSION_DEVX.value
+GCS_SUBFOLDER_PREFIX = test_owner.Team.JAX_MODELS_AND_PERFORMANCE.value
 
 
 def set_up_axlearn(pinned_version, jax_version) -> Tuple[str]:
