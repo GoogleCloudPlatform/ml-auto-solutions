@@ -29,7 +29,7 @@ from xlml.utils import name_format
 with models.DAG(
     dag_id="jax_ai_image_candidate_tpu_e2e",
     tags=[
-        "sparsity_diffusion_devx",
+        "jax_models_and_performance",
         "multipod_team",
         "maxtext",
         "gpu",

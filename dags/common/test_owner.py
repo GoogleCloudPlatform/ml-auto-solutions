@@ -31,7 +31,7 @@ class Team(enum.Enum):
   INFERENCE = "inference"
   FRAMEWORK = "framework3p"
   LLM_DEVX = "llm_devx"
-  SPARSITY_DIFFUSION_DEVX = "sparsity_diffusion_devx"
+  JAX_MODELS_AND_PERFORMANCE = "jax_models_and_performance"
   PERFORMANCE = "performance"
   PRODUCTIVITY = "productivity"
 
