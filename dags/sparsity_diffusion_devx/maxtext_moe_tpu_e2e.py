@@ -150,7 +150,9 @@ with models.DAG(
 
   tests = []
   for model, test_scripts_details in multicluster_test_models.items():
-    gcs_subfolder = f"{test_owner.Team.JAX_MODELS_AND_PERFORMANCE.value}/maxtext"
+    gcs_subfolder = (
+        f"{test_owner.Team.JAX_MODELS_AND_PERFORMANCE.value}/maxtext"
+    )
     for image in docker_image.keys():
       test_group_id = "chained_tests" + "_" + model + "_" + image
       if QuarantineTests.is_quarantined(test_group_id):
