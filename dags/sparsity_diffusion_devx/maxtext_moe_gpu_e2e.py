@@ -83,7 +83,7 @@ with models.DAG(
     dag_id="maxtext_moe_gpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
-        "sparsity_diffusion_devx",
+        "jax_models_and_performance",
         "multipod_team",
         "maxtext",
         "gpu",

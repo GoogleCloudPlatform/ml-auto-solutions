@@ -35,7 +35,7 @@ with models.DAG(
     dag_id="jax_ai_image_tpu_e2e",
     schedule=SCHEDULED_TIME,
     tags=[
-        "sparsity_diffusion_devx",
+        "jax_models_and_performance",
         "multipod_team",
         "maxtext",
         "maxdiffusion",
