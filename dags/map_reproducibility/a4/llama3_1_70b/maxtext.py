@@ -47,6 +47,7 @@ with models.DAG(
         "xlml",
         "regressiontests",
         "a3ultra",
+        "maxtext",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,

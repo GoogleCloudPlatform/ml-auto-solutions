@@ -42,6 +42,7 @@ DAG_TAGS = [
     "internal",
     "regressiontests",
     "a3ultra",
+    "maxtext",
 ]
 
 
