@@ -18,7 +18,7 @@ with models.DAG(
     tags=[
         "cloud-ml-auto-solutions",
         "multi-host-availability",
-        "tpu_obervability",
+        "tpu-observability",
         "rollback",
     ],
     description=(
