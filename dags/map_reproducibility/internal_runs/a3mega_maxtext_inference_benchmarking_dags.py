@@ -40,6 +40,7 @@ DAG_TAGS = [
     "regressiontests",
     "a3mega",
     "inference",
+    "maxtext",
 ]
 
 # Create DAGs for each configuration
