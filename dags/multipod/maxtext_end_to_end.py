@@ -44,39 +44,70 @@ with models.DAG(
     catchup=False,
 ) as dag:
   test_name_prefix = "maxtext"
+
   test_models_tpu = {
-      "llama2-7b": "tpu/llama2/7b/test_llama2_7b",
-      "mistral-7b": "tpu/mistral/7b/test_mistral-7b",
-      "gemma-2b": "tpu/gemma/2b/test_gemma",
-      "gpt3": "tpu/test_gpt3",
+      "llama2-7b": {
+          "owner": test_owner.MOHIT_K,
+          "commands": ["bash end_tp_end/tpu/llama2/7b/test_llama2_7b.sh"],
+      },
+      "mistral-7b": {
+          "owner": test_owner.MOHIT_K,
+          "commands": ["bash end_to_end/tpu/mistral/7b/test_mistral-7b.sh"],
+      },
+      "gemma-2b": {
+          "owner": test_owner.MOHIT_K,
+          "commands": ["bash end_to_end/tpu/gemma/2b/test_gemma.sh"],
+      },
+      "gemma2-2b": {
+          "owner": test_owner.HENGTAO_G,
+          "commands": [
+              "bash end_to_end/tpu/gemma2/2b/test_gemma2_to_mt.sh",
+              "bash end_to_end/tpu/gemma2/2b/test_gemma2_to_hf.sh",
+          ],
+      },
+      "gemma3-4b": {
+          "owner": test_owner.HENGTAO_G,
+          "commands": [
+              "bash end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
+              "bash end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
+          ],
+      },
+      "qwen3-4b": {
+          "owner": test_owner.HENGTAO_G,
+          "commands": [
+              "bash end_to_end/tpu/qwen3/4b/test_qwen3_to_mt.sh",
+              "bash end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
+          ],
+      },
+      "gpt3": {
+          "owner": test_owner.MOHIT_K,
+          "commands": ["bash end_to_end/tpu/test_gpt3.sh"],
+      },
   }
 
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
-  for model, test_script in test_models_tpu.items():
+  for model, test_config in test_models_tpu.items():
+    model_cmds = (f"export HF_TOKEN={HF_TOKEN}",) + tuple(
+        test_config["commands"]
+    )
     stable_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
-        run_model_cmds=(
-            f"export HF_TOKEN={HF_TOKEN}",
-            f"bash end_to_end/{test_script}.sh",
-        ),
+        run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE.value,
         cluster=XpkClusters.TPU_V5P_8_CLUSTER,
-        test_owner=test_owner.MOHIT_K,
+        test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-nightly-{model}",
-        run_model_cmds=(
-            f"export HF_TOKEN={HF_TOKEN}",
-            f"bash end_to_end/{test_script}.sh",
-        ),
+        run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX.value,
         cluster=XpkClusters.TPU_V5P_8_CLUSTER,
-        test_owner=test_owner.MOHIT_K,
+        test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     stable_tpu >> nightly_tpu
 
