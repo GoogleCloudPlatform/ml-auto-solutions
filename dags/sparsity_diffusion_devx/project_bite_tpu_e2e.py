@@ -65,7 +65,6 @@ with models.DAG(
     dag_id='project_bite_tpu_e2e',
     schedule=SCHEDULED_TIME,
     tags=[
-        'jax_models_and_performance',
         'multipod_team',
         'tpu',
         'axlearn',
