@@ -2,11 +2,14 @@ name: Linter
 
 on:
   pull_request:
-    branches: [master]
+    branch:
+      - pw/dev/**
     types: [opened, synchronize, edited]
 
   push:
     branches: [master]
+
+  workflow_dispatch: {}
 
 jobs:
   linting_check:
