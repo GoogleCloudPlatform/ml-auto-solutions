@@ -179,23 +179,25 @@ def maxtext_inference_offline_benchmark_config(
     git_clone_maxtext += f" -b {maxtext_branch}"
 
   set_up_cmds = (
-      "pip install --upgrade pip",
-      "sudo apt-get -y update",
-      "sudo apt-get -y install python3.10-venv",
-      "sudo apt-get -y install jq",
-      "python -m venv .env",
-      "source .env/bin/activate",
-      # Setup Loadgen
-      "git clone https://github.com/mlcommons/inference.git",
-      "cd inference/loadgen && pip install . && cd ../..",
-      # Setup MaxText
-      git_clone_maxtext,
-      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
-      "pip install -r maxtext/MaxText/inference_mlperf/requirements.txt",
-      "cd maxtext/MaxText/inference_mlperf/trillium",
-      # Copy Dataset
-      "gsutil cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
-      "cp ../user100.conf ./",
+    "pip install --upgrade pip",
+    "sudo apt-get -y update",
+    "sudo apt-get -y install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev libbz2-dev liblzma-dev cmake pkg-config jq python3.12 python3.12-venv python3.12-dev",
+    "python3.12 -m venv .env",
+    "source .env/bin/activate",
+    "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+    "source $HOME/.cargo/env",
+    "git clone https://github.com/mlcommons/inference.git",
+    "cd inference/loadgen && pip install . && cd ../..",
+    "git clone https://github.com/google/maxtext.git",
+    "cd maxtext && bash setup.sh MODE=stable && cd ..",
+    "pip install numpy==1.26.4",
+    "pip install --no-deps --ignore-installed transformers==4.42.0 tokenizers==0.19.1",
+    "sed -i '/transformers/d' maxtext/MaxText/inference_mlperf/requirements.txt",
+    "sed -i '/tokenizers/d' maxtext/MaxText/inference_mlperf/requirements.txt",
+    "pip install --no-cache-dir -r maxtext/MaxText/inference_mlperf/requirements.txt",
+    "cd maxtext/MaxText/inference_mlperf/trillium",
+    "gsutil cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
+    "cp ../user100.conf ./",
   )
 
   add_accuracy_to_metrics = r"""tac evaluate_offline_accuracy_log.log | grep -m1 '{.*}' | \ #  read file in reverse, grep first json-like pattern
