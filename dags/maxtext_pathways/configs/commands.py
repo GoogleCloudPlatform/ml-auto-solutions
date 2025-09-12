@@ -52,4 +52,4 @@ if __name__ == '__main__':
   print(f"{ENV_COMMAND = }\n")
   print(f"{RECIPE_COMMAND = }\n")
   COMMAND = ENV_COMMAND[0] + " && " + RECIPE_COMMAND[0]
-  print(COMMAND.replace("&& ", "\n"))
+  print(COMMAND.replace("&& ", "&& \n"))
