@@ -15,6 +15,7 @@
 """
 A DAG to run MaxText multi-tier checkpointing tests.
 """
+import time
 import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket
@@ -24,6 +25,7 @@ from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode  # Run once a day at 10 am UTC (2 am PST)
 
 SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
+UNIQUE_ID = time.time()
 
 with models.DAG(
     dag_id="maxtext_muti_tier_p2_checkpointing",
@@ -47,11 +49,11 @@ with models.DAG(
   ]
   test_configs = {
       # accelerator: list of slices to test
-      "v6e-16": [3],
+      "v6e-256": [3],
   }
   clusters = {
       # accelerator: cluster name
-      "v6e-16": XpkClusters.TPU_V6E_16_IN_MEM_CLUSTER,
+      "v6e-256": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
   }
 
   for mode, image in docker_images:
@@ -59,7 +61,7 @@ with models.DAG(
       for slice_num in slices:
         command = (
             "bash end_to_end/test_mtc_phase_2_save_path.sh"
-            f" multi_tier_checkpointing-{slice_num}x-{accelerator}"
+            f" multi_tier_checkpointing-{slice_num}x-{accelerator}-{UNIQUE_ID}"
             f" {base_output_directory} {dataset_path}",
         )
         maxtext_v6e_chkpt_save_test = gke_config.get_gke_config(
@@ -74,7 +76,7 @@ with models.DAG(
 
         command = "rm -rf /local/*"
         ramdisk_single_slice_cleanup = gke_config.get_gke_config(
-            num_slices=1,
+            num_slices=2,
             cluster=clusters[accelerator],
             time_out_in_min=60,
             test_name="maxtext-multi-tier-checkpointing-p2-emulate-disruption",
@@ -84,7 +86,7 @@ with models.DAG(
         ).run(ramdisk_directory="local", mtc_enabled=True, xpk_branch="main")
         command = (
             "bash end_to_end/test_mtc_phase_2_save_path.sh"
-            f" multi_tier_checkpointing-{slice_num}x-{accelerator}"
+            f" multi_tier_checkpointing-{slice_num}x-{accelerator}-{UNIQUE_ID}"
             f" {base_output_directory} {dataset_path}",
         )
 
