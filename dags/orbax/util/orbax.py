@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from airflow.exceptions import AirflowFailException
 from absl import logging
 import math
+import re
 
 from dags import gcs_bucket
 from xlml.utils.gke import zone_to_region
@@ -160,37 +161,40 @@ class TestConfig:
   def _get_disk_size(
       self, slice_num: int, mode="bytes", multiplier: float = 1
   ) -> float | int:
-    # Model Params
-    model_name = self.model_name.split("-")[0]
-    size_model = self.model_name.split("-")[1][:-1]
-    # Cluster params
-    num_chips = self.accelerator.split("-")[1]
+    """Calculates disk size for a model checkpoint."""
+    try:
+      model_pattern = r"^(.*)-([0-9.]+b)$"
+      model_pattern = r"^(.*)-([^-]+)$"
+      match_model = re.match(model_pattern, self.model_name)
+      match_chips = re.match(model_pattern, self.accelerator)
+      if match_model and match_chips:
+        model_name = match_model.group(1)
+        size_model = match_model.group(2)[:-1]
+        num_chips = match_chips.group(2)
+    except (AttributeError, IndexError) as e:
+      raise ValueError("Invalid model_name or accelerator format.") from e
 
-    if model_name in MODELS:
-      total_checkpoint = int(size_model) * 10
-      replicas_per_node = int(num_chips) / slice_num
+    if model_name not in MODELS:
+      raise AirflowFailException(
+          f"Model '{model_name}' not supported. Please choose from: {sorted(MODELS)}"
+      )
 
-      # Calculate checkpoint size based on multiplier
-      checkpoint_size_in_gb = (
-          total_checkpoint / replicas_per_node
-      ) * multiplier
+    total_checkpoint = int(size_model) * 10
+    replicas_per_node = int(num_chips) / slice_num
+    checkpoint_size_in_gb = (total_checkpoint / replicas_per_node) * multiplier
 
-      if mode == "bytes":
-        # Need to align to page size.
+    match mode:
+      case "bytes":
         unaligned_disk_size_bytes = math.ceil(
             checkpoint_size_in_gb * 1_000_000_000
         )
         return self._align_to_page_size(unaligned_disk_size_bytes)
-      elif mode == "mib":
+      case "mib":
         return math.ceil((checkpoint_size_in_gb * 1_000_000_000) / (2**20))
-      else:
+      case _:
         raise ValueError(
-            f"Invalid mode '{mode}'. Supported modes are 'bytes' or 'mib''."
+            f"Invalid mode '{mode}'. Supported modes are 'bytes' or 'mib'."
         )
-    else:
-      raise AirflowFailException(
-          f"Model '{model_name}' not supported. Please choose from: {sorted(MODELS)}"
-      )
 
   def _align_to_page_size(self, size: int, page_size: int = 4096) -> int:
     """Rounds a size up to the nearest multiple of the page size."""
