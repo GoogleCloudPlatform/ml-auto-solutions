@@ -10,22 +10,36 @@ By default, this plugin is **disabled** for all DAGs.
 
 ##### Enabling the Plugin for a DAG
 
-If you want your DAG to **trigger this plugin**, add your DAG ID as a new line in **plugins/allow_list.txt**.
+If you want your DAG to **trigger this plugin**, add your DAG item as a new line in **plugins/allow_list.txt**.
 
 ##### Disabling the Plugin for a DAG
 
-To prevent your DAG from ever triggering this plugin, add your DAG ID as a new line in **plugins/block_list.txt**. This list is intended to avoid repeated issue postings for DAGs that are not currently resolvable.
+To prevent your DAG from ever triggering this plugin, add your DAG item as a new line in **plugins/block_list.txt**. This list is intended to avoid repeated issue postings for DAGs that are not currently resolvable.
 
-> **Note:** Each DAG ID should be placed on its own line, without extra spaces or quotes.
-
-##### Example
-
+> **Note:** Each item should be placed on its own line, without extra spaces or quotes.
+##### DAG item rules
+##### 1. id
 ```
-<DAG_ID 1>
-<DAG_ID 2>
+id:<DAG_ID>
+```
+<DAG_ID> should be the same as the DAG ID you want to track.
+##### 2. tag
+```
+tag:<DAG_TAG> 
+```
+The DAG will be tracked if <DAG_TAG> matches one of its tags. An empty tag ('') is invalid and will be ignored.
+##### 3. pattern
+```
+pattern:<DAG_ID_PATTERN>
+```
+<DAG_ID_PATTERN> follows the same rules as UNIX shell globbing, not regular expression.
+##### Example
+```
+id:on_failure_action_trigger
+tag:xlml
+pattern:on_failure_action_*
 ...
 ```
-
 ##### Plugin Default Toggle
 The `enable_plugin_by_default` attribute in `config.json` should be set to true to have all completed DAGs trigger this plugin, unless those DAGs are explicitly listed in the `allow_list.txt` or `block_list.txt`.
 If you don't want this plugin to be triggered by default, please set `enable_plugin_by_default` to false.
