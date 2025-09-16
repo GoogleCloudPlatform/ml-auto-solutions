@@ -5,25 +5,25 @@ from dags.maxtext_pathways.utils.tasks import build_recipe_command, run_workload
 
 
 with DAG(
-  dag_id="pw_mcjax_benchmark_recipe_dag",
+  dag_id='pw_mcjax_benchmark_recipe_dag',
   start_date=datetime.datetime(2025, 1, 1),
   schedule_interval=None,
   catchup=False,
   tags=[
-    'maxtext',
-    'pathways',
-    'mcjax',
-    'benchmark'
-    'nightly',
+      'maxtext',
+      'pathways',
+      'mcjax',
+      'benchmark',
+      'nightly',
   ],
-  description="A DAG to run a MaxText pw_mcjax_benchmark_recipe on GKE.",
-  params=PARAMETERS
+  description='A DAG to run a MaxText pw_mcjax_benchmark_recipe on GKE.',
+  params=PARAMETERS,
 ) as dag:
   # Define task dependencies by instantiating and linking tasks.
   build_recipe_command_task = build_recipe_command()
   run_workload_task = run_workload(build_recipe_command_task)
   wait_for_workload_completion_task = wait_for_workload_completion()
-  clean_up_workload_task = clean_up_workload()
+  clean_up_workload_task = clean_up_workload().as_teardown(setups=run_workload_task)
 
   # Set the execution order.
   (
@@ -32,3 +32,4 @@ with DAG(
     >> wait_for_workload_completion_task
     >> clean_up_workload_task
   )
+  
