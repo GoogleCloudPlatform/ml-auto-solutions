@@ -19,48 +19,18 @@ from xlml.utils import gke
 
 @dataclass
 class CheckpointConfiguration:
-  """A dataclass to hold attributes of a Cloud Public Compute (CPC) instance."""
+  """
+  A dataclass to hold attributes of a Cloud Public Compute (CPC) instance.
+  Initializes the CheckpointConfiguration.
+  """
 
   project_id: str
   region: str
   cluster_name: str
   gcs_bucket: str
   machine_type: str
-  ramdisk_memory: str
-  toleration_key: str
-
-  def __init__(
-      self,
-      project_id: str,
-      region: str,
-      cluster_name: str,
-      gcs_bucket: str,
-      machine_type: str,
-      ramdisk_memory_in_mi: str,
-      toleration_key: str = "google.com/tpu",
-  ):
-    """
-    Initializes the CheckpointConfiguration.
-
-    Args:
-      project_id (str): The Google Cloud project ID.
-      region (str): The Google Cloud region.
-      cluster_name (str): The name of the GKE cluster.
-      gcs_bucket (str): The name of the GCS bucket for checkpoints.
-      machine_type (str): The machine type for the instance.
-      ram_disk_memory_in_mi (str): The size of the RAM disk in mebibytes (Mi).
-        The unit is in mebibytes (Mi) but the value should be passed as a
-        string with the unit, e.g., "1G" or "1024Mi".
-      toleration_key (str): The toleration key for the Kubernetes pod.
-        Defaults to "google.com/tpu".
-    """
-    self.project_id = project_id
-    self.region = region
-    self.cluster_name = cluster_name
-    self.gcs_bucket = gcs_bucket
-    self.machine_type = machine_type
-    self.ramdisk_memory = ramdisk_memory_in_mi
-    self.toleration_key = toleration_key
+  ramdisk_memory_in_mi: str
+  toleration_key: str = "google.com/tpu"
 
   def load_yaml_and_parse_body(
       self,
@@ -83,6 +53,7 @@ class CheckpointConfiguration:
       full parsed YAML body as a dictionary.
     """
 
+    logging.info(f"RAMDISK ==> {self.ramdisk_memory_in_mi}")
     cpc_yaml_template = f"""
       apiVersion: checkpointing.gke.io/v1
       kind: CheckpointConfiguration
@@ -96,8 +67,9 @@ class CheckpointConfiguration:
         - key: {self.toleration_key}
           operator: Exists
           effect: NoSchedule
-        inMemoryVolumeSize: {self.ramdisk_memory}
+        inMemoryVolumeSize: {self.ramdisk_memory_in_mi}
     """
+    logging.info(f"CPC ==> {cpc_yaml_template}")
     cpc_body = yaml.safe_load(cpc_yaml_template)
     group, version = cpc_body.get("apiVersion").split("/", 1)
     plural = cpc_body.get("kind").lower() + "s"
