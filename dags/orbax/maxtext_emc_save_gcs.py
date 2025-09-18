@@ -17,10 +17,10 @@ from dags.orbax.util import checkpoint_util
 from dags.orbax.util import validation_util
 from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 from xlml.utils.gke import zone_to_region
-from dags.orbax.util import orbax
+from dags.orbax.util import test_config_util
 
 
-SCHEDULE = "0 12 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "0 14 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_emc_save_gcs"
 
 # Only one version of the Docker image is supported at the moment.
@@ -67,23 +67,22 @@ with models.DAG(
     """,
     concurrency=2,
 ) as dag:
-  checkpointing = orbax.Checkpointing(
+  checkpointing = test_config_util.Checkpointing(
       name="emc", enable_multi_tier_checkpointing=False
   )
   test_configs = [
-      orbax.TestConfig(
-          cluster=XpkClusters.TPU_V5P_128_CLUSTER_ORBAX,
+      test_config_util.TestConfig(
+          cluster=XpkClusters.TPU_V5P_128_CLUSTER,
           machine_type="ct5p-hightpu-4t",
           accelerator="v5p-128",
           slices=[2],
           model_name="llama2-7b",
-          short_id="max-sv-loc",
+          short_id="max-sv-gcs",
           replicator_backup_time=30,
           step=75,
           local_checkpoint_step=20,
           checkpoint_step=25,
-          ram_disk_size_in_mi="800000Mi",
-          base_dir=orbax.DEFAULT_BUCKET,
+          base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
   for mode, image in DOCKER_IMAGES:
@@ -105,10 +104,11 @@ with models.DAG(
         )
 
         workload_command = test_config.generate_workload_command(
-            checkpoint_dir=orbax.DEFAULT_RAM_DISK,
+            checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
             out_folder=f"maxtext_emc_orbax_save_gcs",
             enable_multi_tier_checkp=checkpointing.enable_multi_tier_checkpointing,
+            slice_num=slice_num,
         )
 
         start_time = validation_util.generate_timestamp()
@@ -122,7 +122,7 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.CAMILO_Q,
         ).run(
-            ramdisk_directory=orbax.DEFAULT_RAM_DISK,
+            ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
             xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
@@ -147,9 +147,14 @@ with models.DAG(
 
         # Validate that GCS restore happened during the second training run
         validate_checkpoints_steps_gcs = validation_util.validate_gcs_checkpoint_files(
-            bucket_path=f"{orbax.DEFAULT_BUCKET}/maxtext_emc_orbax_save_gcs/{run_name}",
+            bucket_path=f"{test_config_util.DEFAULT_BUCKET}/maxtext_emc_orbax_save_gcs/{run_name}",
             steps_to_validate=steps_to_validate,
         )
+
+        # Final CPC cleanup to ensure symmetric start/end
+        wait_delete_cpc_final = checkpoint_util.wait_for_cpc_deletion.override(
+            trigger_rule="all_done", task_id="wait_delete_cpc_final"
+        )(test_config.cpc_config).as_teardown(setups=apply_cpc)
 
         (
             wait_delete_cpc
@@ -160,4 +165,5 @@ with models.DAG(
             >> end_time
             >> validate_steps
             >> validate_checkpoints_steps_gcs
+            >> wait_delete_cpc_final
         )

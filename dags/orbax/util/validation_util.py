@@ -10,12 +10,6 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from google.cloud import logging as logging_api
 
-<<<<<<< HEAD
-=======
-from dags.orbax.util import gcs
-from xlml.utils import xpk
-
->>>>>>> 8e5eef9e (Add a new DAG that tests orbax emergency checkpointing manager saving feature to GCS Bucket feature.)
 
 @task
 def generate_timestamp():
@@ -276,7 +270,7 @@ def validate_gcs_checkpoint_files(
     return
 
   try:
-    checkpoint_files = gcs.get_gcs_checkpoint(bucket_path)
+    checkpoint_files = get_gcs_checkpoint(bucket_path)
     logging.info(f"Found checkpoint files in GCS: {checkpoint_files}")
 
     # Extract step directories from checkpoint files

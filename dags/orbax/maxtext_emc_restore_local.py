@@ -14,17 +14,10 @@ from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 from dags.orbax.util import checkpoint_util, test_config_util, validation_util
 from xlml.utils.gke import zone_to_region
-<<<<<<< HEAD
 from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 
 DAG_TEST_NAME = "maxtext_emc_orbax_res_local"
 SCHEDULE = "0 11 * * *" if composer_env.is_prod_env() else None
-=======
-from dags.orbax.util import orbax
-
-DAG_TEST_NAME = "maxtext_emc_orbax_res_local"
-SCHEDULE = "0 23 * * *" if composer_env.is_prod_env() else None
->>>>>>> 8e5eef9e (Add a new DAG that tests orbax emergency checkpointing manager saving feature to GCS Bucket feature.)
 
 # Only one version of the Docker image is supported at the moment.
 # Other versions (e.g., "stable") may be introduced later.
@@ -76,21 +69,12 @@ with models.DAG(
       """,
     concurrency=2,
 ) as dag:
-<<<<<<< HEAD
   checkpointing = test_config_util.Checkpointing(
       name="emc", enable_multi_tier_checkpointing=False
   )
   test_configs = [
       test_config_util.TestConfig(
           cluster=XpkClusters.TPU_V5P_128_CLUSTER,
-=======
-  checkpointing = orbax.Checkpointing(
-      name="emc", enable_multi_tier_checkpointing=False
-  )
-  test_configs = [
-      orbax.TestConfig(
-          cluster=XpkClusters.TPU_V5P_128_CLUSTER_ORBAX,
->>>>>>> 8e5eef9e (Add a new DAG that tests orbax emergency checkpointing manager saving feature to GCS Bucket feature.)
           machine_type="ct5p-hightpu-4t",
           accelerator="v5p-128",
           slices=[2],
@@ -100,12 +84,7 @@ with models.DAG(
           step=200,
           checkpoint_step=50,
           local_checkpoint_step=20,
-<<<<<<< HEAD
           base_dir=test_config_util.DEFAULT_BUCKET,
-=======
-          ram_disk_size_in_mi="800000Mi",
-          base_dir=orbax.DEFAULT_BUCKET,
->>>>>>> 8e5eef9e (Add a new DAG that tests orbax emergency checkpointing manager saving feature to GCS Bucket feature.)
       ),
   ]
 
@@ -126,16 +105,6 @@ with models.DAG(
             checkpointing_type=checkpointing.name,
             slice_number=slice_num,
             accelerator=test_config.accelerator,
-<<<<<<< HEAD
-=======
-        )
-
-        workload_command = test_config.generate_workload_command(
-            checkpoint_dir=orbax.DEFAULT_RAM_DISK,
-            run_name=run_name,
-            out_folder=f"maxtext_emc_orbax_res_local",
-            enable_multi_tier_checkp=checkpointing.enable_multi_tier_checkpointing,
->>>>>>> 8e5eef9e (Add a new DAG that tests orbax emergency checkpointing manager saving feature to GCS Bucket feature.)
         )
 
         workload_command = test_config.generate_workload_command(
@@ -159,7 +128,6 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.DEPP_L,
         ).run_with_node_interruption(
-<<<<<<< HEAD
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
             xpk_branch=BRANCH_ABHINAV_MTC,
@@ -181,12 +149,6 @@ with models.DAG(
                 start_time=start_time,
                 end_time=end_time,
             )
-=======
-            ramdisk_directory=orbax.DEFAULT_RAM_DISK,
-            mtc_enabled=True,
-            xpk_branch=BRANCH_ABHINAV_MTC,
-            skip_post_process=True,
->>>>>>> 8e5eef9e (Add a new DAG that tests orbax emergency checkpointing manager saving feature to GCS Bucket feature.)
         )
 
         log_filters = [
