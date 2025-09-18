@@ -13,6 +13,7 @@ from google.cloud import container_v1
 import kubernetes
 
 from xlml.apis import gcp_config
+from xlml.utils import composer
 
 """Utilities for GKE."""
 
@@ -69,6 +70,16 @@ def run_job(
 
   @task
   def deploy_job(gcs_location):
+    composer.log_metadata_for_xlml_dashboard({
+      "body": body,
+      "project_name": gcp.project_name,
+      "zone": gcp.zone,
+      "dataset_name": gcp.dataset_name,
+      "composer_project": gcp.composer_project,
+      "dataset_project": gcp.dataset_project,
+      "cluster_name": cluster_name,
+      "gcs_location": gcs_location,
+    })
     body['spec']['template']['spec']['containers'][0]['env'].append(
         {'name': 'GCS_OUTPUT', 'value': gcs_location}
     )

@@ -28,7 +28,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.operators.python import get_current_context
 from airflow.models import Variable
 from xlml.apis import gcp_config, test_config
-from xlml.utils import ssh, startup_script
+from xlml.utils import ssh, startup_script, composer
 import fabric
 import google.api_core.exceptions
 import google.auth
@@ -82,6 +82,21 @@ def create_queued_resource(
   def create_queued_resource_request(
       tpu_name: str, ssh_keys: ssh.SshKeys
   ) -> str:
+    composer.log_metadata_for_xlml_dashboard({
+      "tpu_name": tpu_name,
+      "project_name": gcp.project_name,
+      "zone": gcp.zone,
+      "dataset_name": gcp.dataset_name,
+      "composer_project": gcp.composer_project,
+      "dataset_project": gcp.dataset_project,
+      "accelerator": {
+        "name": task_test_config.accelerator.name,
+        "num_cores": task_test_config.accelerator.cores,
+        "runtime_version": task_test_config.accelerator.runtime_version,
+        "version": task_test_config.accelerator.version,
+      },
+    })
+
     creds, _ = google.auth.default()
     client = tpu_api.TpuClient(credentials=creds)
 
