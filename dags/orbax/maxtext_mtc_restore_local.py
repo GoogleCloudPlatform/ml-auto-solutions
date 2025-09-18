@@ -4,28 +4,23 @@ Validates the local checkpoints are restored as expected
 """
 
 import datetime
-import posixpath
-from typing import Optional
-from dataclasses import dataclass
 
 from airflow import models
-from airflow.utils.task_group import TaskGroup
 
 from dags import composer_env
-from dags import gcs_bucket
 from dags.common import test_owner
 from dags.common.vm_resource import DockerImage
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
-from dags.orbax.util import validation_util
 from dags.orbax.util import checkpoint_util
-from xlml.utils.xpk import BRANCH_ABHINAV_MTC
+from dags.orbax.util import test_config_util
+from dags.orbax.util import validation_util
 from xlml.utils.gke import zone_to_region
-from dags.orbax.util import orbax
+from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 
 DAG_TEST_NAME = "maxtext_mtc_orbax_res_local"
-SCHEDULE = "0 23 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "0 14 * * *" if composer_env.is_prod_env() else None
 
 # Only one version of the Docker image is supported at the moment.
 # Other versions (e.g., "stable") may be introduced later.
@@ -71,8 +66,8 @@ with models.DAG(
     concurrency=2,
 ) as dag:
   test_configs = [
-      orbax.TestConfig(
-          cluster=XpkClusters.TPU_V5P_128_CLUSTER_ORBAX,
+      test_config_util.TestConfig(
+          cluster=XpkClusters.TPU_V5P_128_CLUSTER,
           machine_type="ct5p-hightpu-4t",
           accelerator="v5p-128",
           slices=[2],
@@ -82,11 +77,10 @@ with models.DAG(
           step=300,
           checkpoint_step=20,
           local_checkpoint_step=20,
-          ram_disk_size_in_mi="800000Mi",
-          base_dir=orbax.DEFAULT_BUCKET,
+          base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
-  checkpointing = orbax.Checkpointing(
+  checkpointing = test_config_util.Checkpointing(
       name="mtc", enable_multi_tier_checkpointing=True
   )
 
@@ -106,8 +100,9 @@ with models.DAG(
         )
 
         workload_command = test_config.generate_workload_command(
-            checkpoint_dir=orbax.DEFAULT_RAM_DISK,
+            checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
+            slice_num=slice_num,
             out_folder="maxtext_mtc_orbax_res_local",
             enable_multi_tier_checkp=checkpointing.enable_multi_tier_checkpointing,
         )
@@ -125,7 +120,7 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.DEPP_L,
         ).run_with_node_interruption(
-            ramdisk_directory=orbax.DEFAULT_RAM_DISK,
+            ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
             xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
@@ -135,28 +130,29 @@ with models.DAG(
             task_id="generate_end_time"
         )()
 
-        validate_is_restoring = validation_util.validate_log_exist.override(
-            task_id="validate_is_restoring"
-        )(
-            project_id=test_config.cluster.project,
-            location=zone_to_region(test_config.cluster.zone),
-            cluster_name=test_config.cluster.name,
-            text_filter="\"'event_type': 'restore'\"",
-            start_time=start_time,
-            end_time=end_time,
+        validate_restore_step = (
+            validation_util.validate_restored_correct_checkpoint(
+                project_id=test_config.cluster.project,
+                location=zone_to_region(test_config.cluster.zone),
+                cluster_name=test_config.cluster.name,
+                pod_pattern=".*0-0",
+                interrupt_at_step=40,
+                start_time=start_time,
+                end_time=end_time,
+            )
         )
 
-        # Find "copy repl/...data to local/..." from gke-managed-checkpointing log
-        # to make sure we are restoring from the peer and not from the gcs.
+        log_filters = [
+            "jsonPayload.message:\"'event_type': 'restore'\"",
+            "jsonPayload.message:\"'directory': '/local\"",
+        ]
         validate_restored_source = validation_util.validate_log_exist.override(
-            task_id="validate_restored_copy_from_peer"
+            task_id="validate_restore_copy_from_peer"
         )(
             project_id=test_config.cluster.project,
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
-            namespace="gke-managed-checkpointing",
-            container_name="replication-worker",
-            text_filter='textPayload=~"copy repl/\S+\.data to local/\S+"',
+            text_filter=" AND ".join(log_filters),
             start_time=start_time,
             end_time=end_time,
         )
@@ -172,6 +168,11 @@ with models.DAG(
             steps_to_validate=steps_to_validate,
         )
 
+        # Final CPC cleanup to ensure symmetric start/end
+        wait_delete_cpc_final = checkpoint_util.wait_for_cpc_deletion.override(
+            trigger_rule="all_done", task_id="wait_delete_cpc_final"
+        )(test_config.cpc_config).as_teardown(setups=apply_cpc)
+
         (
             wait_delete_cpc
             >> apply_cpc
@@ -179,7 +180,8 @@ with models.DAG(
             >> start_time
             >> maxtext_chkpt_run_test
             >> end_time
-            >> validate_is_restoring
+            >> validate_restore_step
             >> validate_restored_source
             >> validate_log
+            >> wait_delete_cpc_final
         )
