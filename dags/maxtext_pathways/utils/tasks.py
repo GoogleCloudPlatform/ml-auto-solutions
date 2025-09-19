@@ -32,7 +32,7 @@ def build_recipe_command():
       else:
         recipe_cmds += f" --{key}='{value}'"
         
-  logging.info("\n" + recipe_cmds.replace(" --", " \\\n  --"))
+  logging.info("\n" + recipe_cmds.replace(" --", " \n  --"))
   
   return recipe_cmds
 
