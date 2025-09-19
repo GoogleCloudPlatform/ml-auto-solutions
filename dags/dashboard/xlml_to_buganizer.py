@@ -29,11 +29,6 @@ GSPREAD_INSERT_ENABLED = True
 DEFAULT_GSPREAD_SHEET_ID = Variable.get("buganizer_sheet_id", default_var="")
 GSPREAD_WORKSHEET_NAME = "unhealthy_clusters"
 
-# --- GCP Auth ---
-credentials, _ = google.auth.default(
-    scopes=["https://www.googleapis.com/auth/cloud-platform"]
-)
-
 
 # ================================================================
 # Step 1: Enums & Constants
@@ -121,12 +116,12 @@ def insert_gspread_rows(rows: List[List[str]], sheet_id: str):
 # ================================================================
 # Step 3: BigQuery Functions
 # ================================================================
-def get_clusters_from_view() -> List[Any]:
+def get_clusters_from_view(credential) -> List[Any]:
   """Get cluster list from BigQuery view"""
   context = get_current_context()
   project_id = context["params"]["source_bq_project_id"] or DEFAULT_PROJECT_ID
   dataset_id = context["params"]["source_bq_dataset_id"] or DEFAULT_DATASET_ID
-  client = bigquery.Client(project=project_id, credentials=credentials)
+  client = bigquery.Client(project=project_id, credentials=credential)
   query = f"""
         SELECT project_name, cluster_name
         FROM `{project_id}.{dataset_id}.cluster_view`
@@ -139,7 +134,7 @@ def get_clusters_from_view() -> List[Any]:
 # ================================================================
 # Step 4: GKE Functions
 # ================================================================
-def list_clusters_by_project(project_id) -> List[Any]:
+def list_clusters_by_project(credentials, project_id) -> List[Any]:
   """List all clusters in a given GCP project"""
   client = container_v1.ClusterManagerClient(credentials=credentials)
   parent = f"projects/{project_id}/locations/-"
@@ -147,7 +142,9 @@ def list_clusters_by_project(project_id) -> List[Any]:
   return response.clusters if response and response.clusters else []
 
 
-def get_cluster_status(project_id, location, cluster_name) -> Dict[str, Any]:
+def get_cluster_status(
+    credentials, project_id, location, cluster_name
+) -> Dict[str, Any]:
   """Get detailed GKE cluster + nodepool status"""
   client = container_v1.ClusterManagerClient(credentials=credentials)
   name = f"projects/{project_id}/locations/{location}/clusters/{cluster_name}"
@@ -189,22 +186,24 @@ def get_cluster_status(project_id, location, cluster_name) -> Dict[str, Any]:
 # ================================================================
 # Step 5: Workflow Functions
 # ================================================================
-def fetch_clusters_list():
-  clusters = get_clusters_from_view()
+def fetch_clusters_list(credential):
+  clusters = get_clusters_from_view(credential=credential)
   if not clusters:
     logging.info("No rows found in view.")
     return []
   return clusters
 
 
-def fetch_clusters_location(clusters) -> Dict[str, Any]:
+def fetch_clusters_location(credentials, clusters) -> Dict[str, Any]:
   """Map project::cluster_name -> location"""
   cluster_locations = {}
   projects = set(cluster.project_name for cluster in clusters)
   logging.info(f"Fetching clusters from {len(projects)} distinct projects...")
   for idx, project in enumerate(projects, 1):
     try:
-      clusters = list_clusters_by_project(project)
+      clusters = list_clusters_by_project(
+          credentials=credentials, project_id=project
+      )
       logging.info(
           f"[{idx}/{len(projects)}] {project}: {len(clusters)} clusters"
       )
@@ -217,14 +216,14 @@ def fetch_clusters_location(clusters) -> Dict[str, Any]:
 
 
 def insert_cluster_status_lists(
-    status_list, project_name, location, cluster_name, now_utc
+    credentials, status_list, project_name, location, cluster_name, now_utc
 ):
   """Insert both cluster + nodepool status into list"""
   try:
     #  Cannot query cluster info without location
     if not location:
       raise NotFound("The requested resource was not found on the server.")
-    info = get_cluster_status(project_name, location, cluster_name)
+    info = get_cluster_status(credentials, project_name, location, cluster_name)
     cluster_status = info["status"]
     cluster_status_message = info["status_message"]
     mal_node_pools = [
@@ -298,7 +297,7 @@ def insert_cluster_status_lists(
 
 
 def fetch_clusters_status(
-    clusters_list: List[Any], cluster_locations: Dict[str, Any]
+    credentials, clusters_list: List[Any], cluster_locations: Dict[str, Any]
 ) -> List[Any]:
   """Fetch status for all clusters & node pools"""
   cluster_status_rows = []
@@ -310,7 +309,12 @@ def fetch_clusters_status(
     location = cluster_locations.get(key)
     #  cluster_status_rows is parameter for output
     insert_cluster_status_lists(
-        cluster_status_rows, project_name, location, cluster_name, now_utc
+        credentials,
+        cluster_status_rows,
+        project_name,
+        location,
+        cluster_name,
+        now_utc,
     )
   print_failed_cluster_info(cluster_status_rows)
   return cluster_status_rows
@@ -321,9 +325,16 @@ def fetch_clusters_status(
 # ================================================================
 @task
 def pull_clusters_status() -> List[Any]:
-  target_clusters_list = fetch_clusters_list()
-  target_clusters_locations = fetch_clusters_location(target_clusters_list)
-  return fetch_clusters_status(target_clusters_list, target_clusters_locations)
+  credentials, _ = google.auth.default(
+      scopes=["https://www.googleapis.com/auth/cloud-platform"]
+  )
+  target_clusters_list = fetch_clusters_list(credentials)
+  target_clusters_locations = fetch_clusters_location(
+      credentials, target_clusters_list
+  )
+  return fetch_clusters_status(
+      credentials, target_clusters_list, target_clusters_locations
+  )
 
 
 @task
@@ -364,7 +375,7 @@ with DAG(
     dag_id="xlml_to_buganizer",
     description="A DAG that periodically queries the status of GKE clusters to monitor their health, and writes the collected data as rows into the target Google Sheet.",
     start_date=datetime(2025, 9, 3),
-    schedule_interval=SCHEDULED_TIME,
+    schedule=SCHEDULED_TIME,
     catchup=False,
     tags=[],
     default_args={"retries": 0},
