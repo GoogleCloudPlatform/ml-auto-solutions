@@ -11,6 +11,7 @@ import google
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.param import Param
+from airflow.models import Variable
 from airflow.operators.python import get_current_context
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 from google.api_core.exceptions import NotFound
@@ -25,7 +26,7 @@ DEFAULT_DATASET_ID = "amy_xlml_poc_prod"
 
 # --- Google Sheets Config ---
 GSPREAD_INSERT_ENABLED = True
-DEFAULT_GSPREAD_SHEET_ID = "1FkyzvC0HGxFPGjIpCV4pWHB_QFWUOtLPIlDfnBNvt4Q"
+DEFAULT_GSPREAD_SHEET_ID = Variable.get("buganizer_sheet_id", default_var="")
 GSPREAD_WORKSHEET_NAME = "unhealthy_clusters"
 
 # --- GCP Auth ---
@@ -98,7 +99,13 @@ def insert_gspread_rows(rows: List[List[str]], sheet_id: str):
   """Insert rows into Google Sheet via Airflow GSheetsHook"""
   try:
     hook = GSheetsHook(gcp_conn_id="google_cloud_default")
-    print(f"Inserting {len(rows)} rows into Google Sheet...")
+    logging.info(
+        f"Inserting {len(rows)} rows into Google Sheet ID: {sheet_id}..."
+    )
+    if len(sheet_id) == 0:
+      raise Exception(
+          f"Sheet ID is empty. Please insert Sheet ID or set 'buganizer_sheet_id' in Variables"
+      )
     hook.append_values(
         spreadsheet_id=sheet_id,
         range_=GSPREAD_WORKSHEET_NAME,
@@ -106,9 +113,9 @@ def insert_gspread_rows(rows: List[List[str]], sheet_id: str):
         insert_data_option="INSERT_ROWS",
         value_input_option="RAW",
     )
-    print(f"Successfully appended rows to Google Sheet.")
+    logging.info(f"Successfully appended rows to Google Sheet.")
   except Exception as e:
-    print(f"An error occurred while writing to Google Sheet: {e}")
+    logging.error(f"An error occurred while writing to Google Sheet: {e}")
 
 
 # ================================================================
