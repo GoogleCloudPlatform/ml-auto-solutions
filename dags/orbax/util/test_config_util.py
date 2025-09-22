@@ -39,15 +39,22 @@ MODELS = {
 
 @dataclass
 class Checkpointing:
-  """Represents the information of a checkpointing mechanism.
+  """Configuration for checkpointing mechanisms in MaxText training.
+
+  This class defines the checkpointing behavior for training jobs, including
+  emergency checkpointing and multi-tier checkpointing options.
 
   Attributes:
-    name: A unique name for the checkpointing configuration.
-    en: Indicates whether a replicator is enabled.
+    name: A unique identifier for this checkpointing configuration (e.g., 'mtc', 'emc', 'reg').
+    enable_multi_tier_checkpointing: Whether to enable multi-tier checkpointing
+      with replicator service for automatic backup to GCS.
+    enable_emergency_checkpoint: Whether to enable emergency checkpointing
+      for local recovery in case of training interruptions. Defaults to True.
   """
 
   name: str
   enable_multi_tier_checkpointing: bool
+  enable_emergency_checkpoint: bool = True
 
 
 class TestConfig:
@@ -94,9 +101,7 @@ class TestConfig:
         and store checkpoint to bucket
       step: The current step of the training process.
       local_checkpoint_step: The step interval for local checkpoints.
-      ram_disk_size_in_mi: The size in mebibytes (Mi) about the RAM disk in the
-        CSI driver. The unit is in mebibytes (Mi) but the value should be passed
-        as a string with the unit, e.g., "2G" or "2048M". Defaults to "100G"".
+      base_dir: The base directory for storing checkpoints and outputs.
       checkpoint_step: The step interval for the checkpoints store in the
         bucket.
     """
@@ -135,6 +140,7 @@ class TestConfig:
       run_name: str,
       slice_num: int,
       enable_multi_tier_checkp: bool,
+      enable_emergency_checkpoint: bool = True,
   ) -> str:
     tpu_premmapped_size = self._get_disk_size(slice_num, mode="bytes")
     logging.info(f"Checkpoint Size per TPU: {tpu_premmapped_size}")
@@ -152,7 +158,7 @@ class TestConfig:
         f"model_name={self.model_name} "
         "per_device_batch_size=2 "
         "reuse_example_batch=1 "
-        "enable_emergency_checkpoint=true "
+        f"enable_emergency_checkpoint={enable_emergency_checkpoint} "
         f"checkpoint_period={self.checkpoint_step} "
         f"local_checkpoint_directory={checkpoint_dir} "
         f"local_checkpoint_period={self.local_checkpoint_step} "

@@ -28,26 +28,34 @@ def validate_checkpoint_at_steps_are_saved(
     end_time: Optional[datetime] = None,
 ) -> None:
   """
-  Validates that a workload is training correctly by checking for specific log steps.
+  Validates that checkpoints are successfully saved at expected training steps.
 
-  This function queries logs from a specified GKE cluster and namespace.
-  It searches for a log entry containing the string '(blocking + background)'
-  and then compares the number of steps found against an expected list of steps.
+  This function searches GKE cluster logs for checkpoint save completion messages
+  containing 'Finished async_save (blocking + background)' and extracts the step
+  numbers from the directory paths. It then verifies that all expected steps have
+  corresponding checkpoint save operations.
 
-  A mismatch in the number of steps will cause the validation to fail. This can
-  happen if, for example, a restore operation causes the step count to restart
-  from zero, leading to `len(vali_step_list) != len(found_steps)`.
+  The function supports both local checkpoints (e.g., /local/123) and GCS checkpoints
+  (e.g., gs://bucket/path/checkpoints/123) by using different regex patterns based
+  on the directory parameter.
 
   Args:
-    project_id: The Google Cloud project ID
-    location: GKE cluster location
-    cluster_name: GKE cluster name
-    start_time: Optional start time for log retrieval
-      (defaults to 12 hours ago)
-    end_time: Optional end time for log retrieval (defaults to now)
-    steps_to_validate: Optional to validate list of steps
+    project_id: The Google Cloud project ID containing the GKE cluster.
+    location: The GKE cluster location (e.g., 'us-central1-a').
+    cluster_name: The name of the GKE cluster to query logs from.
+    steps_to_validate: List of training step numbers that should have saved checkpoints.
+    ram_disk: The checkpoint directory path. Use "/local" for local checkpoints or
+      "gcs" for GCS bucket checkpoints. Defaults to "/local".
+    pod_pattern: Regex pattern to match pod names in logs. Defaults to ".*" (all pods).
+    start_time: Start time for log query window. Defaults to 12 hours ago if not provided.
+    end_time: End time for log query window. Defaults to current time if not provided.
+
   Returns:
-    None: This function does not return a value.
+    None: Function completes successfully if all expected steps are found.
+
+  Raises:
+    AirflowFailException: If any expected checkpoint steps are missing from the logs,
+      if log entries cannot be parsed, or if the checkpoint save pattern is not found.
   """
 
   directory_pattern = (
