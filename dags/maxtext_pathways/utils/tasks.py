@@ -27,7 +27,8 @@ def get_parameters():
       else:
         recipe_cmds += f" --{key}='{value}'"
 
-  logging.info(f"\n {recipe_cmds.replace(' --', ' \n  --')}")
+  formatted_cmds = recipe_cmds.replace(' --', ' \n  --')
+  logging.info(f"\n {formatted_cmds}")
 
   params["commands"] = " && ".join([ENV_COMMAND, recipe_cmds])
   params["region"] = zone_to_region(params["zone"])
