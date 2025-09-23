@@ -87,14 +87,14 @@ def create_queued_resource(
         'tpu_name': tpu_name,
         'project_name': gcp.project_name,
         'zone': gcp.zone,
-        'dataset_name': gcp.dataset_name,
+        'dataset_name': gcp.dataset_name.value,
         'composer_project': gcp.composer_project,
         'dataset_project': gcp.dataset_project,
         'accelerator': {
             'name': task_test_config.accelerator.name,
             'num_cores': task_test_config.accelerator.cores,
             'runtime_version': task_test_config.accelerator.runtime_version,
-            'version': task_test_config.accelerator.version,
+            'version': task_test_config.accelerator.version.value,
         },
     })
 

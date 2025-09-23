@@ -72,10 +72,9 @@ def run_job(
   def deploy_job(gcs_location):
     # Log required info for XLML PLX Dashboard
     composer.log_metadata_for_xlml_dashboard({
-        'body': body,
         'project_name': gcp.project_name,
         'zone': gcp.zone,
-        'dataset_name': gcp.dataset_name,
+        'dataset_name': gcp.dataset_name.value,
         'composer_project': gcp.composer_project,
         'dataset_project': gcp.dataset_project,
         'cluster_name': cluster_name,
