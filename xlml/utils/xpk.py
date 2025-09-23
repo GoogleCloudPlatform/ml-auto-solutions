@@ -99,18 +99,21 @@ def run_workload(
     xpk_branch: str = MAIN_BRANCH,
 ):
   """Run workload through xpk tool."""
+
+  # Log required info for XLML PLX Dashboard
   composer.log_metadata_for_xlml_dashboard({
-    "cluster_project": cluster_project,
-    "zone": zone,
-    "cluster_name": cluster_name,
-    "task_id": task_id,
-    "workload_id": workload_id,
-    "gcs_path": gcs_path,
-    "benchmark_id": benchmark_id,
-    "docker_image": docker_image,
-    "accelerator_type": accelerator_type,
-    "num_slices": num_slices,
+      "cluster_project": cluster_project,
+      "zone": zone,
+      "cluster_name": cluster_name,
+      "task_id": task_id,
+      "workload_id": workload_id,
+      "gcs_path": gcs_path,
+      "benchmark_id": benchmark_id,
+      "docker_image": docker_image,
+      "accelerator_type": accelerator_type,
+      "num_slices": num_slices,
   })
+
   with tempfile.TemporaryDirectory() as tmpdir:
     if accelerator_type in [
         GpuVersion.XPK_H100.value,
