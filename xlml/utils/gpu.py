@@ -30,7 +30,7 @@ import time
 from typing import Dict, Iterable
 import uuid
 from xlml.apis import gcp_config, test_config
-from xlml.utils import ssh
+from xlml.utils import ssh, composer
 
 
 def get_image_from_family(project: str, family: str) -> compute_v1.Image:
@@ -316,6 +316,24 @@ def create_resource(
     Returns:
         Ip address of the instance object created.
     """
+    # Log required info for XLML PLX Dashboard
+    composer.log_metadata_for_xlml_dashboard({
+        "gpu_name": gpu_name,
+        "instance_name": instance_name,
+        "project_name": gcp.project_name,
+        "zone": gcp.zone,
+        "dataset_name": gcp.dataset_name,
+        "composer_project": gcp.composer_project,
+        "dataset_project": gcp.dataset_project,
+        "accelerator": {
+            "type": accelerator.name,
+            "num_cores": accelerator.count,
+            "runtime_version": accelerator.runtime_version,
+            "machine_type": accelerator.machine_type,
+            "image_family": accelerator.image_family,
+        },
+    })
+
     machine_type = accelerator.machine_type
     image = get_image_from_family(project=image_project, family=image_family)
     disk_type = f"zones/{gcp.zone}/diskTypes/pd-ssd"

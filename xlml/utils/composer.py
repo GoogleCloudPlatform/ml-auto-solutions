@@ -13,8 +13,9 @@
 # limitations under the License.
 
 """Utilities get Composer configs."""
-
-from typing import Mapping
+import json
+import logging
+from typing import Mapping, Dict, Any
 import google.auth.transport.requests
 import requests
 
@@ -66,3 +67,7 @@ def get_airflow_url(project: str, region: str, env: str) -> str:
   """
   configs = get_composer_data(project, region, env)
   return configs["config"]["airflowUri"]
+
+
+def log_metadata_for_xlml_dashboard(metadata: Dict[str, Any]):
+  logging.info(f"xlml_metadata {json.dumps(metadata)}")

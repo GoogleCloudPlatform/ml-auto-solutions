@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowFailException
 from airflow.hooks.subprocess import SubprocessHook
 from kubernetes import client as k8s_client
 from xlml.apis import metric_config
-from xlml.utils import gke
+from xlml.utils import gke, composer
 from dags.common.vm_resource import GpuVersion
 
 # b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
@@ -99,6 +99,20 @@ def run_workload(
     xpk_branch: str = MAIN_BRANCH,
 ):
   """Run workload through xpk tool."""
+
+  # Log required info for XLML PLX Dashboard
+  composer.log_metadata_for_xlml_dashboard({
+      "cluster_project": cluster_project,
+      "zone": zone,
+      "cluster_name": cluster_name,
+      "task_id": task_id,
+      "workload_id": workload_id,
+      "gcs_path": gcs_path,
+      "benchmark_id": benchmark_id,
+      "docker_image": docker_image,
+      "accelerator_type": accelerator_type,
+      "num_slices": num_slices,
+  })
 
   with tempfile.TemporaryDirectory() as tmpdir:
     if accelerator_type in [
