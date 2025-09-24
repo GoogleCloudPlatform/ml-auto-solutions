@@ -84,7 +84,7 @@ def create_queued_resource(
   ) -> str:
     # Log required info for XLML PLX Dashboard
     composer.log_metadata_for_xlml_dashboard({
-        'tpu_name': tpu_name,
+        'instance_name': tpu_name,
         'project_name': gcp.project_name,
         'zone': gcp.zone,
         'dataset_name': gcp.dataset_name.value,

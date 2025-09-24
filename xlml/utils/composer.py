@@ -70,4 +70,7 @@ def get_airflow_url(project: str, region: str, env: str) -> str:
 
 
 def log_metadata_for_xlml_dashboard(metadata: Dict[str, Any]):
-  logging.info(f"xlml_metadata {json.dumps(metadata)}")
+  try:
+    logging.info(f"xlml_metadata {json.dumps(metadata)}")
+  except Exception as e:
+    logging.error(f"xlml_metadata exception: {e}")
