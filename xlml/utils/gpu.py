@@ -318,7 +318,6 @@ def create_resource(
     """
     # Log required info for XLML PLX Dashboard
     composer.log_metadata_for_xlml_dashboard({
-        "gpu_name": gpu_name,
         "instance_name": instance_name,
         "project_name": gcp.project_name,
         "zone": gcp.zone,
