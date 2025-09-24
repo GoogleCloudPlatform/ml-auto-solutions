@@ -46,6 +46,7 @@ class Status(enum.Enum):
 
 
 NOT_FOUND_MSG = "Cluster not found in GKE API."
+UNKNOW_LOCATION = "N/A"
 
 
 # ================================================================
@@ -54,10 +55,11 @@ NOT_FOUND_MSG = "Cluster not found in GKE API."
 def build_malfunction_row(
     issue_type: IssueType,
     proj: str,
-    cname: str,
+    cluster_name: str,
     cluster_status: str,
     cluster_status_message: str,
     now_utc: str,
+    cluster_location: str = UNKNOW_LOCATION,
     node_pools: List[Dict[str, Any]] | None = None,
 ) -> List[str]:
   if node_pools is None:
@@ -65,7 +67,8 @@ def build_malfunction_row(
   return [
       issue_type.value,
       proj,
-      cname,
+      cluster_name,
+      cluster_location,
       cluster_status,
       cluster_status_message,
       json.dumps(node_pools),
@@ -81,10 +84,11 @@ def print_failed_cluster_info(cluster_status_rows):
         "type": cluster_status_row[0],
         "project_id": cluster_status_row[1],
         "cluster_name": cluster_status_row[2],
-        "status": cluster_status_row[3],
-        "status_message": cluster_status_row[4],
-        "node_pools": cluster_status_row[5],
-        "load_time": cluster_status_row[6],
+        "cluster_location": cluster_status_row[3],
+        "status": cluster_status_row[4],
+        "status_message": cluster_status_row[5],
+        "node_pools": cluster_status_row[6],
+        "load_time": cluster_status_row[7],
     }
     result_rows_list.append(result_row)
   logging.info(f"result: {result_rows_list}")
@@ -239,7 +243,8 @@ def insert_cluster_status_lists(
           build_malfunction_row(
               issue_type=IssueType.CLUSTER_AND_NODE_POOL,
               proj=project_name,
-              cname=cluster_name,
+              cluster_name=cluster_name,
+              cluster_location=location,
               cluster_status=cluster_status,
               cluster_status_message=cluster_status_message,
               node_pools=mal_node_pools,
@@ -251,7 +256,8 @@ def insert_cluster_status_lists(
           build_malfunction_row(
               issue_type=IssueType.CLUSTER,
               proj=project_name,
-              cname=cluster_name,
+              cluster_location=location,
+              cluster_name=cluster_name,
               cluster_status=cluster_status,
               cluster_status_message=cluster_status_message,
               now_utc=now_utc,
@@ -262,7 +268,8 @@ def insert_cluster_status_lists(
           build_malfunction_row(
               issue_type=IssueType.NODE_POOL,
               proj=project_name,
-              cname=cluster_name,
+              cluster_name=cluster_name,
+              cluster_location=location,
               cluster_status=cluster_status,
               cluster_status_message=cluster_status_message,
               node_pools=mal_node_pools,
@@ -274,7 +281,8 @@ def insert_cluster_status_lists(
         build_malfunction_row(
             issue_type=IssueType.CLUSTER,
             proj=project_name,
-            cname=cluster_name,
+            cluster_name=cluster_name,
+            cluster_location=UNKNOW_LOCATION,
             cluster_status=Status.NOT_EXIST.value,
             cluster_status_message=NOT_FOUND_MSG,
             now_utc=now_utc,
@@ -288,7 +296,8 @@ def insert_cluster_status_lists(
         build_malfunction_row(
             issue_type=IssueType.CLUSTER,
             proj=project_name,
-            cname=cluster_name,
+            cluster_name=cluster_name,
+            cluster_location=UNKNOW_LOCATION,
             cluster_status=Status.ERROR.value,
             cluster_status_message=str(e),
             now_utc=now_utc,
