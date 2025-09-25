@@ -48,7 +48,7 @@ with models.DAG(
   test_models_tpu = {
       "llama2-7b": {
           "owner": test_owner.MOHIT_K,
-          "commands": ["bash end_tp_end/tpu/llama2/7b/test_llama2_7b.sh"],
+          "commands": ["bash end_to_end/tpu/llama2/7b/test_llama2_7b.sh"],
       },
       "mistral-7b": {
           "owner": test_owner.MOHIT_K,
