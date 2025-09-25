@@ -38,6 +38,7 @@ with models.DAG(
     ],
     start_date=datetime.datetime(2025, 7, 24),
     catchup=False,
+    schedule=None,
 ) as dag:
   current_datetime = config.get_current_datetime()
   maxtext_test_configs = {
@@ -58,12 +59,12 @@ with models.DAG(
 
   maxtext_docker_images = [(
       SetupMode.STABLE,
-      DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE,
+      "gcr.io/tpu-prod-env-multipod/maxtext_stable_stack_candidate:latest",
   )]
 
   maxdiffusion_docker_images = [(
       SetupMode.STABLE,
-      DockerImage.MAXDIFFUSION_TPU_JAX_STABLE_STACK_CANDIDATE,
+      "gcr.io/tpu-prod-env-multipod/maxdiffusion_stable_stack_candidate:latest",
   )]
 
   for accelerator, slices in maxtext_test_configs.items():
