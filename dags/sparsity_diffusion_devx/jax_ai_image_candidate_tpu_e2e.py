@@ -85,7 +85,7 @@ with models.DAG(
                 f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-stable-stack/automated/{current_datetime}",
             ),
             test_name=f"maxtext-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
-            docker_image=image.value,
+            docker_image=image,
             test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)
 
@@ -109,6 +109,6 @@ with models.DAG(
                 f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}/automated/{current_datetime}",
             ),
             test_name=f"maxdiffusion-jax-stable-stack-sdxl-{mode.value}-{accelerator}-{slice_num}x",
-            docker_image=image.value,
+            docker_image=image,
             test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)
