@@ -27,6 +27,7 @@ from xlml.utils import name_format
 
 # Run once a day at 1 am UTC (5 pm PST)
 SCHEDULED_TIME = "0 1 * * *" if composer_env.is_prod_env() else None
+HF_TOKEN = models.Variable.get("HF_TOKEN", None)
 
 
 with models.DAG(
@@ -61,16 +62,25 @@ with models.DAG(
           "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
           "time_out_in_min": 60,
       },
+      "gpt-oss-20b": {
+          "script_name": "tpu/gpt_oss/20b/test_gpt_oss",
+          "cluster": XpkClusters.TPU_V5P_8_CLUSTER,
+          "time_out_in_min": 90,
+      },
   }
 
   unchained_tests = []
   for model, test_scripts_details in test_models_tpu.items():
     for image in docker_image.keys():
+      # TODO(shuningjin): remove this once stable image is upgraded
+      # gpt-oss with flash attention requires jax>=0.7.2, skip stable image
+      if model.startswith("gpt-oss") and image == "stable":
+        continue
       training_tpu = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
           run_model_cmds=(
-              f"bash end_to_end/{test_scripts_details['script_name']}.sh",
+              f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details['script_name']}.sh",
           ),
           docker_image=docker_image[image],
           test_owner=test_owner.RAN_R,
