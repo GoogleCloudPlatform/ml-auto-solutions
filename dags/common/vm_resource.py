@@ -90,6 +90,7 @@ class Region(enum.Enum):
   # used for GKE
   US_CENTRAL1 = "us-central1"
   ASIA_NORTHEAST1 = "asia-northeast1"
+  US_EAST5 = "us-east5"
 
 
 class Zone(enum.Enum):

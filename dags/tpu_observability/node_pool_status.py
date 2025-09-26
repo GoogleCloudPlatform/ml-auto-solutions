@@ -45,16 +45,16 @@ with models.DAG(
           "PROJECT_ID", default_var=Project.TPU_PROD_ENV_ONE_VM.value
       ),
       cluster_name=models.Variable.get(
-          "CLUSTER_NAME", default_var="yuna-xpk-v6e-2"
+          "CLUSTER_NAME", default_var="tpu-observability-automation"
       ),
       node_pool_name=models.Variable.get(
-          "NODE_POOL_NAME", default_var="yuna-v6e-autotest"
+          "NODE_POOL_NAME", default_var="node-pool-status-v6e-autotest"
       ),
       location=models.Variable.get(
-          "LOCATION", default_var=Region.ASIA_NORTHEAST1.value
+          "LOCATION", default_var=Region.US_EAST5.value
       ),
       node_locations=models.Variable.get(
-          "NODE_LOCATIONS", default_var=Zone.ASIA_NORTHEAST1_B.value
+          "NODE_LOCATIONS", default_var=Zone.US_EAST5_B.value
       ),
       num_nodes=models.Variable.get("NUM_NODES", default_var=4),
       machine_type=models.Variable.get(
@@ -74,7 +74,7 @@ with models.DAG(
 
   task_id = "create_node_pool"
   create_node_pool = node_pool.create.override(task_id=task_id)(
-      node_pool=node_pool_info
+      node_pool=node_pool_info, reservation="cloudtpu-20250131131310-2118578099"
   )
 
   task_id = "wait_for_provisioning"

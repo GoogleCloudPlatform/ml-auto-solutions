@@ -49,23 +49,23 @@ with models.DAG(
   node_pool_info = node_pool.Info(
       project_id=Project.TPU_PROD_ENV_ONE_VM.value,
       cluster_name=Variable.get(
-          "CLUSTER_NAME", default_var="qmcgarry-auto-test"
+          "CLUSTER_NAME", default_var="tpu-observability-automation"
       ),
       node_pool_name=Variable.get(
-          "NODE_POOL_NAME", default_var="nodepool-auto"
+          "NODE_POOL_NAME", default_var="multi_host_nodepool_rollback_auto"
       ),
-      location=Variable.get(
-          "LOCATION", default_var=Region.ASIA_NORTHEAST1.value
-      ),
+      location=Variable.get("LOCATION", default_var=Region.US_EAST5.value),
       node_locations=Variable.get(
-          "NODE_LOCATIONS", default_var=Zone.ASIA_NORTHEAST1_B.value
+          "NODE_LOCATIONS", default_var=Zone.US_EAST5_B.value
       ),
       num_nodes=Variable.get("NUM_NODES", default_var=4),
       machine_type=Variable.get("MACHINE_TYPE", default_var="ct6e-standard-4t"),
       tpu_topology=Variable.get("TPU_TOPOLOGY", default_var="4x4"),
   )
 
-  create_node_pool = node_pool.create(node_pool=node_pool_info)
+  create_node_pool = node_pool.create(
+      node_pool=node_pool_info, reservation="cloudtpu-20250131131310-2118578099"
+  )
 
   wait_node_pool_available = node_pool.wait_for_availability(
       node_pool=node_pool_info, availability=True
