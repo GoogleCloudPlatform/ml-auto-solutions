@@ -53,7 +53,6 @@ class CheckpointConfiguration:
       full parsed YAML body as a dictionary.
     """
 
-    logging.info(f"RAMDISK ==> {self.ramdisk_memory_in_mi}")
     cpc_yaml_template = f"""
       apiVersion: checkpointing.gke.io/v1
       kind: CheckpointConfiguration
