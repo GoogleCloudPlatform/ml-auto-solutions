@@ -43,6 +43,9 @@ class Status(enum.Enum):
   NOT_EXIST = "NOT EXIST"
   ERROR = "ERROR"
   RUNNING = "RUNNING"
+  RECONCILING = "RECONCILING"
+  PROVISIONING = "PROVISIONING"
+  STOPPING = "STOPPING"
 
 
 NOT_FOUND_MSG = "Cluster not found in GKE API."
@@ -234,8 +237,13 @@ def insert_cluster_status_lists(
         node_pool
         for node_pool in info["node_pools"]
         if node_pool["status"] != Status.RUNNING.value
+        and node_pool["status"] != Status.PROVISIONING.value
+        and node_pool["status"] != Status.STOPPING.value
     ]
-    is_cluster_malfunction = cluster_status != Status.RUNNING.value
+    is_cluster_malfunction = (
+        cluster_status != Status.RUNNING.value
+        and cluster_status != Status.RECONCILING.value
+    )
     malfunction_node_pools_exist = len(mal_node_pools) > 0
 
     if is_cluster_malfunction and malfunction_node_pools_exist:
