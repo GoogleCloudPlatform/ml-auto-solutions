@@ -180,19 +180,23 @@ def get_bite_tpu_unittests_config(
       A task group generated from the TpuVmTest() class.
   """
   unittest_setupcmds = (
+      "mkdir test-results",
       # create configuration files needed
       dockerfile_build_cmd(jax_version),
       # create script to run the tests inside of the container
       # incluedes a basic sanity check python script which prints out TPU env info for reference
       # Save the tests exit code to a file which will be mapped to the local directory
+      # Optional extra args to pass to axlearn for debugging etc purposes
+      "export EXTRA_UNITTEST_ARGS='--maxfail=200'",
       """cat > run_tpu_tests.sh <<EOF
 #!/bin/bash
 set -x
 echo '#### Starting TPU JAX Tests'
 pip freeze
 cd /workspace/axlearn
+mkdir test-results
 JAX_PLATFORMS='tpu' python -c 'import jax; jax.print_environment_info() ; print(f"Global device count: {jax.device_count()}")'
-JAX_ENABLE_X64=True pytest --no-header -v --maxfail=200 -m "not high_cpu or fp64" --dist worksteal \
+JAX_ENABLE_X64=True pytest --no-header -v -m "not high_cpu or fp64" --dist worksteal ${EXTRA_UNITTEST_ARGS} \
   --ignore axlearn/common/inference_test.py \
   --ignore axlearn/common/ssm_kernels/mamba_kernels_test.py \
   --ignore axlearn/common/ssm_test.py
@@ -200,23 +204,68 @@ TESTS_EXIT_CODE=\$?
 echo '#### TPU JAX Tests finished.'
 echo "Test exit code is \${TESTS_EXIT_CODE}"
 echo "\${TESTS_EXIT_CODE}" > /workspace/axlearn/test-results/tests_exit_code.txt
-cp -av /workspace/axlearn/test-results /tmp_docker/
+cp -Rv /workspace/axlearn/test-results /tmp_docker/
 EOF
 """,
       "chmod +x run_tpu_tests.sh",
       "cat Dockerfile_CI",
       "cat run_tpu_tests.sh",
       "sudo docker build -f Dockerfile_CI -t ml-auto-solutions/tpu_unittests .",
+      # Configure the TPU VM environment so it can run the post tests python utils
+      "pip install google-api-core",
+      "pip install google-cloud-bigquery",
   )
-  # Run the unittest as non-root user, ulimit param req to mmap TPUs inside docker (default limit is 8192)
   unittest_runcmds = (
       "echo '#### Start docker image - tpu_unittests'",
-      "mkdir -p test-results",
-      "sudo docker run --network=host --privileged --ulimit memlock=-1:-1 -v ${PWD}:/tmp_docker ml-auto-solutions/tpu_unittests  /bin/bash -c '/workspace/run_tpu_tests.sh' 2>&1 | tee test-results/tests_std_out_err.log",
-      "sudo docker logs $( sudo docker ps --latest --quiet ) > test-results/docker_log.log",
-      f"gcloud storage cp -R test-results {metric_config.SshEnvVars.GCS_OUTPUT.value}axlearn-test-results",
+      "cd ${HOME}",
+      # To ensure filenames are consistent, define them all here and then pass the env vars to the
+      # python scripts, gcloud commands etc
+      "export TESTS_RUN_DATETIME=$(echo {{ ts_nodash_with_tz }} | tr '+-,@.' '-')",
+      "export TESTS_RUN_ID='{{ run_id }}'",
+      "export TEST_TASK_ID='{{ task.task_id }}'",
+      'export TESTS_RUN_TYPE="${TESTS_RUN_ID%__*}"',
+      "export TESTS_STDOUT_FILENAME=bite_unittests_std_out_err_${TESTS_RUN_TYPE}_${TESTS_RUN_DATETIME}.txt",
+      "export TESTS_DOCKERLOG_FILENAME=bite_unittests_docker_log_${TESTS_RUN_TYPE}_${TESTS_RUN_DATETIME}.txt",
+      "export TESTS_HTML_FILENAME=bite_unittests_${TESTS_RUN_TYPE}_${TESTS_RUN_DATETIME}.html",
+      "echo Test Task ID:                ${TEST_TASK_ID}",
+      "echo Test Run Timestamp:          ${TESTS_RUN_DATETIME}",
+      "echo Test Run stdout filename:    ${TESTS_STDOUT_FILENAME}",
+      "echo Test Run dockerlog filename: ${TESTS_DOCKERLOG_FILENAME}",
+      "echo Test Run html filename:      ${TESTS_HTML_FILENAME}",
+      # Run the unittest as non-root user, ulimit param req to mmap TPUs inside docker (default limit is 8192)
+      "sudo docker run --network=host --privileged --ulimit memlock=-1:-1 -v ${PWD}:/tmp_docker ml-auto-solutions/tpu_unittests  \
+        /bin/bash -c '/workspace/run_tpu_tests.sh' 2>&1 | tee test-results/${TESTS_STDOUT_FILENAME}",
+      "sudo docker logs $( sudo docker ps --latest --quiet ) > ${HOME}/test-results/${TESTS_DOCKERLOG_FILENAME} 2>&1",
+      # Post unit test processing
+      "echo '#### Post Processing - tpu_unittests'",
+      "echo GCS_OUTPUT env variable - ${GCS_OUTPUT}",
+      "export TESTS_EXIT_CODE=$(cat test-results/tests_exit_code.txt)",
+      "gcloud storage cp test-results/${TESTS_STDOUT_FILENAME}    ${GCS_OUTPUT}axlearn-test-results/",
+      "gcloud storage cp test-results/${TESTS_DOCKERLOG_FILENAME} ${GCS_OUTPUT}axlearn-test-results/",
+      # If the pytest crashes, testing.xml might not exist
+      "if [[ -r test-results/testing.xml ]]; then gcloud storage cp test-results/testing.xml ${GCS_OUTPUT}axlearn-test-results ; else echo '*** Error - Tests failed to output XML results file'; fi",
+      # Get the GCS bucket where the DAGs are located so that we can copy python utils to export the XML to BQ and HTML
+      'echo gcloud composer environments describe ${COMPOSER_ENVIRONMENT} --project ${GCP_PROJECT} --location=${COMPOSER_LOCATION} --format="value(config.dagGcsPrefix)"',
+      'export DAGS=`gcloud composer environments describe ${COMPOSER_ENVIRONMENT} --project ${GCP_PROJECT} --location=${COMPOSER_LOCATION} --format="value(config.dagGcsPrefix)"`',
+      "echo DAGS is ${DAGS}",
+      # Copy python utils from the GCS DAG folder to local test TPU VM
+      "gcloud storage cp ${DAGS}/dags/sparsity_diffusion_devx/configs/xml_to_html.py xml_to_html.py",
+      "gcloud storage cp ${DAGS}/dags/sparsity_diffusion_devx/configs/xml_to_bq.py xml_to_bq.py",
+      "ls -al test-results/",
+      # Export XML results to HTML and BQ - ignore errors from parsing output e.g. if the XML file
+      # does not exist, as we don't want to stop the rest of the post processing
+      "set +e ; python xml_to_html.py test-results/testing.xml ${TESTS_HTML_FILENAME}",
+      "set +e ; python xml_to_bq.py ${TESTS_EXIT_CODE} test-results/testing.xml ${TESTS_RUN_TYPE} '{{ ts_nodash_with_tz }}' ${COMPOSER_ENVIRONMENT} \"${TEST_TASK_ID}\" \
+        ${GCS_OUTPUT} ${TESTS_STDOUT_FILENAME} ${TESTS_DOCKERLOG_FILENAME} ${TESTS_HTML_FILENAME}",
+      "set +e ; gcloud storage cp ${TESTS_HTML_FILENAME}                   ${GCS_OUTPUT}axlearn-test-results/",
+      # Pytest will return up to an exit code of 6 - greater then this is probably segfault (139) or something else
+      'if [[ `cat test-results/tests_exit_code.txt` -gt 6 ]]; then echo "*** Error - Tests failed to complete run *** Exit code ${TESTS_EXIT_CODE}" ; fi',
+      # Output useful debug info
+      "echo Test Results / Logs location: ${GCS_OUTPUT}axlearn-test-results/",
+      "echo List of test results / logs:  $(gcloud storage ls ${GCS_OUTPUT}axlearn-test-results/ )",
+      # Pass the results of the tests back to Cloud Composer
       "echo 'Tests exit code: '$(cat test-results/tests_exit_code.txt)",
-      "if [[ `cat test-results/tests_exit_code.txt` -ne 0 ]]; then exit 1; fi",
+      "if [[ `cat test-results/tests_exit_code.txt` -ne 0 ]]; then exit ${TESTS_EXIT_CODE} ; fi",
   )
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project_name,
