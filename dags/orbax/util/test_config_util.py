@@ -11,12 +11,20 @@ import re
 
 from dags import gcs_bucket
 from xlml.utils.gke import zone_to_region
-from dags.common.vm_resource import XpkClusters
+from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.orbax.util import checkpoint_util
+from dags.multipod.configs.common import SetupMode
 
 
 DEFAULT_BUCKET = gcs_bucket.MTC_AUTOMATION_BUCKET
 DEFAULT_RAM_DISK = "/local"
+
+# Only one version of the Docker image is supported at the moment.
+# Other versions (e.g., "stable") may be introduced later.
+DOCKER_IMAGES = [(
+    SetupMode.NIGHTLY,
+    DockerImage.MAXTEXT_TPU_JAX_ORBAX_HEAD,
+)]
 
 # Valid models and sizes for current Maxtext Repository.
 MODELS = {
@@ -111,7 +119,7 @@ class TestConfig:
     self.step = step
     self.local_checkpoint_step = local_checkpoint_step
     self.checkpoint_step = checkpoint_step
-    self.ram_disk_size = f"{self._get_disk_size(slice_num=max(self.slices), mode='mib',multiplier=30)}Mi"
+    self.ram_disk_size = f"{self._get_disk_size(slice_num=max(self.slices), mode='mib',multiplier=60)}Mi"
     self.base_dir = base_dir
     self.cpc_config = checkpoint_util.CheckpointConfiguration(
         project_id=self.cluster.project,
