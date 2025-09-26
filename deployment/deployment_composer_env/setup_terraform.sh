@@ -16,5 +16,8 @@ grep -o '\.terraform/bin' <<< $PATH \
     || grep -H '\.terraform/bin' ~/.bashrc \
     || echo 'export PATH=${PATH}:~/.terraform/bin' >> ~/.bashrc
 
-source ~/.bashrc
+export PATH="${PATH}:$HOME/.terraform/bin"
+
+# Verify the installation was successful
+echo "Terraform installation successful. Current version:"
 terraform -v
