@@ -606,11 +606,6 @@ def add_airflow_metadata(
 
     airflow_meta.append(
         bigquery.MetadataHistoryRow(
-            job_uuid=uuid, metadata_key="dag_id", metadata_value=dag_id
-        )
-    )
-    airflow_meta.append(
-        bigquery.MetadataHistoryRow(
             job_uuid=uuid, metadata_key="run_id", metadata_value=run_id
         )
     )
