@@ -27,17 +27,21 @@ with DAG(
     doc_md="""
   # A DAG to run a MaxText pw_mcjax_benchmark_recipe on GKE.
 
-  # Description
-  Specify different models and number of slices to test the MaxText pw_mcjax_benchmark_recipe on different clusters.
-  The DAG first generates recipe command through UI parameters, then runs the workload, waits and monitors the workload logs, and finally cleans up the workload.
+  ### Description
+  Specify different models and number of slices to test the MaxText pw_mcjax_benchmark_recipe on different clusters.  
+  The DAG first generates recipe command through UI parameters, then runs the workload, waits and monitors the workload logs, and finally cleans up the workload.  
 
   ### Prerequisites
-  This test requires an existing cluster.
-  This test requires that a bucket with the same name as the UI parameter "[User]-[Region]" exists in the UI parameter [Project].
+  - This test requires an existing cluster.  
+  - This test requires that a bucket with the same name as the UI parameter "[User]-[Region]" exists in the UI parameter [Project].  
+  - Create a service account with the following roles: `Artifact Registry Reader`, `Kubernetes Engine Admin`, `Monitoring Viewer`.   
+    - Generate a new service account key and download the JSON file to retrieve its contents. Next, create a secret manager named `one-click-key` and store the key contents there for use when switching service accounts.
+    - Make sure the default service account has the `Secret Manager Secret Accessor` role.
+  - If you're using a service account to pull an image from a different project, you need to grant the service account the `Artifact Registry Reader` role in that project.  
 
   ### Procedures
-  An Airflow Composer environment must be created, and the required DAG code must be deployed to the associated GCS bucket.
-  To initiate the recipe, the user must access the Airflow UI, locate the specific DAG, and trigger its execution.
+  An Airflow Composer environment must be created, and the required DAG code must be deployed to the associated GCS bucket.  
+  To initiate the recipe, the user must access the Airflow UI, locate the specific DAG, and trigger its execution.  
   """,
 ) as dag:
   # Define task dependencies by instantiating and linking tasks.

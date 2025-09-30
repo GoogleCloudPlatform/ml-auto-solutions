@@ -16,7 +16,7 @@ DEVICE_VERSION = ['v' + version.value for version in TpuVersion]
 
 PARAMETERS = {
     'user': Param(
-        'user_name', type='string', title='User', description='User name.'
+        'username', type='string', title='User', description='User name.'
     ),
     'cluster_name': Param(
         'pw-scale-test-v5e-32',
@@ -45,6 +45,12 @@ PARAMETERS = {
         type='integer',
         title='Core Count',
         description='Device core count for the cluster. ex: v5litepod-"32"',
+    ),
+    'service_account': Param(
+        'one-click@cloud-tpu-multipod-dev.iam.gserviceaccount.com',
+        type='string',
+        title='Service account',
+        description='Service account of the project.',
     ),
     'benchmark_steps': Param(
         20,

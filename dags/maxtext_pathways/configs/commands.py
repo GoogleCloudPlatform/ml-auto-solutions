@@ -1,8 +1,8 @@
 ENV_COMMAND = [
     'set -xue',
+    'echo "JOB_COMPLETION_INDEX: $JOB_COMPLETION_INDEX"',
     'pwd',
     'ls',
-    'pip list',
     # install make
     'sudo apt-get update',
     'sudo apt-get install -y make',
@@ -25,6 +25,11 @@ ENV_COMMAND = [
     'tar -xf google-cloud-cli-linux-x86_64.tar.gz',
     './google-cloud-sdk/install.sh',
     './google-cloud-sdk/bin/gcloud init',
+    # switch service account
+    'mkdir -p /root/keys',
+    'gcloud secrets versions access "latest" --secret="one-click-key" > /root/keys/sa_key.json',
+    'gcloud config set account {service_account}',
+    'gcloud auth activate-service-account {service_account} --key-file=/root/keys/sa_key.json',
     # install kubectl-kjob
     'curl -Lo ./kubectl-kjob https://github.com/kubernetes-sigs/kjob/releases/download/v0.1.0/kubectl-kjob-linux-amd64',
     'chmod +x ./kubectl-kjob',
@@ -34,8 +39,8 @@ ENV_COMMAND = [
     'chmod +x ./kubectl-kueue',
     'sudo mv ./kubectl-kueue /usr/local/bin/kubectl-kueue',
     # install xpk
-    'git clone https://github.com/google/xpk.git ~/xpk',
-    'cd ~/xpk',
+    'git clone https://github.com/google/xpk.git /root/xpk',
+    'cd /root/xpk',
     'python3 -m venv --system-site-packages .venv',
     'source .venv/bin/activate',
     'make install',
