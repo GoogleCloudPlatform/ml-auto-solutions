@@ -20,7 +20,7 @@ from airflow.decorators import task
 from dags import gcs_bucket
 
 
-@task
+@task(trigger_rule="all_done")
 def generate_run_name(benchmark_id: str) -> str:
   """Generates a unique run name by appending the current
   datetime to benchmark_id.
