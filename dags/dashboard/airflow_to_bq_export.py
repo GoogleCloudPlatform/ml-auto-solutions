@@ -7,7 +7,7 @@ from dags import composer_env
 from dags.dashboard.configs import export_config
 
 # Scheduled time
-SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = None
 
 
 # Load default config values from Airflow Variables
