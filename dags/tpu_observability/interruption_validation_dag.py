@@ -543,7 +543,8 @@ def create_interruption_dag(
                 proper_time_range: TimeRange,
             ) -> List[EventRecord]:
               return fetch_interruption_metric_records(
-                  configs, proper_time_range
+                  configs,
+                  proper_time_range,
               )
 
             proper_time_range = determine_time_range(configs)
@@ -556,7 +557,8 @@ def create_interruption_dag(
                 proper_time_range,
             )
             check_event_count = validate_interruption_count(
-                metric_records, log_records
+                metric_records,
+                log_records,
             )
 
             (
