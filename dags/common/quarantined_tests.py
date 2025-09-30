@@ -16,7 +16,7 @@
 
 import dataclasses
 import logging
-from typing import Dict, Any
+from typing import Set
 
 from airflow.models import Variable
 
@@ -32,29 +32,558 @@ class TestInfo:
   details: str = ""
 
 
-def parse_quarantine_list(content: str) -> Dict[str, Any]:
-  tests = {}
-  for line in content.split("\n"):
+def parse_quarantine_list(lines: str) -> Set[str]:
+  quarantined_set = set()
+  for line in lines.split("\n"):
     try:
-      segments = line.split(",")
-      if len(segments) != 4:
-        raise Exception(f"Wrong format of the quarantine item: {line}. Please fix it.")
-      key = segments[0]
-      team = Team(segments[1])
-      date = segments[2]
-      details = segments[3]
-      tests[key] = TestInfo(team, date, details)
+      item = line.strip()
+      if len(item) == 0:
+        raise Exception(f"Empty quarantine item. Skip")
+      quarantined_set.add(item)
     except Exception as e:
       logging.error(e)
-  return tests
+  return quarantined_set
 
 
-new_dict = parse_quarantine_list(Variable.get("quarantine_list", ""))
+quarantine_set = parse_quarantine_list(Variable.get("quarantine_list", ""))
 
 
 class QuarantineTests:
   """A list of currently-flaky tests."""
 
+  tests = {
+      # DAG: maxtext_gpu_end_to_end
+      "maxtext-pinned-checkpoint-compatibility-h100-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-stable-checkpoint-compatibility-h100-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-pinned-checkpoint-compatibility-h100-mega-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-stable-checkpoint-compatibility-h100-mega-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-pinned-llama2-7b-train-1node-h100-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-pinned-llama2-7b-train-2node-h100-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-stable-llama2-7b-train-2node-h100-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-stable-llama2-7b-train-2node-h100-mega-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      "maxtext-pinned-llama2-7b-h100-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-01-17",
+          "b/390738384",
+      ),
+      # DAG: maxtext_end_to_end
+      "chained_tests_gemma-7b_stable": TestInfo(Team.LLM_DEVX, "2024-11-12"),
+      "chained_tests_gemma-7b_nightly": TestInfo(Team.LLM_DEVX, "2024-11-12"),
+      "chained_tests_llama2-70b_stable": TestInfo(Team.LLM_DEVX, "2024-11-12"),
+      "chained_tests_llama2-70b_nightly": TestInfo(Team.LLM_DEVX, "2024-11-12"),
+      # DAG: jax_stable_stack_gpu_e2e
+      "maxtext-stable-stack-train-c4-data-h100-80gb-8": TestInfo(
+          Team.JAX_MODELS_AND_PERFORMANCE, "2024-11-12"
+      ),
+      "maxtext-stable-stack-train-c4-data-h100-mega-80gb-8": TestInfo(
+          Team.JAX_MODELS_AND_PERFORMANCE, "2024-11-12"
+      ),
+      "axlearn-jax-stable-stack-v4-16-2x-2xv4-16": TestInfo(
+          Team.JAX_MODELS_AND_PERFORMANCE, "2024-11-12"
+      ),
+      # DAG: maxtext_configs_aot
+      "maxtext-aot-v5e-stable-v4-8": TestInfo(Team.PERFORMANCE, "2024-11-12"),
+      "maxtext-aot-v5e-nightly-v4-8": TestInfo(Team.PERFORMANCE, "2024-11-12"),
+      # DAG: maxtext_configs_aot_hybridsim
+      "16b-1xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "16b-2xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "16b-4xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "16b-8xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "32b-1xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "32b-2xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "32b-4xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "32b-8xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "64b-1xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "64b-2xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "64b-4xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "64b-8xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "128b-1xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "128b-2xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "128b-4xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "128b-8xv5litepod-256-aot-hybridsim": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      # DAG: mxla_gpt_6b_nightly_gke
+      "mxla-gpt3-6b-nightly-gke-v5p-8": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "mxla-gpt3-6b-nightly-gke-2xv5p-8": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "mxla-gpt3-6b-nightly-gke-4xv5p-8": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "mxla-gpt3-6b-nightly-gke-8xv5p-8": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      # DAG: maxtext_trillium_configs_perf
+      "maxtext-llama2_70b_4096-stable-3-2xv6e-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      "maxtext-llama2_70b_4096-nightly-3-2xv6e-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-12"
+      ),
+      # DAG: maxtext_v5e_configs_perf
+      "maxtext-16b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-16b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-16b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-16b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-stable-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-stable-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-16b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-16b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-16b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-16b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-32b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-64b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-128b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-gpt3_175b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_7b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_13b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-nightly-0-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-nightly-2-v5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      "maxtext-llama2_70b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PERFORMANCE, "2024-11-13"
+      ),
+      # DAG: pathways_maxtext_v5e_configs_perf
+      "p-maxtext-16b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-16b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-16b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-16b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-stable-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-stable-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-stable-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-stable-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-16b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-16b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-16b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-16b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-32b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-64b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-128b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-gpt3_175b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_7b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_13b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-nightly-0-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-nightly-1-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-nightly-2-v5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      "p-maxtext-llama2_70b-nightly-3-2xv5litepod-256": TestInfo(
+          Team.PRODUCTIVITY, "2024-11-13"
+      ),
+      # DAG: maxtext_gpu_end_to_end
+      "maxtext-pinned-mixtral-8x7b-1node-h100-mega-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-05-07",
+          "b/407807678",
+      ),
+      "maxtext-pinned-mixtral-8x7b-2node-h100-mega-80gb-8": TestInfo(
+          Team.LLM_DEVX,
+          "2025-05-07",
+          "b/407807678",
+      ),
+  }
+
   @staticmethod
   def is_quarantined(test_name) -> bool:
-    return test_name in new_dict
+    return test_name in QuarantineTests.tests or test_name in quarantine_set
