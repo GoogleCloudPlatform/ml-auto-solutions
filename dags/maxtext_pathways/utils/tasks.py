@@ -22,7 +22,7 @@ def get_parameters():
   params["device_type"] = device_type
 
   for key, value in params.items():
-    if key not in ["time_out_in_min", "device_version", "core_count", "service_account", "gcs_service_account_key_path"]:
+    if key not in ["time_out_in_min", "device_version", "core_count", "service_account"]:
       if isinstance(value, int):
         recipe_cmds += f" --{key}={value}"
       else:

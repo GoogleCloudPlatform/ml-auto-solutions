@@ -65,13 +65,13 @@ PARAMETERS = {
         description='List of number of slices. ex: "2,4"',
     ),
     'server_image': Param(
-        'us-docker.pkg.dev/cloud-tpu-v2-images-dev/pathways/unsanitized_server:latest',
+        'gcr.io/tpu-prod-env-one-vm/lidanny/unsanitized_server:latest',
         type='string',
         title='Server Image',
         description='Server image for the cluster.',
     ),
     'proxy_image': Param(
-        'us-docker.pkg.dev/cloud-tpu-v2-images-dev/pathways/unsanitized_proxy_server:latest',
+        'gcr.io/tpu-prod-env-one-vm/lidanny/unsanitized_proxy_server:latest',
         type='string',
         title='Proxy Image',
         description='Proxy image for the cluster.',
@@ -108,6 +108,24 @@ PARAMETERS = {
         type='integer',
         title='Max Restarts',
         description='Max restarts for the workload',
+    ),
+    'bq_enable': Param(
+        True,
+        type='boolean',
+        title='BigQuery Enable',
+        description='Enable BigQuery to store metrics data',
+    ),
+    'bq_db_project': Param(
+        'cloud-tpu-multipod-dev',
+        type='string',
+        title='BigQuery Database Project',
+        description='The Project of BigQuery Database',
+    ),
+    'bq_db_dataset': Param(
+        'chzheng_test_100steps',
+        type='string',
+        title='BigQuery Database Dataset',
+        description='The Dataset of BigQuery Database',
     ),
     'time_out_in_min': Param(
         60,
