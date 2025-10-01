@@ -40,14 +40,16 @@ class Status(enum.Enum):
 class Info:
   """Encapsulates information related to a GKE node pool and represents a specific node pool."""
 
-  project_id: str
-  cluster_name: str
-  node_pool_name: str
-  location: str
-  node_locations: str
-  machine_type: str
-  num_nodes: int
-  tpu_topology: str
+  project_id: str = None
+  cluster_name: str = None
+  node_pool_name: str = None
+  region: str = None
+  zone: str = None
+  location: str = None
+  node_locations: str = None
+  machine_type: str = None
+  num_nodes: int = None
+  tpu_topology: str = None
 
 
 @task
@@ -70,7 +72,7 @@ def create(
   )
 
   if reservation:
-    command += f"--reservation-affinity=specific --reservation={reservation} "
+    command += f" --reservation-affinity=specific --reservation={reservation}"
 
   if ignore_failure:
     command += "2>&1 || true "
