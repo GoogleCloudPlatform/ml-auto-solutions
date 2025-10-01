@@ -349,13 +349,12 @@ def clean_up_workload(
 
 
 @task.sensor(poke_interval=120, timeout=3600, mode="reschedule")
-def wait_for_reach_step_to_interrupt(
-    task_id: str,
+def wait_for_workload_reach_step(
     project_id: str,
     region: str,
     cluster_name: str,
     workload_id: str,
-    step_to_interrupt: str,
+    expect_reach_to_step: str,
 ) -> bool:
   """
   Watch any given training pod, check the given step is already reach before
@@ -364,29 +363,32 @@ def wait_for_reach_step_to_interrupt(
   core_api = _get_core_api_client(project_id, region, cluster_name)
   pods = _list_workload_pods(core_api, workload_id)
 
+  if not pods.items:
+    logging.info("No pods found for workload selector: %s.", workload_id)
+    return False
+
   if any(pod.status.phase in ["Pending"] for pod in pods.items):
     logging.info("Some of the pods is still pending. Waiting to start")
     return False
 
-  try:
-    for pod in pods.items:
-      if pod.status.phase == "Failed":
-        # Don't keep retrying if the pod has failed
-        raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
-      elif pod.status.phase in ["Unknown"]:
-        raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
-  finally:
-    if all(pod.status.phase in ["Running"] for pod in pods.items):
-      # Pick last one running pod
-      pod = pods.items[len(pods.items) - 1]
-      logs = core_api.read_namespaced_pod_log(
-          name=pod.metadata.name, namespace=pod.metadata.namespace
-      )
-      # If the pod has reach the step (save) we can assume
-      # that we can savly interrupt, so make this task return true
-      if f"completed step: {step_to_interrupt}" in logs:
-        logging.info("The step to be interrupt is {step_to_interrupt}")
-        return True
+  for pod in pods.items:
+    if pod.status.phase == "Failed":
+      # Don't keep retrying if the pod has failed
+      raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
+    elif pod.status.phase in ["Unknown"]:
+      raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
+
+  if all(pod.status.phase in ["Running"] for pod in pods.items):
+    # Pick last one running pod
+    pod = pods.items[len(pods.items) - 1]
+    logs = core_api.read_namespaced_pod_log(
+        name=pod.metadata.name, namespace=pod.metadata.namespace
+    )
+    # Check if the workload completed step reached to the expected step
+    if f"completed step: {expect_reach_to_step}" in logs:
+      logging.info("Reached to the expected step %s.", expect_reach_to_step)
+      return True
+
   return False
 
 
@@ -452,7 +454,7 @@ def delete_node(
   """Delete node."""
   delete_info = _find_target_pod_node(
       project,
-      zone[:-2],
+      gke.zone_to_region(zone),
       cluster_name,
       workload_id,
       last_node,
