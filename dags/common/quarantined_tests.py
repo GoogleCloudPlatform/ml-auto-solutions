@@ -45,7 +45,7 @@ def parse_quarantine_list(lines: str) -> Set[str]:
   return quarantined_set
 
 
-quarantine_set = parse_quarantine_list(Variable.get("quarantine_list", ""))
+quarantine_set_in_variables = parse_quarantine_list(Variable.get("quarantine_list", ""))
 
 
 class QuarantineTests:
@@ -586,4 +586,9 @@ class QuarantineTests:
 
   @staticmethod
   def is_quarantined(test_name) -> bool:
-    return test_name in QuarantineTests.tests or test_name in quarantine_set
+    """
+    test_name in QuarantineTests.tests is the original way to declare a quarantined test
+    test_name in quarantine_set is the new way to declare a quarantined test stored in Airflow Variables
+    key='quarantine_list'
+    """
+    return test_name in QuarantineTests.tests or test_name in quarantine_set_in_variables
