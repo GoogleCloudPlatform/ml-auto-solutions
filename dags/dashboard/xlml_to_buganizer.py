@@ -162,6 +162,7 @@ def get_cluster_status(
   node_pools_info = []
   if cluster_mode == "Standard":
     for np in cluster.node_pools:
+      logging.info(f"NP: {np.name} : {container_v1.NodePool.Status(np.status).name}")
       node_pools_info.append({
           "name": np.name,
           "status": container_v1.NodePool.Status(np.status).name
@@ -215,7 +216,7 @@ def fetch_clusters_location(credentials, clusters) -> Dict[str, Any]:
           f"[{idx}/{len(projects)}] {project}: {len(clusters)} clusters"
       )
       for cluster in clusters:
-        key = f"{project}::{cluster.name}"
+        key = f"{project}::{cluster.name}::{cluster.location}"
         cluster_locations[key] = cluster.location
     except Exception as e:
       logging.info(f"Error listing clusters for {project}: {e}")
@@ -322,7 +323,8 @@ def fetch_clusters_status(
   for cluster in clusters_list:
     project_name = cluster.project_name
     cluster_name = cluster.cluster_name
-    key = f"{project_name}::{cluster_name}"
+    location_name = cluster.location
+    key = f"{project_name}::{cluster_name}::{location_name}"
     location = cluster_locations.get(key)
     #  cluster_status_rows is parameter for output
     insert_cluster_status_lists(
