@@ -34,11 +34,13 @@ class TestInfo:
 
 def parse_quarantine_list(lines: str) -> Set[str]:
   quarantined_set = set()
+  if len(lines.strip()) == 0:
+    return quarantined_set
   for line in lines.split("\n"):
     try:
       item = line.strip()
       if len(item) == 0:
-        raise Exception(f"Empty quarantine item. Skip")
+        continue
       quarantined_set.add(item)
     except Exception as e:
       logging.error(e)
@@ -588,7 +590,7 @@ class QuarantineTests:
   def is_quarantined(test_name) -> bool:
     """
     test_name in QuarantineTests.tests is the original way to declare a quarantined test
-    test_name in quarantine_set is the new way to declare a quarantined test stored in Airflow Variables
-    key='quarantine_list'
+    test_name in quarantine_set_in_variables is the new way to declare a quarantined test stored in Airflow Variables
+    key='quarantine_list', please use the new one to add quarantined tests.
     """
     return test_name in QuarantineTests.tests or test_name in quarantine_set_in_variables
