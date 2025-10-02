@@ -30,8 +30,9 @@ from xlml.apis import metric_config
 from xlml.utils import gke, composer
 from dags.common.vm_resource import GpuVersion
 
-# b/411426745 - Setting branch to 0.4.1 till the depdency issue is resolved.
-MAIN_BRANCH = "v0.4.1"
+# b/411426745 - Using sed workaround to comment out validate_dependencies()
+# in xpk main.py to upgrade the version from 0.4.1 to 0.12.0.
+MAIN_BRANCH = "v0.12.0"
 
 # TODO(b/437817546): Switch back to the main branch after the issue is resolved.
 # This branch includes changes fixing the `validate_dependencies()` crash issue.
@@ -57,10 +58,19 @@ def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
       f"git clone --branch {branch} https://github.com/AI-Hypercomputer/xpk"
       f" {tmpdir}/xpk"
   )
+
+  bash_setup = "set -xue"
+
+  pip_install = "pip install ruamel.yaml docker"
+
+  # b/411426745 - Workaround: Comment out validate_dependencies() call to avoid dependency validation issues
+  comment_out_validation = f"sed -i '/validate_dependencies()/s/^/## /' {tmpdir}/xpk/src/xpk/main.py || true"
+
   cmds = [
-      "set -xue",
+      bash_setup,
       clone_branch,
-      "pip install ruamel.yaml docker",
+      pip_install,
+      comment_out_validation,
   ]
   return cmds
 
@@ -137,10 +147,9 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
-        " --restart-on-user-code-failure"
     )
 
-    if ramdisk_directory:
+    if ramdisk_directory and not use_pathways:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
 
     if mtc_enabled:
