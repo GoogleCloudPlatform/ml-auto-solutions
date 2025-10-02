@@ -15,7 +15,6 @@
 """Lists all currently broken tests."""
 
 import dataclasses
-import logging
 import fnmatch
 from typing import Set
 
@@ -39,14 +38,18 @@ def parse_quarantine_list(quarantine_list: str) -> Set[str]:
     return pattern_set
   for line in quarantine_list.split("\n"):
     if len(line.strip()) > 0:
-      pattern_set.add(line.lower())  # Check capital?
+      pattern_set.add(line.strip().lower())  # Check capital?
   return pattern_set
 
 
-quarantine_set_in_variables = parse_quarantine_list(Variable.get("quarantine_list", ""))
+quarantine_set_in_variables = parse_quarantine_list(
+    Variable.get("quarantine_list", "")
+)
 
 
-def is_in_runtime_quarantine_list(test_name: str, quarantine_set: Set[str]) -> bool:
+def is_in_runtime_quarantine_list(
+    test_name: str, quarantine_set: Set[str]
+) -> bool:
   for pattern in quarantine_set:
     if fnmatch.fnmatch(test_name.lower(), pattern):
       return True
@@ -596,4 +599,6 @@ class QuarantineTests:
     test_name in quarantine_set_in_variables is the new way to declare a quarantined test stored in Airflow Variables
     key='quarantine_list', please use the new one to add quarantined tests.
     """
-    return test_name in QuarantineTests.tests or is_in_runtime_quarantine_list(test_name, quarantine_set_in_variables)
+    return test_name in QuarantineTests.tests or is_in_runtime_quarantine_list(
+        test_name, quarantine_set_in_variables
+    )
