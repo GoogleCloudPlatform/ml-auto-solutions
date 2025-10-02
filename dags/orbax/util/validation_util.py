@@ -23,6 +23,7 @@ def validate_checkpoint_at_steps_are_saved(
     cluster_name: str,
     steps_to_validate: list,
     ram_disk: str = "/local",
+    pod_pattern: Optional[str] = ".*",
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> None:
@@ -49,15 +50,19 @@ def validate_checkpoint_at_steps_are_saved(
     None: This function does not return a value.
   """
 
-  log_pattern = (
-      r"Finished async_save \(blocking \+ background\)\. "
-      rf"Time taken: \d+\.\d+s\. directory={ram_disk}/(\d+)"
+  directory_pattern = (
+      rf"{re.escape(ram_disk)}/(\d+)"
+      if ram_disk != "gcs"
+      else r"gs://[^/]+/[^/]+/[^/]+/checkpoints/(\d+)"
   )
+  log_pattern = rf"Finished async_save \(blocking \+ background\)\. Time taken: \d+\.\d+s\. directory={directory_pattern}"
+
   complied_pattern = re.compile(log_pattern)
   entries = list_log_entries(
       project_id=project_id,
       location=location,
       cluster_name=cluster_name,
+      pod_pattern=pod_pattern,
       text_filter=f'jsonPayload.message=~"{log_pattern}"',
       start_time=start_time,
       end_time=end_time,
@@ -123,7 +128,7 @@ def validate_log_with_gcs(
     cluster_name: str,
     checkpoint_dir: str,
     namespace: str = "default",
-    pod_pattern: str = "*",
+    pod_pattern: str = ".*",
     container_name: Optional[str] = None,
     text_filter: Optional[str] = None,
     start_time: Optional[datetime] = None,
@@ -248,7 +253,7 @@ def list_log_entries(
     location: str,
     cluster_name: str,
     namespace: str = "default",
-    pod_pattern: str = "*",
+    pod_pattern: str = ".*",
     container_name: Optional[str] = None,
     text_filter: Optional[str] = None,
     start_time: Optional[datetime] = None,
@@ -298,7 +303,7 @@ def list_log_entries(
       f'resource.labels.location="{location}"',
       f'resource.labels.cluster_name="{cluster_name}"',
       f'resource.labels.namespace_name="{namespace}"',
-      f'resource.labels.pod_name:"{pod_pattern}"',
+      f'resource.labels.pod_name=~"{pod_pattern}"',
       "severity>=DEFAULT",
       f'timestamp>="{start_time_str}"',
       f'timestamp<="{end_time_str}"',
@@ -313,6 +318,116 @@ def list_log_entries(
 
   logging.info(f"Log filter constructed: {log_filter}")
   return list(logging_client.list_entries(filter_=log_filter))
+
+
+@task
+def validate_log_exist(
+    project_id: str,
+    location: str,
+    cluster_name: str,
+    namespace: str = "default",
+    pod_pattern: str = ".*",
+    container_name: Optional[str] = None,
+    text_filter: Optional[str] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+) -> None:
+  """Validate the workload log text filter it is found during training."""
+
+  entries = list_log_entries(
+      project_id=project_id,
+      location=location,
+      cluster_name=cluster_name,
+      namespace=namespace,
+      pod_pattern=pod_pattern,
+      container_name=container_name,
+      text_filter=text_filter,
+      start_time=start_time,
+      end_time=end_time,
+  )
+
+  if not entries:
+    raise AirflowFailException("The log history is empty!")
+
+
+@task
+def validate_restored_correct_checkpoint(
+    project_id: str,
+    location: str,
+    cluster_name: str,
+    interrupt_at_step: int,
+    pod_pattern: str = ".*",
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+) -> None:
+  """Validate the restored step is in the expected range."""
+
+  entries = list_log_entries(
+      project_id=project_id,
+      location=location,
+      cluster_name=cluster_name,
+      namespace="default",
+      pod_pattern=pod_pattern,
+      text_filter="jsonPayload.message:\"'event_type'\"",
+      start_time=start_time,
+      end_time=end_time,
+  )
+
+  if not entries:
+    raise AirflowFailException("No event_type found in the log.")
+
+  saved_steps_before_restore = []
+  for entry in entries:
+    if not isinstance(entry, logging_api.StructEntry):
+      raise AirflowFailException(
+          "Log entry must be contain a jsonPayload attribute."
+      )
+
+    message = entry.payload.get("message")
+
+    if re.search(r"'event_type': 'save'", message):
+      saved_step_match = re.search(r"'step': (\d+)", message)
+      if not saved_step_match:
+        raise AirflowFailException(
+            f"Found save event with no step number, message: {message}"
+        )
+
+      saved_steps_before_restore.append(int(saved_step_match.group(1)))
+
+    elif re.search(r"'event_type': '(emergency_)?restore'", message):
+      logging.info("Found restore event: %s", message)
+      logging.info("Saved steps before restore: %s", saved_steps_before_restore)
+
+      restored_step_match = re.search(
+          r"'step':\s*(?:np\.int32\()?(\d+)", message
+      )
+      restored_step = (
+          int(restored_step_match.group(1)) if restored_step_match else None
+      )
+
+      if not restored_step:
+        raise AirflowFailException(
+            f"Found restore event with no step number, message: {message}"
+        )
+
+      if restored_step < interrupt_at_step:
+        raise AirflowFailException(
+            f"Restored step {restored_step} should be "
+            f"greater than or equal to step {interrupt_at_step}."
+        )
+
+      if restored_step not in saved_steps_before_restore[-2:]:
+        raise AirflowFailException(
+            f"Restored step {restored_step} should be "
+            "in the last two saved steps."
+        )
+
+      logging.info("Restoration happened at the expected step.")
+      return
+
+  raise AirflowFailException(
+      "Failed to validate that restoration happened at the expected step."
+  )
 
 
 def get_gcs_checkpoint(output_path: str) -> List[str]:
