@@ -6,7 +6,7 @@ from absl import logging
 from airflow.decorators import task
 from airflow.operators.python import get_current_context
 
-from dags.maxtext_pathways.configs.commands import ENV_COMMAND, RECIPE_COMMAND
+from dags.maxtext_pathways.configs.commands import COMMAND_ENV, COMMAND_RECIPE
 from xlml.utils.gke import zone_to_region
 
 
@@ -18,7 +18,7 @@ def get_parameters():
     params = context.get("params", {})
 
     # Initialization command.
-    recipe_cmds = RECIPE_COMMAND
+    recipe_cmds = COMMAND_RECIPE
 
     # Generate recipe workload_id and temp_key.
     name, temp_post_fix = generate_recipe_workload_id(params)
@@ -45,7 +45,7 @@ def get_parameters():
     formatted_cmds = recipe_cmds.replace(" --", " \n  --")
     logging.info(f"\n {formatted_cmds}")
 
-    env_cmds = ENV_COMMAND.format(service_account=params["service_account"])
+    env_cmds = COMMAND_ENV.format(service_account=params["service_account"])
 
     # Add parameters.
     params["commands"] = " && ".join([env_cmds, recipe_cmds])

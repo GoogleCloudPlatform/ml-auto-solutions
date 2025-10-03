@@ -63,7 +63,13 @@ COMMAND_BACK_MAXTEXT = [
 
 COMMAND_RUN_RECIPE = ["python3 -m benchmarks.recipes.pw_mcjax_benchmark_recipe"]
 
-ENV_COMMAND = (
+COMMAND_DELETE_POD = [
+    "set -xue",
+    "gcloud container clusters get-credentials {cluster_name} --region={region} --project={project}",
+    "kubectl delete pod -l airflow-runtime={airflow_runtime} --namespace=default --force --grace-period=0",
+]
+
+COMMAND_ENV = (
     COMMAND_INSTALL_MAKE
     + COMMAND_INSTALL_KUBECTL
     + COMMAND_INSTALL_DOCKER
@@ -75,14 +81,15 @@ ENV_COMMAND = (
     + COMMAND_BACK_MAXTEXT
 )
 
-RECIPE_COMMAND = COMMAND_RUN_RECIPE
+COMMAND_RECIPE = COMMAND_RUN_RECIPE
 
-ENV_COMMAND = " && ".join(ENV_COMMAND)
-RECIPE_COMMAND = " && ".join(RECIPE_COMMAND)
+COMMAND_ENV = " && ".join(COMMAND_ENV)
+COMMAND_RECIPE = " && ".join(COMMAND_RECIPE)
+COMMAND_DELETE_POD_STR = " && ".join(COMMAND_DELETE_POD)
 
 
 if __name__ == "__main__":
-    print(f"{ENV_COMMAND = }\n")
-    print(f"{RECIPE_COMMAND = }\n")
-    TOTAL_COMMAND = " && ".join([ENV_COMMAND, RECIPE_COMMAND])
+    print(f"{COMMAND_ENV = }\n")
+    print(f"{COMMAND_RECIPE = }\n")
+    TOTAL_COMMAND = " && ".join([COMMAND_ENV, COMMAND_RECIPE])
     print(f"{TOTAL_COMMAND = }\n")
