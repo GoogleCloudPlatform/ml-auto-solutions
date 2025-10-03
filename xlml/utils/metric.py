@@ -624,6 +624,19 @@ def add_airflow_metadata(
             metadata_value=airflow_dag_run_link,
         )
     )
+    airflow_meta.append(
+        bigquery.MetadataHistoryRow(
+            job_uuid=uuid, metadata_key="dag_id", metadata_value=dag_id
+        )
+    )
+    for key, value in context.get("params", {}).items():
+      airflow_meta.append(
+          bigquery.MetadataHistoryRow(
+              job_uuid=uuid,
+              metadata_key=f"param:{key}",
+              metadata_value=str(value),
+          )
+      )
 
     metadata[index].extend(airflow_meta)
   return metadata
