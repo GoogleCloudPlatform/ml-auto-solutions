@@ -358,6 +358,11 @@ def helm_apply_cmds(
     additional_cmds: str = "",
     num_steps: int = None,
     logs_bucket: str = None,
+    dataset_bucket: str = None,
+    checkpoint_bucket: str = None,
+    helm_template_folder: str = None,
+    storage_product: str = None,
+    recipe_branch: str = None,
 ):
   gcs_cmd = ""
   if hypercomputer in ("a3ultra", "a4"):
@@ -366,6 +371,13 @@ def helm_apply_cmds(
     gcs_cmd += f" --set volumes.gcsMounts[0].bucketName={logs_bucket}"
   else:
     gcs_cmd = f" --set workload.gcsBucketForDataCataPath={logs_bucket}"
+  gcs_cmd += gcs_automation_utils.pv_pvc_workload_opts(
+      storage_product,
+      recipe_branch,
+      logs_bucket,
+      dataset_bucket,
+      checkpoint_bucket,
+  )
 
   if num_steps:
     additional_cmds += f" --set workload.steps={num_steps} "
@@ -378,6 +390,10 @@ def helm_apply_cmds(
   if framework == "maxtext":
     run_name_cmd = "--set workload.run_name=$JOB_NAME"
 
+  experiment_name_cmd = ""
+  if hypercomputer == "a3mega" and framework == "nemo" and storage_product:
+    experiment_name_cmd = "--set workload.experimentName=nemo-experiments"
+
   set_aotc = ""
   if aotc:
     set_aotc = " --set-string workload.aotc=true "
@@ -389,9 +405,10 @@ def helm_apply_cmds(
       f"={config_file}"
       " --set workload.image"
       f"={docker_image} "
-      f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc}"
+      f"{cluster_cmd} {run_name_cmd} {gcs_cmd} {set_aotc} {experiment_name_cmd}"
       f"{additional_cmds}"
-      f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/{framework}-training",
+      f" $JOB_NAME {recipe_repo_root}/src/helm-charts/{hypercomputer}/"
+      f"{helm_template_folder if helm_template_folder else f'{framework}-training'}",
   )
   return helm_cmds
 
@@ -810,7 +827,21 @@ def cleanup_all_runs_cmds(cluster, cluster_region, prefix="cml-"):
   return cleanup_cmds
 
 
-def cleanup_cmds():
+def cleanup_cmds(
+    storage_product: str = None,
+    recipe_branch: str = None,
+    user: str = None,
+):
+  """Get the commands for workload cleanups.
+
+  Args:
+      storage_product: The name of the storage product.
+      recipe_branch: The branch of the recipe repo.
+      user: The name of the user.
+
+  Returns:
+      A command to clean up the workload.
+  """
   cleanup = (
       "kubectl config set-context --current --namespace=default ",
       # Attempt Helm uninstall first, continue even if it fails
@@ -832,6 +863,8 @@ def cleanup_cmds():
       # Attempt force deletion of pods if they existed before and still exist now
       "if ! kubectl get pods -l job-name=$JOB_NAME 2>&1 | grep -q 'No resources found'; then echo 'Pods still exist, using force deletion...'; kubectl delete pods -l job-name=$JOB_NAME --force --grace-period=0; else echo 'No pods to force delete'; fi ",
       "echo 'Cleanup completed'",
+  ) + gcs_automation_utils.pv_pvc_cleanup_cmds(
+      storage_product, recipe_branch, user
   )
   print("**********cleanup cmd is*********")
   print(cleanup)
@@ -1474,9 +1507,12 @@ def run_nemo_workload(
     storage_product: str = None,
     gcs_results_generator: bool = False,
     recipe_branch: str = None,
+    helm_template_folder: str = None,
     recipes_repo_change_refs: str = None,
     bq_writer_repo_change_refs: str = None,
     gcs_automation_repo_change_refs: str = None,
+    dataset_bucket: str = None,
+    checkpoint_bucket: str = None,
     logs_bucket: str = None,
     gcs_source_bucket: str = None,
     gcs_metrics_bucket: str = None,
@@ -1508,10 +1544,13 @@ def run_nemo_workload(
       storage_product: The storage product used in the workload (e.g. gcs).
       gcs_results_generator: True if enabling GCS run results generator.
       recipe_branch: The branch name of the recipe repo (default: "main").
+      helm_template_folder: The name of the helm template folder.
       recipes_repo_change_refs: The change reference of the recipe repo.
       bq_writer_repo_change_refs: The change reference of the BQ writer repo.
       gcs_automation_repo_change_refs: The change reference of the gcs
       automation repo.
+      dataset_bucket: The bucket which holds the training bucket.
+      checkpoint_bucket: The bucket which holds the checkpoint files.
       logs_bucket: The logs bucket.
       gcs_source_bucket: The GCS bucket name where the dataset is pulled from.
       gcs_metrics_bucket: The GCS bucket in which the metrics files are stored.
@@ -1636,6 +1675,14 @@ def run_nemo_workload(
                 + install_helm_cmds()
                 + namespace_cmds()
                 + get_pre_workload_cmds(model_id, framework, user)
+                + gcs_automation_utils.pv_pvc_generate_cmds(
+                    storage_product=storage_product,
+                    recipe_branch=recipe_branch,
+                    dataset_bucket=dataset_bucket,
+                    checkpoint_bucket=checkpoint_bucket,
+                    recipe_repo_root=recipe_repo_root,
+                    user=user,
+                )
                 + helm_apply_cmds(
                     framework,
                     hypercomputer,
@@ -1645,7 +1692,12 @@ def run_nemo_workload(
                     cluster_name=cluster,
                     kueue_name=kueue_name,
                     logs_bucket=logs_bucket,
+                    dataset_bucket=dataset_bucket,
+                    checkpoint_bucket=checkpoint_bucket,
                     additional_cmds=additional_cmds,
+                    helm_template_folder=helm_template_folder,
+                    storage_product=storage_product,
+                    recipe_branch=recipe_branch,
                 )
                 + wait_for_jobs_cmds()
                 + copy_bucket_cmds_nemo(
@@ -1670,7 +1722,11 @@ def run_nemo_workload(
                     recipe_repo_root=recipe_repo_root,
                     gcs_automation_repo_root=gcs_automation_repo_root,
                 )
-                + cleanup_cmds()
+                + cleanup_cmds(
+                    storage_product=storage_product,
+                    recipe_branch=recipe_branch,
+                    user=user,
+                )
             ),
         ],
         cwd=tmpdir,
