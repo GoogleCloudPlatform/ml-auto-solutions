@@ -9,10 +9,8 @@ from airflow import models
 
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import DockerImage
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
-from dags.multipod.configs.common import SetupMode
 from dags.orbax.util import checkpoint_util
 from dags.orbax.util import test_config_util
 from dags.orbax.util import validation_util
@@ -21,10 +19,6 @@ from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 
 DAG_TEST_NAME = "maxtext_mtc_orbax_res_local"
 SCHEDULE = "0 14 * * *" if composer_env.is_prod_env() else None
-
-# Only one version of the Docker image is supported at the moment.
-# Other versions (e.g., "stable") may be introduced later.
-DOCKER_IMAGES = [(SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_ORBAX_HEAD)]
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
@@ -75,7 +69,7 @@ with models.DAG(
           short_id="max-res-loc",
           replicator_backup_time=30,
           step=300,
-          checkpoint_step=20,
+          checkpoint_step=100,
           local_checkpoint_step=20,
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
@@ -86,7 +80,7 @@ with models.DAG(
 
   step_to_interrupt = 60
 
-  for mode, image in DOCKER_IMAGES:
+  for mode, image in test_config_util.DOCKER_IMAGES:
     for test_config in test_configs:
       for slice_num in test_config.slices:
         wait_delete_cpc = checkpoint_util.wait_for_cpc_deletion.override(
@@ -162,13 +156,15 @@ with models.DAG(
 
         steps_to_validate = test_config.generate_step_to_validate(is_local=True)
 
-        validate_log = validation_util.validate_checkpoint_at_steps_are_saved(
-            project_id=test_config.cluster.project,
-            location=zone_to_region(test_config.cluster.zone),
-            cluster_name=test_config.cluster.name,
-            start_time=start_time,
-            end_time=end_time,
-            steps_to_validate=steps_to_validate,
+        validate_local_saved_steps = (
+            validation_util.validate_checkpoint_at_steps_are_saved(
+                project_id=test_config.cluster.project,
+                location=zone_to_region(test_config.cluster.zone),
+                cluster_name=test_config.cluster.name,
+                start_time=start_time,
+                end_time=end_time,
+                steps_to_validate=steps_to_validate,
+            )
         )
 
         # Final CPC cleanup to ensure symmetric start/end
@@ -185,6 +181,6 @@ with models.DAG(
             >> end_time
             >> validate_restore_step
             >> validate_restored_source
-            >> validate_log
+            >> validate_local_saved_steps
             >> wait_delete_cpc_final
         )

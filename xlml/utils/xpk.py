@@ -384,10 +384,19 @@ def wait_for_workload_reach_step(
     logs = core_api.read_namespaced_pod_log(
         name=pod.metadata.name, namespace=pod.metadata.namespace
     )
-    # Check if the workload completed step reached to the expected step
-    if f"completed step: {expect_reach_to_step}" in logs:
-      logging.info("Reached to the expected step %s.", expect_reach_to_step)
-      return True
+    # Check if the workload completed step reached over the expected step
+    completed_step_matches = re.findall(r"completed step: (\d+)", logs)
+    if completed_step_matches:
+      current_step = int(completed_step_matches[-1])
+      if current_step >= int(expect_reach_to_step):
+        logging.info(
+            "Reached to the expected step %s. Current step is %s.",
+            expect_reach_to_step,
+            current_step,
+        )
+        return True
+
+  logging.info("Waiting for reaching expected step %s.", expect_reach_to_step)
 
   return False
 
