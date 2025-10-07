@@ -4,7 +4,7 @@
 import enum
 import json
 import logging
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Set
 from datetime import datetime, timezone
 
 import google
@@ -130,7 +130,7 @@ def get_clusters_from_view(credential) -> List[Any]:
   dataset_id = context["params"]["source_bq_dataset_id"] or DEFAULT_DATASET_ID
   client = bigquery.Client(project=project_id, credentials=credential)
   query = f"""
-        SELECT project_name, cluster_name
+        SELECT project_name, cluster_name, region
         FROM `{project_id}.{dataset_id}.cluster_view`
     """
   rows = list(client.query(query).result())
@@ -181,7 +181,7 @@ def get_cluster_status(
 
   return {
       "project_id": project_id,
-      "region": location,
+      "location": location,
       "cluster_name": cluster_name,
       "status": container_v1.Cluster.Status(cluster.status).name
       if cluster.status
@@ -194,7 +194,7 @@ def get_cluster_status(
 # ================================================================
 # Step 5: Workflow Functions
 # ================================================================
-def fetch_clusters_list(credential):
+def fetch_clusters(credential) -> List[str]:
   clusters = get_clusters_from_view(credential=credential)
   if not clusters:
     logging.info("No rows found in view.")
@@ -202,30 +202,7 @@ def fetch_clusters_list(credential):
   return clusters
 
 
-def fetch_clusters_location(credentials, clusters) -> Dict[str, Any]:
-  """Map project::cluster_name -> location"""
-  cluster_locations = {}
-  projects = set(cluster.project_name for cluster in clusters)
-  logging.info(f"Fetching clusters from {len(projects)} distinct projects...")
-  for idx, project in enumerate(projects, 1):
-    try:
-      clusters = list_clusters_by_project(
-          credentials=credentials, project_id=project
-      )
-      logging.info(
-          f"[{idx}/{len(projects)}] {project}: {len(clusters)} clusters"
-      )
-      for cluster in clusters:
-        key = f"{project}::{cluster.name}::{cluster.location}"
-        cluster_locations[key] = cluster.location
-    except Exception as e:
-      logging.info(f"Error listing clusters for {project}: {e}")
-  return cluster_locations
-
-
-def insert_cluster_status_lists(
-    credentials, status_list, project_name, location, cluster_name, now_utc
-):
+def insert_cluster_status_lists(credentials, status_list, project_name, cluster_name, location, now_utc):
   """Insert both cluster + nodepool status into list"""
   try:
     #  Cannot query cluster info without location
@@ -315,26 +292,14 @@ def insert_cluster_status_lists(
 
 
 def fetch_clusters_status(
-    credentials, clusters_list: List[Any], cluster_locations: Dict[str, Any]
+    credentials, clusters: List[Any]
 ) -> List[Any]:
   """Fetch status for all clusters & node pools"""
   cluster_status_rows = []
   now_utc = datetime.now(timezone.utc).isoformat()
-  for cluster in clusters_list:
-    project_name = cluster.project_name
-    cluster_name = cluster.cluster_name
-    location_name = cluster.location
-    key = f"{project_name}::{cluster_name}::{location_name}"
-    location = cluster_locations.get(key)
-    #  cluster_status_rows is parameter for output
-    insert_cluster_status_lists(
-        credentials,
-        cluster_status_rows,
-        project_name,
-        location,
-        cluster_name,
-        now_utc,
-    )
+  for cluster in clusters:
+    insert_cluster_status_lists(credentials, cluster_status_rows, cluster.project_name, cluster.cluster_name,
+                                cluster.region, now_utc)
   print_failed_cluster_info(cluster_status_rows)
   return cluster_status_rows
 
@@ -347,12 +312,9 @@ def pull_clusters_status() -> List[Any]:
   credentials, _ = google.auth.default(
       scopes=["https://www.googleapis.com/auth/cloud-platform"]
   )
-  target_clusters_list = fetch_clusters_list(credentials)
-  target_clusters_locations = fetch_clusters_location(
-      credentials, target_clusters_list
-  )
+  target_clusters = fetch_clusters(credentials)
   return fetch_clusters_status(
-      credentials, target_clusters_list, target_clusters_locations
+      credentials, target_clusters
   )
 
 
