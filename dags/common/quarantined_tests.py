@@ -32,28 +32,38 @@ class TestInfo:
   details: str = ""
 
 
-def parse_quarantine_list(quarantine_list: str) -> Set[str]:
+def parse_quarantine_patterns(quarantine_patterns_str: str) -> Set[str]:
   pattern_set = set()
-  if len(quarantine_list.strip()) == 0:
+  if len(quarantine_patterns_str.strip()) == 0:
     return pattern_set
-  for line in quarantine_list.split("\n"):
-    if len(line.strip()) > 0:
-      pattern_set.add(line.strip().lower())  # Check capital?
+  for pattern in quarantine_patterns_str.split("\n"):
+    if len(pattern.strip()) > 0:
+      pattern_set.add(pattern.strip().lower())  # Check capital?
   return pattern_set
 
 
-quarantine_set_in_variables = parse_quarantine_list(
-    Variable.get("quarantine_list", "")
-)
-
-
-def is_in_runtime_quarantine_list(
-    test_name: str, quarantine_set: Set[str]
+def match_quarantine_patterns(
+    test_name: str, quarantine_patterns_set: Set[str]
 ) -> bool:
-  for pattern in quarantine_set:
+  for pattern in quarantine_patterns_set:
     if fnmatch.fnmatch(test_name.lower(), pattern):
       return True
   return False
+
+
+"""
+The quarantine list is defined by a set of UNIX Shell Glob Patterns. 
+These patterns are used to match and quarantine tests. 
+
+The patterns are stored in the Airflow Variable named 'quarantine_patterns'.
+
+Sample values:
+- maxtext-profiling-* (Matches all 'maxtext-profiling-' tests)
+- maxd-sdxl-* (Matches all 'maxd-sdxl-' tests)
+"""
+quarantine_patterns = parse_quarantine_patterns(
+    Variable.get("quarantine_patterns", "")
+)
 
 
 class QuarantineTests:
@@ -595,10 +605,14 @@ class QuarantineTests:
   @staticmethod
   def is_quarantined(test_name) -> bool:
     """
-    test_name in QuarantineTests.tests is the original way to declare a quarantined test
-    test_name in quarantine_set_in_variables is the new way to declare a quarantined test stored in Airflow Variables
-    key='quarantine_list', please use the new one to add quarantined tests.
+    Checks if a test is quarantined using both legacy and current methods.
+
+    The legacy method checks if `test_name` is present in `QuarantineTests.tests`.
+    The current method checks against a runtime quarantine list fetched from Airflow Variables
+    (key: 'quarantine_list') using `is_in_runtime_quarantine_list()`.
+
+    The test is considered quarantined if it's found by either method.
     """
-    return test_name in QuarantineTests.tests or is_in_runtime_quarantine_list(
-        test_name, quarantine_set_in_variables
+    return test_name in QuarantineTests.tests or match_quarantine_patterns(
+        test_name, quarantine_patterns
     )
