@@ -4,7 +4,7 @@
 import enum
 import json
 import logging
-from typing import List, Any, Dict, Set
+from typing import List, Any, Dict
 from datetime import datetime, timezone
 
 import google
@@ -79,130 +79,9 @@ def build_malfunction_row(
   ]
 
 
-def print_failed_cluster_info(cluster_status_rows):
-  """Log failed cluster info for debugging"""
-  result_rows_list = []
-  for cluster_status_row in cluster_status_rows:
-    result_row = {
-        "type": cluster_status_row[0],
-        "project_id": cluster_status_row[1],
-        "cluster_name": cluster_status_row[2],
-        "cluster_location": cluster_status_row[3],
-        "status": cluster_status_row[4],
-        "status_message": cluster_status_row[5],
-        "node_pools": cluster_status_row[6],
-        "load_time": cluster_status_row[7],
-    }
-    result_rows_list.append(result_row)
-  logging.info(f"result: {result_rows_list}")
-
-
-def insert_gspread_rows(rows: List[List[str]], sheet_id: str):
-  """Insert rows into Google Sheet via Airflow GSheetsHook"""
-  try:
-    hook = GSheetsHook(gcp_conn_id="google_cloud_default")
-    logging.info(
-        f"Inserting {len(rows)} rows into Google Sheet ID: {sheet_id}..."
-    )
-    if len(sheet_id) == 0:
-      raise Exception(
-          f"Sheet ID is empty. Please insert Sheet ID or set 'buganizer_sheet_id' in Variables"
-      )
-    hook.append_values(
-        spreadsheet_id=sheet_id,
-        range_=GSPREAD_WORKSHEET_NAME,
-        values=rows,
-        insert_data_option="INSERT_ROWS",
-        value_input_option="RAW",
-    )
-    logging.info(f"Successfully appended rows to Google Sheet.")
-  except Exception as e:
-    logging.error(f"An error occurred while writing to Google Sheet: {e}")
-
-
-# ================================================================
-# Step 3: BigQuery Functions
-# ================================================================
-def get_clusters_from_view(credential) -> List[Any]:
-  """Get cluster list from BigQuery view"""
-  context = get_current_context()
-  project_id = context["params"]["source_bq_project_id"] or DEFAULT_PROJECT_ID
-  dataset_id = context["params"]["source_bq_dataset_id"] or DEFAULT_DATASET_ID
-  client = bigquery.Client(project=project_id, credentials=credential)
-  query = f"""
-        SELECT project_name, cluster_name, region
-        FROM `{project_id}.{dataset_id}.cluster_view`
-    """
-  rows = list(client.query(query).result())
-  logging.info(f"Fetched {len(rows)} rows from view.")
-  return rows
-
-
-# ================================================================
-# Step 4: GKE Functions
-# ================================================================
-def list_clusters_by_project(credentials, project_id) -> List[Any]:
-  """List all clusters in a given GCP project"""
-  client = container_v1.ClusterManagerClient(credentials=credentials)
-  parent = f"projects/{project_id}/locations/-"
-  response = client.list_clusters(request={"parent": parent})
-  return response.clusters if response and response.clusters else []
-
-
-def get_cluster_status(
-    credentials, project_id, location, cluster_name
-) -> Dict[str, Any]:
-  """Get detailed GKE cluster + nodepool status"""
-  client = container_v1.ClusterManagerClient(credentials=credentials)
-  name = f"projects/{project_id}/locations/{location}/clusters/{cluster_name}"
-  request = container_v1.GetClusterRequest(name=name)
-  cluster = client.get_cluster(request=request)
-  cluster_mode = "Autopilot" if cluster.autopilot.enabled else "Standard"
-
-  node_pools_info = []
-  if cluster_mode == "Standard":
-    for np in cluster.node_pools:
-      logging.info(f"NP: {np.name} : {container_v1.NodePool.Status(np.status).name}")
-      node_pools_info.append({
-          "name": np.name,
-          "status": container_v1.NodePool.Status(np.status).name
-          if np.status
-          else "UNKNOWN",
-          "status_message": np.status_message or None,
-          "version": np.version,
-          "autoscaling_enabled": np.autoscaling.enabled
-          if np.autoscaling
-          else False,
-          "initial_node_count": np.initial_node_count,
-          "machine_type": np.config.machine_type if np.config else None,
-          "disk_size_gb": np.config.disk_size_gb if np.config else None,
-          "preemptible": np.config.preemptible if np.config else False,
-      })
-
-  return {
-      "project_id": project_id,
-      "location": location,
-      "cluster_name": cluster_name,
-      "status": container_v1.Cluster.Status(cluster.status).name
-      if cluster.status
-      else "UNKNOWN",
-      "status_message": cluster.status_message or None,
-      "node_pools": node_pools_info,
-  }
-
-
-# ================================================================
-# Step 5: Workflow Functions
-# ================================================================
-def fetch_clusters(credential) -> List[str]:
-  clusters = get_clusters_from_view(credential=credential)
-  if not clusters:
-    logging.info("No rows found in view.")
-    return []
-  return clusters
-
-
-def insert_cluster_status_lists(credentials, status_list, project_name, cluster_name, location, now_utc):
+def insert_cluster_status_lists(
+    credentials, status_list, project_name, cluster_name, location, now_utc
+):
   """Insert both cluster + nodepool status into list"""
   try:
     #  Cannot query cluster info without location
@@ -291,15 +170,133 @@ def insert_cluster_status_lists(credentials, status_list, project_name, cluster_
     )
 
 
-def fetch_clusters_status(
-    credentials, clusters: List[Any]
-) -> List[Any]:
+def print_failed_cluster_info(cluster_status_rows):
+  """Log failed cluster info for debugging"""
+  result_rows_list = []
+  for cluster_status_row in cluster_status_rows:
+    result_row = {
+        "type": cluster_status_row[0],
+        "project_id": cluster_status_row[1],
+        "cluster_name": cluster_status_row[2],
+        "cluster_location": cluster_status_row[3],
+        "status": cluster_status_row[4],
+        "status_message": cluster_status_row[5],
+        "node_pools": cluster_status_row[6],
+        "load_time": cluster_status_row[7],
+    }
+    result_rows_list.append(result_row)
+  logging.info(f"result: {result_rows_list}")
+
+
+def insert_gspread_rows(rows: List[List[str]], sheet_id: str):
+  """Insert rows into Google Sheet via Airflow GSheetsHook"""
+  try:
+    hook = GSheetsHook(gcp_conn_id="google_cloud_default")
+    logging.info(
+        f"Inserting {len(rows)} rows into Google Sheet ID: {sheet_id}..."
+    )
+    if len(sheet_id) == 0:
+      raise Exception(
+          f"Sheet ID is empty. Please insert Sheet ID or set 'buganizer_sheet_id' in Variables"
+      )
+    hook.append_values(
+        spreadsheet_id=sheet_id,
+        range_=GSPREAD_WORKSHEET_NAME,
+        values=rows,
+        insert_data_option="INSERT_ROWS",
+        value_input_option="RAW",
+    )
+    logging.info(f"Successfully appended {len(rows)} rows to Google Sheet.")
+  except Exception as e:
+    logging.error(f"An error occurred while writing to Google Sheet: {e}")
+
+
+# ================================================================
+# Step 3: BigQuery Functions
+# ================================================================
+def get_clusters_from_view(credential) -> List[Any]:
+  """Get cluster list from BigQuery view"""
+  context = get_current_context()
+  project_id = context["params"]["source_bq_project_id"] or DEFAULT_PROJECT_ID
+  dataset_id = context["params"]["source_bq_dataset_id"] or DEFAULT_DATASET_ID
+  client = bigquery.Client(project=project_id, credentials=credential)
+  query = f"""
+        SELECT project_name, cluster_name, region
+        FROM `{project_id}.{dataset_id}.cluster_view`
+    """
+  rows = list(client.query(query).result())
+  logging.info(f"Fetched {len(rows)} rows from view.")
+  return rows
+
+
+# ================================================================
+# Step 4: GKE Functions
+# ================================================================
+def get_cluster_status(
+    credentials, project_id, location, cluster_name
+) -> Dict[str, Any]:
+  """Get detailed GKE cluster + nodepool status"""
+  client = container_v1.ClusterManagerClient(credentials=credentials)
+  name = f"projects/{project_id}/locations/{location}/clusters/{cluster_name}"
+  request = container_v1.GetClusterRequest(name=name)
+  cluster = client.get_cluster(request=request)
+  cluster_mode = "Autopilot" if cluster.autopilot.enabled else "Standard"
+
+  node_pools_info = []
+  if cluster_mode == "Standard":
+    for np in cluster.node_pools:
+      node_pools_info.append({
+          "name": np.name,
+          "status": container_v1.NodePool.Status(np.status).name
+          if np.status
+          else "UNKNOWN",
+          "status_message": np.status_message or None,
+          "version": np.version,
+          "autoscaling_enabled": np.autoscaling.enabled
+          if np.autoscaling
+          else False,
+          "initial_node_count": np.initial_node_count,
+          "machine_type": np.config.machine_type if np.config else None,
+          "disk_size_gb": np.config.disk_size_gb if np.config else None,
+          "preemptible": np.config.preemptible if np.config else False,
+      })
+
+  return {
+      "project_id": project_id,
+      "location": location,
+      "cluster_name": cluster_name,
+      "status": container_v1.Cluster.Status(cluster.status).name
+      if cluster.status
+      else "UNKNOWN",
+      "status_message": cluster.status_message or None,
+      "node_pools": node_pools_info,
+  }
+
+
+# ================================================================
+# Step 5: Workflow Functions
+# ================================================================
+def fetch_clusters(credential) -> List[str]:
+  clusters = get_clusters_from_view(credential=credential)
+  if not clusters:
+    logging.info("No rows found in view.")
+    return []
+  return clusters
+
+
+def fetch_clusters_status(credentials, clusters: List[Any]) -> List[Any]:
   """Fetch status for all clusters & node pools"""
   cluster_status_rows = []
   now_utc = datetime.now(timezone.utc).isoformat()
   for cluster in clusters:
-    insert_cluster_status_lists(credentials, cluster_status_rows, cluster.project_name, cluster.cluster_name,
-                                cluster.region, now_utc)
+    insert_cluster_status_lists(
+        credentials,
+        cluster_status_rows,
+        cluster.project_name,
+        cluster.cluster_name,
+        cluster.region,
+        now_utc,
+    )
   print_failed_cluster_info(cluster_status_rows)
   return cluster_status_rows
 
@@ -313,9 +310,7 @@ def pull_clusters_status() -> List[Any]:
       scopes=["https://www.googleapis.com/auth/cloud-platform"]
   )
   target_clusters = fetch_clusters(credentials)
-  return fetch_clusters_status(
-      credentials, target_clusters
-  )
+  return fetch_clusters_status(credentials, target_clusters)
 
 
 @task
