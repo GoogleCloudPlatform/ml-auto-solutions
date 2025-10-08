@@ -127,7 +127,7 @@ with models.DAG(
             xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
             last_node=True,
-            expect_reach_to_step=step_to_interrupt
+            expect_reach_to_step=step_to_interrupt,
         )
 
         end_time = validation_util.generate_timestamp.override(
@@ -167,15 +167,12 @@ with models.DAG(
             is_local=False
         )
 
-        validate_saved_checkpoints_steps_gcs = (
-            validation_util.validate_gcs_checkpoint_files(
-                bucket_path=(
-                    f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}"
-                ),
-                steps_to_validate=gcs_saved_steps_to_validate,
-            )
+        validate_saved_checkpoints_steps_gcs = validation_util.validate_gcs_checkpoint_files(
+            bucket_path=(
+                f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}"
+            ),
+            steps_to_validate=gcs_saved_steps_to_validate,
         )
-
         # Final CPC cleanup to ensure symmetric start/end
         wait_delete_cpc_final = checkpoint_util.wait_for_cpc_deletion.override(
             trigger_rule="all_done", task_id="wait_delete_cpc_final"
