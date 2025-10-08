@@ -86,16 +86,21 @@ def insert_cluster_status_lists(
   try:
     #  Cannot query cluster info without location
     if not location:
-      raise NotFound("The requested resource was not found on the server.")
+      raise NotFound(
+          "The requested resource can not be found on the server without location."
+      )
     info = get_cluster_status(credentials, project_name, location, cluster_name)
     cluster_status = info["status"]
     cluster_status_message = info["status_message"]
     mal_node_pools = [
         node_pool
         for node_pool in info["node_pools"]
-        if node_pool["status"] != Status.RUNNING.value
-        and node_pool["status"] != Status.PROVISIONING.value
-        and node_pool["status"] != Status.STOPPING.value
+        if node_pool["status"]
+        not in [
+            Status.RUNNING.value,
+            Status.PROVISIONING.value,
+            Status.STOPPING.value,
+        ]
     ]
     is_cluster_malfunction = (
         cluster_status != Status.RUNNING.value
