@@ -337,21 +337,21 @@ class DagRunListener:
     allow_items = read_items_from_gcs(
         os.environ.get("GCS_BUCKET"), ALLOW_LIST_PATH
     )
-    return (
-        DagRunListener.contains_id(allow_items, dag_run.dag_id)
-        or DagRunListener.has_any_tag(allow_items, dag_run.dag.tags)
-        or DagRunListener.matches_pattern(allow_items, dag_run.dag_id)
-    )
+    return DagRunListener.is_in_list(allow_items, dag_run)
 
   @staticmethod
   def is_in_block_list(dag_run: DagRun) -> bool:
     block_items = read_items_from_gcs(
         os.environ.get("GCS_BUCKET"), BLOCK_LIST_PATH
     )
+    return DagRunListener.is_in_list(block_items, dag_run)
+
+  @staticmethod
+  def is_in_list(items: Set[str], dag_run: DagRun):
     return (
-        DagRunListener.contains_id(block_items, dag_run.dag_id)
-        or DagRunListener.has_any_tag(block_items, dag_run.dag.tags)
-        or DagRunListener.matches_pattern(block_items, dag_run.dag_id)
+        DagRunListener.contains_id(items, dag_run.dag_id)
+        or DagRunListener.has_any_tag(items, dag_run.dag.tags)
+        or DagRunListener.matches_pattern(items, dag_run.dag_id)
     )
 
   @staticmethod
