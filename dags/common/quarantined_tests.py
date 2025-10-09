@@ -45,8 +45,9 @@ def parse_quarantine_patterns(quarantine_patterns_str: str) -> Set[str]:
 def match_quarantine_patterns(
     test_name: str, quarantine_patterns_set: Set[str]
 ) -> bool:
+  test_name_lower = test_name.lower()
   for pattern in quarantine_patterns_set:
-    if fnmatch.fnmatch(test_name.lower(), pattern):
+    if fnmatch.fnmatch(test_name_lower, pattern):
       return True
   return False
 
