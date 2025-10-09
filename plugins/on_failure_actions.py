@@ -364,38 +364,39 @@ class DagRunListener:
 
   @staticmethod
   def contains_id(items: Set[str], target_id: str):
-    ids_set = set(
-        [
-            item.split(":")[1].strip()
-            for item in items
-            if item.split(":")[0].lower() == "id"
-        ]
-    )
-    return True if target_id in ids_set else False
+    id_set = set()
+    for item in items:
+      parts = item.split(":", 1)
+      if len(parts) == 2:
+        key = parts[0].lower()
+        value = parts[1].strip()
+        if key == "id":
+          id_set.add(value)
+    return target_id in id_set
 
   @staticmethod
   def has_any_tag(items: Set[str], target_tags: List[str]):
-    tags_set = set(
-        [
-            item.split(":")[1].strip()
-            for item in items
-            if item.split(":")[0].lower() == "tag"
-            and item.split(":")[1].strip()
-        ]
-    )
-    return not tags_set.isdisjoint(target_tags)
+    tag_set = set()
+    for item in items:
+      parts = item.split(":", 1)
+      if len(parts) == 2:
+        key = parts[0].lower()
+        value = parts[1].strip()
+        if key == "tag" and value:
+          tag_set.add(value)
+    return not tag_set.isdisjoint(target_tags)
 
   @staticmethod
   def matches_pattern(items: Set[str], target_id: str):
-    patterns_set = set(
-        [
-            item.split(":")[1].strip()
-            for item in items
-            if item.split(":")[0].lower() == "pattern"
-            and item.split(":")[1].strip()
-        ]
-    )
-    return any(fnmatch.fnmatch(target_id, pattern) for pattern in patterns_set)
+    pattern_set = set()
+    for item in items:
+      parts = item.split(":", 1)
+      if len(parts) == 2:
+        key = parts[0].lower()
+        value = parts[1].strip()
+        if key == "pattern" and value:
+          pattern_set.add(value)
+    return any(fnmatch.fnmatch(target_id, pattern) for pattern in pattern_set)
 
 
 class ListenerPlugins(AirflowPlugin):
