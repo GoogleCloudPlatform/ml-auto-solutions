@@ -94,3 +94,6 @@ class MaxTextTrilliumModelConfigs(enum.Enum):
     GEMMA2_27B_8192 = "gemma2_27b_8192"
     LLAMA3_1_70B_131072 = "llama3_1_70b_131072"
     CUSTOM_MOE_700B = "custom_moe_700b"
+
+
+# TODO: Add v7e configuration in the future.

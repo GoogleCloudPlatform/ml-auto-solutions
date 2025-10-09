@@ -65,6 +65,7 @@ COMMAND_RUN_RECIPE = ["python3 -m benchmarks.recipes.pw_mcjax_benchmark_recipe"]
 
 COMMAND_DELETE_POD = [
     "set -xue",
+    "export KUBECONFIG=/tmp/kubeconfig", # Change KUBECONFIG from /home/airflow to /tmp to avoid permission issue.
     "gcloud container clusters get-credentials {cluster_name} --region={region} --project={project}",
     "kubectl delete pod -l airflow-runtime={airflow_runtime} --namespace=default --force --grace-period=0",
 ]

@@ -53,7 +53,10 @@ def get_parameters(**context):
 
 
 def generate_recipe_workload_id(params):
-  """Please refer to the `generate_xpk_workload_cmd` function in the `/maxtext/benchmarks/maxtext_xpk_runner.py` file."""
+  """
+  Generate a random value in advance to fix the workload_id so that the workload can be deleted later.
+  Please refer to the `generate_xpk_workload_cmd` function in the `/maxtext/benchmarks/maxtext_xpk_runner.py` file.
+  """
   time.localtime()
   length_of_random_str = 3
   temp_post_fix = "".join(

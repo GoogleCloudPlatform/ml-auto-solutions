@@ -33,19 +33,24 @@ with DAG(
   # A DAG to run a MaxText {RECIPE} on GKE.
 
   ### Description
-  Specify different models and number of slices to test the MaxText {RECIPE} on different clusters.
+  Specify different models and number of slices to test the MaxText {RECIPE} on different clusters.  
   The DAG first generates recipe command through UI parameters, then runs the workload, waits and monitors the workload logs, and finally cleans up the workload.
 
   ### Prerequisites
   - This test requires an existing cluster.
-  - Create a service account with the following roles: `Artifact Registry Reader`, `Kubernetes Engine Admin`, `Monitoring Viewer`.
+  - This test requires that a dataset with the same name as the UI parameter "[BigQuery Database Dataset]".
+  - Create a service account named `one-click` with the following roles: `Artifact Registry Reader`, `Kubernetes Engine Admin`, `Monitoring Viewer`.
     - Generate a new service account key and download the JSON file to retrieve its contents. Next, create a secret manager named `one-click-key` and store the key contents there for use when switching service accounts.
-    - Make sure the default service account has the `Secret Manager Secret Accessor` role.
+    - Make sure the default service account has the `Secret Manager Secret Accessor` role.  
+      ex: [PROJECT_NUMBER]-compute@developer.gserviceaccount.com
   - If you're using a service account to pull an image from a different project, you need to grant the service account the `Artifact Registry Reader` role in that project.
 
   ### Procedures
-  An Airflow Composer environment must be created, and the required DAG code must be deployed to the associated GCS bucket.
-  To initiate the recipe, the user must access the Airflow UI, locate the specific DAG, and trigger its execution.
+  An Airflow Composer environment must be created, and the required DAG code must be deployed to the associated GCS bucket.  
+  To initiate the recipe, the user must access the Airflow UI, locate the specific DAG, and trigger its execution.  
+
+  ### Model Configuration
+  If you want to add other TPU type models, you need to manually modify `/ml-auto-solutions/dags/maxtext_pathways/configs/model_configs.py`.
   """,
 ) as dag:
   # Define task dependencies by instantiating and linking tasks.
@@ -81,7 +86,7 @@ with DAG(
               airflow_runtime=recipe_runtime,
           )
       ),
-  )
+  ).as_teardown(setups=params)
 
   check_recipe_log = wait_for_workload_completion.override(
       task_id="check_recipe_log", on_execute_callback=[set_sensor_timeout]
@@ -100,10 +105,5 @@ with DAG(
   ).as_teardown(setups=start_recipe)
 
   # Set the execution order.
-  (
-      params
-      >> start_recipe
-      >> clean_up_pod
-      >> check_recipe_log
-      >> clean_up_recipe
-  )
+  params >> start_recipe >> check_recipe_log >> clean_up_recipe
+  start_recipe >> clean_up_pod
