@@ -18,7 +18,7 @@ from xlml.utils.gke import zone_to_region
 from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 
 DAG_TEST_NAME = "maxtext_mtc_orbax_res_local"
-SCHEDULE = "0 14 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "0 16 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
