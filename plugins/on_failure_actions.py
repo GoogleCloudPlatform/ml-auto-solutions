@@ -1,8 +1,9 @@
+import fnmatch
 import json
 import logging
 import os
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 
 import google.auth.transport.requests
 import jwt
@@ -135,7 +136,7 @@ def create_comment(issue, body):
   issue.create_comment(body=body)
 
 
-def read_list_from_gcs(bucket_name: str, blob_name: str) -> set[str]:
+def read_items_from_gcs(bucket_name: str, blob_name: str) -> set[str]:
   storage_client = storage.Client()
   bucket = storage_client.bucket(bucket_name)
   blob = bucket.blob(blob_name)
@@ -190,18 +191,19 @@ class DagRunListener:
     try:
       # A DAG would trigger the following logic if the DAG ID is in allow list and not in block list.
       enable_plugin = None
-      if DagRunListener.is_in_allow_list(dag_run.dag_id):
+      if DagRunListener.is_in_allow_list(dag_run):
         enable_plugin = True
         logging.info(
             f"[{self.log_prefix}] DAG {dag_run.dag_id} is in allow_list.txt"
         )
-      if DagRunListener.is_in_block_list(dag_run.dag_id):
+
+      if DagRunListener.is_in_block_list(dag_run):
         enable_plugin = False
         logging.info(
             f"[{self.log_prefix}] DAG {dag_run.dag_id} is in block_list.txt"
         )
 
-      default_enabled = DagRunListener.enable_plugin_by_default(dag_run.dag_id)
+      default_enabled = DagRunListener.enable_plugin_by_default()
 
       if enable_plugin is False or (
           enable_plugin is None and not default_enabled
@@ -331,26 +333,70 @@ class DagRunListener:
     return configs["config"]["airflowUri"]
 
   @staticmethod
-  def is_in_allow_list(dag_id: str) -> bool:
-    allow_list = read_list_from_gcs(
+  def is_in_allow_list(dag_run: DagRun) -> bool:
+    allow_items = read_items_from_gcs(
         os.environ.get("GCS_BUCKET"), ALLOW_LIST_PATH
     )
-    return True if dag_id in allow_list else False
+    return DagRunListener.is_in_list(allow_items, dag_run)
 
   @staticmethod
-  def is_in_block_list(dag_id: str) -> bool:
-    block_list = read_list_from_gcs(
+  def is_in_block_list(dag_run: DagRun) -> bool:
+    block_items = read_items_from_gcs(
         os.environ.get("GCS_BUCKET"), BLOCK_LIST_PATH
     )
-    return True if dag_id in block_list else False
+    return DagRunListener.is_in_list(block_items, dag_run)
 
   @staticmethod
-  def enable_plugin_by_default(dag_id: str) -> bool:
+  def is_in_list(items: Set[str], dag_run: DagRun):
+    return (
+        DagRunListener.contains_id(items, dag_run.dag_id)
+        or DagRunListener.has_any_tag(items, dag_run.dag.tags)
+        or DagRunListener.matches_pattern(items, dag_run.dag_id)
+    )
+
+  @staticmethod
+  def enable_plugin_by_default() -> bool:
     config = read_json_from_gcs(os.environ.get("GCS_BUCKET"), CONFIG_PATH)
     logging.info(
         f"[DagRunListener] Enable plugin by default: {config['enable_plugin_by_default']}"
     )
     return config["enable_plugin_by_default"]
+
+  @staticmethod
+  def contains_id(items: Set[str], target_id: str):
+    id_set = set()
+    for item in items:
+      parts = item.split(":", 1)
+      if len(parts) == 2:
+        key = parts[0].lower()
+        value = parts[1].strip()
+        if key == "id":
+          id_set.add(value)
+    return target_id in id_set
+
+  @staticmethod
+  def has_any_tag(items: Set[str], target_tags: List[str]):
+    tag_set = set()
+    for item in items:
+      parts = item.split(":", 1)
+      if len(parts) == 2:
+        key = parts[0].lower()
+        value = parts[1].strip()
+        if key == "tag" and value:
+          tag_set.add(value)
+    return not tag_set.isdisjoint(target_tags)
+
+  @staticmethod
+  def matches_pattern(items: Set[str], target_id: str):
+    pattern_set = set()
+    for item in items:
+      parts = item.split(":", 1)
+      if len(parts) == 2:
+        key = parts[0].lower()
+        value = parts[1].strip()
+        if key == "pattern" and value:
+          pattern_set.add(value)
+    return any(fnmatch.fnmatch(target_id, pattern) for pattern in pattern_set)
 
 
 class ListenerPlugins(AirflowPlugin):
