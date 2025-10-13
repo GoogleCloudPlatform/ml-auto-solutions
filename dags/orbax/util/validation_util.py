@@ -269,6 +269,7 @@ def validate_gcs_checkpoint_files(
     )
     return
 
+  logging.info("Validate GCS checkpoint files on path: %s", bucket_path)
   try:
     checkpoint_files = get_gcs_checkpoint(bucket_path)
     logging.info(f"Found checkpoint files in GCS: {checkpoint_files}")
@@ -415,6 +416,7 @@ def validate_restored_correct_checkpoint(
     pod_pattern: str = ".*",
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
+    check_last_two_local_saves=True,
 ) -> None:
   """Validate the restored step is in the expected range."""
 
@@ -432,7 +434,7 @@ def validate_restored_correct_checkpoint(
   if not entries:
     raise AirflowFailException("No event_type found in the log.")
 
-  saved_steps_before_restore = []
+  local_saved_steps_before_restore = []
   for entry in entries:
     if not isinstance(entry, logging_api.StructEntry):
       raise AirflowFailException(
@@ -448,11 +450,13 @@ def validate_restored_correct_checkpoint(
             f"Found save event with no step number, message: {message}"
         )
 
-      saved_steps_before_restore.append(int(saved_step_match.group(1)))
+      local_saved_steps_before_restore.append(int(saved_step_match.group(1)))
 
     elif re.search(r"'event_type': '(emergency_)?restore'", message):
       logging.info("Found restore event: %s", message)
-      logging.info("Saved steps before restore: %s", saved_steps_before_restore)
+      logging.info(
+          "Saved steps before restore: %s", local_saved_steps_before_restore
+      )
 
       restored_step_match = re.search(
           r"'step':\s*(?:np\.int32\()?(\d+)", message
@@ -472,7 +476,10 @@ def validate_restored_correct_checkpoint(
             f"greater than or equal to step {interrupt_at_step}."
         )
 
-      if restored_step not in saved_steps_before_restore[-2:]:
+      if (
+          check_last_two_local_saves
+          and restored_step not in local_saved_steps_before_restore[-2:]
+      ):
         raise AirflowFailException(
             f"Restored step {restored_step} should be "
             "in the last two saved steps."
