@@ -48,6 +48,8 @@ class MLCompassState:
 
 
 def get_state_uuid(context: Optional[dict[str, Any]]) -> Optional[str]:
+  if context is None:
+    return None
   params = context.get('params')
   if params:
     return params.get('mlcompass_state_uuid')
@@ -64,7 +66,7 @@ def load_state(context: Optional[dict[str, Any]]) -> Optional[MLCompassState]:
     )
     state = MLCompassState.from_json(content)
     print(f'Loaded MLCompass state: {content}')
-    state.dag_run_id = context['run_id']
+    state.dag_run_id = context['run_id'] if context else None
     state.airflow_gcp_project = state.airflow_gcp_project or os.getenv(
         'GCP_PROJECT'
     )
@@ -89,13 +91,13 @@ def get_all_tasks(node: taskmixin.DAGNode) -> list[taskmixin.DAGNode]:
     visiting = groups_to_visit.pop(0)
     for child in visiting.children.values():
       if isinstance(child, abstractoperator.AbstractOperator):
-          result.append(child)
+        result.append(child)
       elif isinstance(child, TaskGroup):
-          groups_to_visit.append(child)
+        groups_to_visit.append(child)
       else:
-          raise ValueError(
-              f'Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}'
-          )
+        raise ValueError(
+            f'Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}'
+        )
   return result
 
 
@@ -112,7 +114,7 @@ class ScheduleOperator(baseoperator.BaseOperator, skipmixin.SkipMixin):
     state = load_state(context)
     if not state:
       self.log.info('No MLCompass state found; scheduling all benchmarks.')
-      return []
+      return
     self.log.info(f'Loaded MLCompass state: {state.to_json(indent=2)}')
     dag_run = context['dag_run']
     skip_tasks = []
