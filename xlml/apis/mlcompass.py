@@ -25,6 +25,7 @@ class CommitInfo:
 @dataclasses.dataclass
 class BenchmarkData:
   """Subset of MLCompass benchmark data."""
+
   test_name: str
   xlml_node_id: str
   commit_map: Optional[Dict[str, CommitInfo]] = None
@@ -34,6 +35,7 @@ class BenchmarkData:
 @dataclasses.dataclass
 class MLCompassState:
   """State for running XLML benchmarks."""
+
   state_uuid: Optional[str] = None
   mlcompass_tracking_id: Optional[str] = None
   execution_mode: Optional[str] = None
@@ -136,6 +138,8 @@ class ScheduleOperator(baseoperator.BaseOperator, skipmixin.SkipMixin):
 
 
 class Scheduler:
+  """A scheduler to register MLCompass benchmarks in a DAG."""
+
   def __init__(self) -> None:
     self.node_map = {}
     self.schedule = ScheduleOperator(
