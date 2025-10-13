@@ -88,14 +88,14 @@ def get_all_tasks(node: taskmixin.DAGNode) -> list[taskmixin.DAGNode]:
   while groups_to_visit:
     visiting = groups_to_visit.pop(0)
     for child in visiting.children.values():
-        if isinstance(child, abstractoperator.AbstractOperator):
-            result.append(child)
-        elif isinstance(child, TaskGroup):
-            groups_to_visit.append(child)
-        else:
-            raise ValueError(
-                f'Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}'
-            )
+      if isinstance(child, abstractoperator.AbstractOperator):
+          result.append(child)
+      elif isinstance(child, TaskGroup):
+          groups_to_visit.append(child)
+      else:
+          raise ValueError(
+              f'Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}'
+          )
   return result
 
 
@@ -116,7 +116,9 @@ class ScheduleOperator(baseoperator.BaseOperator, skipmixin.SkipMixin):
     self.log.info(f'Loaded MLCompass state: {state.to_json(indent=2)}')
     dag_run = context['dag_run']
     skip_tasks = []
-    requested_node_ids = {benchmark.xlml_node_id for benchmark in state.benchmarks}
+    requested_node_ids = {
+        benchmark.xlml_node_id for benchmark in state.benchmarks
+    }
     for key, nodes in self.node_map.items():
       if key in requested_node_ids:
         self.log.info(f'Scheduling benchmark: {key}')
@@ -135,7 +137,7 @@ class Scheduler:
   def __init__(self) -> None:
     self.node_map = {}
     self.schedule = ScheduleOperator(
-      task_id='mlcompass_schedule', node_map=self.node_map
+        task_id='mlcompass_schedule', node_map=self.node_map
     )
 
   def register(self, *node: taskmixin.DAGNode) -> None:
