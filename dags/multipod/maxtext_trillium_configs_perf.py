@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-A DAG to run perf tests for MaxText model configs on v6e. #63
+A DAG to run perf tests for MaxText model configs on v6e.
 """
 import datetime
 from airflow import models
