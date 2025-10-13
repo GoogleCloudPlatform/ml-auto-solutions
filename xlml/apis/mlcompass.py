@@ -65,8 +65,12 @@ def load_state(context: Optional[dict[str, Any]]) -> Optional[MLCompassState]:
     state = MLCompassState.from_json(content)
     print(f'Loaded MLCompass state: {content}')
     state.dag_run_id = context['run_id']
-    state.airflow_gcp_project = state.airflow_gcp_project or os.getenv('GCP_PROJECT')
-    state.airflow_gcp_location = state.airflow_gcp_location or os.getenv('COMPOSER_LOCATION')
+    state.airflow_gcp_project = state.airflow_gcp_project or os.getenv(
+        'GCP_PROJECT'
+    )
+    state.airflow_gcp_location = state.airflow_gcp_location or os.getenv(
+        'COMPOSER_LOCATION'
+    )
     return state
   return None
 
@@ -77,28 +81,30 @@ def get_all_tasks(node: taskmixin.DAGNode) -> list[taskmixin.DAGNode]:
     return [node]
   if not isinstance(node, TaskGroup):
     raise ValueError(
-        f"Input node is not a TaskGroup or an AbstractOperator: {type(node)}"
+        f'Input node is not a TaskGroup or an AbstractOperator: {type(node)}'
     )
   result = []
   groups_to_visit = [node]
   while groups_to_visit:
-      visiting = groups_to_visit.pop(0)
-      for child in visiting.children.values():
-          if isinstance(child, abstractoperator.AbstractOperator):
-              result.append(child)
-          elif isinstance(child, TaskGroup):
-              groups_to_visit.append(child)
-          else:
-              raise ValueError(
-                  f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
-              )
+    visiting = groups_to_visit.pop(0)
+    for child in visiting.children.values():
+        if isinstance(child, abstractoperator.AbstractOperator):
+            result.append(child)
+        elif isinstance(child, TaskGroup):
+            groups_to_visit.append(child)
+        else:
+            raise ValueError(
+                f'Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}'
+            )
   return result
 
 
 class ScheduleOperator(baseoperator.BaseOperator, skipmixin.SkipMixin):
   """An operator to schedule MLCompass benchmarks."""
 
-  def __init__(self, *, node_map: dict[str, list[taskmixin.DAGNode]], **kwargs) -> None:
+  def __init__(
+      self, *, node_map: dict[str, list[taskmixin.DAGNode]], **kwargs
+  ) -> None:
     super().__init__(**kwargs)
     self.node_map = node_map
 
@@ -121,14 +127,16 @@ class ScheduleOperator(baseoperator.BaseOperator, skipmixin.SkipMixin):
         dag_run=dag_run,
         execution_date=cast(DateTime, dag_run.execution_date),
         tasks=skip_tasks,
-        map_index=context["ti"].map_index,
+        map_index=context['ti'].map_index,
     )
 
 
 class Scheduler:
   def __init__(self) -> None:
     self.node_map = {}
-    self.schedule = ScheduleOperator(task_id='mlcompass_schedule', node_map=self.node_map)
+    self.schedule = ScheduleOperator(
+      task_id='mlcompass_schedule', node_map=self.node_map
+    )
 
   def register(self, *node: taskmixin.DAGNode) -> None:
     for n in node:
