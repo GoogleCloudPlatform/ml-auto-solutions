@@ -73,7 +73,7 @@ PARAMETERS = {
         description="Proxy image for the cluster.",
     ),
     "runner": Param(
-        "gcr.io/tpu-prod-env-one-vm/chzheng_latest:latest",
+        "gcr.io/tpu-prod-env-one-vm/lidanny_latest:latest",
         type="string",
         title="Runner Image",
         description="Runner image for the cluster.",
