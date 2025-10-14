@@ -74,10 +74,10 @@ class TestConfig:
   slices: list[int]
   model_name: str
   short_id: str
-  replicator_backup_time: int
+  replicator_backup_time: Optional[int]
   step: int
-  local_checkpoint_step: int
-  checkpoint_step: int
+  local_checkpoint_step: Optional[int]
+  checkpoint_step: Optional[int]
   ram_disk_size: str
   base_dir: str
   cpc_config: checkpoint_util.CheckpointConfiguration
@@ -90,10 +90,10 @@ class TestConfig:
       slices: list[int],
       model_name: str,
       short_id: str,
-      replicator_backup_time: int,
       step: int,
-      local_checkpoint_step: int,
       base_dir: str,
+      replicator_backup_time: Optional[int] = None,
+      local_checkpoint_step: Optional[int] = None,
       checkpoint_step: Optional[int] = None,
   ):
     """Initializes the test configurations.
@@ -105,12 +105,12 @@ class TestConfig:
       slices: The number of slices to be used.
       model_name: The name of the model being tested.
       short_id: A short identifier for the test run.
-      replicator_backup_time: The allowed time for replicator takes to backup
-        and store checkpoint to bucket
       step: The current step of the training process.
-      local_checkpoint_step: The step interval for local checkpoints.
       base_dir: The base directory for storing checkpoints and outputs.
-      checkpoint_step: The step interval for the checkpoints store in the
+      replicator_backup_time: Optional. The allowed time for replicator takes to backup
+        and store checkpoint to bucket.
+      local_checkpoint_step: Optional. The step interval for local checkpoints.
+      checkpoint_step: Optional. The step interval for the checkpoints store in the
         bucket.
     """
 
@@ -179,17 +179,16 @@ class TestConfig:
       self, slice_num: int, mode="bytes", multiplier: float = 1
   ) -> float | int:
     """Calculates disk size for a model checkpoint."""
-    try:
-      model_pattern = r"^(.*)-([0-9.]+b)$"
-      model_pattern = r"^(.*)-([^-]+)$"
-      match_model = re.match(model_pattern, self.model_name)
-      match_chips = re.match(model_pattern, self.accelerator)
-      if match_model and match_chips:
-        model_name = match_model.group(1)
-        size_model = match_model.group(2)[:-1]
-        num_chips = match_chips.group(2)
-    except (AttributeError, IndexError) as e:
-      raise ValueError("Invalid model_name or accelerator format.") from e
+    model_pattern = r"^(.*)-([0-9.]+b)$"
+    model_pattern = r"^(.*)-([^-]+)$"
+    match_model = re.match(model_pattern, self.model_name)
+    match_chips = re.match(model_pattern, self.accelerator)
+    if match_model and match_chips:
+      model_name = match_model.group(1)
+      size_model = match_model.group(2)[:-1]
+      num_chips = match_chips.group(2)
+    else:
+      raise ValueError("Failed to parse model_name or accelerator format.")
 
     if model_name not in MODELS:
       raise AirflowFailException(

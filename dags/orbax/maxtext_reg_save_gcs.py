@@ -7,29 +7,19 @@ The tests are executed on a TPU multi-pod cluster.
 """
 
 import datetime
-from typing import Optional
 
 from airflow import models
 
-from dags import composer_env, gcs_bucket
+from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import DockerImage, XpkClusters
+from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
-from dags.multipod.configs.common import SetupMode
-from dags.orbax.util import validation_util, checkpoint_util, test_config_util
+from dags.orbax.util import validation_util, test_config_util
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
 
 SCHEDULE = "0 12 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_regular_save"
-
-# Only one version of the Docker image is supported at the moment.
-# Other versions (e.g., "stable") may be introduced later.
-DOCKER_IMAGES = [(
-    SetupMode.NIGHTLY,
-    DockerImage.MAXTEXT_TPU_JAX_NIGHTLY,
-)]
-
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
@@ -106,7 +96,7 @@ with models.DAG(
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
-  for mode, image in DOCKER_IMAGES:
+  for mode, image in test_config_util.DOCKER_IMAGES:
     for test_config in test_configs:
       for slice_num in test_config.slices:
         run_name = validation_util.generate_run_name(
