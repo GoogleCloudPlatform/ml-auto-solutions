@@ -1,6 +1,5 @@
 """Utility functions for querying Google Cloud Monitoring data."""
 import logging
-from typing import List, Optional
 
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import types
@@ -13,11 +12,11 @@ def query_time_series(
     filter_str: str,
     start_time: TimeUtil,
     end_time: TimeUtil,
-    aggregation: Optional[types.Aggregation] = None,
+    aggregation: types.Aggregation | None = None,
     view: types.ListTimeSeriesRequest.TimeSeriesView = types.ListTimeSeriesRequest.TimeSeriesView.FULL,
-    page_size: Optional[int] = None,
+    page_size: int | None = None,
     log_enable: bool = False,
-) -> List[types.TimeSeries]:
+) -> list[types.TimeSeries]:
   """A utility that queries metrics (time series data) from Google Cloud Monitoring API.
 
   This function provides a flexible interface to the list_time_series API,

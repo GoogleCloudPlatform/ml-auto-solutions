@@ -9,7 +9,6 @@ import logging
 import os
 import re
 import subprocess
-from typing import Dict, List
 
 from airflow import models
 from airflow.decorators import task
@@ -72,7 +71,7 @@ def get_tpu_info_from_pod(kubeconfig: str, pod_name: str) -> str:
 
 
 @task
-def verify_table_amount(tpu_info_output: List[tpu_info.Table]):
+def verify_table_amount(tpu_info_output: list[tpu_info.Table]):
   """Verifies if all expected tables are present in the parsed tpu_info dictionary."""
   expect_table_names = {
       "TPU Chips",
@@ -94,7 +93,7 @@ def verify_table_amount(tpu_info_output: List[tpu_info.Table]):
 
 @task
 def validate_chips_table(
-    tpu_info_output: List[tpu_info.Table], node_pool: node_pool.Info
+    tpu_info_output: list[tpu_info.Table], node_pool: node_pool.Info
 ):
   """Validates the row count and content for the 'TPU Chips' table."""
   errors = []
@@ -143,7 +142,7 @@ def validate_chips_table(
 
 
 @task
-def validate_runtime_table(tpu_info_output: List[tpu_info.Table]):
+def validate_runtime_table(tpu_info_output: list[tpu_info.Table]):
   """Validates the row count and content for the 'TPU Runtime Utilization' table."""
   errors = []
   content = next(
@@ -196,7 +195,7 @@ def validate_runtime_table(tpu_info_output: List[tpu_info.Table]):
 
 
 @task
-def validate_tensorcore_table(tpu_info_output: List[tpu_info.Table]):
+def validate_tensorcore_table(tpu_info_output: list[tpu_info.Table]):
   """Validates the row count and content for the 'TensorCore Utilization' table."""
   errors = []
   content = next(
@@ -234,7 +233,7 @@ def validate_tensorcore_table(tpu_info_output: List[tpu_info.Table]):
 
 
 @task
-def validate_latency_table(tpu_info_output: List[tpu_info.Table]):
+def validate_latency_table(tpu_info_output: list[tpu_info.Table]):
   """Validates the row count and content for the TPU Buffer Transfer Latency table."""
   errors = []
   content = next(
@@ -318,7 +317,7 @@ with models.DAG(
           "TFV_PROJECT_ID", default_var=Project.TPU_PROD_ENV_ONE_VM.value
       ),
       cluster_name=models.Variable.get(
-          "TFV_CLUSTER_NAME", default_var="tpu-observability-automation"
+          "TFV_CLUSTER_NAME", default_var="yuna-auto-testing"
       ),
       node_pool_name=models.Variable.get(
           "TFV_NODE_POOL_NAME", default_var="tpu-info-fromat-test-v6e"

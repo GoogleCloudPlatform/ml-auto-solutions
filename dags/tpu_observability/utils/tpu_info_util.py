@@ -4,12 +4,11 @@ from dataclasses import dataclass
 from enum import auto
 from enum import IntEnum
 import re
-from typing import Dict, List
 
 from airflow.decorators import task
 
 # A type alias for a parsed row, mapping column headers to their values.
-_TableRow = Dict[str, str]
+_TableRow = dict[str, str]
 
 
 @dataclass
@@ -18,7 +17,7 @@ class Table:
 
   name: str
   raw_body: str
-  body: List[_TableRow]
+  body: list[_TableRow]
 
   def parse_body(self):
     """Parses the raw_body string to populate the structured body attribute."""
@@ -67,7 +66,7 @@ class Table:
 
 
 @task
-def parse_tpu_info_output(output: str) -> List[Table]:
+def parse_tpu_info_output(output: str) -> list[Table]:
   """Splits a multi-table string from tpu-info into a structured TpuInfo object.
 
   Args:
@@ -95,3 +94,52 @@ def parse_tpu_info_output(output: str) -> List[Table]:
     parsed_tables.append(table)
 
   return parsed_tables
+
+if __name__ == "__main__":
+  full_output = """
+                                                                                                                                                   Libtpu version: 0.0.23
+                                                                                                                                                   Accelerator type: v6e
+
+TPU Chips
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┓
+┃ Chip        ┃ Type         ┃ Devices ┃ PID  ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━┩
+│ /dev/vfio/0 │ TPU v6e chip │ 1       │ 1098 │
+│ /dev/vfio/1 │ TPU v6e chip │ 1       │ 1098 │
+│ /dev/vfio/2 │ TPU v6e chip │ 1       │ 1098 │
+│ /dev/vfio/3 │ TPU v6e chip │ 1       │ 1098 │
+└─────────────┴──────────────┴─────────┴──────┘
+TPU Runtime Utilization
+┏━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Device ┃ HBM Usage (GiB)       ┃ Duty cycle ┃
+┡━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ 8      │ 18.45 GiB / 31.25 GiB │ 100.00%    │
+│ 9      │ 10.40 GiB / 31.25 GiB │ 100.00%    │
+│ 12     │ 10.40 GiB / 31.25 GiB │ 100.00%    │
+│ 13     │ 10.40 GiB / 31.25 GiB │ 100.00%    │
+└────────┴───────────────────────┴────────────┘
+TensorCore Utilization
+┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Chip ID ┃ TensorCore Utilization ┃
+┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ 0       │ 15.14%                 │
+│ 1       │ 14.56%                 │
+│ 2       │ 15.53%                 │
+│ 3       │ 14.97%                 │
+└─────────┴────────────────────────┘
+TPU Buffer Transfer Latency
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ Buffer Size ┃ P50         ┃ P90         ┃ P95         ┃ P999         ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ 8MB+        │ 30154.32 us │ 65472.43 us │ 73990.97 us │ 103220.65 us │
+│ 4MB+        │ 16622.62 us │ 33210.22 us │ 36404.47 us │ 50954.72 us  │
+└─────────────┴─────────────┴─────────────┴─────────────┴──────────────┘
+"""
+
+  tpu_info_output = parse_tpu_info_output(full_output)
+  print(tpu_info_output)
+  content = next(
+      (table for table in tpu_info_output if table.name == "TPU Chips"),
+      None,
+  )
+  print(content)

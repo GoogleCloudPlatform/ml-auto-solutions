@@ -2,7 +2,6 @@
 
 import datetime
 from dataclasses import dataclass
-from typing import Union
 
 from google.protobuf import timestamp_pb2
 
@@ -30,7 +29,7 @@ class TimeUtil:
     return cls(int(dt.timestamp()))
 
   @classmethod
-  def from_unix_seconds(cls, unix_seconds: Union[int, float]) -> "TimeUtil":
+  def from_unix_seconds(cls, unix_seconds: int | float) -> "TimeUtil":
     """Builds a TimeUtil object from a Unix timestamp (seconds)."""
     return cls(int(unix_seconds))
 
