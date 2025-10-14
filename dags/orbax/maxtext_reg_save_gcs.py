@@ -91,8 +91,6 @@ with models.DAG(
           short_id="max-reg-save",
           step=100,
           checkpoint_step=25,
-          replicator_backup_time=30,
-          local_checkpoint_step=30,
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
