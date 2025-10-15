@@ -33,46 +33,30 @@ with models.DAG(
         "nightly",
         "orbax",
     ],
-    description="A DAG to test MaxText regular checkpoint saving functionality.",
+    description="DAG that verifies MaxText regular checkpointing functionality to GCS bucket",
     doc_md="""
       # MaxText Regular Checkpointing Validation DAG
 
       ### Description
       This DAG (Directed Acyclic Graph) automates the process of validating
-      regular checkpoint saving for the MaxText model. The DAG runs a single
-      MaxText training job and validates that checkpoints are saved correctly
+      regular checkpoint saving for the MaxText model. It runs a single
+      MaxText training job without emergency or multi-tier checkpointing
+      features and validates that checkpoints are saved correctly to GCS
       at specified intervals.
 
-      ### Test Scenario
-      The DAG tests the standard checkpointing scenario where:
-      1. Training runs normally with regular checkpoints saved to GCS at defined intervals
-      2. Checkpoint logs are validated to ensure proper save events
-      3. GCS bucket is validated to ensure checkpoint files exist
-
       ### Prerequisites
-      - An existing TPU cluster configured for MaxText training
-      - Access to a GCS bucket for checkpoint storage
+      - An existing TPU cluster configured for MaxText training.
+      - A GCS bucket for storing logs and checkpoints.
 
-      ### Test Flow
-      1. **Start Training:** Run MaxText training job for 100 steps
-         - Saves regular checkpoints to GCS every 25 steps (0, 25, 50, 75, 99)
-         - No local checkpoints or emergency features are used
-      2. **Log Validation:** Verify checkpoint save events in logs
-         - Looks for 'Finished async_save (blocking + background)' messages
-         - Validates that saves occurred at expected steps
-      3. **File Validation:** Verify checkpoint files exist in GCS bucket
-         - Checks that actual checkpoint files are present for each expected step
-
-      ### Key Parameters
-      - **checkpoint_step=25:** Regular checkpoint interval for GCS saves
-      - **step=100:** Total training steps (checkpoints at 0, 25, 50, 75, 99)
-      - **Model:** llama2-7b on v5p-128 TPU slices
-
-      ### Success Criteria
-      The test passes when:
-      1. All expected checkpoint save logs are found at steps 0, 25, 50, 75, 99
-      2. All corresponding checkpoint files exist in the GCS bucket
-      3. Only regular checkpointing is used (no emergency or multi-tier features)
+      ### Procedures
+      1.  **Run MaxText Training:** A MaxText training job is initiated with
+          regular checkpointing enabled. The job runs for 100 steps and saves
+          checkpoints to GCS every 25 steps.
+      2.  **Validate Checkpoint Logs:** The DAG inspects the application logs
+          to confirm that checkpoint save events occurred at expected steps
+          (0, 25, 50, 75, 99).
+      3.  **Validate GCS Files:** The DAG verifies that checkpoint files are
+          correctly saved in the GCS bucket for all expected steps.
     """,
     concurrency=2,
 ) as dag:
@@ -89,8 +73,8 @@ with models.DAG(
           slices=[2],
           model_name="llama2-7b",
           short_id="max-reg-save",
-          step=100,
-          checkpoint_step=25,
+          steps=100,
+          checkpoint_period=25,
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
@@ -109,7 +93,7 @@ with models.DAG(
             run_name=run_name,
             slice_num=slice_num,
             out_folder=DAG_TEST_NAME,
-            enable_multi_tier_checkp=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
             enable_emergency_checkpoint=checkpointing.enable_emergency_checkpoint,
         )
 

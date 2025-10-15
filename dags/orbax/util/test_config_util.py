@@ -74,10 +74,10 @@ class TestConfig:
   slices: list[int]
   model_name: str
   short_id: str
-  replicator_backup_time: Optional[int]
-  step: int
-  local_checkpoint_step: Optional[int]
-  checkpoint_step: Optional[int]
+  multi_tier_checkpointing_backup_interval_minutes: Optional[int]
+  steps: int
+  local_checkpoint_period: Optional[int]
+  checkpoint_period: Optional[int]
   ram_disk_size: str
   base_dir: str
   cpc_config: checkpoint_util.CheckpointConfiguration
@@ -90,11 +90,11 @@ class TestConfig:
       slices: list[int],
       model_name: str,
       short_id: str,
-      step: int,
+      steps: int,
       base_dir: str,
-      replicator_backup_time: Optional[int] = None,
-      local_checkpoint_step: Optional[int] = None,
-      checkpoint_step: Optional[int] = None,
+      multi_tier_checkpointing_backup_interval_minutes: Optional[int] = 0,
+      local_checkpoint_period: Optional[int] = 0,
+      checkpoint_period: Optional[int] = 10_000,
   ):
     """Initializes the test configurations.
 
@@ -105,12 +105,12 @@ class TestConfig:
       slices: The number of slices to be used.
       model_name: The name of the model being tested.
       short_id: A short identifier for the test run.
-      step: The current step of the training process.
+      steps: The current step of the training process.
       base_dir: The base directory for storing checkpoints and outputs.
-      replicator_backup_time: Optional. The allowed time for replicator takes to backup
+      multi_tier_checkpointing_backup_interval_minutes: Optional. The allowed time for replicator takes to backup
         and store checkpoint to bucket.
-      local_checkpoint_step: Optional. The step interval for local checkpoints.
-      checkpoint_step: Optional. The step interval for the checkpoints store in the
+      local_checkpoint_period: Optional. The step interval for local checkpoints.
+      checkpoint_period: Optional. The step interval for the checkpoints store in the
         bucket.
     """
 
@@ -120,10 +120,12 @@ class TestConfig:
     self.slices = slices
     self.model_name = model_name
     self.short_id = short_id
-    self.replicator_backup_time = replicator_backup_time
-    self.step = step
-    self.local_checkpoint_step = local_checkpoint_step
-    self.checkpoint_step = checkpoint_step
+    self.multi_tier_checkpointing_backup_interval_minutes = (
+        multi_tier_checkpointing_backup_interval_minutes
+    )
+    self.steps = steps
+    self.local_checkpoint_period = local_checkpoint_period
+    self.checkpoint_period = checkpoint_period
     self.ram_disk_size = f"{self._get_disk_size(slice_num=max(self.slices), mode='mib',multiplier=60)}Mi"
     self.base_dir = base_dir
     self.cpc_config = checkpoint_util.CheckpointConfiguration(
@@ -136,9 +138,9 @@ class TestConfig:
     )
 
   def generate_step_to_validate(self, is_local: bool) -> list[int]:
-    total_steps = self.step
-    k = self.local_checkpoint_step if is_local else self.checkpoint_step
-    last_step = self.step - 1
+    total_steps = self.steps
+    k = self.local_checkpoint_period if is_local else self.checkpoint_period
+    last_step = self.steps - 1
     return [*range(0, total_steps, k), last_step]
 
   def generate_workload_command(
@@ -147,12 +149,15 @@ class TestConfig:
       out_folder: str,
       run_name: str,
       slice_num: int,
-      enable_multi_tier_checkp: bool,
+      enable_multi_tier_checkpointing: bool,
       enable_emergency_checkpoint: bool = True,
-  ) -> str:
+      enable_single_replica_ckpt_restoring: bool = False,
+  ) -> tuple[str]:
     tpu_premmapped_size = self._get_disk_size(slice_num, mode="bytes")
     logging.info(f"Checkpoint Size per TPU: {tpu_premmapped_size}")
-    return (
+
+    # Base command with required parameters
+    command = (
         f"export TPU_PREMAPPED_BUFFER_SIZE={tpu_premmapped_size} && "
         f"export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES={tpu_premmapped_size} && "
         "python3 -m MaxText.train MaxText/configs/base.yml "
@@ -160,20 +165,35 @@ class TestConfig:
         "global_parameter_scale=1 "
         f"base_output_directory={posixpath.join(self.base_dir, out_folder)} "
         "dataset_type=synthetic "
-        f"steps={self.step} "
+        f"steps={self.steps} "
         "per_device_batch_size=1 "
         "max_target_length=256 "
         f"model_name={self.model_name} "
         "per_device_batch_size=2 "
         "reuse_example_batch=1 "
         f"enable_emergency_checkpoint={enable_emergency_checkpoint} "
-        f"checkpoint_period={self.checkpoint_step} "
-        f"local_checkpoint_directory={checkpoint_dir} "
-        f"local_checkpoint_period={self.local_checkpoint_step} "
-        f"enable_multi_tier_checkpointing={enable_multi_tier_checkp} "
-        f"multi_tier_checkpointing_backup_interval_minutes={self.replicator_backup_time} "
-        f"run_name={run_name}",
+        f"checkpoint_period={self.checkpoint_period} "
+        f"enable_single_replica_ckpt_restoring={enable_single_replica_ckpt_restoring} "
+        f"run_name={run_name} "
     )
+
+    # Add emergency checkpoint parameters only if enabled
+    if enable_emergency_checkpoint:
+      command += f"local_checkpoint_directory={checkpoint_dir} "
+      if self.local_checkpoint_period and self.local_checkpoint_period > 0:
+        command += f"local_checkpoint_period={self.local_checkpoint_period} "
+
+    # Add multi-tier checkpointing parameters only if enabled and emergency checkpoint is enabled
+    if enable_emergency_checkpoint and enable_multi_tier_checkpointing:
+      command += f"enable_multi_tier_checkpointing={enable_multi_tier_checkpointing} "
+      if (
+          self.multi_tier_checkpointing_backup_interval_minutes
+          and self.multi_tier_checkpointing_backup_interval_minutes > 0
+      ):
+        command += f"multi_tier_checkpointing_backup_interval_minutes={self.multi_tier_checkpointing_backup_interval_minutes} "
+
+    # Return as tuple for k8s yaml compatibility - GKE config expects a list of commands
+    return (command,)
 
   def _get_disk_size(
       self, slice_num: int, mode="bytes", multiplier: float = 1
