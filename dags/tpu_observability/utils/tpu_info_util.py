@@ -95,6 +95,7 @@ def parse_tpu_info_output(output: str) -> list[Table]:
 
   return parsed_tables
 
+
 if __name__ == "__main__":
   full_output = """
                                                                                                                                                    Libtpu version: 0.0.23
@@ -138,8 +139,3 @@ TPU Buffer Transfer Latency
 
   tpu_info_output = parse_tpu_info_output(full_output)
   print(tpu_info_output)
-  content = next(
-      (table for table in tpu_info_output if table.name == "TPU Chips"),
-      None,
-  )
-  print(content)
