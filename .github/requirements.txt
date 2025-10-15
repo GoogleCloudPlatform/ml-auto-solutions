@@ -15,3 +15,5 @@ apache-airflow-providers-google
 dacite
 virtualenv
 apache-airflow-providers-postgres
+dataclasses_json
+
