@@ -40,7 +40,6 @@ with models.DAG(
         "multipod_team",
         "maxdiffusion",
         "mlscale_devx",
-        "maxtext",
     ],
     start_date=datetime.datetime(2024, 9, 12),
     catchup=False,
