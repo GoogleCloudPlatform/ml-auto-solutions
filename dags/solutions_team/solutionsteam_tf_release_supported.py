@@ -118,9 +118,18 @@ with models.DAG(
       runtime_version=RuntimeVersion.V2_ALPHA_TPUV5.value,
   )
 
+  tf_resnet_v6e_4 = tf_config.get_tf_resnet_config(
+      tpu_version=TpuVersion.TRILLIUM,
+      tpu_cores=4,
+      tpu_zone=Zone.EUROPE_WEST4_A.value,
+      time_out_in_min=60,
+      runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
+  )
+
   # Test dependencies
   tf_resnet_v2_8
   tf_resnet_v3_8
   tf_resnet_v4_8 >> tf_resnet_v4_32
   tf_resnet_v5e_4 >> tf_resnet_v5e_16
   tf_resnet_v5p_8 >> tf_resnet_v5p_32
+  tf_resnet_v6e_4

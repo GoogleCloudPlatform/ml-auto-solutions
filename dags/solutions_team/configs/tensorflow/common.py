@@ -110,6 +110,7 @@ def set_up_tensorflow_models(
   return (
       "sudo mkdir -p /usr/share/tpu && cd /usr/share/tpu",
       f'if [ ! -d "/usr/share/tpu/models" ]; then sudo git clone -b {models_branch} https://github.com/tensorflow/models.git; fi',
+      "pip install --upgrade setuptools wheel packaging",
       "pip install -r /usr/share/tpu/models/official/requirements.txt",
       f'if [ ! -d "/usr/share/tpu/recommenders" ]; then sudo git clone -b main https://github.com/tensorflow/recommenders.git; fi',
       f"pip install gin-config && pip install tensorflow-datasets",
