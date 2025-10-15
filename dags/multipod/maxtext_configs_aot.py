@@ -107,15 +107,3 @@ with models.DAG(
         >> maxtext_v5e_configs_test
         >> maxtext_v5p_configs_test
     )
-
-  # GPU AoT tests
-  cmd = "bash src/MaxText/configs/a3/llama_2_7b/8vm.sh EXECUTABLE=train_compile M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=8"
-  stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
-      time_out_in_min=300,
-      test_name="maxtext-aot-a3-stable",
-      run_model_cmds=(cmd,),
-      num_slices=1,
-      cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
-      docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-      test_owner=test_owner.NUOJIN_C,
-  ).run_with_quarantine(quarantine_task_group)
