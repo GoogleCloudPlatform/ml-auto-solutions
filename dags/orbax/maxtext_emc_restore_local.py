@@ -72,10 +72,10 @@ with models.DAG(
           slices=[2],
           model_name="llama2-7b",
           short_id="max-res-loc",
-          replicator_backup_time=30,
-          step=200,
-          checkpoint_step=50,
-          local_checkpoint_step=20,
+          multi_tier_checkpointing_backup_interval_minutes=30,
+          steps=200,
+          checkpoint_period=50,
+          local_checkpoint_period=20,
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
@@ -104,7 +104,7 @@ with models.DAG(
             run_name=run_name,
             slice_num=slice_num,
             out_folder="maxtext_emc_orbax_res_local",
-            enable_multi_tier_checkp=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
         )
 
         start_time = validation_util.generate_timestamp.override(

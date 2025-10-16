@@ -70,10 +70,10 @@ with models.DAG(
           slices=[2],
           model_name="llama2-7b",
           short_id="max-sv-gcs",
-          replicator_backup_time=30,
-          step=75,
-          local_checkpoint_step=20,
-          checkpoint_step=25,
+          multi_tier_checkpointing_backup_interval_minutes=30,
+          steps=75,
+          local_checkpoint_period=20,
+          checkpoint_period=25,
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
@@ -99,7 +99,7 @@ with models.DAG(
             checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
             out_folder=f"maxtext_emc_orbax_save_gcs",
-            enable_multi_tier_checkp=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
             slice_num=slice_num,
         )
 
