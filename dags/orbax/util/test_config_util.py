@@ -185,7 +185,9 @@ class TestConfig:
 
     # Add multi-tier checkpointing parameters only if enabled and emergency checkpoint is enabled
     if enable_emergency_checkpoint and enable_multi_tier_checkpointing:
-      command += f"enable_multi_tier_checkpointing={enable_multi_tier_checkpointing} "
+      command += (
+          f"enable_multi_tier_checkpointing={enable_multi_tier_checkpointing} "
+      )
       if (
           self.multi_tier_checkpointing_backup_interval_minutes
           and self.multi_tier_checkpointing_backup_interval_minutes > 0
