@@ -11,7 +11,7 @@ from airflow.utils.task_group import TaskGroup
 import dataclasses_json
 
 _STATE_BUCKET_NAME = 'mlcompass-jax-artifacts'
-_STATE_OBJECT_PATH_TEMPLATE = "xlml/{uuid}/mlcompass_state.json"
+_STATE_OBJECT_PATH_TEMPLATE = 'xlml/{uuid}/mlcompass_state.json'
 
 
 @dataclasses_json.dataclass_json
