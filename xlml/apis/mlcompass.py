@@ -10,7 +10,8 @@ from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup
 import dataclasses_json
 
-STATE_BUCKET_NAME = 'mlcompass-jax-artifacts'
+_STATE_BUCKET_NAME = 'mlcompass-jax-artifacts'
+_STATE_OBJECT_PATH_TEMPLATE = "xlml/{uuid}/mlcompass_state.json"
 
 
 @dataclasses_json.dataclass_json
@@ -49,13 +50,15 @@ class MLCompassState:
   benchmarks: List[BenchmarkData] = dataclasses.field(default_factory=list)
 
 
+def get_bucket_name(context: Optional[dict[str, Any]]) -> str:
+  if context and (params := context.get('params')):
+    return params.get('mlcompass_workdir_bucket', _STATE_BUCKET_NAME)
+
+
 def get_state_uuid(context: Optional[dict[str, Any]]) -> Optional[str]:
-  if context is None:
+  if not context:
     return None
-  params = context.get('params')
-  if params:
-    return params.get('mlcompass_state_uuid')
-  return None
+  return context.get('params', {}).get('mlcompass_state_uuid')
 
 
 def load_state(context: Optional[dict[str, Any]]) -> Optional[MLCompassState]:
@@ -63,8 +66,8 @@ def load_state(context: Optional[dict[str, Any]]) -> Optional[MLCompassState]:
   if state_uuid:
     gcs_hook = GCSHook()
     content = gcs_hook.download(
-        bucket_name=STATE_BUCKET_NAME,
-        object_name=f'xlml/{state_uuid}/mlcompass_state.json',
+        bucket_name=get_bucket_name(context),
+        object_name=_STATE_OBJECT_PATH_TEMPLATE.format(uuid=state_uuid),
     )
     state = MLCompassState.from_json(content)
     print(f'Loaded MLCompass state: {content}')
