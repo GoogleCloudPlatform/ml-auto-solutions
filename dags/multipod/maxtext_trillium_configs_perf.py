@@ -24,7 +24,7 @@ from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, Dock
 from dags.common.model_configs import MaxTextTrilliumModelConfigs
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
-from xlml.apis import metric_config
+from xlml.apis import metric_config, mlcompass
 
 # Run once a day at 3 am UTC (7 pm PST / 8 pm PDT)
 CONIFGS_SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
@@ -111,10 +111,13 @@ with models.DAG(
       all_tests += maxtext_sweep_gke_test
 
   # Add dependencies between the tests so they are not all launched at once
+  mlcompass_scheduler = mlcompass.Scheduler()
   chain_num = 4
   prev = all_tests[0].run_with_name_gen_and_quarantine(quarantine_task_group)
+  mlcompass_scheduler.register(prev)
   for i in range(1, len(all_tests)):
     curr = all_tests[i].run_with_name_gen_and_quarantine(quarantine_task_group)
+    mlcompass_scheduler.register(curr)
     if i % chain_num != 0:
       prev >> curr
     prev = curr
