@@ -159,6 +159,8 @@ class MachineVersion(enum.Enum):
   G2_STAND_32 = "g2-standard-32"  # 128GB memroy
   G2_STAND_48 = "g2-standard-48"  # 4 GPUs, 192GB memory
   G2_STAND_96 = "g2-standard-96"  # 8 GPUs, 384GB memory
+  CT6E_STAND_4T = "ct6e-standard-4t"
+  CT5P_HIGHTPU_4T = "ct5p-hightpu-4t"
 
 
 class AcceleratorType(enum.Enum):
