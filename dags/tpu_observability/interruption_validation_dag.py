@@ -4,7 +4,6 @@ import dataclasses
 import datetime
 import enum
 import re
-from typing import List
 
 from airflow import models
 from airflow.decorators import task
@@ -13,10 +12,8 @@ from airflow.utils.task_group import TaskGroup
 from dags.common.vm_resource import Project
 from dags.map_reproducibility.utils.constants import Schedule
 from dags.multipod.configs.common import Platform
-from google.cloud import logging
+from dags.tpu_observability.utils import gcp_util, time_util
 from google.cloud import monitoring_v3
-from google.protobuf import timestamp_pb2
-from proto import datetime_helpers
 
 
 _UNKNOWN_RESOURCE_NAME = 'Unknown'
@@ -114,13 +111,13 @@ class EventRecord:
   """
 
   resource_name: str
-  record_timestamps: List[int] = dataclasses.field(default_factory=list)
+  record_timestamps: list[int] = dataclasses.field(default_factory=list)
 
 
 def fetch_interruption_metric_records(
     configs: Configs,
     time_range: TimeRange,
-) -> List[EventRecord]:
+) -> list[EventRecord]:
   """Retrieve the metrics from Cloud Monitoring API and group them.
 
   This function fetches time series data for interruption events based on the
@@ -132,16 +129,13 @@ def fetch_interruption_metric_records(
     time_range: The time range to query for metrics.
 
   Returns:
-    A List of EventRecord objects. Each EventRecord must contains the metric
+    A list of EventRecord objects. Each EventRecord must contains the metric
     points timestamps for the resource name.
 
   Raises:
     RuntimeError: If the resource name cannot be determined from the time series
       data or encounter an unexpected TypedValue.
   """
-  project_id = configs.project_id
-  interruption_reason = configs.interruption_reason.metric_label()
-
   match configs.platform:
     case Platform.GCE:
       metric_type = 'tpu.googleapis.com/instance/interruption_count'
@@ -157,34 +151,20 @@ def fetch_interruption_metric_records(
       raise ValueError(f'Unsupported platform: {configs.platform.value}')
 
   metric_filter = (
-      f'resource.labels.project_id = "{project_id}" '
+      f'resource.labels.project_id = "{configs.project_id}" '
       f'metric.type = "{metric_type}" '
       f'resource.type = "{resource_type}" '
-      f'metric.labels.interruption_reason = "{interruption_reason}" '
+      f'metric.labels.interruption_reason = "{configs.interruption_reason.metric_label()}" '
   )
 
-  project_name = f'projects/{project_id}'
   # key: resource_name, value: EventRecord
   event_records: dict[str, EventRecord] = {}
-
-  start_timestamp = timestamp_pb2.Timestamp()
-  start_timestamp.FromSeconds(time_range.start)
-  end_timestamp = timestamp_pb2.Timestamp()
-  end_timestamp.FromSeconds(time_range.end)
-
-  interval = monitoring_v3.TimeInterval(
-      start_time=start_timestamp, end_time=end_timestamp
+  response = gcp_util.query_time_series(
+      project_id=configs.project_id,
+      filter_str=metric_filter,
+      start_time=time_util.TimeUtil.from_unix_seconds(time_range.start),
+      end_time=time_util.TimeUtil.from_unix_seconds(time_range.end),
   )
-
-  request = monitoring_v3.ListTimeSeriesRequest(
-      name=project_name,
-      filter=metric_filter,
-      interval=interval,
-      view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
-  )
-
-  monitoring_api_client = monitoring_v3.MetricServiceClient()
-  response = monitoring_api_client.list_time_series(request=request)
 
   for time_series in response:
     resource = getattr(time_series, time_series_type)
@@ -197,9 +177,7 @@ def fetch_interruption_metric_records(
       )
 
     for point in time_series.points:
-      end_time_obj: datetime_helpers.DatetimeWithNanoseconds = (
-          point.interval.end_time
-      )
+      end_time = time_util.TimeUtil.from_datetime(point.interval.end_time)
       match monitoring_v3.TypedValue.pb(point.value).WhichOneof('value'):
         case 'int64_value':
           event_count = point.value.int64_value
@@ -220,7 +198,7 @@ def fetch_interruption_metric_records(
       # at the same time.
       # We need to add each event separately to the list of metric points.
       event_records[resource_name].record_timestamps.extend(
-          [int(end_time_obj.timestamp())] * event_count
+          [end_time.to_unix_seconds()] * event_count
       )
 
   return list(event_records.values())
@@ -230,7 +208,7 @@ def fetch_interruption_metric_records(
 def fetch_interruption_log_records(
     configs: Configs,
     time_range: TimeRange,
-) -> List[EventRecord]:
+) -> list[EventRecord]:
   """Retrieve log entries from Cloud Logging API and update the event record.
 
   This function fetches log entries related to interruption events that occurred
@@ -248,36 +226,21 @@ def fetch_interruption_log_records(
     RuntimeError: Raised when log entries exceed a hardcoded limit, in
       which case a manual inspection may be more appropriate.
   """
-  start_time = datetime.datetime.fromtimestamp(
-      time_range.start, tz=datetime.timezone.utc
-  )
-  end_time = datetime.datetime.fromtimestamp(
-      time_range.end, tz=datetime.timezone.utc
-  )
-
-  project_id = configs.project_id
-  log_filter_query = configs.interruption_reason.log_filter()
-
-  logging_api_client = logging.Client(project=project_id)
-
-  start_time_str = start_time.isoformat().replace('+00:00', 'Z')
-  end_time_str = end_time.isoformat().replace('+00:00', 'Z')
-  time_range_str = (
-      f'timestamp>="{start_time_str}" AND timestamp<="{end_time_str}"'
-  )
-
-  max_results = 1000  # Avoid fetching too many logs.
-  log_entries = logging_api_client.list_entries(
-      filter_=f'({time_range_str}) AND ({log_filter_query})',
-      order_by=logging.DESCENDING,
+  max_results = 3000  # Avoid fetching too many logs.
+  log_entries = gcp_util.query_log_entries(
+      project_id=configs.project_id,
+      filter_str=configs.interruption_reason.log_filter(),
+      start_time=time_util.TimeUtil.from_unix_seconds(time_range.start),
+      end_time=time_util.TimeUtil.from_unix_seconds(time_range.end),
       max_results=max_results,
   )
 
+  if len(log_entries) >= max_results:
+    raise RuntimeError(f'Log entries limit reached ({max_results} entries).')
+
   # key: resource_name, value: EventRecord
   event_records: dict[str, EventRecord] = {}
-  entry_count = 0
   for entry in log_entries:
-    entry_count += 1
     # Obtain the text segment contains information of resourceName from payload.
     resource_name = entry.payload.get('resourceName', '')
 
@@ -287,18 +250,15 @@ def fetch_interruption_log_records(
     match = re.match(regex_pattern, resource_name)
     if match:
       log_node_name = match.group(1)
-      aware_timestamp = entry.timestamp.replace(tzinfo=datetime.timezone.utc)
+      log_timestamp = time_util.TimeUtil.from_datetime(entry.timestamp)
 
       if log_node_name not in event_records:
         event_records[log_node_name] = EventRecord(
             resource_name=log_node_name,
         )
       event_records[log_node_name].record_timestamps.append(
-          int(aware_timestamp.timestamp())
+          log_timestamp.to_unix_seconds()
       )
-
-  if entry_count >= max_results:
-    raise RuntimeError(f'Log entries limit reached ({max_results} entries).')
 
   return list(event_records.values())
 
@@ -445,8 +405,8 @@ def determine_time_range(
 
 @task
 def validate_interruption_count(
-    metric_records: List[EventRecord],
-    log_records: List[EventRecord],
+    metric_records: list[EventRecord],
+    log_records: list[EventRecord],
 ):
   """Validates that the metric and log event counts match for each resource.
 
@@ -478,10 +438,37 @@ def validate_interruption_count(
       )
 
 
+def get_staggered_schedule(base_schedule: str, minutes_offset: int) -> str:
+  """Generates a new schedule string by applying a minute offset."""
+  # Split the base Cron string into its components.
+  # "0 2 * * 2,3,4,6" -> ["0", "2", "*", "*", "2,3,4,6"]
+  parts = base_schedule.split(' ')
+  if len(parts) != 5:
+    raise ValueError(
+        f"Base cron '{base_schedule}' is not in the expected 5-field format."
+    )
+
+  # Extract components using descriptive variable names.
+  current_minute = int(parts[0])
+  current_hour = int(parts[1])
+
+  # Calculate the new schedule time.
+  total_minutes = (current_hour * 60) + current_minute + minutes_offset
+  new_minute = total_minutes % 60
+  new_hour = (total_minutes // 60) % 24
+
+  # Reconstruct the new schedule string.
+  # Format: [New Minute] [New Hour] [Fixed Date Parts]
+  staggered_schedule = ' '.join([str(new_minute), str(new_hour)] + parts[2:])
+
+  return staggered_schedule
+
+
 def create_interruption_dag(
     dag_id: str,
     platform: Platform,
     interruption_reason: InterruptionReason,
+    schedule_offset_minutes: int,
 ) -> models.DAG:
   """Creates an Airflow DAG for interruption event validation.
 
@@ -493,13 +480,17 @@ def create_interruption_dag(
     dag_id: The unique identifier for the DAG.
     platform: The platform (GCE or GKE) to validate.
     interruption_reason: The specific interruption reason to validate.
+    schedule_offset_minutes: The offset in minutes to apply to the schedule.
 
   Returns:
     An Airflow DAG object."""
+  dag_schedule = get_staggered_schedule(
+      Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY, schedule_offset_minutes
+  )
   with models.DAG(
       dag_id=dag_id,
       start_date=datetime.datetime(2025, 7, 20),
-      schedule=Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY,
+      schedule=dag_schedule,
       catchup=False,
       tags=[platform.value, 'tpu-observability', 'interruption-count'],
       description=(
@@ -541,7 +532,7 @@ def create_interruption_dag(
             def fetch_interruption_metric_records_task(
                 configs: Configs,
                 proper_time_range: TimeRange,
-            ) -> List[EventRecord]:
+            ) -> list[EventRecord]:
               return fetch_interruption_metric_records(
                   configs,
                   proper_time_range,
@@ -571,8 +562,12 @@ def create_interruption_dag(
 
 
 dag_id_prefix = 'validate_interruption_count'
+stagger_interval_minutes = 5
+offset_minutes = 0  # Initial minute offset
+
 for platform in [Platform.GCE, Platform.GKE]:
   for reason in InterruptionReason:
     reason_value = reason.name.lower()
     dag_id = f'{dag_id_prefix}_{platform.value}_{reason_value}'
-    _ = create_interruption_dag(dag_id, platform, reason)
+    _ = create_interruption_dag(dag_id, platform, reason, offset_minutes)
+    offset_minutes += stagger_interval_minutes
