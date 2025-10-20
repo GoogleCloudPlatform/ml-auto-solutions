@@ -40,8 +40,7 @@ from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
 from google.cloud import storage
-from typing import Optional, Set, Tuple
-
+from typing import Optional, Tuple, Callable, Any
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -1460,75 +1459,6 @@ def parse_internal_config_content(yaml_path, config=None):
     raise e
 
 
-def run_nemo_workload_with_quarantine(
-    hypercomputer: str,
-    model_id: str,
-    framework: str,
-    precision: str,
-    metrics_model_id: str,
-    test_name: str,
-    num_gpus: int = None,
-    num_steps: int = None,
-    two_node: bool = False,
-    kueue_name: str = None,
-    config_model_name: str = None,
-    user: str = None,
-    git_name: str = None,
-    git_email: str = None,
-    storage_product: str = None,
-    gcs_results_generator: bool = False,
-    recipe_branch: str = None,
-    recipes_repo_change_refs: str = None,
-    bq_writer_repo_change_refs: str = None,
-    gcs_automation_repo_change_refs: str = None,
-    logs_bucket: str = None,
-    gcs_source_bucket: str = None,
-    gcs_metrics_bucket: str = None,
-    workload_image: str = None,
-    workload_type: str = None,
-    benchmark_type: str = None,
-    gcsfuse_csi_driver: str = None,
-):
-  workload_args = {
-    "hypercomputer": hypercomputer,
-    "model_id": model_id,
-    "framework": framework,
-    "precision": precision,
-    "metrics_model_id": metrics_model_id,
-    "num_gpus": num_gpus,
-    "num_steps": num_steps,
-    "two_node": two_node,
-    "kueue_name": kueue_name,
-    "config_model_name": config_model_name,
-    "user": user,
-    "git_name": git_name,
-    "git_email": git_email,
-    "storage_product": storage_product,
-    "gcs_results_generator": gcs_results_generator,
-    "recipe_branch": recipe_branch,
-    "recipes_repo_change_refs": recipes_repo_change_refs,
-    "bq_writer_repo_change_refs": bq_writer_repo_change_refs,
-    "gcs_automation_repo_change_refs": gcs_automation_repo_change_refs,
-    "logs_bucket": logs_bucket,
-    "gcs_source_bucket": gcs_source_bucket,
-    "gcs_metrics_bucket": gcs_metrics_bucket,
-    "workload_image": workload_image,
-    "workload_type": workload_type,
-    "benchmark_type": benchmark_type,
-    "gcsfuse_csi_driver": gcsfuse_csi_driver,
-  }
-  quarantine_task_group = TaskGroup(
-      group_id="Quarantine", prefix_group_id=False
-  )
-  if QuarantineTests.is_quarantined(test_name):
-    with quarantine_task_group:
-      with TaskGroup(group_id=test_name):
-        return run_nemo_workload(**workload_args)
-  else:
-    with TaskGroup(group_id=test_name):
-      return run_nemo_workload(**workload_args)
-
-
 @task
 def run_nemo_workload(
     hypercomputer: str,
@@ -2107,3 +2037,29 @@ def get_chips_per_node(hardware_id: str):
       return 8
     case _:
       raise ValueError(f"Warning: {hardware_id} is not supported.")
+
+
+def run_workload_with_quarantine(
+    test_name: str, workload_function: Callable[..., Any], **workload_args: Any
+):
+  if QuarantineTests.is_quarantined(test_name):
+    with TaskGroup(group_id="Quarantine", prefix_group_id=False):
+      return run_with_test_name(
+          test_name=test_name,
+          run_workload_function=workload_function,
+          workload_args=workload_args,
+      )
+  return run_with_test_name(
+      test_name=test_name,
+      run_workload_function=workload_function,
+      workload_args=workload_args,
+  )
+
+
+def run_with_test_name(
+    test_name: str,
+    run_workload_function: Callable[..., Any],
+    workload_args: Any,
+):
+  with TaskGroup(group_id=test_name):
+    return run_workload_function(**workload_args)
