@@ -20,6 +20,7 @@ import os
 from airflow import models
 from dags import composer_env
 from dags.map_reproducibility.internal_runs.dag_configs_inference import DAG_CONFIGS_INFERENCE_MEGA
+from dags.map_reproducibility.utils.common_utils import run_workload_with_quarantine
 from dags.map_reproducibility.utils.internal_aotc_inference_workload import run_internal_aotc_inference_workload
 
 
@@ -54,16 +55,19 @@ for config_path, config_info in DAG_CONFIGS_INFERENCE_MEGA.items():
       config_info["release_schedule"] if TURN_ON_SCHEDULE else None
   )
   timeout = config_info["timeout_minutes"]
+  DAG_ID = f"new_internal_inference_{config_name}"
 
   # Create DAG for nightly build
   with models.DAG(
-      dag_id=f"new_internal_inference_{config_name}",
+      dag_id=DAG_ID,
       schedule=nightly_schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 17),
       catchup=False,
   ) as dag:
-    run_internal_aotc_inference_workload(
+    run_workload_with_quarantine(
+        test_name=DAG_ID,
+        workload_function=run_internal_aotc_inference_workload,
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
         timeout=timeout,

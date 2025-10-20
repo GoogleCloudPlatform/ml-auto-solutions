@@ -18,7 +18,7 @@ import datetime
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_cluster
+from dags.map_reproducibility.utils.common_utils import get_cluster, run_workload_with_quarantine
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import run_maxtext_workload
@@ -45,9 +45,10 @@ OPTIMIZER = "adam"
 SEQUENCE_LENGTH = 2048
 NUM_STEPS = 30
 BATCH_SIZE_PER_DEVICE = 5
+DAG_ID = f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}"
 
 with models.DAG(
-    dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
+    dag_id=DAG_ID,
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",
@@ -60,7 +61,9 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-  run_maxtext_workload(
+  run_workload_with_quarantine(
+      test_name=DAG_ID,
+      workload_function=run_maxtext_workload,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
