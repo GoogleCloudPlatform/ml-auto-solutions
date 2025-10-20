@@ -16,7 +16,7 @@ from airflow.exceptions import AirflowFailException
 from google.cloud.monitoring_v3 import types
 
 from dags.tpu_observability.utils import node_pool_util as node_pool
-from dags.tpu_observability.utils.monitoring import query_time_series
+from dags.tpu_observability.utils.gcp_util import query_time_series
 from dags.tpu_observability.utils.time_util import TimeUtil
 
 
