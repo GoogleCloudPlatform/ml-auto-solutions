@@ -317,7 +317,7 @@ with models.DAG(
           "TFV_PROJECT_ID", default_var=Project.TPU_PROD_ENV_ONE_VM.value
       ),
       cluster_name=models.Variable.get(
-          "TFV_CLUSTER_NAME", default_var="yuna-auto-testing"
+          "TFV_CLUSTER_NAME", default_var="tpu-observability-automation"
       ),
       node_pool_name=models.Variable.get(
           "TFV_NODE_POOL_NAME", default_var="tpu-info-fromat-test-v6e"
