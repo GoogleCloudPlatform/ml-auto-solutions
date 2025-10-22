@@ -39,6 +39,7 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_devx",
+        "maxtext",
     ],
     start_date=datetime.datetime(2024, 1, 10),
     catchup=False,
