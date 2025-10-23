@@ -16,6 +16,8 @@
 
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
+
 from dags import composer_env
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time, run_workload_with_quarantine
 from dags.map_reproducibility.utils.common_utils import run_workload
@@ -54,9 +56,11 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
+  quarantine_task_group = TaskGroup(group_id="Quarantine", prefix_group_id=False)
   run_256gpus = run_workload_with_quarantine(
       test_name=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_256gpus",
       workload_function=run_workload,
+      quarantine_task_group=quarantine_task_group,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
@@ -71,6 +75,7 @@ with models.DAG(
   run_512gpus = run_workload_with_quarantine(
       test_name=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_512gpus",
       workload_function=run_workload,
+      quarantine_task_group=quarantine_task_group,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
