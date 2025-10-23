@@ -28,6 +28,10 @@ import logging
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from collections import namedtuple
+
+from airflow.utils.task_group import TaskGroup
+
+from dags.common.quarantined_tests import QuarantineTests
 from xlml.utils import metric
 from xlml.apis import metric_config
 from dags.map_reproducibility.utils import constants
@@ -36,8 +40,7 @@ from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
 from datetime import datetime, timezone
 from dags import composer_env
 from google.cloud import storage
-from typing import Optional, Set, Tuple
-
+from typing import Optional, Tuple, Callable, Any
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -2034,3 +2037,29 @@ def get_chips_per_node(hardware_id: str):
       return 8
     case _:
       raise ValueError(f"Warning: {hardware_id} is not supported.")
+
+
+def run_workload_with_quarantine(
+    test_name: str, workload_function: Callable[..., Any], **workload_args: Any
+):
+  if QuarantineTests.is_quarantined(test_name):
+    with TaskGroup(group_id="Quarantine", prefix_group_id=False):
+      return run_with_test_name(
+          test_name=test_name,
+          run_workload_function=workload_function,
+          workload_args=workload_args,
+      )
+  return run_with_test_name(
+      test_name=test_name,
+      run_workload_function=workload_function,
+      workload_args=workload_args,
+  )
+
+
+def run_with_test_name(
+    test_name: str,
+    run_workload_function: Callable[..., Any],
+    workload_args: Any,
+):
+  with TaskGroup(group_id=test_name):
+    return run_workload_function(**workload_args)
