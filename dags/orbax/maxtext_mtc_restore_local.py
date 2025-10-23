@@ -121,6 +121,7 @@ with models.DAG(
             xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
             expect_reach_to_step=step_to_interrupt,
+            max_restart=15,
         )
 
         end_time = validation_util.generate_timestamp.override(
