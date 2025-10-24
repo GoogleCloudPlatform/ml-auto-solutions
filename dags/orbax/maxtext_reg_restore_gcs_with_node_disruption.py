@@ -148,7 +148,7 @@ with models.DAG(
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
                 pod_pattern=".*0-0",
-                interrupt_at_step=40,
+                interrupt_at_step=step_to_interrupt,
                 start_time=start_time,
                 end_time=end_time,
             )

@@ -24,7 +24,7 @@ DAG_TEST_NAME = "maxtext_regular_restore_with_resumed_workload"
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
-    start_date=datetime.datetime(2025, 10, 16),
+    start_date=datetime.datetime(2025, 10, 24),
     schedule_interval=SCHEDULE,
     catchup=False,
     tags=[
@@ -95,7 +95,7 @@ with models.DAG(
             slice_number=slice_num,
             accelerator=test_config.accelerator,
         )
-
+        initial_step=test_config.steps
         initial_workload_command = test_config.generate_workload_command(
             checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
@@ -133,6 +133,10 @@ with models.DAG(
             enable_emergency_checkpoint=checkpointing.enable_emergency_checkpoint,
         )
 
+        resume_start_time = validation_util.generate_timestamp.override(
+            task_id="generate_resume_start_time"
+        )()
+
         resume_maxtext_chkpt_run_test = gke_config.get_gke_config(
             num_slices=slice_num,
             cluster=test_config.cluster,
@@ -157,9 +161,10 @@ with models.DAG(
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
                 pod_pattern=".*0-0",
-                interrupt_at_step=39,
-                start_time=start_time,
+                interrupt_at_step=initial_step-1,
+                start_time=resume_start_time,
                 end_time=end_time,
+                check_last_two_local_saves=False,
             )
         )
 
@@ -170,7 +175,7 @@ with models.DAG(
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
             text_filter="\"'event_type': 'restore'\"",
-            start_time=start_time,
+            start_time=resume_start_time,
             end_time=end_time,
         )
 
@@ -197,6 +202,7 @@ with models.DAG(
             run_name
             >> start_time
             >> initial_maxtext_chkpt_run_test
+            >> resume_start_time
             >> resume_maxtext_chkpt_run_test
             >> end_time
             >> validate_restore_step
