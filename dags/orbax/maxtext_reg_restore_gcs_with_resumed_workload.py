@@ -95,7 +95,7 @@ with models.DAG(
             slice_number=slice_num,
             accelerator=test_config.accelerator,
         )
-        initial_step=test_config.steps
+        initial_step = test_config.steps
         initial_workload_command = test_config.generate_workload_command(
             checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
@@ -161,7 +161,7 @@ with models.DAG(
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
                 pod_pattern=".*0-0",
-                interrupt_at_step=initial_step-1,
+                interrupt_at_step=initial_step - 1,
                 start_time=resume_start_time,
                 end_time=end_time,
                 check_last_two_local_saves=False,
