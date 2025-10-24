@@ -1,14 +1,14 @@
 """Utilities to get workloads logs and some utils."""
 
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List
+from typing import Optional
 from absl import logging
 import re
 
-from airflow.providers.google.cloud.operators.gcs import GCSHook
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from google.cloud import logging as logging_api
+from xlml.apis import gcs
 
 
 @task
@@ -203,7 +203,7 @@ def validate_log_with_gcs(
           gcs_checkpoint_path = match_gcs.group(0)
           step = match_step.group(1)
           logging.info(f"get gcs path from: {gcs_checkpoint_path}")
-          bucket_files = get_gcs_checkpoint(
+          bucket_files = gcs.obtain_file_list(
               f"{checkpoint_dir}/{gcs_checkpoint_path}/"
           )
           logging.info(f"gcs bucket files lenght: {len(bucket_files)}")
@@ -279,7 +279,7 @@ def validate_gcs_checkpoint_files(
 
   logging.info("Validate GCS checkpoint files on path: %s", bucket_path)
   try:
-    checkpoint_files = get_gcs_checkpoint(bucket_path)
+    checkpoint_files = gcs.obtain_file_list(bucket_path)
     logging.info(f"Found checkpoint files in GCS: {checkpoint_files}")
 
     # Extract step directories from checkpoint files
@@ -499,38 +499,3 @@ def validate_restored_correct_checkpoint(
   raise AirflowFailException(
       "Failed to validate that restoration happened at the expected step."
   )
-
-
-def get_gcs_checkpoint(output_path: str) -> List[str]:
-  """
-  Lists files in a GCS bucket at a specified path.
-
-  This function uses the GCSHook to connect to Google Cloud Storage.
-  It parses the provided `output_path` to extract the bucket name and prefix,
-  and then lists all objects within that path.
-
-  Args:
-    output_path (str): The full gs:// path to the GCS bucket and prefix
-      (e.g., "gs://my-bucket/my-folder/").
-
-  Returns:
-    List[str]: A list of file names (keys) found in the specified GCS path.
-  """
-  hook = GCSHook()
-  pattern = re.compile(r"^gs://(?P<bucket>[^/]+)/(?P<prefix>.+)$")
-  m = pattern.match(output_path)
-
-  if not m:
-    logging.error(f"Invalid GCS path format: {output_path}")
-    return []
-
-  bucket_name = m.group("bucket")
-  prefix = m.group("prefix")
-
-  logging.info(f"output_path:{output_path}")
-  logging.info(f"bucket:{bucket_name}")
-  logging.info(f"prefix:{prefix}")
-
-  files = hook.list(bucket_name=bucket_name, prefix=prefix)
-  logging.info(f"Files ===> {files}")
-  return files

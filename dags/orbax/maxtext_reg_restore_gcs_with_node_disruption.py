@@ -1,68 +1,83 @@
-"""A DAG to run MaxText EMC.
-Validates the local checkpoints are restored as expected
+"""
+A DAG to run MaxText regular checkpointing tests.
+
+This DAG performs a series of tests to save and restore and validate checkpoints
+for the MaxText model using the regular checkpointer.
+The tests are executed on a TPU multi-pod cluster.
 """
 
 import datetime
 
 from airflow import models
+from airflow.decorators import task
 
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
-from dags.orbax.util import checkpoint_util, test_config_util, validation_util
+from dags.orbax.util import validation_util, test_config_util
+from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
-from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 
-DAG_TEST_NAME = "maxtext_emc_orbax_res_local"
-SCHEDULE = "0 11 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "0 17 * * *" if composer_env.is_prod_env() else None
+DAG_TEST_NAME = "maxtext_regular_restore_with_node_disruption"
+
+
+@task
+def generate_workload_checkpoints_location(gcs_ckpt_location: str) -> str:
+  return f"{gcs_ckpt_location}/checkpoints"
 
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
-    start_date=datetime.datetime(2025, 6, 30),
+    start_date=datetime.datetime(2025, 10, 21),
     schedule_interval=SCHEDULE,
     catchup=False,
     tags=[
         "multipod_team",
         "maxtext",
-        "emergency_checkpointing",
+        "regular_checkpointing",
         "nightly",
         "orbax",
     ],
-    description="DAG to verify MaxText's emergency restore from local checkpoints after a node interruption.",
+    description="DAG that verifies MaxText regular checkpointing restoring functionality from GCS bucket .",
     doc_md="""
-      # MaxText Emergency Restore from Local Checkpoint Validation DAG
+      # MaxText Regular Checkpointing Validation DAG
 
       ### Description
-      This DAG validates the emergency restore capability of MaxText from local
-      checkpoints. It simulates a node failure during a training job and verifies
-      that the job can successfully resume from the last saved local checkpoint.
-      This test is critical for ensuring the resilience of long-running training
-      jobs against hardware failures.
+      This DAG (Directed Acyclic Graph) automates the process of validating
+      regular checkpoint saving and restoring with node disruption for the MaxText model.
+      It runs a single MaxText training job without emergency or multi-tier checkpointing
+      features and validates that checkpoints are saved and restore correctly to and from
+      GCS at specified intervals.
 
       ### Prerequisites
-      - An existing GKE cluster with the Multi-tier Checkpointing (MTC)
-        configuration enabled, which provides the necessary CSI driver for
-        RAM disk (`/local`).
-      - A GCS bucket for storing logs and base model outputs.
+      - An existing TPU cluster configured for MaxText training.
+      - A GCS bucket for storing logs and checkpoints.
 
       ### Procedures
-      1.  **Apply MTC Configuration:** A `CheckpointingPolicyConfiguration` (CPC)
-          is applied to the cluster to set up the MTC environment.
-      2.  **Run MaxText with Interruption:** A MaxText training job is initiated.
-          During its execution, a node interruption is simulated to trigger the
-          emergency restore mechanism.
-      3.  **Validate Restore:** The DAG inspects the application logs to confirm
-          that an `'emergency_restore'` event occurred.
-      4.  **Validate Checkpoint Integrity:** It then verifies that the training job
+      1.  **Run MaxText Training:** A MaxText training job is initiated with
+          regular checkpointing enabled. The job runs for 120 steps and saves
+          checkpoints to GCS every 20 steps.
+      2.  **Node Interruption:** Simulate a node interruption while step 40
+          is saved into GCS bucket completely (commit_message.txt is generated)
+      3.  **Log Validation:** Verify checkpoint save events in logs
+         - Looks for 'Finished async_save (blocking + background)' messages
+         - Validates that saves occurred at expected steps
+      4. **File Validation:** Verify checkpoint files exist in GCS bucket
+         - Checks that actual checkpoint files are present for each expected step
+      5.  **Validate Restore:** The DAG inspects the application logs to confirm
+          that an `'restore'` event occurred.
+      6.  **Validate Checkpoint Integrity:** It then verifies that the training job
           resumed and continued to save checkpoints correctly after the restore,
           ensuring no data was lost.
-      """,
+    """,
     concurrency=2,
 ) as dag:
   checkpointing = test_config_util.Checkpointing(
-      name="emc", enable_multi_tier_checkpointing=False
+      name="reg",
+      enable_multi_tier_checkpointing=False,
+      enable_emergency_checkpoint=False,
   )
   test_configs = [
       test_config_util.TestConfig(
@@ -71,11 +86,9 @@ with models.DAG(
           accelerator="v5p-128",
           slices=[2],
           model_name="llama2-7b",
-          short_id="max-res-loc",
-          multi_tier_checkpointing_backup_interval_minutes=30,
-          steps=200,
-          checkpoint_period=50,
-          local_checkpoint_period=20,
+          short_id="max-reg-res-gcs-node",
+          steps=120,
+          checkpoint_period=20,
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
@@ -85,13 +98,6 @@ with models.DAG(
   for mode, image in test_config_util.DOCKER_IMAGES:
     for test_config in test_configs:
       for slice_num in test_config.slices:
-        wait_delete_cpc = checkpoint_util.wait_for_cpc_deletion.override(
-            trigger_rule="all_done"
-        )(test_config.cpc_config)
-
-        apply_cpc = checkpoint_util.apply_cpc(test_config.cpc_config)
-
-        # Generate consistent run name for both training phases
         run_name = validation_util.generate_run_name(
             short_id=test_config.short_id,
             checkpointing_type=checkpointing.name,
@@ -103,9 +109,13 @@ with models.DAG(
             checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
             slice_num=slice_num,
-            out_folder="maxtext_emc_orbax_res_local",
+            out_folder=DAG_TEST_NAME,
             enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
+            enable_emergency_checkpoint=checkpointing.enable_emergency_checkpoint,
         )
+        gcs_location = generate_workload_checkpoints_location.override(
+            task_id="gcs_bucket_checkpoints_location"
+        )(f"{test_config.base_dir}/{DAG_TEST_NAME}/{run_name}")
 
         start_time = validation_util.generate_timestamp.override(
             task_id="generate_start_time"
@@ -115,17 +125,17 @@ with models.DAG(
             num_slices=slice_num,
             cluster=test_config.cluster,
             time_out_in_min=60,
-            test_name=f"{test_config.short_id}-emc",
+            test_name=f"{test_config.short_id}",
             run_model_cmds=workload_command,
             docker_image=image.value,
-            test_owner=test_owner.DEPP_L,
+            test_owner=test_owner.SHARON_Y,
         ).run_with_node_interruption(
-            ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
-            mtc_enabled=True,
-            xpk_branch=BRANCH_ABHINAV_MTC,
+            gcs_location=gcs_location,
+            xpk_branch=MAIN_BRANCH,
             skip_post_process=True,
             expect_reach_to_step=step_to_interrupt,
             max_restart=15,
+            check_file_exists=True,
         )
 
         end_time = validation_util.generate_timestamp.override(
@@ -137,54 +147,51 @@ with models.DAG(
                 project_id=test_config.cluster.project,
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
-                pod_pattern=f"{test_config.short_id}-emc.*1-0",
+                pod_pattern=".*0-0",
                 interrupt_at_step=step_to_interrupt,
                 start_time=start_time,
                 end_time=end_time,
             )
         )
 
-        log_filters = [
-            "jsonPayload.message:\"'event_type': 'emergency_restore'\"",
-            "jsonPayload.message:\"'is_restoring_slice': True\"",
-            "jsonPayload.message:\"'directory': '/local/\"",
-        ]
         validate_restored_source = validation_util.validate_log_exist.override(
-            task_id="validate_emc_restored_from_local"
+            task_id="validate_reg_restored_from_gcs"
         )(
             project_id=test_config.cluster.project,
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
-            text_filter=" AND ".join(log_filters),
+            text_filter="\"'event_type': 'restore'\"",
             start_time=start_time,
             end_time=end_time,
         )
 
-        steps_to_validate = test_config.generate_step_to_validate(is_local=True)
+        gcs_steps_to_validate = test_config.generate_step_to_validate(
+            is_local=False
+        )
 
         validate_log = validation_util.validate_checkpoint_at_steps_are_saved(
             project_id=test_config.cluster.project,
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
+            ram_disk="gcs",
+            steps_to_validate=gcs_steps_to_validate,
             start_time=start_time,
             end_time=end_time,
-            steps_to_validate=steps_to_validate,
         )
 
-        # Final CPC cleanup to ensure symmetric start/end
-        wait_delete_cpc_final = checkpoint_util.wait_for_cpc_deletion.override(
-            trigger_rule="all_done", task_id="wait_delete_cpc_final"
-        )(test_config.cpc_config).as_teardown(setups=apply_cpc)
+        validate_bucket = validation_util.validate_gcs_checkpoint_files(
+            bucket_path=f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}",
+            steps_to_validate=gcs_steps_to_validate,
+        )
 
         (
-            wait_delete_cpc
-            >> apply_cpc
-            >> run_name
+            run_name
+            >> gcs_location
             >> start_time
             >> maxtext_chkpt_run_test
             >> end_time
             >> validate_restore_step
             >> validate_restored_source
             >> validate_log
-            >> wait_delete_cpc_final
+            >> validate_bucket
         )

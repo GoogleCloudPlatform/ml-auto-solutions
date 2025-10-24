@@ -120,6 +120,7 @@ with models.DAG(
             mtc_enabled=True,
             xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
+            max_restart=15,
         )
 
         steps_to_validate = test_config.generate_step_to_validate(is_local=True)

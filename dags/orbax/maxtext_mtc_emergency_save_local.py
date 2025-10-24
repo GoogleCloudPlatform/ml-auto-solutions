@@ -144,6 +144,7 @@ with models.DAG(
                 mtc_enabled=True,
                 xpk_branch=BRANCH_ABHINAV_MTC,
                 skip_post_process=True,
+                max_restart=15,
             )
 
             end_time = validation_util.generate_timestamp()
