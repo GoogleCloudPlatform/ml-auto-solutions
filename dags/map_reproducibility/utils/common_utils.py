@@ -2049,6 +2049,7 @@ def run_workload_with_quarantine(
     quarantine_task_group = TaskGroup(
         group_id="Quarantine", prefix_group_id=False
     )
+  test_name = test_name.replace(".", "-")
   if QuarantineTests.is_quarantined(test_name):
     with quarantine_task_group:
       return run_with_test_name(
@@ -2068,5 +2069,6 @@ def run_with_test_name(
     run_workload_function: Callable[..., Any],
     workload_args: Any,
 ):
+  test_name = test_name.replace(".", "-")
   with TaskGroup(group_id=test_name):
     return run_workload_function(**workload_args)
