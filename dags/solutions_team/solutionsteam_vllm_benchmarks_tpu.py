@@ -15,9 +15,9 @@ from dags.solutions_team.configs.vllm import vllm_benchmark_config
 SCHEDULED_TIME = None
 
 with models.DAG(
-    dag_id="solutionsteam_vllm_benchmark",
+    dag_id="solutionsteam_vllm_benchmark_tpu",
     schedule=SCHEDULED_TIME,
-    tags=["solutions_team", "nightly", "supported", "xlml"],
+    tags=["solutions_team", "nightly", "supported", "xlml", "tpu"],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:
@@ -31,10 +31,6 @@ with models.DAG(
   test_models = {
       "llama3-8b": {
           "accelerator_specs": [
-              (
-                  AcceleratorType.GPU,
-                  (MachineVersion.A2_HIGHGPU_1G, GpuVersion.A100, 1),
-              ),
               (AcceleratorType.TPU, (TpuVersion.V5E, 8)),
           ],
           # TODO: Support other backends
@@ -71,53 +67,25 @@ with models.DAG(
           model_configs["sharding_config"] = sweep_model_configs[
               "sharding_config"
           ]
+          project = Project.TPU_PROD_ENV_AUTOMATED
+          zone = Zone.US_EAST1_C
+          tpu_version, tpu_cores = accelerator_spec
+          runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
+          network = V5_NETWORKS
+          subnetwork = V5E_SUBNETWORKS
 
-          if accelerator_type == AcceleratorType.TPU:
-            project = Project.TPU_PROD_ENV_AUTOMATED
-            zone = Zone.US_EAST1_C
-            tpu_version, tpu_cores = accelerator_spec
-            runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
-            network = V5_NETWORKS
-            subnetwork = V5E_SUBNETWORKS
-
-            vllm_benchmark_config.get_tpu_vllm_gce_config(
-                tpu_version=tpu_version,
-                tpu_cores=tpu_cores,
-                tpu_zone=zone,
-                backend=backend,
-                runtime_version=runtime_version,
-                project=project,
-                time_out_in_min=120,
-                is_tpu_reserved=True,
-                test_name=f"{test_name_prefix}-tpu-nightly-{model}-{backend}",
-                test_run_id=test_run_id,
-                network=network,
-                subnetwork=subnetwork,
-                model_configs=model_configs,
-            )
-          elif accelerator_type == AcceleratorType.GPU:
-            project = Project.CLOUD_ML_BENCHMARKING
-            zone = Zone.US_WEST4_B
-            machine_version, gpu_version, count = accelerator_spec
-            image_project = ImageProject.DEEP_LEARNING_PLATFORM_RELEASE
-            image_family = ImageFamily.COMMON_CU124_DEBIAN_11
-            network = BM_NETWORKS
-            subnetwork = A100_BM_SUBNETWORKS
-
-            vllm_benchmark_config.get_gpu_vllm_gce_config(
-                machine_version=machine_version,
-                image_project=image_project,
-                image_family=image_family,
-                gpu_version=gpu_version,
-                count=count,
-                backend=backend,
-                project=project,
-                gpu_zone=zone,
-                time_out_in_min=120,
-                test_name=f"{test_name_prefix}-gpu-nightly-{model}-{backend}",
-                test_run_id=test_run_id,
-                network=network,
-                subnetwork=subnetwork,
-                model_configs=model_configs,
-                reservation=True,
-            ).run()
+          vllm_benchmark_config.get_tpu_vllm_gce_config(
+              tpu_version=tpu_version,
+              tpu_cores=tpu_cores,
+              tpu_zone=zone,
+              backend=backend,
+              runtime_version=runtime_version,
+              project=project,
+              time_out_in_min=120,
+              is_tpu_reserved=True,
+              test_name=f"{test_name_prefix}-tpu-nightly-{model}-{backend}",
+              test_run_id=test_run_id,
+              network=network,
+              subnetwork=subnetwork,
+              model_configs=model_configs,
+          )

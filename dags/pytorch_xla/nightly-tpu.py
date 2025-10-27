@@ -216,7 +216,7 @@ def llama():
 
 
 with models.DAG(
-    dag_id="pytorchxla-nightly",
+    dag_id="pytorchxla-nightly-tpu",
     schedule=SCHEDULED_TIME,
     tags=["pytorchxla", "latest", "supported", "xlml"],
     start_date=datetime.datetime(2023, 7, 12),
