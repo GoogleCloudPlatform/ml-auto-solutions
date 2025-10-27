@@ -69,6 +69,7 @@ XUEFENG_G = "xuefgu"
 CAMILO_Q = "camiloCienet"
 DEPP_L = "ooops678"
 JACKY_F = "RexBearIU"
+SHARON_Y = "Shuang-cnt"
 
 # MLCompass
 ORTI_B = "ortibazar"

@@ -111,6 +111,7 @@ def run_workload(
     ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
     mtc_enabled: bool = False,  # It enables MTC phase-2 drivers
     xpk_branch: str = MAIN_BRANCH,
+    max_restart: int = 0,
 ):
   """Run workload through xpk tool."""
 
@@ -163,10 +164,11 @@ def run_workload(
     # For Orbax DAG add flag '--max-restars=50' it is need it to test
     # resiliency during Maxtext training with Emergency Checkpointer and
     # Multi-tier Checkpointing.
-    if ramdisk_directory and mtc_enabled:
-      workload_create_cmd += " --max-restarts=50"
+    if max_restart > 0:
+      workload_create_cmd += f" --max-restarts={max_restart}"
 
-    # If using a valid GPU and the XPK branch is set to "main", then branch is switch to "v0.4.1".
+    # If using a valid GPU and the XPK branch is set to "main"
+    # then branch is switch to "v0.4.1".
     if is_valid_gpu_version(accelerator_type) and xpk_branch == MAIN_BRANCH:
       xpk_branch = "v0.4.1"
 
@@ -357,7 +359,7 @@ def clean_up_workload(
     ), f"XPK clean-up failed with code {result.exit_code}"
 
 
-@task.sensor(poke_interval=120, timeout=3600, mode="reschedule")
+@task.sensor(poke_interval=3, timeout=3600, mode="reschedule")
 def wait_for_workload_reach_step(
     project_id: str,
     region: str,
