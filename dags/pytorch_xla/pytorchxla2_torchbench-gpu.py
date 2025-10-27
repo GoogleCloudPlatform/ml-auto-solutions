@@ -20,27 +20,27 @@ from dags import composer_env
 from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
 import dags.common.vm_resource as resource
 
-SCHEDULED_TIME = None
+# Schudule the job to run everyday at 3:00AM PST (11:00AM UTC).
+SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
-    dag_id="pytorchxla-torchbench-release-gpu",
+    dag_id="pytorchxla2-torchbench-gpu",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "release", "torchbench", "gpu"],
+    tags=["pytorchxla", "nightly", "torchbench", "gpu"],
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
-  model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
+  model = "all" if composer_env.is_prod_env() else "Background_Matting"
   torchbench_extra_flags = [f"--filter={model}"]
-  test_version = config.VERSION.R2_8
   # Running on V100 GPU
   config.get_torchbench_gpu_gke_config(
       machine_type=resource.MachineVersion.N1_STANDARD_16,
       image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.V100,
       count=2,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
-      test_version=test_version,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
       model_name=model,
@@ -54,8 +54,8 @@ with models.DAG(
       image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.A100,
       count=1,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
-      test_version=test_version,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
       model_name=model,
@@ -69,8 +69,8 @@ with models.DAG(
       image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.H100,
       count=8,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
-      test_version=test_version,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
       model_name=model,
@@ -84,8 +84,8 @@ with models.DAG(
       image_family=resource.ImageFamily.COMMON_CU124_DEBIAN_11,
       accelerator_type=resource.GpuVersion.L4,
       count=1,
+      use_xla2=True,
       gpu_zone=resource.Region.US_CENTRAL1,
-      test_version=test_version,
       project_name=resource.Project.CLOUD_ML_BENCHMARKING,
       cluster_name="benchmarking-gpu-uc1",
       model_name=model,
