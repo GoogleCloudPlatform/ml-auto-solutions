@@ -2042,11 +2042,13 @@ def get_chips_per_node(hardware_id: str):
 def run_workload_with_quarantine(
     test_name: str,
     workload_function: Callable[..., Any],
-    quarantine_task_group: TaskGroup,
-    **workload_args: Any
+    quarantine_task_group: TaskGroup = None,
+    **workload_args: Any,
 ):
   if not quarantine_task_group:
-    quarantine_task_group = TaskGroup(group_id="Quarantine", prefix_group_id=False)
+    quarantine_task_group = TaskGroup(
+        group_id="Quarantine", prefix_group_id=False
+    )
   if QuarantineTests.is_quarantined(test_name):
     with quarantine_task_group:
       return run_with_test_name(
