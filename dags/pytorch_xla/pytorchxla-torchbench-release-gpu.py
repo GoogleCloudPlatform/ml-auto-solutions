@@ -24,65 +24,15 @@ SCHEDULED_TIME = None
 
 
 with models.DAG(
-    dag_id="pytorchxla-torchbench-release",
+    dag_id="pytorchxla-torchbench-release-gpu",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "release", "torchbench"],
+    tags=["pytorchxla", "release", "torchbench", "gpu"],
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
   model = "all" if composer_env.is_prod_env() else "BERT_pytorch"
   torchbench_extra_flags = [f"--filter={model}"]
   test_version = config.VERSION.R2_8
-  # Running on V4-8:
-  config.get_torchbench_tpu_config(
-      tpu_version=resource.TpuVersion.V4,
-      tpu_cores=8,
-      project=resource.Project.CLOUD_ML_BENCHMARKING,
-      tpu_zone=resource.Zone.US_CENTRAL2_B,
-      runtime_version=resource.RuntimeVersion.TPU_UBUNTU2204_BASE,
-      network=resource.BM_NETWORKS,
-      subnetwork=resource.V4_BM_SUBNETWORKS,
-      test_version=test_version,
-      model_name=model,
-      time_out_in_min=1800,
-      reserved=False,
-      preemptible=True,
-      extraFlags=" ".join(torchbench_extra_flags),
-  )
-
-  # Running on V5P
-  config.get_torchbench_tpu_config(
-      tpu_version=resource.TpuVersion.V5P,
-      tpu_cores=8,
-      project=resource.Project.TPU_PROD_ENV_AUTOMATED,
-      tpu_zone=resource.Zone.US_EAST5_A,
-      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5,
-      network=resource.V5_NETWORKS,
-      subnetwork=resource.V5P_SUBNETWORKS,
-      time_out_in_min=1800,
-      model_name=model,
-      reserved=False,
-      preemptible=False,
-      extraFlags=" ".join(torchbench_extra_flags),
-  )
-
-  # Running on V5E
-  config.get_torchbench_tpu_config(
-      tpu_version=resource.TpuVersion.V5E,
-      tpu_cores=4,
-      project=resource.Project.CLOUD_ML_BENCHMARKING,
-      tpu_zone=resource.Zone.US_WEST1_C,
-      runtime_version=resource.RuntimeVersion.V2_ALPHA_TPUV5_LITE,
-      network=resource.BM_NETWORKS,
-      subnetwork=resource.V5E_BM_SUBNETWORKS,
-      time_out_in_min=1600,
-      test_version=test_version,
-      model_name=model,
-      reserved=False,
-      preemptible=False,
-      extraFlags=" ".join(torchbench_extra_flags),
-  )
-
   # Running on V100 GPU
   config.get_torchbench_gpu_gke_config(
       machine_type=resource.MachineVersion.N1_STANDARD_16,
