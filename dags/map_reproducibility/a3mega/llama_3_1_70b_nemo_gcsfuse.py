@@ -17,8 +17,7 @@
 import datetime
 
 from airflow import models
-from dags.map_reproducibility.utils.common_utils import run_nemo_workload
-
+from dags.map_reproducibility.utils.common_utils import run_nemo_workload, run_workload_with_quarantine
 
 MODEL_ID = "llama3-1-70b"
 METRICS_MODEL_ID = "llama3.1-70b"
@@ -36,6 +35,7 @@ BENCHMARK_TYPE = "checkpointing"
 WORKLOAD_TYPE = "system"
 WORKLOAD_IMAGE = "us-docker.pkg.dev/supercomputer-testing/dlsl-metadata/recipe-release-patched"
 RECIPE_BRANCH = "storage-next"
+DAG_ID = f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_gcsfuse_ckpt"
 
 default_dag_args = {
     "retries": 0,
@@ -43,13 +43,15 @@ default_dag_args = {
 
 
 with models.DAG(
-    dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_gcsfuse_ckpt",
+    dag_id=DAG_ID,
     tags=["experimental", "regressiontests", "a3mega", "storage-run"],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
     default_args=default_dag_args,
 ) as dag:
-  run_nemo_workload(
+  run_workload_with_quarantine(
+      test_name=DAG_ID,
+      workload_function=run_nemo_workload,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
