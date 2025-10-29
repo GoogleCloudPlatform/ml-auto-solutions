@@ -18,7 +18,7 @@ import datetime
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_cluster, run_workload_with_quarantine
+from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.common_utils import get_docker_image
 from dags.map_reproducibility.utils.common_utils import run_nemo_workload
 
@@ -38,11 +38,10 @@ CLUSTER, CLUSTER_REGION = get_cluster(HYPERCOMPUTER)
 SOFTWARE_ID = "pytorch_nemo"
 IMAGE_VERSION = "nemo24.07"
 DOCKER_IMAGE = get_docker_image(HYPERCOMPUTER, FRAMEWORK)
-DAG_ID = f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}"
 
 
 with models.DAG(
-    dag_id=DAG_ID,
+    dag_id=f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",
@@ -54,9 +53,7 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-  run_workload_with_quarantine(
-      test_name=DAG_ID,
-      workload_function=run_nemo_workload,
+  run_nemo_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,

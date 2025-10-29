@@ -19,7 +19,6 @@ import os
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import run_workload_with_quarantine
 from dags.map_reproducibility.utils.constants import Image
 from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_A4
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
@@ -62,7 +61,6 @@ for config_path, config_info in DAG_CONFIGS_A4.items():
       "retry_delay": retry_delay,
   }
 
-  DAG_ID = f"new_internal_{config_name}"
   # Create DAG for nightly build
   with models.DAG(
       dag_id=f"new_internal_{config_name}",
@@ -72,9 +70,7 @@ for config_path, config_info in DAG_CONFIGS_A4.items():
       start_date=datetime.datetime(2025, 4, 28),
       catchup=False,
   ) as dag:
-    run_workload_with_quarantine(
-        test_name=DAG_ID,
-        workload_function=run_internal_aotc_workload,
+    run_internal_aotc_workload(
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
         backfill=BACKFILL,
@@ -82,19 +78,16 @@ for config_path, config_info in DAG_CONFIGS_A4.items():
         image_version=NIGHTLY_IMAGE,
     )
 
-  DAG_ID = f"new_internal_stable_release_{config_name}"
   # Create DAG for stable release
   with models.DAG(
-      dag_id=DAG_ID,
+      dag_id=f"new_internal_stable_release_{config_name}",
       default_args=dag_default_args,
       schedule=schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 28),
       catchup=False,
   ) as dag:
-    run_workload_with_quarantine(
-        test_name=DAG_ID,
-        workload_function=run_internal_aotc_workload,
+    run_internal_aotc_workload(
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
         backfill=BACKFILL,

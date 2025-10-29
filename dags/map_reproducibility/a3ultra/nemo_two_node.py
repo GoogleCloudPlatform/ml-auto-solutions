@@ -19,7 +19,8 @@ import datetime
 from airflow import models
 from dags import composer_env
 
-from dags.map_reproducibility.utils.common_utils import run_workload, run_workload_with_quarantine
+from dags.map_reproducibility.utils.common_utils import run_workload
+
 
 MODEL_ID = "mixtral-8x7b"
 METRICS_MODEL_ID = "mixtral-7b"
@@ -34,10 +35,9 @@ SOFTWARE_ID = "pytorch_nemo"
 KUEUE_NAME = "a3-ultra"
 NUM_GPUS = 16
 NUM_STEPS = 1
-DAG_ID = f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}"
 
 with models.DAG(
-    dag_id=DAG_ID,
+    dag_id=f"{HYPERCOMPUTER}_recipes_two_node_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",
@@ -49,9 +49,7 @@ with models.DAG(
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
 ) as dag:
-  run_workload_with_quarantine(
-      test_name=DAG_ID,
-      workload_function=run_workload,
+  run_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,

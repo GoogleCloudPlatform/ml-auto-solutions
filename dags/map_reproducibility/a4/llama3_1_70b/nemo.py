@@ -18,7 +18,7 @@ import datetime
 
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.common_utils import get_scheduled_time, run_workload_with_quarantine
+from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import run_workload
 
 
@@ -35,10 +35,9 @@ SCHEDULED_TIME = (
     if composer_env.is_prod_env()
     else None
 )
-DAG_ID = f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}"
 
 with models.DAG(
-    dag_id=DAG_ID,
+    dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
     schedule=SCHEDULED_TIME,
     tags=[
         "reproducibility",
@@ -50,9 +49,7 @@ with models.DAG(
     start_date=datetime.datetime(2025, 3, 1),
     catchup=False,
 ) as dag:
-  run_workload_with_quarantine(
-      test_name=DAG_ID,
-      workload_function=run_workload,
+  run_workload(
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
