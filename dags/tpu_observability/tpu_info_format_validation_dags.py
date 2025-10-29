@@ -21,16 +21,13 @@ from dags.common.vm_resource import Project
 from dags.common.vm_resource import Region
 from dags.common.vm_resource import Zone
 from dags.map_reproducibility.utils import constants
+from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import tpu_info_util as tpu_info
 from dags.tpu_observability.utils.jobset_util import JobSet
 from dags.tpu_observability.utils.jobset_util import Workload
-
-MACHINE_TYPE_TO_TPU_VERSION = {
-    "ct6e-standard-4t": "v6e",
-    "ct5p-hightpu-4t": "v5p",
-}
+from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
 
 
 @task
@@ -93,7 +90,9 @@ def verify_table_amount(tpu_info_output: list[tpu_info.Table]):
 
 @task
 def validate_chips_table(
-    tpu_info_output: list[tpu_info.Table], node_pool: node_pool.Info
+    tpu_info_output: list[tpu_info.Table],
+    node_pool: node_pool.Info,
+    tpu_config: TpuConfig,
 ):
   """Validates the row count and content for the 'TPU Chips' table."""
   errors = []
@@ -109,7 +108,7 @@ def validate_chips_table(
         f" {len(content.body)}"
     )
 
-  tpu_type = MACHINE_TYPE_TO_TPU_VERSION[node_pool.machine_type]
+  tpu_type = tpu_config.tpu_version.value
 
   for row_dict in content.body:
     for header, data in row_dict.items():
@@ -312,183 +311,190 @@ with models.DAG(
       including the JobSet and the temporary node pools.
       """,
 ) as dag:
-  cluster_info = node_pool.Info(
-      project_id=models.Variable.get(
-          "TFV_PROJECT_ID", default_var=Project.TPU_PROD_ENV_ONE_VM.value
-      ),
-      cluster_name=models.Variable.get(
-          "TFV_CLUSTER_NAME", default_var="tpu-observability-automation"
-      ),
-      node_pool_name=models.Variable.get(
-          "TFV_NODE_POOL_NAME", default_var="tpu-info-fromat-test-v6e"
-      ),
-      region=models.Variable.get(
-          "TFV_REGION", default_var=Region.US_EAST5.value
-      ),
-      location=models.Variable.get(
-          "TFV_LOCATION", default_var=Region.US_EAST5.value
-      ),
-      node_locations=models.Variable.get(
-          "TFV_NODE_LOCATIONS", default_var=Zone.US_EAST5_B.value
-      ),
-      num_nodes=models.Variable.get("TFV_NUM_NODES", default_var=4),
-      machine_type=models.Variable.get(
-          "TFV_MACHINE_TYPE", default_var=MachineVersion.CT6E_STAND_4T.value
-      ),
-      tpu_topology=models.Variable.get("TFV_TPU_TOPOLOGY", default_var="4x4"),
-  )
-  cluster_info_2 = replace(
-      cluster_info,
-      node_pool_name=models.Variable.get(
-          "TFV_NODE_POOL_NAME", default_var="tpu-info-format-test-v6e-2"
-      ),
-  )
-
-  kubeconfig_path = "/tmp/kubeconfig"
-  jobset_config = JobSet(
-      jobset_name="tpu-info-v6e-workload",
-      namespace="default",
-      max_restarts=5,
-      replicated_job_name="tpu-job-slice",
-      replicas=2,
-      backoff_limit=0,
-      completions=4,
-      parallelism=4,
-      tpu_accelerator_type="tpu-v6e-slice",
-      tpu_topology="4x4",
-      container_name="jax-tpu-worker",
-      image="us-docker.pkg.dev/tpu-prod-env-one-vm/yuna-docker-repo/tpu-info:v0.5.1",
-      tpu_cores_per_pod=4,
-  )
-
-  workload_script = Workload.JAX_TPU_BENCHMARK
-
-  with TaskGroup(group_id="create_node_pool") as create_node_pool:
-    create_first_node_pool = node_pool.create.override(
-        task_id="node_pool_1",
-        retries=2,
-    )(
-        node_pool=cluster_info,
-        reservation="cloudtpu-20250131131310-2118578099",
+  for machine in MachineConfigMap:
+    config = machine.value
+    cluster_info = node_pool.Info(
+        project_id=models.Variable.get(
+            "TFV_PROJECT_ID", default_var=Project.TPU_PROD_ENV_ONE_VM.value
+        ),
+        cluster_name=models.Variable.get(
+            "TFV_CLUSTER_NAME", default_var="tpu-observability-automation"
+        ),
+        node_pool_name=models.Variable.get(
+            "TFV_NODE_POOL_NAME", default_var="tpu-info-fromat-test-v6e"
+        ),
+        region=models.Variable.get(
+            "TFV_REGION", default_var=Region.US_EAST5.value
+        ),
+        location=models.Variable.get(
+            "TFV_LOCATION", default_var=Region.US_EAST5.value
+        ),
+        node_locations=models.Variable.get(
+            "TFV_NODE_LOCATIONS", default_var=Zone.US_EAST5_B.value
+        ),
+        num_nodes=models.Variable.get("TFV_NUM_NODES", default_var=4),
+        machine_type=config.machine_version.value,
+        tpu_topology=config.tpu_topology,
+    )
+    cluster_info_2 = replace(
+        cluster_info,
+        node_pool_name=models.Variable.get(
+            "TFV_NODE_POOL_NAME", default_var="tpu-info-format-test-v6e-2"
+        ),
     )
 
-    create_second_node_pool = node_pool.create.override(
-        task_id="node_pool_2",
-        retries=2,
-    )(
-        node_pool=cluster_info_2,
-        reservation="cloudtpu-20250131131310-2118578099",
+    kubeconfig_path = "/tmp/kubeconfig"
+    jobset_config = JobSet(
+        jobset_name="tpu-info-v6e-workload",
+        namespace="default",
+        max_restarts=5,
+        replicated_job_name="tpu-job-slice",
+        replicas=2,
+        backoff_limit=0,
+        completions=4,
+        parallelism=4,
+        tpu_accelerator_type="tpu-v6e-slice",
+        tpu_topology="4x4",
+        container_name="jax-tpu-worker",
+        image="us-docker.pkg.dev/tpu-prod-env-one-vm/yuna-docker-repo/tpu-info:v0.5.1",
+        tpu_cores_per_pod=4,
     )
 
-  apply_time = jobset.run_workload(
-      node_pool=cluster_info,
-      kubeconfig=kubeconfig_path,
-      yaml_config=jobset_config.generate_yaml(workload_script=workload_script),
-      namespace=jobset_config.namespace,
-  )
+    workload_script = Workload.JAX_TPU_BENCHMARK
 
-  active_pods = jobset.get_active_pods.override(task_id="get_active_pod")(
-      node_pool=cluster_info,
-      kubeconfig=kubeconfig_path,
-      namespace=jobset_config.namespace,
-  )
+    with TaskGroup(group_id=f"v{config.tpu_version.value}"):
+      with TaskGroup(group_id="create_node_pool") as create_node_pool:
+        create_first_node_pool = node_pool.create.override(
+            task_id="node_pool_1",
+            retries=2,
+        )(
+            node_pool=cluster_info,
+            reservation="cloudtpu-20250131131310-2118578099",
+        )
 
-  wait_for_job_start = jobset.wait_for_jobset_started.override(
-      task_id="wait_for_job_start"
-  )(cluster_info, pod_name_list=active_pods, job_apply_time=apply_time)
+        create_second_node_pool = node_pool.create.override(
+            task_id="node_pool_2",
+            retries=2,
+        )(
+            node_pool=cluster_info_2,
+            reservation="cloudtpu-20250131131310-2118578099",
+        )
 
-  tpu_info_outputs = (
-      get_tpu_info_from_pod.override(task_id="get_tpu_info")
-      .partial(kubeconfig=kubeconfig_path)
-      .expand(pod_name=active_pods)
-  )
+      apply_time = jobset.run_workload(
+          node_pool=cluster_info,
+          kubeconfig=kubeconfig_path,
+          yaml_config=jobset_config.generate_yaml(
+              workload_script=workload_script
+          ),
+          namespace=jobset_config.namespace,
+      )
 
-  tpu_info_output = (
-      tpu_info.parse_tpu_info_output.override(task_id="get_each_metric_table")
-      .partial()
-      .expand(output=tpu_info_outputs)
-  )
+      active_pods = jobset.get_active_pods.override(task_id="get_active_pod")(
+          node_pool=cluster_info,
+          kubeconfig=kubeconfig_path,
+          namespace=jobset_config.namespace,
+      )
 
-  with TaskGroup(group_id="verification_group") as verification_group:
-    verify_table_amount_task = (
-        verify_table_amount.override(task_id="verify_table_amount_task")
-        .partial()
-        .expand(tpu_info_output=tpu_info_output)
-    )
+      wait_for_job_start = jobset.wait_for_jobset_started.override(
+          task_id="wait_for_job_start"
+      )(cluster_info, pod_name_list=active_pods, job_apply_time=apply_time)
 
-    validate_tpu_chips_metric = (
-        validate_chips_table.override(task_id="validate_tpu_chips_metric")
-        .partial(node_pool=cluster_info)
-        .expand(tpu_info_output=tpu_info_output)
-    )
+      tpu_info_outputs = (
+          get_tpu_info_from_pod.override(task_id="get_tpu_info")
+          .partial(kubeconfig=kubeconfig_path)
+          .expand(pod_name=active_pods)
+      )
 
-    validate_runtime_metric = (
-        validate_runtime_table.override(task_id="validate_runtime_metric")
-        .partial()
-        .expand(tpu_info_output=tpu_info_output)
-    )
+      tpu_info_output = (
+          tpu_info.parse_tpu_info_output.override(
+              task_id="get_each_metric_table"
+          )
+          .partial()
+          .expand(output=tpu_info_outputs)
+      )
 
-    validate_tensorcore_metric = (
-        validate_tensorcore_table.override(task_id="validate_tensorcore_metric")
-        .partial()
-        .expand(tpu_info_output=tpu_info_output)
-    )
+      with TaskGroup(group_id="verification_group") as verification_group:
+        verify_table_amount_task = (
+            verify_table_amount.override(task_id="verify_table_amount_task")
+            .partial()
+            .expand(tpu_info_output=tpu_info_output)
+        )
 
-    validate_latency_metric = (
-        validate_latency_table.override(task_id="validate_latency_metric")
-        .partial()
-        .expand(tpu_info_output=tpu_info_output)
-    )
+        validate_tpu_chips_metric = (
+            validate_chips_table.override(task_id="validate_tpu_chips_metric")
+            .partial(node_pool=cluster_info, tpu_config=config)
+            .expand(tpu_info_output=tpu_info_output)
+        )
 
-  clean_up_workload = jobset.end_workload.override(
-      task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
-  )(
-      node_pool=cluster_info,
-      kubeconfig=kubeconfig_path,
-      jobset_name=jobset_config.jobset_name,
-      namespace=jobset_config.namespace,
-  ).as_teardown(
-      setups=apply_time
-  )
+        validate_runtime_metric = (
+            validate_runtime_table.override(task_id="validate_runtime_metric")
+            .partial()
+            .expand(tpu_info_output=tpu_info_output)
+        )
 
-  with TaskGroup(group_id="cleanup_node_pool") as cleanup_node_pool:
-    cleanup_first_node_pool = node_pool.delete.override(
-        task_id="cleanup_node_pool_1",
-        trigger_rule=TriggerRule.ALL_DONE,
-        retries=2,
-    )(node_pool=cluster_info).as_teardown(
-        setups=create_node_pool,
-    )
+        validate_tensorcore_metric = (
+            validate_tensorcore_table.override(
+                task_id="validate_tensorcore_metric"
+            )
+            .partial()
+            .expand(tpu_info_output=tpu_info_output)
+        )
 
-    cleanup_second_node_pool = node_pool.delete.override(
-        task_id="cleanup_node_pool_2",
-        trigger_rule=TriggerRule.ALL_DONE,
-        retries=2,
-    )(node_pool=cluster_info_2).as_teardown(
-        setups=create_node_pool,
-    )
+        validate_latency_metric = (
+            validate_latency_table.override(task_id="validate_latency_metric")
+            .partial()
+            .expand(tpu_info_output=tpu_info_output)
+        )
 
-  (
-      verify_table_amount_task
-      >> [
-          validate_tpu_chips_metric,
-          validate_runtime_metric,
-          validate_tensorcore_metric,
-          validate_latency_metric,
-      ]
-  )
+      clean_up_workload = jobset.end_workload.override(
+          task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
+      )(
+          node_pool=cluster_info,
+          kubeconfig=kubeconfig_path,
+          jobset_name=jobset_config.jobset_name,
+          namespace=jobset_config.namespace,
+      ).as_teardown(
+          setups=apply_time
+      )
 
-  [create_first_node_pool, create_second_node_pool]
-  (cleanup_first_node_pool >> cleanup_second_node_pool)
+      with TaskGroup(group_id="cleanup_node_pool") as cleanup_node_pool:
+        cleanup_first_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool_1",
+            trigger_rule=TriggerRule.ALL_DONE,
+            retries=2,
+        )(node_pool=cluster_info).as_teardown(
+            setups=create_node_pool,
+        )
 
-  (
-      create_node_pool
-      >> apply_time
-      >> active_pods
-      >> wait_for_job_start
-      >> tpu_info_outputs
-      >> tpu_info_output
-      >> verification_group
-      >> clean_up_workload
-      >> cleanup_node_pool
-  )
+        cleanup_second_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool_2",
+            trigger_rule=TriggerRule.ALL_DONE,
+            retries=2,
+        )(node_pool=cluster_info_2).as_teardown(
+            setups=create_node_pool,
+        )
+
+      (
+          verify_table_amount_task
+          >> [
+              validate_tpu_chips_metric,
+              validate_runtime_metric,
+              validate_tensorcore_metric,
+              validate_latency_metric,
+          ]
+      )
+
+      [create_first_node_pool, create_second_node_pool]
+      (cleanup_first_node_pool >> cleanup_second_node_pool)
+
+      (
+          create_node_pool
+          >> apply_time
+          >> active_pods
+          >> wait_for_job_start
+          >> tpu_info_outputs
+          >> tpu_info_output
+          >> verification_group
+          >> clean_up_workload
+          >> cleanup_node_pool
+      )
