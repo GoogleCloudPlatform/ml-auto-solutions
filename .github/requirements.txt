@@ -1,6 +1,7 @@
 sqlalchemy-spanner==1.11.0
 apache-airflow==2.10.2
 apache-airflow-providers-sendgrid
+apache-airflow-providers-cncf-kubernetes
 fabric
 google-cloud-bigquery>=3.29.0
 google-cloud-compute>=1.26.0
