@@ -226,17 +226,12 @@ def fetch_interruption_log_records(
     RuntimeError: Raised when log entries exceed a hardcoded limit, in
       which case a manual inspection may be more appropriate.
   """
-  max_results = 3000  # Avoid fetching too many logs.
   log_entries = gcp_util.query_log_entries(
       project_id=configs.project_id,
       filter_str=configs.interruption_reason.log_filter(),
       start_time=time_util.TimeUtil.from_unix_seconds(time_range.start),
       end_time=time_util.TimeUtil.from_unix_seconds(time_range.end),
-      max_results=max_results,
   )
-
-  if len(log_entries) >= max_results:
-    raise RuntimeError(f'Log entries limit reached ({max_results} entries).')
 
   # key: resource_name, value: EventRecord
   event_records: dict[str, EventRecord] = {}
@@ -426,16 +421,23 @@ def validate_interruption_count(
 
   log_map = {log.resource_name: log.record_timestamps for log in log_records}
 
+  mismatch_nodes = []
+
   for metric in metric_records:
     resource_name = metric.resource_name
     log_timestamps = log_map.get(resource_name, [])
 
     if len(log_timestamps) != len(metric.record_timestamps):
-      raise RuntimeError(
-          'Event count mismatch. \n'
-          f'Metric records count for {resource_name}: {len(metric.record_timestamps)} \n'
-          f'Log records count for {resource_name}: {len(log_timestamps)}'
+      mismatch_nodes.append(
+          f'mismatch resource name: {resource_name}, metric_count: {len(metric.record_timestamps)}, log_count: {len(log_timestamps)}'
       )
+
+  if mismatch_nodes:
+    error_detail = '\n'.join(mismatch_nodes)
+    raise RuntimeError(
+        'Event count mismatch detected for the following nodes:\n'
+        f'{error_detail}'
+    )
 
 
 def get_staggered_schedule(base_schedule: str, minutes_offset: int) -> str:
