@@ -251,6 +251,7 @@ def validate_log_with_gcs(
 @task
 def validate_gcs_checkpoint_files(
     bucket_path: str,
+    enable_multi_tier_checkpointing: bool = False,
     steps_to_validate: Optional[list] = None,
 ) -> None:
   """
@@ -272,37 +273,65 @@ def validate_gcs_checkpoint_files(
   logging.info("Validate GCS checkpoint files on path: %s", bucket_path)
   try:
     checkpoint_files = gcs.obtain_file_list(bucket_path)
-    logging.info(f"Found checkpoint files in GCS: {checkpoint_files}")
-
-    # Extract step directories from checkpoint files
+    logging.info("Found checkpoint files in GCS: %s", checkpoint_files)
+    # Extract step from checkpoint files or directories
     found_steps = set()
     for file_path in checkpoint_files:
-      # Extract directory names that are numeric (step numbers)
-      path_parts = file_path.split("/")
-      for part in path_parts:
-        if part.isdigit():
-          found_steps.add(int(part))
+      step_num = extract_step_number_from_file_path(
+          file_path, enable_multi_tier_checkpointing
+      )
+      if step_num is not None:
+        found_steps.add(step_num)
 
     expected_steps = set(steps_to_validate)
     missing_steps = expected_steps - found_steps
 
-    logging.info(f"Expected steps: {sorted(expected_steps)}")
-    logging.info(f"Found steps: {sorted(found_steps)}")
+    logging.info("Expected steps: %s", sorted(expected_steps))
+    logging.info("Found steps: %s", sorted(found_steps))
 
     if missing_steps:
       raise AirflowFailException(
-          f"GCS checkpoint validation failed: Missing checkpoint files for steps {sorted(missing_steps)}. "
-          f"Expected steps: {sorted(steps_to_validate)}, Found steps: {sorted(found_steps)}"
+          "GCS checkpoint validation failed: Missing checkpoint files for steps"
+          f" {sorted(missing_steps)}. Expected steps:"
+          f" {sorted(expected_steps)}, Found steps: {sorted(found_steps)}"
       )
 
-    logging.info(f"GCS checkpoint validation successful!")
-    logging.info(
-        f"All {len(steps_to_validate)} expected checkpoint files found in GCS"
-    )
-    logging.info(f"Validated steps: {sorted(found_steps)}")
+    logging.info("GCS checkpoint validation successful!")
 
   except Exception as e:
-    raise AirflowFailException(f"Error validating GCS checkpoints: {str(e)}")
+    raise AirflowFailException(f"Error validating GCS checkpoints: {e}") from e
+
+
+def extract_step_number_from_file_path(
+    path: str,
+    enable_multi_tier_checkpointing: bool,
+) -> Optional[int]:
+  """
+  Extracts the step number from a file path.
+  Args:
+    path: The full path to the file or the folder.
+    enable_multi_tier_checkpointing: Whether to enable multi-tier checkpointing.
+  Returns:
+    Optional[int]: The step number extracted from the file path, or None if
+    not found.
+  """
+  logging.info("checking for mtc checkpoint file path: %s", path)
+  if enable_multi_tier_checkpointing:
+    # max-mtc-resume-gcs-mtc-2x-tpu-v5p-16-2025-10-22-08-36/2025-10-22_08-42/max-mtc-resume-gcs-mtc-2x-tpu-v5p-16-2025-10-22-08-36-s199-n2-w0.meta
+    step_pattern = r"-s(\d+)-n\d+-w\d+\.meta$"
+    complied_step_pattern = re.compile(step_pattern)
+    matched = complied_step_pattern.search(path)
+    logging.info("matched: %s", matched)
+    if matched:
+      logging.info("found step: %s", matched.group(1))
+      return int(matched.group(1))
+  else:
+    path_parts = path.split("/")
+    for part in path_parts:
+      if part.isdigit():
+        logging.info("found step: %s", part)
+        return int(part)
+  return None
 
 
 def list_log_entries(
@@ -491,3 +520,172 @@ def validate_restored_correct_checkpoint(
   raise AirflowFailException(
       "Failed to validate that restoration happened at the expected step."
   )
+
+
+@task
+def validate_replicator_gcs_restore_log(
+    project_id: str,
+    location: str,
+    cluster_name: str,
+    namespace: str = "default",
+    pod_pattern: str = "*",
+    container_name: Optional[str] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    backed_up_steps: Optional[set[int]] = None,
+) -> None:
+  """
+  Validates that the replicator successfully restored checkpoints from GCS backup.
+  This function queries logs from a specified GKE cluster and namespace
+  to look for log entries showing replicator restoring from GCS backup.
+  It validates that restored steps match previously backed up steps.
+  Expected log format:
+  "Restoring from backup '2025-08-22_03-01', checkpoint 120"
+  Args:
+    project_id: The Google Cloud project ID
+    location: GKE cluster location
+    cluster_name: GKE cluster name
+    namespace: Kubernetes namespace (defaults to "default")
+    pod_pattern: Pattern to match pod names (defaults to "*")
+    start_time: Optional start time for log retrieval (defaults to 12 hours ago)
+    end_time: Optional end time for log retrieval (defaults to now)
+    backed_up_steps: Optional list of backed up steps
+  Returns:
+    None: Raises AirflowFailException if replicator GCS restore validation fails
+  """
+  entries = list_log_entries(
+      project_id=project_id,
+      location=location,
+      cluster_name=cluster_name,
+      namespace=namespace,
+      pod_pattern=pod_pattern,
+      container_name=container_name,
+      text_filter="Restoring from backup",
+      start_time=start_time,
+      end_time=end_time,
+  )
+
+  restored_steps = set()
+
+  for entry in entries:
+    if not entry.payload:
+      continue
+    payload_str = str(entry.payload)
+
+    for line in payload_str.split("\n"):
+      # Look for restore initiation logs
+      if "Restoring from backup" in line and "checkpoint" in line:
+        # Extract step from restore log
+        # Example: "Restoring from backup '2025-08-22_03-01', checkpoint 120"
+        checkpoint_match = re.search(
+            r"Restoring from backup '[\w-]+', checkpoint (\d+)", line
+        )
+
+        if checkpoint_match:
+          step = checkpoint_match.group(1)
+          restored_steps.add(int(step))
+
+          logging.info("├─ Found restore initiation at step %s", step)
+          logging.info("├─ Timestamp: %s", entry.timestamp)
+          logging.info("└─ Full log:")
+          logging.info("   %s", line)
+
+  if not restored_steps:
+    raise AirflowFailException(
+        "No replicator restore operations found. "
+        "Replicator may not be working correctly."
+    )
+
+  logging.info("Backed up steps: %s", sorted(backed_up_steps))
+  logging.info("Restored steps: %s", sorted(restored_steps))
+
+  # If backup_info is provided,
+  # validate that restored steps match backed up steps
+  if backed_up_steps:
+    # Validate that restored steps were previously backed up
+    # restored should be subset of backed up
+    invalid_restores = restored_steps - backed_up_steps
+    if invalid_restores:
+      raise AirflowFailException(
+          "Restore validation failed: "
+          f"Steps {sorted(invalid_restores)} were restored but were not found "
+          f"in backed up steps {sorted(backed_up_steps)}."
+      )
+
+  logging.info("Replicator restore validation successful!")
+
+
+@task
+def validate_replicator_gcs_backup_log(
+    project_id: str,
+    location: str,
+    cluster_name: str,
+    namespace: str = "default",
+    pod_pattern: str = "*",
+    container_name: Optional[str] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+) -> set[int]:
+  """
+  Validates that the replicator successfully backed up checkpoints to GCS and returns backup info.
+  This function queries logs from a specified GKE cluster and namespace
+  to look for log entries showing replicator backing up checkpoints to GCS.
+  Replicator backups happen at time intervals, not specific steps.
+  Expected log format:
+  "Created backup '2025-08-22_03-01' for checkpoint 100"
+  Args:
+    project_id: The Google Cloud project ID
+    location: GKE cluster location
+    cluster_name: GKE cluster name
+    namespace: Kubernetes namespace (defaults to "default")
+    pod_pattern: Pattern to match pod names (defaults to "*")
+    start_time: Optional start time for log retrieval (defaults to 12 hours ago)
+    end_time: Optional end time for log retrieval (defaults to now)
+  Returns:
+    dict: Dictionary mapping step numbers to backup folder names {step: folder}
+  Raises:
+    AirflowFailException: If replicator backup validation fails
+  """
+  step_regex = "backup for step (\d+) to [^\s]+"
+  entries = list_log_entries(
+      project_id=project_id,
+      location=location,
+      cluster_name=cluster_name,
+      namespace=namespace,
+      pod_pattern=pod_pattern,
+      container_name=container_name,
+      text_filter=f'textPayload=~"{step_regex}"',
+      start_time=start_time,
+      end_time=end_time,
+  )
+
+  backed_up_steps = set()
+
+  for entry in entries:
+    if not entry.payload:
+      continue
+    payload_str = str(entry.payload)
+
+    for line in payload_str.split("\n"):
+      # Extract step from backup log
+      # Example: "backup for step 399 to backup/gcs/2025-10-30_07-15"
+      backup_match = re.search(rf"{step_regex}", line)
+
+      if backup_match:
+        step = int(backup_match.group(1))
+
+        backed_up_steps.add(step)
+
+        logging.info("├─ Found backup step %s", step)
+        logging.info("└─ Full log: %s", line)
+
+  if not backed_up_steps:
+    raise AirflowFailException(
+        "No replicator backup operations found. "
+        "Replicator backup may not be working correctly."
+    )
+
+  logging.info("Backed up checkpoint steps: %s", sorted(backed_up_steps))
+  logging.info("Replicator backup validation successful!")
+
+  return backed_up_steps
