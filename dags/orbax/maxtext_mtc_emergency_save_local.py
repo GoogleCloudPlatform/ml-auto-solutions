@@ -10,6 +10,7 @@ multi-pod cluster.
 import datetime
 
 from airflow import models
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
 
 from dags import composer_env
@@ -110,7 +111,7 @@ with models.DAG(
             # We conditionally set the trigger_rule on the first task.
             # If first task group failed the next one can execute.
             wait_delete_cpc = checkpoint_util.wait_for_cpc_deletion.override(
-                trigger_rule="all_done"
+                trigger_rule=TriggerRule.ALL_DONE
             )(test_config.cpc_config)
             apply_cpc = checkpoint_util.apply_cpc(test_config.cpc_config)
 
@@ -167,7 +168,8 @@ with models.DAG(
             # Final CPC cleanup to ensure symmetric start/end
             wait_delete_cpc_final = (
                 checkpoint_util.wait_for_cpc_deletion.override(
-                    trigger_rule="all_done", task_id="wait_delete_cpc_final"
+                    trigger_rule=TriggerRule.ALL_DONE,
+                    task_id="wait_delete_cpc_final",
                 )(test_config.cpc_config).as_teardown(setups=apply_cpc)
             )
 
