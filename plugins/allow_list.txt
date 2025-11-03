@@ -4,8 +4,11 @@ id:maxtext_configs_aot
 id:maxtext_convergence
 id:maxtext_end_to_end
 id:maxtext_profiling
+id:maxtext_muti_tier_checkpointing
 id:gke_node_pool_status
 id:multi-host-availability-rollback
+id:jax_functional_tests
+id:mxla_collective_nightly
 pattern:validate_interruption_*
 pattern:maxtext_mtc_*
 pattern:maxtext_emc_*
