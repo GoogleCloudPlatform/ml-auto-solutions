@@ -19,10 +19,9 @@ from dags.multipod.configs import gke_config
 from dags.orbax.util import validation_util
 from dags.orbax.util import test_config_util
 from dags.orbax.util import checkpoint_util
-from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 from xlml.utils.gke import zone_to_region
 
-SCHEDULE = "0 17 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "0 19 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_emc_resume_from_gcs"
 
 with models.DAG(
@@ -153,7 +152,6 @@ with models.DAG(
         ).run(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
-            xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
         )
 
@@ -183,7 +181,6 @@ with models.DAG(
         ).run(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
-            xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
         )
 

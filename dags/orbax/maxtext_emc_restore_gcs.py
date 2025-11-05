@@ -16,7 +16,6 @@ from dags.orbax.util import checkpoint_util
 from dags.orbax.util import test_config_util
 from dags.orbax.util import validation_util
 from xlml.utils.gke import zone_to_region
-from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 
 DAG_TEST_NAME = "maxtext_emc_orbax_res_gcs"
 SCHEDULE = "0 10 * * *" if composer_env.is_prod_env() else None
@@ -125,7 +124,6 @@ with models.DAG(
         ).run_with_node_interruption(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
-            xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
             last_node=True,
             expect_reach_to_step=step_to_interrupt,
