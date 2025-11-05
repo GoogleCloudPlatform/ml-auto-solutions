@@ -23,6 +23,6 @@ dags/inference @vipannalla @mailvijayasingh @sixiang-google @joezijunzhou
 
 dags/map_reproducibility @crankshaw-google @polydier1 @gunjanj007 @stingram @utkarshsharma1 @cneel8986 @Doris26 @wang2yn84 @zshu188 @xibinliu @andrewyct @severus-ho
 
-dags/orbax @abhinavclemson @xuefgu @xibinliu @andrewyct @severus-ho 
+dags/orbax @abhinavclemson @xuefgu @xibinliu @andrewyct @severus-ho @RexBearIU @alfredyu-cienet
 
 dags/tpu_observability @xibinliu @andrewyct @severus-ho
