@@ -13,7 +13,6 @@ from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
 from dags.orbax.util import checkpoint_util, test_config_util, validation_util
 from xlml.utils.gke import zone_to_region
-from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 
 DAG_TEST_NAME = "maxtext_emc_orbax_res_local"
 SCHEDULE = "0 11 * * *" if composer_env.is_prod_env() else None
@@ -123,7 +122,6 @@ with models.DAG(
         ).run_with_node_interruption(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
-            xpk_branch=BRANCH_ABHINAV_MTC,
             skip_post_process=True,
             expect_reach_to_step=step_to_interrupt,
             max_restart=15,

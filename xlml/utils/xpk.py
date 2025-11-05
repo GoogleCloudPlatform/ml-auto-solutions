@@ -34,10 +34,6 @@ from dags.common.vm_resource import GpuVersion
 # in xpk main.py to upgrade the version from 0.4.1 to 0.12.0.
 MAIN_BRANCH = "v0.12.0"
 
-# TODO(b/437817546): Switch back to the main branch after the issue is resolved.
-# This branch includes changes fixing the `validate_dependencies()` crash issue.
-BRANCH_ABHINAV_MTC = "abhinav-mtc"
-
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
     "https://pantheon.corp.google.com/logs/query;"
@@ -154,12 +150,7 @@ def run_workload(
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
 
     if mtc_enabled:
-      # b/437817546 - The flag is "mtc-enabled" (hyphen) for normal branches;
-      # on BRANCH_ABHINAV_MTC, it's "mtc_enabled" (underscore) instead.
-      flag = (
-          "mtc-enabled" if xpk_branch != BRANCH_ABHINAV_MTC else "mtc_enabled"
-      )
-      workload_create_cmd += f" --{flag}"
+      workload_create_cmd += " --mtc-enabled"
 
     # For Orbax DAG add flag '--max-restars=50' it is need it to test
     # resiliency during Maxtext training with Emergency Checkpointer and

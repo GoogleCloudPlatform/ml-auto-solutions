@@ -19,7 +19,6 @@ from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
 from dags.orbax.util import validation_util
 from dags.orbax.util import checkpoint_util
-from xlml.utils.xpk import BRANCH_ABHINAV_MTC
 from xlml.utils.gke import zone_to_region
 from dags.orbax.util import test_config_util
 
@@ -143,7 +142,6 @@ with models.DAG(
             ).run(
                 ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
                 mtc_enabled=True,
-                xpk_branch=BRANCH_ABHINAV_MTC,
                 skip_post_process=True,
                 max_restart=15,
             )
