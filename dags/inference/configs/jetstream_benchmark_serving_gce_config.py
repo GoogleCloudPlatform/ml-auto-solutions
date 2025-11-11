@@ -55,17 +55,29 @@ def get_config(
       # Download jetstream and maxtext
       f"if [ ! -d maxtext ]; then git clone {maxtext_branch} https://github.com/google/maxtext.git; fi",
       f"if [ ! -d JetStream ]; then git clone {jetstream_branch} https://github.com/google/JetStream.git; fi",
-      # Create a python virtual environment
       "sudo apt-get -y update",
-      "sudo apt-get -y install python3.10-venv",
       "sudo apt-get -y install jq",
-      "python -m venv .env",
-      "source .env/bin/activate",
-      # Setup MaxText & JetStream
-      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
       "cd JetStream && pip install -e . && cd benchmarks && pip install -r requirements.in",
       "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+      "cd ..",
   )
+
+  # Setup uv and and instll maxtext from PypI (Recommended by the maxtext repo: https://maxtext.readthedocs.io/en/latest/guides/install_maxtext.html)
+  setup_maxtext_cmds = (
+      # Install uv using the standalone installer and add to PATH permanently in the current session
+      "curl -LsSf https://astral.sh/uv/install.sh | sh",
+      'export PATH="$HOME/.local/bin:$PATH"',
+      # Make the PATH change permanent for subsequent sessions (optional, but good practice)
+      "echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.bashrc",
+      "source ~/.bashrc",
+      "uv venv --python 3.12 venv-312 --seed",
+      "source venv-312/bin/activate",
+      "pip install uv",
+      "uv pip install maxtext --resolution=lowest",
+      "install_maxtext_github_deps",
+  )
+
+  set_up_cmds += setup_maxtext_cmds
 
   additional_metadata_dict = {
       "model_name": f"{model_configs['model_name']}",
