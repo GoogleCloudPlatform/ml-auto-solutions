@@ -92,7 +92,7 @@ PATHWAYS_SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="pathways_maxtext_v5e_configs_perf",
-    schedule=None,
+    schedule=SCHEDULED_TIME,
     tags=["multipod_team", "maxtext", "stable", "nightly", "mlscale_perfx"],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
