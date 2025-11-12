@@ -90,6 +90,7 @@ with models.DAG(
 ) as dag:
   first_training_step = 200
   second_training_step = 400
+  local_checkpoint_period = 100
   out_folder = "maxtext_mtc_orbax_resume_gcs"
 
   checkpointing = test_config_util.Checkpointing(
@@ -107,7 +108,7 @@ with models.DAG(
           short_id="max-mtc-resume-gcs",
           multi_tier_checkpointing_backup_interval_minutes=1,
           steps=first_training_step,
-          local_checkpoint_period=100,
+          local_checkpoint_period=local_checkpoint_period,
           base_dir=test_config_util.DEFAULT_BUCKET,
       ),
   ]
@@ -200,7 +201,8 @@ with models.DAG(
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
                 pod_pattern="max.*-job-0-0",
-                interrupt_at_step=first_training_step - 1,
+                interrupt_at_step=local_checkpoint_period,
+                check_last_two_local_saves=False,
                 start_time=start_time,
                 end_time=end_time,
             )
