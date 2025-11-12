@@ -514,6 +514,14 @@ def validate_restored_correct_checkpoint(
             "in the last two saved steps."
         )
 
+      if (
+          not check_last_two_local_saves
+          and restored_step not in local_saved_steps_before_restore
+      ):
+        raise AirflowFailException(
+            f"Restored step {restored_step} should be in the saved steps."
+        )
+
       logging.info("Restoration happened at the expected step.")
       return
 
