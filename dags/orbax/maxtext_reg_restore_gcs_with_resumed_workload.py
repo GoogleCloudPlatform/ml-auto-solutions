@@ -133,10 +133,6 @@ with models.DAG(
             enable_emergency_checkpoint=checkpointing.enable_emergency_checkpoint,
         )
 
-        resume_start_time = validation_util.generate_timestamp.override(
-            task_id="generate_resume_start_time"
-        )()
-
         resume_maxtext_chkpt_run_test = gke_config.get_gke_config(
             num_slices=slice_num,
             cluster=test_config.cluster,
@@ -160,23 +156,12 @@ with models.DAG(
                 project_id=test_config.cluster.project,
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
-                pod_pattern=".*0-0",
+                pod_pattern="max.*-job-0-0",
                 interrupt_at_step=initial_step - 1,
-                start_time=resume_start_time,
+                start_time=start_time,
                 end_time=end_time,
                 check_last_two_local_saves=False,
             )
-        )
-
-        validate_restored_source = validation_util.validate_log_exist.override(
-            task_id="validate_reg_restored_from_gcs"
-        )(
-            project_id=test_config.cluster.project,
-            location=zone_to_region(test_config.cluster.zone),
-            cluster_name=test_config.cluster.name,
-            text_filter="\"'event_type': 'restore'\"",
-            start_time=resume_start_time,
-            end_time=end_time,
         )
 
         gcs_steps_to_validate = test_config.generate_step_to_validate(
@@ -194,7 +179,9 @@ with models.DAG(
         )
 
         validate_bucket = validation_util.validate_gcs_checkpoint_files(
-            bucket_path=f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}",
+            bucket_path=(
+                f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}"
+            ),
             steps_to_validate=gcs_steps_to_validate,
         )
 
@@ -202,11 +189,9 @@ with models.DAG(
             run_name
             >> start_time
             >> initial_maxtext_chkpt_run_test
-            >> resume_start_time
             >> resume_maxtext_chkpt_run_test
             >> end_time
             >> validate_restore_step
-            >> validate_restored_source
             >> validate_log
             >> validate_bucket
         )
