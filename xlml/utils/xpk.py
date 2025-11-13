@@ -30,9 +30,9 @@ from xlml.apis import metric_config
 from xlml.utils import gke, composer
 from dags.common.vm_resource import GpuVersion
 
-# b/411426745 - Using sed workaround to comment out validate_dependencies()
-# in xpk main.py to upgrade the version from 0.4.1 to 0.12.0.
-MAIN_BRANCH = "v0.12.0"
+# NOTE: This version needs to be pinned to ensure compatibility when using
+# xpk.py for workload creation.
+MAIN_BRANCH = "v0.15.0"
 
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
@@ -59,14 +59,10 @@ def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
 
   pip_install = "pip install ruamel.yaml docker"
 
-  # b/411426745 - Workaround: Comment out validate_dependencies() call to avoid dependency validation issues
-  comment_out_validation = f"sed -i '/validate_dependencies()/s/^/## /' {tmpdir}/xpk/src/xpk/main.py || true"
-
   cmds = [
       bash_setup,
       clone_branch,
       pip_install,
-      comment_out_validation,
   ]
   return cmds
 
@@ -144,6 +140,7 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
+        f" --skip-validation"
     )
 
     if ramdisk_directory and not use_pathways:
