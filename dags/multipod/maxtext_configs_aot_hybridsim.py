@@ -33,7 +33,7 @@ SCHEDULED_TIME = "0 13 * * *" if composer_env.is_prod_env() else None
 
 
 def hybridsim_compile_and_run(test_group_id):
-  with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
+  with TaskGroup(group_id=test_group_id, prefix_group_id=True) as group:
     gcs_subfolder = f"{test_owner.Team.MULTIPOD.value}/maxtext"
     shared_gcs_location = name_format.generate_gcs_folder_location.override(
         task_id=f"{test_group_id}_generate_gcs_folder_location"

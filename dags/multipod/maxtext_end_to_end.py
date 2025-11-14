@@ -146,7 +146,7 @@ with models.DAG(
       model,
       test_scripts_details,
   ):
-    with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
+    with TaskGroup(group_id=test_group_id, prefix_group_id=True) as group:
       test_name = f"{test_name_prefix}-{type}-{model}"
       shared_gcs_location = name_format.generate_gcs_folder_location.override(
           task_id=f"{test_group_id}_generate_gcs_folder_location"
