@@ -26,4 +26,4 @@ BASE_OUTPUT_DIR = "gs://ml-auto-solutions/output"
 
 # Multi-tier checkpointing need special permission for GCS Bucket
 # For further question reach out to  Multi-tier Checkpointing Owners.
-MTC_AUTOMATION_BUCKET = "gs://mtc-automation-bucket"
+ORBAX_AUTOMATION_BUCKET_EUROPE_WEST4 = "gs://orbax-automation-europe-west4"
