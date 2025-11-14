@@ -38,19 +38,22 @@ PARAMETERS = {
         description="User name is used to confirm the first three characters of the pod in the cluster.",
     ),
     "cluster_name": Param(
-        "pw-scale-test-v5e-32",
+        "juliekuo-v5e-32",
         type="string",
         title="Cluster Name",
         description="GCP cluster name for training model.",
     ),
     "project": Param(
-        "cloud-tpu-multipod-dev",
+        "cienet-cmcs",
         type="string",
         title="Project",
         description="GCP project ID for training model.",
     ),
     "zone": Param(
-        "us-south1-a", type="string", title="Zone", description="Cluster zone."
+        "us-central1-a",
+        type="string",
+        title="Zone",
+        description="Cluster zone.",
     ),
     "device_version": Param(
         "v5litepod",
@@ -66,7 +69,7 @@ PARAMETERS = {
         description='Device core count for the cluster. ex: v5litepod-"32"',
     ),
     "service_account": Param(
-        "one-click@cloud-tpu-multipod-dev.iam.gserviceaccount.com",
+        "one-click@cienet-cmcs.iam.gserviceaccount.com",
         type="string",
         title="Service account",
         description="Service account of the project.",
@@ -78,7 +81,7 @@ PARAMETERS = {
         description="Number of benchmark steps.",
     ),
     "num_slices_list": Param(
-        2,
+        1,
         type="integer",
         title="Number Slices",
         description="Number of slices",
