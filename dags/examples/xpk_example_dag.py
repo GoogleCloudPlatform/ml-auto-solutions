@@ -29,7 +29,7 @@ from airflow.utils.task_group import TaskGroup
 with models.DAG(
     dag_id="gke_example_dag",
     schedule=None,
-    tags=["example", "gke", "xlml", "benchmark"],
+    tags=["example", "gke", "xlml", "benchmark", "TPU", "v4-8", "v4-128"],
     start_date=datetime.datetime(2023, 11, 29),
     catchup=False,
 ) as dag:

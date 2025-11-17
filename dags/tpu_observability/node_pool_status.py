@@ -18,7 +18,7 @@ with models.DAG(
     start_date=datetime.datetime(2025, 8, 1),
     schedule=constants.Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY,
     catchup=False,
-    tags=["gke", "tpu-observability", "node-pool-status"],
+    tags=["gke", "tpu-observability", "node-pool-status", "TPU", "v6e-16"],
     description=(
         "This DAG tests whether the status of a GKE node pool changes as "
         "expected according to its lifecycle."

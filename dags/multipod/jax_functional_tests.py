@@ -27,7 +27,7 @@ SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="jax_functional_tests",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "jax", "mlscale_devx"],
+    tags=["multipod_team", "jax", "mlscale_devx", "TPU", "v4-8", "v5p-8"],
     start_date=datetime.datetime(2024, 10, 23),
     catchup=False,
 ) as dag:

@@ -26,7 +26,15 @@ SCHEDULED_TIME = None
 with models.DAG(
     dag_id="pytorchxla-torchbench-release-tpu",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "release", "torchbench", "tpu"],
+    tags=[
+        "pytorchxla",
+        "release",
+        "torchbench",
+        "TPU",
+        "v4-8",
+        "v5e-4",
+        "v5p-8",
+    ],
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:

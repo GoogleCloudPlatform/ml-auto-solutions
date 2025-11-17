@@ -51,7 +51,15 @@ def torchvision():
 with models.DAG(
     dag_id="pytorchxla-r2-8-gpu",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "r2-8", "supported", "xlml", "gpu"],
+    tags=[
+        "pytorchxla",
+        "r2-8",
+        "supported",
+        "xlml",
+        "GPU",
+        "nvidia-tesla-v100",
+        "n1-standard-16",
+    ],
     start_date=datetime.datetime(2023, 7, 12),
     catchup=False,
 ):

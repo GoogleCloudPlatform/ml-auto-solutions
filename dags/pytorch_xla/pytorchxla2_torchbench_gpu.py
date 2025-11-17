@@ -27,7 +27,20 @@ SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="pytorchxla2-torchbench-gpu",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "nightly", "torchbench", "gpu"],
+    tags=[
+        "pytorchxla",
+        "nightly",
+        "torchbench",
+        "GPU",
+        "nvidia-tesla-v100",
+        "n1-standard-16",
+        "nvidia-tesla-a100",
+        "a3-highgpu-8g",
+        "nvidia-h100-80gb",
+        "a2-highgpu-1g",
+        "nvidia-l4",
+        "g2-standard-16",
+    ],
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:

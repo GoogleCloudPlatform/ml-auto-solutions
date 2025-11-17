@@ -17,7 +17,7 @@ SCHEDULED_TIME = None
 with models.DAG(
     dag_id="solutionsteam_vllm_benchmark_tpu",
     schedule=SCHEDULED_TIME,
-    tags=["solutions_team", "nightly", "supported", "xlml", "tpu"],
+    tags=["solutions_team", "nightly", "supported", "xlml", "tpu", "v5e-8"],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:

@@ -34,6 +34,8 @@ with models.DAG(
         "mxla_collective",
         "nightly",
         "mlscale_perfx",
+        "TPU",
+        "v4-8",
     ],
     start_date=datetime.datetime(2024, 2, 7),
     catchup=False,

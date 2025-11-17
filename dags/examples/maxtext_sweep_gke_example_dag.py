@@ -29,7 +29,7 @@ from dags.multipod.configs import maxtext_sweep_gke_config
 with models.DAG(
     dag_id="maxtext_sweep_gke_example_dag",
     schedule=None,
-    tags=["multipod_team", "maxtext"],
+    tags=["multipod_team", "maxtext", "TPU", "v4-128"],
     start_date=datetime.datetime(2024, 1, 10),
     catchup=False,
     concurrency=2,

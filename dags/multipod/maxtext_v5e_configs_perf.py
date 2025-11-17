@@ -44,6 +44,8 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_perfx",
+        "TPU",
+        "v5e-256",
     ],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
@@ -93,7 +95,15 @@ PATHWAYS_SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="pathways_maxtext_v5e_configs_perf",
     schedule=None,
-    tags=["multipod_team", "maxtext", "stable", "nightly", "mlscale_perfx"],
+    tags=[
+        "multipod_team",
+        "maxtext",
+        "stable",
+        "nightly",
+        "mlscale_perfx",
+        "TPU",
+        "v5e-256",
+    ],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,
 ) as dag:

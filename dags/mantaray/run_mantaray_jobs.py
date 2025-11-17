@@ -335,7 +335,15 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
   with models.DAG(
       dag_id="pytorch_xla_model_regression_test_on_trillium",
       schedule="0 0 * * *",
-      tags=["mantaray", "pytorchxla", "xlml"],
+      tags=[
+          "mantaray",
+          "pytorchxla",
+          "xlml",
+          "TPU",
+          "v6e-4",
+          "v6e-8",
+          "v6e-32",
+      ],
       start_date=datetime.datetime(2024, 4, 22),
       catchup=False,
   ) as dag:

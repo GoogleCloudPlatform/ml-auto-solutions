@@ -50,7 +50,16 @@ CKPT = {
 with models.DAG(
     dag_id="jetstream_e2e_inference",
     schedule=None,
-    tags=["inference_team", "jetstream", "maxtext", "nightly", "e2e"],
+    tags=[
+        "inference_team",
+        "jetstream",
+        "maxtext",
+        "nightly",
+        "e2e",
+        "TPU",
+        "v5e-8",
+        "v6e-8",
+    ],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:

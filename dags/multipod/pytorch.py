@@ -29,7 +29,7 @@ SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="pytorch_multislice",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "pytorch", "nightly"],
+    tags=["multipod_team", "pytorch", "nightly", "TPU", "v4-8", "v4-16"],
     start_date=datetime.datetime(2024, 3, 1),
     catchup=False,
     concurrency=2,
