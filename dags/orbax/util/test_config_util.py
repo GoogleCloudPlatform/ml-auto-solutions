@@ -16,7 +16,7 @@ from dags.orbax.util import checkpoint_util
 from dags.multipod.configs.common import SetupMode
 
 
-DEFAULT_BUCKET = gcs_bucket.MTC_AUTOMATION_BUCKET
+DEFAULT_BUCKET = gcs_bucket.ORBAX_AUTOMATION_BUCKET_EUROPE_WEST4
 DEFAULT_RAM_DISK = "/local"
 
 # Only one version of the Docker image is supported at the moment.
@@ -132,7 +132,7 @@ class TestConfig:
         project_id=self.cluster.project,
         region=zone_to_region(self.cluster.zone),
         cluster_name=self.cluster.name,
-        gcs_bucket=gcs_bucket.MTC_AUTOMATION_BUCKET.removeprefix("gs://"),
+        gcs_bucket=DEFAULT_BUCKET.removeprefix("gs://"),
         ramdisk_memory_in_mi=self.ram_disk_size,
         machine_type=self.machine_type,
     )
@@ -166,7 +166,6 @@ class TestConfig:
         f"base_output_directory={posixpath.join(self.base_dir, out_folder)} "
         "dataset_type=synthetic "
         f"steps={self.steps} "
-        "per_device_batch_size=1 "
         "max_target_length=256 "
         f"model_name={self.model_name} "
         "per_device_batch_size=2 "
