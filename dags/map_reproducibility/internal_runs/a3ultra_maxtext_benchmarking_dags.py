@@ -53,7 +53,8 @@ DAG_TAGS = [
 for config_path, config_info in DAG_CONFIGS_ULTRA.items():
   # Extract config name for the DAG ID
   config_name = os.path.basename(config_path).replace(".yaml", "")
-  schedule = config_info["schedule"] if not TEST_RUN else None
+  nightly_schedule = config_info["nightly_schedule"] if not TEST_RUN else None
+  release_schedule = config_info["release_schedule"] if not TEST_RUN else None
   timeout = config_info["timeout_minutes"]
   # Set retry parameter based on timeout
   retries = 1 if timeout <= 15 else 0
@@ -69,7 +70,7 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
   with models.DAG(
       dag_id=DAG_ID,
       default_args=dag_default_args,
-      schedule=schedule,
+      schedule=nightly_schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 3),
       catchup=False,
@@ -90,7 +91,7 @@ for config_path, config_info in DAG_CONFIGS_ULTRA.items():
   with models.DAG(
       dag_id=DAG_ID,
       default_args=dag_default_args,
-      schedule=schedule,
+      schedule=release_schedule,
       tags=DAG_TAGS,
       start_date=datetime.datetime(2025, 4, 3),
       catchup=False,

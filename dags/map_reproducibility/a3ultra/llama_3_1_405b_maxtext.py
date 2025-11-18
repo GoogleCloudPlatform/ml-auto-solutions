@@ -42,7 +42,7 @@ DAG_ID = f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}"
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule=SCHEDULED_TIME,
+    schedule="0 9 * * 5",
     tags=[
         "reproducibility",
         "experimental",

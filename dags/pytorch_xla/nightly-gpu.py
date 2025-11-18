@@ -21,7 +21,7 @@ from dags.common.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS,
 
 
 # Run once a day at 2 pm UTC (6 am PST)
-SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 16 * * *" if composer_env.is_prod_env() else None
 
 US_CENTRAL1 = gcp_config.GCPConfig(
     Project.CLOUD_ML_AUTO_SOLUTIONS.value,
