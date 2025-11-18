@@ -32,7 +32,7 @@ with models.DAG(
         "jax_models_and_performance",
         "multipod_team",
         "maxtext",
-        "gpu",
+        "tpu",
         "jax-stable-stack",
         "mlscale_devx",
     ],
