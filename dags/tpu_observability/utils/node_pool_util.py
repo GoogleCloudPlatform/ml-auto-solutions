@@ -12,6 +12,7 @@ from typing import List
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
+from airflow.hooks.subprocess import SubprocessHook
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import types
 
@@ -415,3 +416,39 @@ def wait_for_availability(
       timeout,
   )
   return availability == state
+
+
+@task
+def update_labels(node_pool: Info, node_labels: dict) -> None:
+  """Updates the labels of a GKE node pool using gcloud command.
+
+  Args:
+    node_pool: An instance of the Info class.
+    node_labels: A dictionary of labels to update or remove.
+  """
+  if not node_labels:
+    logging.info("The specified label is empty, nothing to update.")
+    return
+
+  labels = []
+
+  for key, val in node_labels.items():
+    labels.append(f"{key}={val}")
+
+  command = (
+      f"gcloud container node-pools update {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      f"--labels={','.join(labels)} "
+      "--quiet"
+  )
+
+  hook = SubprocessHook()
+  result = hook.run_command(
+      ["bash", "-c", command],
+  )
+
+  assert (
+      result.exit_code == 0
+  ), f"Update label command failed with code {result.exit_code}"
