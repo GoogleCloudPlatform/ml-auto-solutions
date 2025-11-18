@@ -85,7 +85,7 @@ with models.DAG(
               f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details['script_name']}.sh",
           ),
           docker_image=docker_image[image],
-          test_owner=test_owner.RAN_R,
+          test_owner=test_owner.SHUNING_J,
           cluster=test_scripts_details["cluster"],
       ).run_with_quarantine(quarantine_task_group)
       unchained_tests.append(training_tpu)
@@ -145,7 +145,7 @@ with models.DAG(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
           docker_image=docker_image,
-          test_owner=test_owner.RAN_R,
+          test_owner=test_owner.SHUNING_J,
           cluster=test_scripts_details[0]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       training_tpu = gke_config.get_gke_config(
@@ -155,7 +155,7 @@ with models.DAG(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
           ),
           docker_image=docker_image,
-          test_owner=test_owner.RAN_R,
+          test_owner=test_owner.SHUNING_J,
           cluster=test_scripts_details[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu
