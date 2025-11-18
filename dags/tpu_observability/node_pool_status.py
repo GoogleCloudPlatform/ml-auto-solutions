@@ -7,8 +7,8 @@ from airflow import models
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
 
-from dags.common.vm_resource import Project, Region, Zone
 from dags.map_reproducibility.utils import constants
+from dags.common.vm_resource import Project, Region, Zone
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.configs.common import MachineConfigMap
 
@@ -16,7 +16,7 @@ from dags.tpu_observability.configs.common import MachineConfigMap
 with models.DAG(
     dag_id="gke_node_pool_status",
     start_date=datetime.datetime(2025, 8, 1),
-    schedule=constants.Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY,
+    schedule=constants.Schedule.DAILY_PST_6PM,
     catchup=False,
     tags=["gke", "tpu-observability", "node-pool-status", "TPU", "v6e-16"],
     description=(
