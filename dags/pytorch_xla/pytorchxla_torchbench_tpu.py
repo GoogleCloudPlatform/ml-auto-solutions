@@ -27,7 +27,16 @@ SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="pytorchxla-torchbench-tpu",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "nightly", "torchbench", "tpu"],
+    tags=[
+        "pytorchxla",
+        "nightly",
+        "torchbench",
+        "TPU",
+        "v4-8",
+        "v5e-4",
+        "v5p-8",
+        "v6e-8",
+    ],
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:

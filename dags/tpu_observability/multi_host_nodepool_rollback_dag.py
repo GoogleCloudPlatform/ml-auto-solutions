@@ -23,6 +23,8 @@ with models.DAG(
         "multi-host-availability",
         "tpu-observability",
         "rollback",
+        "TPU",
+        "v6e-16",
     ],
     description=(
         "This DAG tests the use of a node-pool rollback to interrupt a "

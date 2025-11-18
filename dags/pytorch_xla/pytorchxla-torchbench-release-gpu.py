@@ -26,7 +26,20 @@ SCHEDULED_TIME = None
 with models.DAG(
     dag_id="pytorchxla-torchbench-release-gpu",
     schedule=SCHEDULED_TIME,
-    tags=["pytorchxla", "release", "torchbench", "gpu"],
+    tags=[
+        "pytorchxla",
+        "release",
+        "torchbench",
+        "GPU",
+        "nvidia-tesla-v100",
+        "n1-standard-16",
+        "nvidia-tesla-a100",
+        "a3-highgpu-8g",
+        "nvidia-h100-80gb",
+        "a2-highgpu-1g",
+        "nvidia-l4",
+        "g2-standard-16",
+    ],
     start_date=datetime.datetime(2024, 1, 1),
     catchup=False,
 ) as dag:

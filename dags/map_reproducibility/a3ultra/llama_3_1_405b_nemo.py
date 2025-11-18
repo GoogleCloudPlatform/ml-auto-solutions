@@ -48,6 +48,8 @@ with models.DAG(
         "xlml",
         "regressiontests",
         "a3ultra",
+        "GPU",
+        "nvidia-h200-80gb",
     ],
     start_date=datetime.datetime(2025, 5, 1),
     catchup=False,

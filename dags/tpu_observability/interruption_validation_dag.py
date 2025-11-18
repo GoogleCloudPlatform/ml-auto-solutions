@@ -494,7 +494,13 @@ def create_interruption_dag(
       start_date=datetime.datetime(2025, 7, 20),
       schedule=dag_schedule,
       catchup=False,
-      tags=[platform.value, 'tpu-observability', 'interruption-count'],
+      tags=[
+          platform.value,
+          'tpu-observability',
+          'interruption-count',
+          'TPU',
+          'v6e-16',
+      ],
       description=(
           'This DAG validates the accuracy of the interruption count metric by '
           'comparing it against logs.'

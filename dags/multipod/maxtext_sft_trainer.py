@@ -29,7 +29,15 @@ HF_TOKEN = models.Variable.get('HF_TOKEN', None)
 with models.DAG(
     dag_id='maxtext_sft_trainer',
     schedule=SCHEDULED_TIME,
-    tags=['multipod_team', 'maxtext', 'stable', 'nightly', 'mlscale_devx'],
+    tags=[
+        'multipod_team',
+        'maxtext',
+        'stable',
+        'nightly',
+        'mlscale_devx',
+        'TPU',
+        'v5p-8',
+    ],
     start_date=datetime.datetime(2025, 3, 1),
     catchup=False,
     concurrency=2,

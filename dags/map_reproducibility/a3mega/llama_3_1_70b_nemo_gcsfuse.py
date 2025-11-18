@@ -44,7 +44,14 @@ default_dag_args = {
 
 with models.DAG(
     dag_id=DAG_ID,
-    tags=["experimental", "regressiontests", "a3mega", "storage-run"],
+    tags=[
+        "experimental",
+        "regressiontests",
+        "a3mega",
+        "storage-run",
+        "GPU",
+        "nvidia-h100-80gb",
+    ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,
     default_args=default_dag_args,

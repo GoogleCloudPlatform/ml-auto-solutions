@@ -57,6 +57,8 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_perfx",
+        "TPU",
+        "v6e-256",
     ],
     start_date=datetime.datetime(2024, 2, 19),
     catchup=False,

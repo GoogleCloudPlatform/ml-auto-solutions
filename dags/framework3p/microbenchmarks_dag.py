@@ -12,7 +12,20 @@ SCHEDULED_TIME = "0 1 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="framework_microbenchmark",
     schedule=SCHEDULED_TIME,
-    tags=["framework_team", "microbenchmark", "xlml"],
+    tags=[
+        "framework_team",
+        "microbenchmark",
+        "xlml",
+        "TPU",
+        "v4-8",
+        "v4-16",
+        "v5p-8",
+        "v5p-256",
+        "v5e-4",
+        "v5e-16",
+        "v5e-256",
+        "v6e-256",
+    ],
     start_date=datetime.datetime(2024, 9, 11),
     catchup=False,
 ) as dag:

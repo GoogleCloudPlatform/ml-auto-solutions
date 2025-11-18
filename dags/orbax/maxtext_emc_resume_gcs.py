@@ -35,6 +35,8 @@ with models.DAG(
         "emergency_checkpointing",
         "nightly",
         "orbax",
+        "TPU",
+        "v5p-128",
     ],
     description="A DAG to test MaxText Emergency Checkpoint Manager GCS restore functionality.",
     doc_md="""

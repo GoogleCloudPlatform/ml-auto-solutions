@@ -35,6 +35,8 @@ with models.DAG(
         "maxtext",
         "stable",
         "mlscale_devx",
+        "TPU",
+        "v6e-256",
     ],
     start_date=datetime.datetime(2024, 3, 1),
     catchup=False,

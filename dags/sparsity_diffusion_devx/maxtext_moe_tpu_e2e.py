@@ -41,6 +41,8 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_devx",
+        "v6e-256",
+        "v5p-8",
     ],
     start_date=datetime.datetime(2024, 11, 14),
     catchup=False,
