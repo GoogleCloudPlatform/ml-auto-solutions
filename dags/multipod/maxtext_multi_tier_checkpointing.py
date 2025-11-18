@@ -23,7 +23,7 @@ from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode  # Run once a day at 10 am UTC (2 am PST)
 
-SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="maxtext_muti_tier_checkpointing",

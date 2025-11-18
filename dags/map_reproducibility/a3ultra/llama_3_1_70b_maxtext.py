@@ -44,7 +44,7 @@ KUEUE_NAME = "a3-ultra"
 
 with models.DAG(
     dag_id=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}",
-    schedule=SCHEDULED_TIME,
+    schedule="0 5 * * 5",
     tags=[
         "reproducibility",
         "experimental",
