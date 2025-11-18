@@ -72,7 +72,15 @@ dag_id = (
     if not USER_PREFIX
     else f"{USER_PREFIX}_jetstream_benchmark_serving"
 )
-tags = ["inference_team", "jetstream", "maxtext", "benchmark"]
+tags = [
+    "inference_team",
+    "jetstream",
+    "maxtext",
+    "benchmark",
+    "TPU",
+    "v5e-8",
+    "v6e-8",
+]
 if USER_PREFIX:
   tags.append(USER_PREFIX)
 

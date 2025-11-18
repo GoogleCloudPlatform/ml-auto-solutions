@@ -25,7 +25,16 @@ with models.DAG(
     start_date=datetime.datetime(2025, 6, 30),
     schedule_interval=SCHEDULE,
     catchup=False,
-    tags=["multipod_team", "maxtext", "nightly", "orbax", "mtc"],
+    tags=[
+        "multipod_team",
+        "maxtext",
+        "emergency_checkpointing",
+        "nightly",
+        "orbax",
+        "mtc",
+        "TPU",
+        "v5p-128",
+    ],
     description="DAG to verify MaxText's multi-tier restore from local checkpoints after a node interruption.",
     doc_md="""
       # MaxText Multi-tier Restore from Local Checkpoint Validation DAG

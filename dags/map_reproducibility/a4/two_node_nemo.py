@@ -43,6 +43,7 @@ with models.DAG(
         "xlml",
         "regressiontests",
         f"{HYPERCOMPUTER}",
+        "GPU",
     ],
     start_date=datetime.datetime(2024, 11, 15),
     catchup=False,

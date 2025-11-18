@@ -276,7 +276,7 @@ with models.DAG(
     default_args={"retries": 0},
     schedule=constants.Schedule.WEEKDAY_PDT_6AM_7AM_EXCEPT_THURSDAY,
     catchup=False,
-    tags=["gke", "tpu-observability", "tpu-info"],
+    tags=["gke", "tpu-observability", "tpu-info", "TPU", "v6e-16"],
     description=(
         "This DAG verifies the format of the tables in the tpu-info output "
         "using tpu-info CLI tool. It includes 4 tables: TPU Chips, TPU "

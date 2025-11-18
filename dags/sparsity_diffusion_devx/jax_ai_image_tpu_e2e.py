@@ -42,6 +42,8 @@ with models.DAG(
         "tpu",
         "jax-stable-stack",
         "mlscale_devx",
+        "v5-8",
+        "v6e-256",
     ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,

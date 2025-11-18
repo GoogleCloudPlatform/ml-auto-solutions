@@ -28,7 +28,7 @@ SCHEDULED_TIME = "*/10 * * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="clean_up",
     schedule=SCHEDULED_TIME,
-    tags=["solutions_team", "clean_up"],
+    tags=["solutions_team", "clean_up", "CPU"],
     start_date=datetime.datetime(2024, 2, 22),
     catchup=False,
 ) as dag:

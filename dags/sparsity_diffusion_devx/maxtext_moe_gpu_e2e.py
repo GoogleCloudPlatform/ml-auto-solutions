@@ -90,6 +90,8 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_devx",
+        "h100-mega-80gb-8",
+        "a3mega",
     ],
     start_date=datetime.datetime(2024, 12, 11),
     catchup=False,

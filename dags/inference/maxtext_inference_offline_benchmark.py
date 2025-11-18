@@ -267,7 +267,7 @@ def maxtext_inference_offline_benchmark_config(
 USER_PREFIX = ""
 gcs_subfolder_prefix = test_owner.Team.INFERENCE.value
 
-tags = ["inference_team", "maxtext", "offline", "benchmark"]
+tags = ["inference_team", "maxtext", "offline", "benchmark", "TPU", "v6e-8"]
 
 if USER_PREFIX:
   dag_id = f"{USER_PREFIX}_maxtext_inference_offline_benchmark"

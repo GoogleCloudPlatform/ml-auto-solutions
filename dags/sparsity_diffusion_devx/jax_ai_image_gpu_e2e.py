@@ -39,6 +39,8 @@ with models.DAG(
         "gpu",
         "jax-stable-stack",
         "mlscale_devx",
+        "h100-mega-80gb-8",
+        "a3mega",
     ],
     start_date=datetime.datetime(2024, 6, 7),
     catchup=False,

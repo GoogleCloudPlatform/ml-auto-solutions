@@ -39,6 +39,8 @@ with models.DAG(
         "multitier_checkpointing",
         "nightly",
         "orbax",
+        "TPU",
+        "v5p-128",
     ],
     description="A DAG to run MaxText multi-tier checkpointing tests.",
     doc_md="""

@@ -17,7 +17,15 @@ SCHEDULED_TIME = None
 with models.DAG(
     dag_id="solutionsteam_vllm_benchmark_gpu",
     schedule=SCHEDULED_TIME,
-    tags=["solutions_team", "nightly", "supported", "xlml", "gpu"],
+    tags=[
+        "solutions_team",
+        "nightly",
+        "supported",
+        "xlml",
+        "GPU",
+        "a2-highgpu-1g",
+        "nvidia-tesla-a100",
+    ],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:

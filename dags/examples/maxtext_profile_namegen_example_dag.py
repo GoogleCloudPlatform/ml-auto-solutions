@@ -81,7 +81,7 @@ test_models_tpu = {
 with models.DAG(
     dag_id="maxtext_profile_namegen_example_dag",
     schedule=SCHEDULED_TIME,
-    tags=["multipod_team", "maxtext"],
+    tags=["multipod_team", "maxtext", "TPU", "v4-128"],
     start_date=datetime.datetime(2025, 5, 20),
     catchup=False,
     concurrency=2,

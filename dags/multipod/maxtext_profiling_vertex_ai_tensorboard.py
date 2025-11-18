@@ -28,7 +28,7 @@ SCHEDULED_TIME = None
 with models.DAG(
     dag_id="maxtext_profiling_vertex_ai_tensorboard",
     schedule=SCHEDULED_TIME,
-    tags=["maxtext"],
+    tags=["maxtext", "TPU", "v4-8", "v4-16"],
     start_date=datetime.datetime(2024, 6, 1),
     catchup=False,
     concurrency=2,

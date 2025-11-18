@@ -17,7 +17,14 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="jetstream_pytorch_inference",
     schedule=SCHEDULED_TIME,
-    tags=["inference_team", "jetstream_pytorch", "nightly"],
+    tags=[
+        "inference_team",
+        "jetstream_pytorch",
+        "nightly",
+        "TPU",
+        "v5e-8",
+        "v6e-8",
+    ],
     start_date=datetime.datetime(2024, 1, 19),
     catchup=False,
 ) as dag:

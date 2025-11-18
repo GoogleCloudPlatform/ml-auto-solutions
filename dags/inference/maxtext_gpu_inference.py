@@ -27,7 +27,15 @@ SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="maxtext_gpu_inference",
     schedule=SCHEDULED_TIME,
-    tags=["inference_team", "maxtext_gpu", "nightly", "benchmark"],
+    tags=[
+        "inference_team",
+        "maxtext_gpu",
+        "nightly",
+        "benchmark",
+        "GPU",
+        "a3-megagpu-8g",
+        "nvidia-h100-80gb",
+    ],
     start_date=datetime.datetime(2025, 3, 26),
     catchup=False,
 ) as dag:

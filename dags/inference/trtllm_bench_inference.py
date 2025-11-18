@@ -27,7 +27,15 @@ SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
 with models.DAG(
     dag_id="trtllm_bench_inference",
     schedule=SCHEDULED_TIME,
-    tags=["inference_team", "tensorrt_llm", "nightly", "benchmark"],
+    tags=[
+        "inference_team",
+        "tensorrt_llm",
+        "nightly",
+        "benchmark",
+        "GPU",
+        "a3-ultragpu-8g",
+        "nvidia-h200-80gb",
+    ],
     start_date=datetime.datetime(2025, 1, 25),
     catchup=False,
 ) as dag:

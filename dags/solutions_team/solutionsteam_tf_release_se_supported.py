@@ -31,7 +31,21 @@ VERSION = f"{tf_config.MAJOR_VERSION}.{tf_config.MINOR_VERSION}"
 with models.DAG(
     dag_id=f"tf_{tf_config.MAJOR_VERSION}_{tf_config.MINOR_VERSION}_se_supported",
     schedule=SCHEDULED_TIME,
-    tags=["solutions_team", "tf", "se", VERSION, "supported", "xlml"],
+    tags=[
+        "solutions_team",
+        "tf",
+        "se",
+        VERSION,
+        "supported",
+        "xlml",
+        "TPU",
+        "v2-8",
+        "v2-32",
+        "v3-8",
+        "v3-32",
+        "v4-8",
+        "v4-32",
+    ],
     start_date=datetime.datetime(2024, 1, 4),
     catchup=False,
 ) as dag:
