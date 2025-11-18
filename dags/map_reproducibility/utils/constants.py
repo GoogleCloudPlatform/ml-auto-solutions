@@ -42,6 +42,11 @@ class Schedule:
   SATURDAY_PDT_12AM = "0 7 * * 6"
   SATURDAY_PDT_3AM = "0 10 * * 6"
 
+  # Daily at 6:00 PM PST => 2:00 AM UTC next day
+  DAILY_PST_6PM = "0 2 * * *"
+  DAILY_PST_6_30PM = "30 2 * * *"
+  DAILY_PST_7PM = "0 3 * * *"
+
 
 class Image:
   MAXTEXT_JAX_STABLE_NIGHTLY = (
