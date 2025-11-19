@@ -325,7 +325,7 @@ def get_torchbench_tpu_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.PEI_Z,
+      task_owner=test_owner.AIRFLOW,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
   )
 
@@ -523,7 +523,7 @@ def get_torchbench_gpu_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.PEI_Z,
+      task_owner=test_owner.AIRFLOW,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
       use_existing_instance=False,
   )

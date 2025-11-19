@@ -134,7 +134,7 @@ def get_maxtext_end_to_end_test_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.JON_B,
+      task_owner=test_owner.AIRFLOW,
       num_slices=num_slices,
   )
 

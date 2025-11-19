@@ -62,5 +62,5 @@ with models.DAG(
         test_name=f"maxtext-profiling-{mode.value}",
         run_model_cmds=profiling_cmds,
         docker_image=image.value,
-        test_owner=test_owner.SURBHI_J,
+        test_owner=test_owner.BRANDEN_V,
     ).run()
