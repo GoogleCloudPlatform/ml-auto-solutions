@@ -15,7 +15,7 @@ from dags.tpu_observability.configs.common import MachineConfigMap
 with models.DAG(
     dag_id="gke_node_pool_label_update",
     start_date=datetime.datetime(2025, 8, 1),
-    schedule=constants.Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY,
+    schedule=constants.Schedule.DAILY_PST_7_30_PM,
     catchup=False,
     tags=["gke", "tpu-observability", "node-pool-status"],
     description=(

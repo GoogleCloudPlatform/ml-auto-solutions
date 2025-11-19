@@ -46,6 +46,7 @@ class Schedule:
   DAILY_PST_6PM = "0 2 * * *"
   DAILY_PST_6_30PM = "30 2 * * *"
   DAILY_PST_7PM = "0 3 * * *"
+  DAILY_PST_7_30_PM = "30 3 * * *"
 
 
 class Image:
