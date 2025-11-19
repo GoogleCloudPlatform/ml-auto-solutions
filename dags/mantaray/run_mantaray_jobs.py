@@ -370,7 +370,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
       with models.DAG(
           dag_id=job["task_name"],
           schedule=job["schedule"],
-          tags=["mantaray"],
+          tags=["mantaray", "TPU"],
           start_date=datetime.datetime(2024, 4, 22),
           catchup=False,
       ) as dag:
