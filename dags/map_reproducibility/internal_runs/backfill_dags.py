@@ -59,6 +59,7 @@ BASE_DAG_TAGS = [
     "internal",
     "regressiontests",
     "backfill",
+    "GPU",
 ]
 
 
@@ -255,12 +256,12 @@ dag1 = create_adaptive_backfill_dag(
     dag_id="new_internal_backill_a3ultra",
     model_configs=DAG_CONFIGS_ULTRA,
     start_date=datetime.datetime(2025, 4, 11),
-    dag_tags=BASE_DAG_TAGS,
+    dag_tags=BASE_DAG_TAGS + ["a3ultra", "nvidia-h200-80gb"],
 )
 
 dag2 = create_adaptive_backfill_dag(
     dag_id="new_internal_backill_a3mega",
     model_configs=DAG_CONFIGS_MEGA,
     start_date=datetime.datetime(2025, 4, 11),
-    dag_tags=BASE_DAG_TAGS,
+    dag_tags=BASE_DAG_TAGS + ["a3mega", "nvidia-h100-80gb"],
 )

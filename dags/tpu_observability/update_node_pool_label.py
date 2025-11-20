@@ -17,7 +17,7 @@ with models.DAG(
     start_date=datetime.datetime(2025, 8, 1),
     schedule=constants.Schedule.DAILY_PST_7_30_PM,
     catchup=False,
-    tags=["gke", "tpu-observability", "node-pool-status"],
+    tags=["gke", "tpu-observability", "node-pool-status", "TPU", "v6e-16"],
     description=(
         "This DAG tests whether the status of a GKE node pool changes as "
         "expected after its labels are updated, triggering reconciliation."
