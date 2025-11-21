@@ -78,7 +78,7 @@ with models.DAG(
       task_id = "create_node_pool"
       create_node_pool = node_pool.create.override(task_id=task_id)(
           node_pool=node_pool_info,
-          reservation="cloudtpu-20250131131310-2118578099",
+          reservation="cloudtpu-20251107233000-1246578561",
       )
 
       task_id = "wait_for_provisioning"
