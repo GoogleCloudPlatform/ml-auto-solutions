@@ -227,7 +227,7 @@ with models.DAG(
     dag_id=dag_id,
     tags=tags,
     start_date=datetime.datetime(2024, 1, 19),
-    schedule=None,
+    schedule="0 6 * * *",
     catchup=False,
 ) as dag:
   test_name_prefix = (

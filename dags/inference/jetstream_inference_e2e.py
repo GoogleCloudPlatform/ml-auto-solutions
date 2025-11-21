@@ -49,7 +49,7 @@ CKPT = {
 
 with models.DAG(
     dag_id="jetstream_e2e_inference",
-    schedule=None,
+    schedule="0 0 * * *",
     tags=[
         "inference_team",
         "jetstream",
