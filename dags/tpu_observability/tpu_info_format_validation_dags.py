@@ -369,7 +369,7 @@ with models.DAG(
             retries=2,
         )(
             node_pool=cluster_info,
-            reservation="cloudtpu-20250131131310-2118578099",
+            reservation="cloudtpu-20251107233000-1246578561",
         )
 
         create_second_node_pool = node_pool.create.override(
@@ -377,7 +377,7 @@ with models.DAG(
             retries=2,
         )(
             node_pool=cluster_info_2,
-            reservation="cloudtpu-20250131131310-2118578099",
+            reservation="cloudtpu-20251107233000-1246578561",
         )
 
       apply_time = jobset.run_workload(

@@ -73,7 +73,7 @@ with models.DAG(
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
       create_node_pool = node_pool.create(
           node_pool=node_pool_info,
-          reservation="cloudtpu-20250131131310-2118578099",
+          reservation="cloudtpu-20251107233000-1246578561",
       )
 
       wait_node_pool_available = node_pool.wait_for_availability(
