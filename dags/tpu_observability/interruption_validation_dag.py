@@ -487,7 +487,7 @@ def create_interruption_dag(
   Returns:
     An Airflow DAG object."""
   dag_schedule = get_staggered_schedule(
-      Schedule.WEEKDAY_PST_6PM_EXCEPT_THURSDAY, schedule_offset_minutes
+      Schedule.DAILY_PST_6PM, schedule_offset_minutes
   )
   with models.DAG(
       dag_id=dag_id,
