@@ -45,9 +45,7 @@ with models.DAG(
   for machine in MachineConfigMap:
     config = machine.value
     node_pool_info = node_pool.Info(
-        project_id=models.Variable.get(
-            "PROJECT_ID", default_var=Project.TPU_PROD_ENV_ONE_VM.value
-        ),
+        project_id=models.Variable.get("PROJECT_ID", default_var="cienet-cmcs"),
         cluster_name=models.Variable.get(
             "CLUSTER_NAME", default_var="tpu-observability-automation"
         ),
@@ -55,10 +53,10 @@ with models.DAG(
             "NODE_POOL_NAME", default_var="node-pool-status-v6e-autotest"
         ),
         location=models.Variable.get(
-            "LOCATION", default_var=Region.US_EAST5.value
+            "LOCATION", default_var=Region.US_CENTRAL1.value
         ),
         node_locations=models.Variable.get(
-            "NODE_LOCATIONS", default_var=Zone.US_EAST5_B.value
+            "NODE_LOCATIONS", default_var=Zone.US_CENTRAL1_B.value
         ),
         num_nodes=models.Variable.get("NUM_NODES", default_var=4),
         machine_type=config.machine_version.value,
