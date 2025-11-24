@@ -113,9 +113,9 @@ def generate_model_configs(
     network = V5_NETWORKS
     subnetwork = V5P_SUBNETWORKS
   elif tpu_version == TpuVersion.TRILLIUM:
-    zone = Zone.EUROPE_WEST4_A.value
+    zone = Zone.US_EAST5_A.value
     runtime_version = RuntimeVersion.V2_ALPHA_TPUV6.value
-    project_name = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+    project_name = Project.TPU_PROD_ENV_AUTOMATED.value
     network = V6E_GCE_NETWORK
     subnetwork = V6E_GCE_SUBNETWORK
   jetstream_benchmark_serving = (
