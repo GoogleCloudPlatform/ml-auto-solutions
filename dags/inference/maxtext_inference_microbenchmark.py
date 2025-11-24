@@ -185,8 +185,8 @@ def generate_model_configs(
     subnetwork = V5E_SUBNETWORKS
     runtime_version = RuntimeVersion.V2_ALPHA_TPUV5_LITE.value
   if tpu_version == TpuVersion.TRILLIUM:
-    project_name = Project.CLOUD_ML_AUTO_SOLUTIONS.value
-    zone = Zone.EUROPE_WEST4_A.value
+    project_name = Project.TPU_PROD_ENV_AUTOMATED.value
+    zone = Zone.US_EAST5_A.value
     network = V6E_GCE_NETWORK
     subnetwork = V6E_GCE_SUBNETWORK
     runtime_version = RuntimeVersion.V2_ALPHA_TPUV6.value
