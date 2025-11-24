@@ -315,7 +315,7 @@ with models.DAG(
     config = machine.value
     cluster_info = node_pool.Info(
         project_id=models.Variable.get(
-            "TFV_PROJECT_ID", default_var=Project.TPU_PROD_ENV_ONE_VM.value
+            "TFV_PROJECT_ID", default_var="cienet-cmcs"
         ),
         cluster_name=models.Variable.get(
             "TFV_CLUSTER_NAME", default_var="tpu-observability-automation"
@@ -324,13 +324,13 @@ with models.DAG(
             "TFV_NODE_POOL_NAME", default_var="tpu-info-fromat-test-v6e"
         ),
         region=models.Variable.get(
-            "TFV_REGION", default_var=Region.US_EAST5.value
+            "TFV_REGION", default_var=Region.US_CENTRAL1.value
         ),
         location=models.Variable.get(
-            "TFV_LOCATION", default_var=Region.US_EAST5.value
+            "TFV_LOCATION", default_var=Region.US_CENTRAL1.value
         ),
         node_locations=models.Variable.get(
-            "TFV_NODE_LOCATIONS", default_var=Zone.US_EAST5_B.value
+            "TFV_NODE_LOCATIONS", default_var=Zone.US_CENTRAL1_B.value
         ),
         num_nodes=models.Variable.get("TFV_NUM_NODES", default_var=4),
         machine_type=config.machine_version.value,
