@@ -11,6 +11,8 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.exceptions import AirflowException
 
+from dags.common import test_owner
+
 # Prefix for exported files in GCS bucket
 GCS_PREFIX = "airflow_exports"
 
@@ -143,6 +145,7 @@ TABLES: list[AirflowTable] = [
 def get_export_operator(source_table: AirflowTable):
   return PythonOperator(
       task_id=f"export_{source_table.table_name}",
+      owner=test_owner.SEVERUS_H,
       python_callable=export_table_schema_and_data,
       op_kwargs={"table": source_table},
   )
@@ -155,6 +158,7 @@ def get_gcs_to_bq_operator(
   table_name = source_table.table_name
   return GCSToBigQueryOperator(
       task_id=f"load_{table_name}_to_bq",
+      owner=test_owner.SEVERUS_H,
       bucket=source_bucket,
       source_objects=[f"{GCS_PREFIX}/{table_name}_part_*.json"],
       destination_project_dataset_table=destination_table,
