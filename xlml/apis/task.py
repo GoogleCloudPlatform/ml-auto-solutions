@@ -984,6 +984,7 @@ class GpuGkeTask(BaseTask):
           self.task_gcp_config,
           self.cluster_name,
           self.job_create_timeout,
+          self.task_test_config.task_owner,
           gcs_location,
       )
       post_process = self.post_process(gcs_location)

@@ -635,6 +635,7 @@ def get_torchbench_gpu_gke_config(
           accelerator_type=accelerator_type.value,
       ),
       test_name=test_name,
+      task_owner=test_owner.AIRFLOW,
       entrypoint_script=command_script,
       test_command="",
       timeout=datetime.timedelta(minutes=time_out_in_min),
