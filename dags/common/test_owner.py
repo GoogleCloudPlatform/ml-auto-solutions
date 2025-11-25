@@ -102,3 +102,7 @@ SEVERUS_H = "severus-ho"
 
 # maxtext_pathways
 JULIE_K = "JulieKuo"
+
+# TPU Observability
+YUNA_T = "yuna-tzeng"
+QUINN_M = "QuinnMMcGarry"

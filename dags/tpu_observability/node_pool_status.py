@@ -22,6 +22,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
 
 from dags import composer_env
+from dags.common import test_owner
 from dags.map_reproducibility.utils import constants
 from dags.common.vm_resource import Region, Zone
 from dags.tpu_observability.utils import node_pool_util as node_pool
@@ -95,7 +96,10 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
       task_id = "create_node_pool"
-      create_node_pool = node_pool.create.override(task_id=task_id)(
+      create_node_pool = node_pool.create.override(
+          task_id=task_id,
+          owner=test_owner.YUNA_T,
+      )(
           node_pool=node_pool_info,
           reservation="cloudtpu-20251107233000-1246578561",
       )
@@ -146,7 +150,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       # to validate that it enters the ERROR state.
       task_id = "create_problematic_node_pool_info"
       create_problematic_node_pool_info = node_pool.create.override(
-          task_id=task_id
+          task_id=task_id,
+          owner=test_owner.YUNA_T,
       )(
           node_pool=problematic_node_pool_info,
           # The failure is intentionally ignored because we want to validate
