@@ -5,10 +5,9 @@ This is done by comparing data from Cloud Logging and Cloud Monitoring.
 
 from dataclasses import replace
 import datetime
-import logging
 import os
 import re
-import subprocess
+import tempfile
 
 from airflow import models
 from airflow.decorators import task
@@ -16,22 +15,18 @@ from airflow.exceptions import AirflowFailException
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
-from dags.common.vm_resource import MachineVersion
-from dags.common.vm_resource import Project
-from dags.common.vm_resource import Region
-from dags.common.vm_resource import Zone
-from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
+from dags.common.vm_resource import Zone, Region
 from dags.map_reproducibility.utils import constants
+from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
+from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils import tpu_info_util as tpu_info
-from dags.tpu_observability.utils.jobset_util import JobSet
-from dags.tpu_observability.utils.jobset_util import Workload
-from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
+from dags.tpu_observability.utils.jobset_util import JobSet, Workload
 
 
 @task
-def get_tpu_info_from_pod(kubeconfig: str, pod_name: str) -> str:
+def get_tpu_info_from_pod(node_pool: node_pool.Info, pod_name: str) -> str:
   """Executes the 'tpu-info' command within a specified pod and returns its output.
 
   This task uses kubectl to run the 'tpu-info' command inside the given pod
@@ -45,26 +40,24 @@ def get_tpu_info_from_pod(kubeconfig: str, pod_name: str) -> str:
   Returns:
     The standard output from the 'tpu-info' command.
   """
-  env = os.environ.copy()
-  env["KUBECONFIG"] = kubeconfig
+  with tempfile.NamedTemporaryFile() as temp_config_file:
+    # kube_dir = tmpdir + "/kubeconfig"
+    env = os.environ.copy()
+    env["KUBECONFIG"] = temp_config_file.name
 
-  result = subprocess.run(
-      (
-          f"kubectl --kubeconfig={kubeconfig} "
-          f"exec {pod_name} -n default "
-          f"-- tpu-info"
-      ),
-      shell=True,
-      env=env,
-      # Since tpu-info feature still has some issues, so the command will
-      # inevitably throw an error. To avoid marking the task as failed,
-      # I set check to False so that the task status does not show as failed.
-      check=True,
-      capture_output=True,
-      text=True,
-  )
-  logging.info("STDOUT: %s", result.stdout)
-  return result.stdout
+    cmd = " && ".join([
+        jobset.Command.get_credentials_command(node_pool),
+        (f"kubectl exec {pod_name} -n default -- tpu-info"),
+    ])
+
+    result = subprocess.run_exec(
+        cmd,
+        env=env,
+        log_command=True,
+        log_output=True,
+    )
+
+    return result
 
 
 @task
@@ -91,7 +84,6 @@ def verify_table_amount(tpu_info_output: list[tpu_info.Table]):
 @task
 def validate_chips_table(
     tpu_info_output: list[tpu_info.Table],
-    node_pool: node_pool.Info,
     tpu_config: TpuConfig,
 ):
   """Validates the row count and content for the 'TPU Chips' table."""
@@ -274,9 +266,9 @@ with models.DAG(
     dag_id="tpu_info_format_validation_dag",
     start_date=datetime.datetime(2025, 8, 15),
     default_args={"retries": 0},
-    schedule=constants.Schedule.DAILY_PST_7PM,
+    schedule=constants.Schedule.WEEKDAY_PDT_6AM_7AM_EXCEPT_THURSDAY,
     catchup=False,
-    tags=["gke", "tpu-observability", "tpu-info", "TPU", "v6e-16"],
+    tags=["gke", "tpu-observability", "tpu-info"],
     description=(
         "This DAG verifies the format of the tables in the tpu-info output "
         "using tpu-info CLI tool. It includes 4 tables: TPU Chips, TPU "
@@ -343,7 +335,6 @@ with models.DAG(
         ),
     )
 
-    kubeconfig_path = "/tmp/kubeconfig"
     jobset_config = JobSet(
         jobset_name="tpu-info-v6e-workload",
         namespace="default",
@@ -356,7 +347,7 @@ with models.DAG(
         tpu_accelerator_type="tpu-v6e-slice",
         tpu_topology="4x4",
         container_name="jax-tpu-worker",
-        image="us-docker.pkg.dev/tpu-prod-env-one-vm/yuna-docker-repo/tpu-info:v0.5.1",
+        image="asia-northeast1-docker.pkg.dev/cienet-cmcs/yuna-docker/tpu-info:v0.5.1",
         tpu_cores_per_pod=4,
     )
 
@@ -382,7 +373,6 @@ with models.DAG(
 
       apply_time = jobset.run_workload(
           node_pool=cluster_info,
-          kubeconfig=kubeconfig_path,
           yaml_config=jobset_config.generate_yaml(
               workload_script=workload_script
           ),
@@ -391,7 +381,6 @@ with models.DAG(
 
       active_pods = jobset.get_active_pods.override(task_id="get_active_pod")(
           node_pool=cluster_info,
-          kubeconfig=kubeconfig_path,
           namespace=jobset_config.namespace,
       )
 
@@ -401,7 +390,7 @@ with models.DAG(
 
       tpu_info_outputs = (
           get_tpu_info_from_pod.override(task_id="get_tpu_info")
-          .partial(kubeconfig=kubeconfig_path)
+          .partial(node_pool=cluster_info)
           .expand(pod_name=active_pods)
       )
 
@@ -422,7 +411,7 @@ with models.DAG(
 
         validate_tpu_chips_metric = (
             validate_chips_table.override(task_id="validate_tpu_chips_metric")
-            .partial(node_pool=cluster_info, tpu_config=config)
+            .partial(tpu_config=config)
             .expand(tpu_info_output=tpu_info_output)
         )
 
@@ -450,7 +439,6 @@ with models.DAG(
           task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
       )(
           node_pool=cluster_info,
-          kubeconfig=kubeconfig_path,
           jobset_name=jobset_config.jobset_name,
           namespace=jobset_config.namespace,
       ).as_teardown(

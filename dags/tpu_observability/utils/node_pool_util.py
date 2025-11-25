@@ -1,20 +1,21 @@
 """Utility functions for managing GKE node pools."""
 
 import dataclasses
+import datetime
 import enum
 import json
 import logging
 import random
 import re
-import subprocess
-import time
 from typing import List
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
-from airflow.hooks.subprocess import SubprocessHook
 from google.cloud import monitoring_v3
-from google.cloud.monitoring_v3 import types
+
+from dags.tpu_observability.utils.time_util import TimeUtil
+from dags.tpu_observability.utils.gcp_util import query_time_series
+from dags.tpu_observability.utils import subprocess_util as subprocess
 
 
 class Status(enum.Enum):
@@ -78,11 +79,7 @@ def create(
   if ignore_failure:
     command += "2>&1 || true "
 
-  process = subprocess.run(
-      command, shell=True, check=True, capture_output=True, text=True
-  )
-  logging.info("STDOUT message: %s", process.stdout)
-  logging.info("STDERR message: %s", process.stderr)
+  subprocess.run_exec(command)
 
 
 @task
@@ -97,11 +94,7 @@ def delete(node_pool: Info) -> None:
       "--quiet"
   )
 
-  process = subprocess.run(
-      command, shell=True, check=True, capture_output=True, text=True
-  )
-  logging.info("STDOUT message: %s", process.stdout)
-  logging.info("STDERR message: %s", process.stderr)
+  subprocess.run_exec(command)
 
 
 def list_nodes(node_pool: Info) -> List[str]:
@@ -119,21 +112,18 @@ def list_nodes(node_pool: Info) -> List[str]:
       RuntimeError: If no instance groups or zone are found for the node pool.
   """
   instance_group_urls_key = "instanceGroupUrls"
-  process = subprocess.run(
-      (
-          f"gcloud container node-pools describe {node_pool.node_pool_name} "
-          f"--project={node_pool.project_id} "
-          f"--cluster={node_pool.cluster_name} "
-          f"--location={node_pool.location} "
-          f"--format='json({instance_group_urls_key})'"
-      ),
-      shell=True,
-      check=True,
-      capture_output=True,
-      text=True,
+
+  command = (
+      f"gcloud container node-pools describe {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      f"--format='json({instance_group_urls_key})'"
   )
 
-  instance_group_urls_val = json.loads(process.stdout).get(
+  process = subprocess.run_exec(command)
+
+  instance_group_urls_val = json.loads(process).get(
       instance_group_urls_key, []
   )
   if not instance_group_urls_val:
@@ -155,20 +145,16 @@ def list_nodes(node_pool: Info) -> List[str]:
 
     instance_group_name = match.group(1)
 
-    process = subprocess.run(
-        (
-            "gcloud compute instance-groups list-instances"
-            f" {instance_group_name} "
-            f"--project={node_pool.project_id} "
-            f"--zone={node_pool.node_locations} "
-            "--format='json(instance)'"
-        ),
-        shell=True,
-        check=True,
-        capture_output=True,
-        text=True,
+    command = (
+        "gcloud compute instance-groups list-instances"
+        f" {instance_group_name} "
+        f"--project={node_pool.project_id} "
+        f"--zone={node_pool.node_locations} "
+        "--format='json(instance)'"
     )
-    instances = json.loads(process.stdout)
+    process = subprocess.run_exec(command)
+
+    instances = json.loads(process)
 
     for instance_item in instances:
       instance_url = instance_item["instance"]
@@ -220,11 +206,7 @@ def delete_one_random_node(node_pool: Info) -> None:
       "--quiet"
   )
 
-  process = subprocess.run(
-      command, shell=True, check=True, capture_output=True, text=True
-  )
-  logging.info("STDOUT message: %s", process.stdout)
-  logging.info("STDERR message: %s", process.stderr)
+  subprocess.run_exec(command)
 
 
 def _query_status_metric(node_pool: Info) -> Status:
@@ -240,28 +222,23 @@ def _query_status_metric(node_pool: Info) -> Status:
   Returns:
       A `Status` enum representing the latest status of the node pool.
   """
-  monitoring_client = monitoring_v3.MetricServiceClient()
-  project_name = f"projects/{node_pool.project_id}"
-  now = int(time.time())
-  request = monitoring_v3.ListTimeSeriesRequest(
-      name=project_name,
-      filter=(
-          'metric.type="kubernetes.io/node_pool/status" '
-          f'resource.labels.project_id = "{node_pool.project_id}" '
-          f'resource.labels.cluster_name = "{node_pool.cluster_name}" '
-          f'resource.labels.node_pool_name = "{node_pool.node_pool_name}"'
-      ),
-      interval=types.TimeInterval({
-          "end_time": {"seconds": now},
-          # Metrics are sampled every 60s and stored in the GCP backend,
-          # but it may take up to 2 minutes for the data to become
-          # available on the client side.
-          # Therefore, a longer time interval is necessary.
-          # A 5-minute window is an arbitrary but sufficient choice to
-          # ensure we can retrieve the latest metric data.
-          "start_time": {"seconds": now - 300},
-      }),
-      view="FULL",
+
+  now = datetime.datetime.now()
+  # Metrics are sampled every 60s and stored in the GCP backend,
+  # but it may take up to 2 minutes for the data to become
+  # available on the client side.
+  # Therefore, a longer time interval is necessary.
+  # A 5-minute window is an arbitrary but sufficient choice to
+  # ensure we can retrieve the latest metric data.
+  start_time_datetime = now - datetime.timedelta(minutes=5)
+  start_time = TimeUtil.from_datetime(start_time_datetime)
+  end_time = TimeUtil.from_datetime(now)
+
+  filter_string = (
+      'metric.type="kubernetes.io/node_pool/status" '
+      f'resource.labels.project_id = "{node_pool.project_id}" '
+      f'resource.labels.cluster_name = "{node_pool.cluster_name}" '
+      f'resource.labels.node_pool_name = "{node_pool.node_pool_name}"'
   )
 
   # A single query to the Monitoring API can return multiple TimeSeries objects,
@@ -272,7 +249,13 @@ def _query_status_metric(node_pool: Info) -> Status:
   # data points from all series into a single flat list ('records'). It then
   # finds the record with the maximum timestamp from this list to ensure the
   # true latest status is identified.
-  time_series_data = monitoring_client.list_time_series(request)
+  time_series_data = query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=" AND ".join(filter_string),
+      start_time=start_time,
+      end_time=end_time
+  )
+
   records = []
   for series in time_series_data:
     np_status = series.metric.labels.get("status", "unknown").upper()
@@ -336,11 +319,7 @@ def rollback(node_pool: Info) -> None:
       f"--quiet"
   )
 
-  process = subprocess.run(
-      command, shell=True, check=True, capture_output=True, text=True
-  )
-  logging.info("STDOUT message: %s", process.stdout)
-  logging.info("STDERR message: %s", process.stderr)
+  subprocess.run_exec(command)
 
 
 @task.sensor(poke_interval=30, timeout=1200, mode="reschedule")
@@ -367,29 +346,24 @@ def wait_for_availability(
       context: The Airflow context dictionary, which includes task metadata.
 
   """
-  now = int(time.time())
-  api_client = monitoring_v3.MetricServiceClient()
-  request = monitoring_v3.ListTimeSeriesRequest(
-      name=f"projects/{node_pool.project_id}",
-      filter=(
-          'metric.type="kubernetes.io/node_pool/multi_host/available" '
-          f'resource.labels.project_id = "{node_pool.project_id}" '
-          f'resource.labels.cluster_name="{node_pool.cluster_name}" '
-          f'resource.labels.node_pool_name="{node_pool.node_pool_name}"'
-      ),
-      interval=monitoring_v3.TimeInterval({
-          "end_time": {"seconds": now},
-          # Metrics are sampled every 60s and stored in the GCP backend,
-          # but it may take up to 2 minute for the metric data to become
-          # available on the client side.
-          # Therefore, a longer time interval is necessary.
-          # A 10-minute window is an arbitrary but sufficient choice to
-          # ensure we can retrieve the latest metric data.
-          "start_time": {"seconds": now - 600},
-      }),
-      view=monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+  now = datetime.datetime.now()
+  start_time_datetime = now - datetime.timedelta(minutes=10)
+  start_time = TimeUtil.from_datetime(start_time_datetime)
+  end_time = TimeUtil.from_datetime(now)
+
+  filter_string = (
+      'metric.type="kubernetes.io/node_pool/multi_host/available" '
+      f'resource.labels.project_id = "{node_pool.project_id}" '
+      f'resource.labels.cluster_name="{node_pool.cluster_name}" '
+      f'resource.labels.node_pool_name="{node_pool.node_pool_name}"'
   )
-  page_result = api_client.list_time_series(request=request)
+
+  page_result = query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=" AND ".join(filter_string),
+      start_time=start_time,
+      end_time=end_time
+  )
 
   # We only want the most recent point, so we record all points in all
   # time series in a dictionary with their corresponding bool values to
@@ -444,11 +418,4 @@ def update_labels(node_pool: Info, node_labels: dict) -> None:
       "--quiet"
   )
 
-  hook = SubprocessHook()
-  result = hook.run_command(
-      ["bash", "-c", command],
-  )
-
-  assert (
-      result.exit_code == 0
-  ), f"Update label command failed with code {result.exit_code}"
+  subprocess.run_exec(command)
