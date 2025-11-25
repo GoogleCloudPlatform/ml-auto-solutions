@@ -15,7 +15,12 @@ from airflow.exceptions import AirflowFailException
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
-from dags.common.vm_resource import Zone, Region
+from dags.common import test_owner
+from dags.common.vm_resource import MachineVersion
+from dags.common.vm_resource import Project
+from dags.common.vm_resource import Region
+from dags.common.vm_resource import Zone
+from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
 from dags.map_reproducibility.utils import constants
 from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
 from dags.tpu_observability.utils import jobset_util as jobset
@@ -363,7 +368,9 @@ with models.DAG(
             reservation="cloudtpu-20251107233000-1246578561",
         )
 
-      apply_time = jobset.run_workload(
+      apply_time = jobset.run_workload.override(
+          owner=test_owner.YUNA_T
+      )(
           node_pool=cluster_info,
           yaml_config=jobset_config.generate_yaml(
               workload_script=workload_script
