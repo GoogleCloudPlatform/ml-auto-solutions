@@ -17,6 +17,8 @@ from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 from google.api_core.exceptions import NotFound
 from google.cloud import bigquery, container_v1
 
+from dags.common import test_owner
+
 # --- Airflow DAG Schedule ---
 SCHEDULED_TIME = "0 */4 * * *"  # Per 4 hours
 
@@ -309,7 +311,7 @@ def fetch_clusters_status(credentials, clusters: List[Any]) -> List[Any]:
 # ================================================================
 # Step 6: Airflow Tasks
 # ================================================================
-@task
+@task(owner=test_owner.SEVERUS_H)
 def pull_clusters_status() -> List[Any]:
   credentials, _ = google.auth.default(
       scopes=["https://www.googleapis.com/auth/cloud-platform"]
@@ -318,7 +320,7 @@ def pull_clusters_status() -> List[Any]:
   return fetch_clusters_status(credentials, target_clusters)
 
 
-@task
+@task(owner=test_owner.SEVERUS_H)
 def insert_gsheet_rows_task(gspread_rows_to_insert):
   if GSPREAD_INSERT_ENABLED and gspread_rows_to_insert:
     context = get_current_context()
