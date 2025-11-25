@@ -123,9 +123,7 @@ def list_nodes(node_pool: Info) -> List[str]:
 
   process = subprocess.run_exec(command)
 
-  instance_group_urls_val = json.loads(process).get(
-      instance_group_urls_key, []
-  )
+  instance_group_urls_val = json.loads(process).get(instance_group_urls_key, [])
   if not instance_group_urls_val:
     raise AirflowFailException(
         f"No instance groups found for node pool {node_pool.node_pool_name}."
@@ -253,7 +251,7 @@ def _query_status_metric(node_pool: Info) -> Status:
       project_id=node_pool.project_id,
       filter_str=" AND ".join(filter_string),
       start_time=start_time,
-      end_time=end_time
+      end_time=end_time,
   )
 
   records = []
@@ -362,7 +360,7 @@ def wait_for_availability(
       project_id=node_pool.project_id,
       filter_str=" AND ".join(filter_string),
       start_time=start_time,
-      end_time=end_time
+      end_time=end_time,
   )
 
   # We only want the most recent point, so we record all points in all

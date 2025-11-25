@@ -41,7 +41,6 @@ def get_tpu_info_from_pod(node_pool: node_pool.Info, pod_name: str) -> str:
     The standard output from the 'tpu-info' command.
   """
   with tempfile.NamedTemporaryFile() as temp_config_file:
-    # kube_dir = tmpdir + "/kubeconfig"
     env = os.environ.copy()
     env["KUBECONFIG"] = temp_config_file.name
 
