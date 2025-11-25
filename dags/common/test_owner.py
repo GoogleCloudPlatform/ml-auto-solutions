@@ -99,3 +99,6 @@ Andrew_S = "asall"
 
 # Dashboard
 SEVERUS_H = "severus-ho"
+
+# maxtext_pathways
+JULIE_K = "JulieKuo"
