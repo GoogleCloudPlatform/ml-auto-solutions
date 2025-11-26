@@ -14,7 +14,7 @@ from dags.tpu_observability.configs.common import MachineConfigMap
 
 
 with models.DAG(
-    dag_id="multi-host-availability-rollback",
+    dag_id="multi_host_availability_rollback",
     start_date=datetime.datetime(2025, 8, 10),
     schedule=constants.Schedule.DAILY_PST_6_30PM,
     catchup=False,
@@ -59,7 +59,7 @@ with models.DAG(
             "CLUSTER_NAME", default_var="tpu-observability-automation"
         ),
         node_pool_name=Variable.get(
-            "NODE_POOL_NAME", default_var="multi_host_nodepool_rollback_auto"
+            "NODE_POOL_NAME", default_var="multi-host-nodepool-rollback-auto"
         ),
         location=Variable.get("LOCATION", default_var=Region.US_CENTRAL1.value),
         node_locations=Variable.get(

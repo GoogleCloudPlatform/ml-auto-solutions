@@ -232,12 +232,12 @@ def _query_status_metric(node_pool: Info) -> Status:
   start_time = TimeUtil.from_datetime(start_time_datetime)
   end_time = TimeUtil.from_datetime(now)
 
-  filter_string = (
-      'metric.type="kubernetes.io/node_pool/status" '
-      f'resource.labels.project_id = "{node_pool.project_id}" '
-      f'resource.labels.cluster_name = "{node_pool.cluster_name}" '
+  filter_string = [
+      'metric.type="kubernetes.io/node_pool/status"',
+      f'resource.labels.project_id = "{node_pool.project_id}"',
+      f'resource.labels.cluster_name = "{node_pool.cluster_name}"',
       f'resource.labels.node_pool_name = "{node_pool.node_pool_name}"'
-  )
+  ]
 
   # A single query to the Monitoring API can return multiple TimeSeries objects,
   # especially if the 'status' label changed within the time window (e.g., from
@@ -355,12 +355,12 @@ def wait_for_availability(
   start_time = TimeUtil.from_datetime(start_time_datetime)
   end_time = TimeUtil.from_datetime(now)
 
-  filter_string = (
-      'metric.type="kubernetes.io/node_pool/multi_host/available" '
-      f'resource.labels.project_id = "{node_pool.project_id}" '
-      f'resource.labels.cluster_name="{node_pool.cluster_name}" '
+  filter_string = [
+      'metric.type="kubernetes.io/node_pool/multi_host/available"',
+      f'resource.labels.project_id = "{node_pool.project_id}"',
+      f'resource.labels.cluster_name="{node_pool.cluster_name}"',
       f'resource.labels.node_pool_name="{node_pool.node_pool_name}"'
-  )
+  ]
 
   page_result = query_time_series(
       project_id=node_pool.project_id,
