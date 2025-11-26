@@ -121,9 +121,9 @@ def list_nodes(node_pool: Info) -> List[str]:
       f"--format='json({instance_group_urls_key})'"
   )
 
-  process = subprocess.run_exec(command)
+  stdout = subprocess.run_exec(command)
 
-  instance_group_urls_val = json.loads(process).get(instance_group_urls_key, [])
+  instance_group_urls_val = json.loads(stdout).get(instance_group_urls_key, [])
   if not instance_group_urls_val:
     raise AirflowFailException(
         f"No instance groups found for node pool {node_pool.node_pool_name}."
@@ -150,9 +150,9 @@ def list_nodes(node_pool: Info) -> List[str]:
         f"--zone={node_pool.node_locations} "
         "--format='json(instance)'"
     )
-    process = subprocess.run_exec(command)
+    stdout = subprocess.run_exec(command)
 
-    instances = json.loads(process)
+    instances = json.loads(stdout)
 
     for instance_item in instances:
       instance_url = instance_item["instance"]
@@ -345,6 +345,12 @@ def wait_for_availability(
 
   """
   now = datetime.datetime.now()
+  # Metrics are sampled every 60s and stored in the GCP backend,
+  # but it may take up to 2 minute for the metric data to become
+  # available on the client side.
+  # Therefore, a longer time interval is necessary.
+  # A 10-minute window is an arbitrary but sufficient choice to
+  # ensure we can retrieve the latest metric data.
   start_time_datetime = now - datetime.timedelta(minutes=10)
   start_time = TimeUtil.from_datetime(start_time_datetime)
   end_time = TimeUtil.from_datetime(now)

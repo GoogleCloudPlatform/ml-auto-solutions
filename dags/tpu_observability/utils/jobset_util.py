@@ -326,13 +326,13 @@ def get_active_pods(node_pool: node_pool.Info, namespace: str) -> list[str]:
         Command.k8s_get_pod_name_command(temp_config_file.name, namespace),
     ])
 
-    process = subprocess.run_exec(cmd, env=env)
+    stdout = subprocess.run_exec(cmd, env=env)
 
-    if not process or not process.strip():
+    if not stdout or not stdout.strip():
       logging.warning("Received empty pod list from bash task.")
       raise AirflowFailException("Received empty pod list from bash task.")
 
-    pod_list = process.strip().split()
+    pod_list = stdout.strip().split()
     return pod_list
 
 
