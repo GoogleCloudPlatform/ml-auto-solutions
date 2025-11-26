@@ -34,9 +34,7 @@ dag_default_args = {
 
 for hypercomputer in ["a3mega", "a3ultra", "a4"]:
   cluster, cluster_region = get_cluster(hypercomputer)
-  schedule = (
-      Schedule.WEEKDAY_PDT_6AM_7AM_EXCEPT_THURSDAY if not TEST_RUN else None
-  )
+  schedule = "0 13,14 * * *"
   with models.DAG(
       dag_id=f"new_internal_cleanup_{hypercomputer}",
       default_args=dag_default_args,
