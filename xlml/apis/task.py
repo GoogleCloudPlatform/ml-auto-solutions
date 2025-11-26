@@ -109,12 +109,18 @@ def run_queued_resource_test(
           task_test_config,
       )
 
-      queued_resource_op >> tpu.ssh_tpu.override(task_id="setup")(
+      setup_task = tpu.ssh_tpu.override(
+          task_id="setup",
+          # Setup/install retries don’t need a long cooldown.
+          # 30s is enough for network connection problem; longer delays do not make sense.
+          retry_delay=datetime.timedelta(seconds=30),
+      )(
           queued_resource_name,
           task_test_config.setup_script,
           ssh_keys,
           True if task_test_config.test_name.startswith("tf_") else all_workers,
       )
+      queued_resource_op >> setup_task
 
     run_model = tpu.ssh_tpu.override(
         task_id="run_model",
