@@ -27,6 +27,7 @@ from airflow.decorators import task, task_group
 from airflow.utils.task_group import TaskGroup
 from airflow.operators.python import get_current_context
 from airflow.models import Variable
+from airflow.exceptions import AirflowFailException
 from xlml.apis import gcp_config, test_config
 from xlml.utils import ssh, startup_script, composer
 import fabric
@@ -404,6 +405,27 @@ def ssh_tpu(
       gateway='corp-ssh-helper %h %p' if use_external_ips else None,
   )
 
+  def ssh_group_run(cmds: Iterable[str]):
+    try:
+      ssh_group.run(cmds, env=env)
+    except fabric.group.GroupException as e:
+      for connection, result in e.result.items():
+        if isinstance(result, paramiko.ssh_exception.AuthenticationException):
+          logging.error(
+              f'SSH Authentication Failed on {connection.host}: {result}'
+          )
+          raise AirflowFailException(
+              'SSH Authentication failed on one or more hosts. Check logs for details.'
+          ) from e
+      raise
+    except paramiko.ssh_exception.AuthenticationException as e:
+      error_msg = f'SSH Authentication Failed: {e}'
+      logging.error(error_msg)
+      raise AirflowFailException(error_msg) from e
+
+    finally:
+      ssh_group.close()
+
   context = get_current_context()
   if context['task_instance'].try_number > 1:
     # kill TPU process by pid (if any) to avoid `TPU in use` error in retry
@@ -414,10 +436,9 @@ def ssh_tpu(
         f'set -xue; sudo echo "{script}" > {tmp_file}',
         f'bash {tmp_file} {accelerator_type}',
     )
-    ssh_group.run(';'.join(kill_process_cmds))
-
+    ssh_group_run(';'.join(kill_process_cmds))
   # run provided commands
-  ssh_group.run(cmds, env=env)
+  ssh_group_run(cmds)
 
 
 @task
