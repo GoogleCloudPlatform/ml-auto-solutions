@@ -59,7 +59,7 @@ with models.DAG(
             "CLUSTER_NAME", default_var="tpu-observability-automation"
         ),
         node_pool_name=Variable.get(
-            "NODE_POOL_NAME", default_var="multi_host_nodepool_rollback_auto"
+            "NODE_POOL_NAME", default_var="multi-host-nodepool-rollback-auto"
         ),
         location=Variable.get("LOCATION", default_var=Region.US_CENTRAL1.value),
         node_locations=Variable.get(
