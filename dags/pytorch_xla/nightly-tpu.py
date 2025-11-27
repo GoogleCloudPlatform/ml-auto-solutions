@@ -89,9 +89,7 @@ def torchvision():
   resnet_v3_8_tests = [
       task.run_queued_resource_test(
           test_config.JSonnetTpuVmTest.from_pytorch(
-              test,
-              test_owner.MANFEI_B,
-              reserved=True
+              test, test_owner.MANFEI_B, reserved=True
           ),
           US_EAST1_D,
       )
@@ -143,7 +141,7 @@ def huggingface():
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-accelerate-smoke-v2-8-1vm",
           test_owner.MANFEI_B,
-          reserved=True
+          reserved=True,
       ),
       US_CENTRAL1_C,
   )
