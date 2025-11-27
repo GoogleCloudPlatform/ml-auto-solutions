@@ -207,7 +207,7 @@ def run_maxtext_tests(dag: models.DAG):
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.AIRFLOW,
+        test_owner=test_owner.ANISHA_M,
     ).run_with_quarantine(quarantine_task_group)
     stable_a3plus_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
         time_out_in_min=300,
@@ -216,7 +216,7 @@ def run_maxtext_tests(dag: models.DAG):
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
-        test_owner=test_owner.AIRFLOW,
+        test_owner=test_owner.ANISHA_M,
     ).run_with_quarantine(quarantine_task_group)
     stable_a3_gpu >> stable_a3plus_gpu
 
