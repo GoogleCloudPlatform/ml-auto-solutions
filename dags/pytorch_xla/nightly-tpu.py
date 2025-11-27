@@ -74,14 +74,14 @@ def torchvision():
   mnist_v2_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-mnist-pjrt-func-v2-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL1_C,
   )
   resnet_v2_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-resnet50-pjrt-fake-v2-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           reserved=True,
       ),
       US_CENTRAL1_C,
@@ -90,7 +90,7 @@ def torchvision():
       task.run_queued_resource_test(
           test_config.JSonnetTpuVmTest.from_pytorch(
               test,
-              test_owner.AIRFLOW,
+              test_owner.MANFEI_B,
               reserved=True
           ),
           US_EAST1_D,
@@ -104,7 +104,7 @@ def torchvision():
       task.run_queued_resource_test(
           test_config.JSonnetTpuVmTest.from_pytorch(
               test,
-              test_owner.AIRFLOW,
+              test_owner.MANFEI_B,
           ),
           US_CENTRAL2_B,
       )
@@ -118,14 +118,14 @@ def torchvision():
   resnet_v4_32 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-resnet50-pjrt-fake-v4-32-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL2_B,
   )
   resnet_v5lp_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-resnet50-pjrt-fake-v5litepod-4-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           network=V5_NETWORKS,
           subnetwork=V5E_SUBNETWORKS,
           reserved=True,
@@ -142,7 +142,7 @@ def huggingface():
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-accelerate-smoke-v2-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           reserved=True
       ),
       US_CENTRAL1_C,
@@ -150,7 +150,7 @@ def huggingface():
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-accelerate-smoke-v4-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL2_B,
   )
@@ -158,7 +158,7 @@ def huggingface():
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-hf-bert-pjrt-func-v4-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL2_B,
   )
@@ -167,7 +167,7 @@ def huggingface():
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-stable-diffusion-2-train-func-v6e-4-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           network=V5_NETWORKS,
           subnetwork=V6E_SUBNETWORKS,
       ),
@@ -176,7 +176,7 @@ def huggingface():
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-stable-diffusion-2-train-func-v5p-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
@@ -186,7 +186,7 @@ def huggingface():
   task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-stable-diffusion-2-train-func-v4-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL2_B,
   )
@@ -197,21 +197,21 @@ def llama():
   llama_inference_v4_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-llama2-infer-func-v4-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL2_B,
   )
   llama_train_v4_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-llama2-train-spmd-func-v4-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL2_B,
   )
   llama_3_train_trillium = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-llama3-train-func-v6e-4-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           network=V5_NETWORKS,
           subnetwork=V6E_SUBNETWORKS,
       ),
@@ -220,7 +220,7 @@ def llama():
   llama_3_train_v5p_2_slices = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-llama3-train-2-slice-func-v5p-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
@@ -231,7 +231,7 @@ def llama():
   llama_3_train_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-llama3-train-func-v5p-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
@@ -266,7 +266,7 @@ with models.DAG(
   ci_v5lp_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-ci-func-v5litepod-4-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           network=V5_NETWORKS,
           subnetwork=V5E_SUBNETWORKS,
           reserved=True,
@@ -277,7 +277,7 @@ with models.DAG(
   ci_trillium_4 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-ci-func-v6e-4-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           network=V5_NETWORKS,
           subnetwork=V6E_SUBNETWORKS,
       ),
@@ -287,7 +287,7 @@ with models.DAG(
   ci_v5p_8 = task.run_queued_resource_test(
       test_config.JSonnetTpuVmTest.from_pytorch(
           "pt-nightly-ci-func-v5p-8-1vm",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
           reserved=True,
           network=V5_NETWORKS,
           subnetwork=V5P_SUBNETWORKS,
