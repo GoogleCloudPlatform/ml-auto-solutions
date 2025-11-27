@@ -14,10 +14,9 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
-
-from dags.common.vm_resource import Zone, Region
+from dags.common.vm_resource import Region, Zone
 from dags.map_reproducibility.utils import constants
-from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
+from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig, log_metadata
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
@@ -46,7 +45,7 @@ def get_tpu_info_from_pod(node_pool: node_pool.Info, pod_name: str) -> str:
 
     cmd = " && ".join([
         jobset.Command.get_credentials_command(node_pool),
-        (f"kubectl exec {pod_name} -n default -- tpu-info"),
+        f"kubectl exec {pod_name} -n default -- tpu-info",
     ])
 
     return subprocess.run_exec(cmd, env=env)
@@ -347,6 +346,18 @@ with models.DAG(
 
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
       with TaskGroup(group_id="create_node_pool") as create_node_pool:
+        task_id = "get_log_metadata"
+        log_op = log_metadata.override(task_id=task_id)(
+            cluster_project=cluster_info.project_id,
+            region=cluster_info.region,
+            zone=cluster_info.zone,
+            cluster_name=cluster_info.cluster_name,
+            node_pool_name=cluster_info.node_pool_name,
+            workload_id="",
+            docker_image="",
+            accelerator_type=cluster_info.machine_type,
+            num_slices="1",
+        )
         create_first_node_pool = node_pool.create.override(
             task_id="node_pool_1",
             retries=2,

@@ -10,7 +10,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from dags.map_reproducibility.utils import constants
 from dags.common.vm_resource import Project, Region, Zone
 from dags.tpu_observability.utils import node_pool_util as node_pool
-from dags.tpu_observability.configs.common import MachineConfigMap
+from dags.tpu_observability.configs.common import MachineConfigMap, log_metadata
 
 
 with models.DAG(
@@ -71,6 +71,18 @@ with models.DAG(
     )
 
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
+      task_id = "get_log_metadata"
+      log_op = log_metadata.override(task_id=task_id)(
+          cluster_project=node_pool_info.project_id,
+          region=node_pool_info.region,
+          zone=node_pool_info.zone,
+          cluster_name=node_pool_info.cluster_name,
+          node_pool_name=node_pool_info.node_pool_name,
+          workload_id="",
+          docker_image="",
+          accelerator_type=node_pool_info.machine_type,
+          num_slices="1",
+      )
       create_node_pool = node_pool.create(
           node_pool=node_pool_info,
           reservation="cloudtpu-20251107233000-1246578561",
