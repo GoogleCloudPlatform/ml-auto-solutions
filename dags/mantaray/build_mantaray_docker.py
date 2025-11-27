@@ -30,5 +30,7 @@ if composer_env.is_prod_env():
       start_date=datetime.datetime(2024, 9, 4),
       catchup=False,
   ) as dag:
-    run_workload = mantaray.build_docker_image.override(owner=test_owner.MANFEI_B)()
+    run_workload = mantaray.build_docker_image.override(
+        owner=test_owner.MANFEI_B
+    )()
     run_workload
