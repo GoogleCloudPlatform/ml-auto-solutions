@@ -402,9 +402,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             reservation="cloudtpu-20251107233000-1246578561",
         )
 
-      apply_time = jobset.run_workload.override(
-          owner=test_owner.YUNA_T
-      )(
+      apply_time = jobset.run_workload.override(owner=test_owner.YUNA_T)(
           node_pool=cluster_info,
           yaml_config=jobset_config.generate_yaml(
               workload_script=workload_script

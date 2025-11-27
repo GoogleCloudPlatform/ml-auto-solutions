@@ -93,7 +93,9 @@ def torchvision():
   )
   resnet_v3_8_tests = [
       task.run_queued_resource_test(
-          test_config.JSonnetTpuVmTest.from_pytorch(test, test_owner.MANFEI_B, reserved=True),
+          test_config.JSonnetTpuVmTest.from_pytorch(
+              test, test_owner.MANFEI_B, reserved=True
+          ),
           US_EAST1_D,
       )
       for test in (

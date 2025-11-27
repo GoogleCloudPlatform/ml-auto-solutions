@@ -213,7 +213,9 @@ def create_adaptive_backfill_dag(
           custom_task_id = f"{config_name}_{image_type}"
 
           # Create task within the TaskGroup
-          task = run_internal_aotc_workload.override(task_id=custom_task_id, owner=owner)(
+          task = run_internal_aotc_workload.override(
+              task_id=custom_task_id, owner=owner
+          )(
               relative_config_yaml_path=config_path,
               test_run=test_run,
               backfill=backfill,

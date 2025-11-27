@@ -557,7 +557,9 @@ def create_interruption_dag(
                 configs,
                 proper_time_range,
             )
-            check_event_count = validate_interruption_count.override(owner=test_owner.QUINN_M)(
+            check_event_count = validate_interruption_count.override(
+                owner=test_owner.QUINN_M
+            )(
                 metric_records,
                 log_records,
             )
