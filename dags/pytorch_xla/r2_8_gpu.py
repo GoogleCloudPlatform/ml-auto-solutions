@@ -38,7 +38,7 @@ def torchvision():
   resnet_v100_2x2 = task.GpuGkeTask(
       test_config.GpuGkeTest.from_pytorch(
           "pt-2-8-resnet50-mp-fake-v100-x2x2",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL1,
       "gpu-uc1",
@@ -46,7 +46,7 @@ def torchvision():
   resnet_v100_2x2_spmd = task.GpuGkeTask(
       test_config.GpuGkeTest.from_pytorch(
           "pt-2-8-resnet50-spmd-batch-fake-v100-x2x2",
-          test_owner.AIRFLOW,
+          test_owner.MANFEI_B,
       ),
       US_CENTRAL1,
       "gpu-uc1",
