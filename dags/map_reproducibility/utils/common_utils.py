@@ -2043,7 +2043,7 @@ def get_chips_per_node(hardware_id: str):
 def run_workload_with_quarantine(
     test_name: str,
     workload_function: Callable[..., Any],
-    owner: str = test_owner.AIRFLOW,
+    owner: str = test_owner.GUNJAN_J,
     quarantine_task_group: TaskGroup = None,
     **workload_args: Any,
 ):
@@ -2072,7 +2072,7 @@ def run_with_test_name(
     test_name: str,
     run_workload_function: Callable[..., Any],
     workload_args: Any,
-    owner: str = test_owner.AIRFLOW,
+    owner: str = test_owner.GUNJAN_J,
 ):
   test_name = test_name.replace(".", "-")
   with TaskGroup(group_id=test_name):
