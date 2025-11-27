@@ -236,7 +236,7 @@ def _query_status_metric(node_pool: Info) -> Status:
       'metric.type="kubernetes.io/node_pool/status"',
       f'resource.labels.project_id = "{node_pool.project_id}"',
       f'resource.labels.cluster_name = "{node_pool.cluster_name}"',
-      f'resource.labels.node_pool_name = "{node_pool.node_pool_name}"'
+      f'resource.labels.node_pool_name = "{node_pool.node_pool_name}"',
   ]
 
   # A single query to the Monitoring API can return multiple TimeSeries objects,
@@ -359,7 +359,7 @@ def wait_for_availability(
       'metric.type="kubernetes.io/node_pool/multi_host/available"',
       f'resource.labels.project_id = "{node_pool.project_id}"',
       f'resource.labels.cluster_name="{node_pool.cluster_name}"',
-      f'resource.labels.node_pool_name="{node_pool.node_pool_name}"'
+      f'resource.labels.node_pool_name="{node_pool.node_pool_name}"',
   ]
 
   page_result = query_time_series(

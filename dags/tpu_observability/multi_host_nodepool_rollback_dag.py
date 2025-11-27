@@ -14,7 +14,7 @@ from dags.tpu_observability.configs.common import MachineConfigMap
 
 
 with models.DAG(
-    dag_id="multi_host_availability_rollback",
+    dag_id="multi-host-availability-rollback",
     start_date=datetime.datetime(2025, 8, 10),
     schedule=constants.Schedule.DAILY_PST_6_30PM,
     catchup=False,
