@@ -97,9 +97,8 @@ for config_path, config_info in DAG_CONFIGS_MEGA.items():
   ) as dag:
     run_workload_with_quarantine(
         test_name=DAG_ID,
-        test_owner=test_owner.AIRFLOW,
         workload_function=run_internal_aotc_workload,
-        owner=test_owner.AIRFLOW,
+        owner=test_owner.GUNJAN_J,
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
         backfill=BACKFILL,

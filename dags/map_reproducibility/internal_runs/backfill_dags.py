@@ -70,7 +70,7 @@ def create_adaptive_backfill_dag(
     dag_id: str,
     model_configs: Dict[str, Dict[str, Any]],
     start_date: datetime.datetime,
-    owner: str = test_owner.AIRFLOW,
+    owner: str = test_owner.GUNJAN_J,
     dag_tags: Optional[List[str]] = None,
     schedule: Optional[str] = None,  # Default None for backfill
     test_run: bool = DEFAULT_TEST_RUN,
@@ -261,7 +261,7 @@ dag1 = create_adaptive_backfill_dag(
     model_configs=DAG_CONFIGS_ULTRA,
     start_date=datetime.datetime(2025, 4, 11),
     dag_tags=BASE_DAG_TAGS + ["a3ultra", "nvidia-h200-80gb"],
-    owner=test_owner.AIRFLOW,
+    owner=test_owner.GUNJAN_J,
 )
 
 dag2 = create_adaptive_backfill_dag(
@@ -269,5 +269,5 @@ dag2 = create_adaptive_backfill_dag(
     model_configs=DAG_CONFIGS_MEGA,
     start_date=datetime.datetime(2025, 4, 11),
     dag_tags=BASE_DAG_TAGS + ["a3mega", "nvidia-h100-80gb"],
-    owner=test_owner.AIRFLOW,
+    owner=test_owner.GUNJAN_J,
 )

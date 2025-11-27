@@ -57,7 +57,7 @@ with models.DAG(
   run_workload_with_quarantine(
       test_name=DAG_ID,
       workload_function=run_workload,
-      owner=test_owner.AIRFLOW,
+      owner=test_owner.GUNJAN_J,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,
