@@ -57,6 +57,7 @@ def run_job(
     gcp: gcp_config.GCPConfig,
     cluster_name: str,
     job_create_timeout: datetime.timedelta,
+    task_owner: str,
     gcs_location: str = '',
 ):
   """Run a batch job directly on a GKE cluster.
@@ -66,6 +67,8 @@ def run_job(
     gcp: GCP config with the project name and zone of the GKE cluster.
     cluster_name: Name of the GCP cluster.
     job_create_timeout: Amount of time to wait for all pods to become active.
+    task_owner: Task owner username or link.
+    gcs_location: GCS path for all artifacts of the test.
   """
 
   @task
@@ -206,7 +209,7 @@ def run_job(
         if exit_code:
           raise RuntimeError('Non-zero exit code')
 
-  name = deploy_job(gcs_location)
+  name = deploy_job.override(owner=task_owner)(gcs_location)
   wait_all_pods_ready(name) >> stream_logs(name)
 
 
