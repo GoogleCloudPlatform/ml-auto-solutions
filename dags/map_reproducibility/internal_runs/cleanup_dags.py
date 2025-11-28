@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""DAG to cleanup leftover workloads"""
+
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.map_reproducibility.utils.constants import Schedule
 from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.internal_aotc_workload import cleanup_cml_workloads
 
@@ -34,9 +35,7 @@ dag_default_args = {
 
 for hypercomputer in ["a3mega", "a3ultra", "a4"]:
   cluster, cluster_region = get_cluster(hypercomputer)
-  schedule = (
-      Schedule.WEEKDAY_PDT_6AM_7AM_EXCEPT_THURSDAY if not TEST_RUN else None
-  )
+  schedule = "0 13 * * *" if not TEST_RUN else None
   with models.DAG(
       dag_id=f"new_internal_cleanup_{hypercomputer}",
       default_args=dag_default_args,
