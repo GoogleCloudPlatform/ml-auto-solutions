@@ -353,8 +353,8 @@ with models.DAG(
             zone=cluster_info.zone,
             cluster_name=cluster_info.cluster_name,
             node_pool_name=cluster_info.node_pool_name,
-            workload_id="",
-            docker_image="",
+            workload_id=jobset_config.jobset_name,
+            docker_image=jobset_config.image,
             accelerator_type=cluster_info.machine_type,
             num_slices="1",
         )
