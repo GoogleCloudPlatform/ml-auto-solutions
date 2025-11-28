@@ -61,11 +61,11 @@ def get_trt_llm_mlperf_gpu_config(
       "sudo chmod a+w /scratch",
       "cd /scratch",
       # Prepare data
-      "gsutil -m cp -n -r gs://yijiaj/mlperf/v41/Google_GPU .",
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/mlperf_inf_dlrmv2 .",
-      f"gsutil -m cp -n -r {benchmark_configs['models']} .",
-      f"gsutil -m cp -n -r {benchmark_configs['preprocessed_data']} .",
-      f"gsutil -m cp -n -r {benchmark_configs['docker_config']} .",
+      "gcloud storage cp --no-clobber --recursive gs://yijiaj/mlperf/v41/Google_GPU .",
+      "gcloud storage cp --no-clobber --recursive gs://tohaowu/mlpinf-v40/mlperf_inf_dlrmv2 .",
+      f"gcloud storage cp --no-clobber --recursive {benchmark_configs['models']} .",
+      f"gcloud storage cp --no-clobber --recursive {benchmark_configs['preprocessed_data']} .",
+      f"gcloud storage cp --no-clobber --recursive {benchmark_configs['docker_config']} .",
       "curl -sSL https://get.docker.com/ | sh",
       "sudo mkdir -p /home/cloud-ml-auto-solutions/.docker",
       "sudo touch ~/.docker/config.json",
@@ -174,7 +174,7 @@ def get_trt_llm_mlperf_gpu_config(
       "cat jsonl_converter.py",
       f"python3 jsonl_converter.py {jsonl_output_path}",
       f"cat {jsonl_output_path}",
-      f"gsutil cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.GpuVmTest(
