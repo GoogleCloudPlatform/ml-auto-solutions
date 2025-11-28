@@ -356,7 +356,7 @@ with models.DAG(
             workload_id=jobset_config.jobset_name,
             docker_image=jobset_config.image,
             accelerator_type=cluster_info.machine_type,
-            num_slices="1",
+            num_slices="2",
         )
         create_first_node_pool = node_pool.create.override(
             task_id="node_pool_1",
