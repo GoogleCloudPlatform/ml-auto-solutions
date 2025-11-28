@@ -19,14 +19,39 @@ set -e
 
 FOLDERS_TO_FORMAT=("dags" "xlml")
 
-for folder in "${FOLDERS_TO_FORMAT[@]}"
-do
-  pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes --line-length=80
-done
+# for folder in "${FOLDERS_TO_FORMAT[@]}"
+# do
+#   pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes --line-length=80
+# done
+#
+# for folder in "${FOLDERS_TO_FORMAT[@]}"
+# do
+#   pylint "./$folder" --fail-under=9.6
+# done
 
-for folder in "${FOLDERS_TO_FORMAT[@]}"
-do
-  pylint "./$folder" --fail-under=9.6
-done
+BASE_BRANCH="main"
+
+CHANGED_PY_FILES="$(
+  git diff --name-only --diff-filter=ACM "${BASE_BRANCH}"...HEAD \
+    | grep '\.py$' \
+    | while read -r f; do
+        for folder in "${FOLDERS_TO_FORMAT[@]}"; do
+          if [[ "$f" == "$folder/"* ]]; then
+            echo "$f"
+            break
+          fi
+        done
+      done \
+    | sort -u
+)"
+
+if [[ -z "${CHANGED_PY_FILES}" ]]; then
+  echo "[pre-push hook] no changed files detected between HEAD and ${BASE_BRANCH}"
+  exit 1
+fi
+
+pyink ${CHANGED_PY_FILES} --pyink-indentation=2 --pyink-use-majority-quotes --line-length=80 --check --diff
+
+pylint ${CHANGED_PY_FILES} --fail-under=9.6
 
 echo "Successfully clean up all codes."
