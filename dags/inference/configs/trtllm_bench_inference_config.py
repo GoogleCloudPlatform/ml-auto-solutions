@@ -82,7 +82,7 @@ def get_trtllm_bench_config(
       f'docker exec -i {docker_container_name} /bin/bash -c "{docker_cmd}"',
       f"python3 trtllm_bench_jsonl_converter.py {jsonl_output_path}",
       f"cat {jsonl_output_path}",
-      f"gsutil cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.GpuVmTest(

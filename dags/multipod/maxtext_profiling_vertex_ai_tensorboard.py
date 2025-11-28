@@ -62,7 +62,7 @@ with models.DAG(
             "python3 -m MaxText.train MaxText/configs/base.yml"
             f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
             f" dataset_path={dataset_path} profiler=xplane steps=10",
-            "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
+            "gcloud storage ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
         )
         profiling_in_vertex_ai_tb_test = gke_config.get_gke_config(
             num_slices=slice_num,
