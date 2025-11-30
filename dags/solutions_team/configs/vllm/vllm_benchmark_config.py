@@ -155,7 +155,7 @@ def get_gpu_vllm_benchmark_cmds(
       # Kill background process
       "pkill -P $$",
       # Copy metrics as the last step
-      f"gsutil cp metric_report.jsonl {gcs_destination}",
+      f"gcloud storage cp metric_report.jsonl {gcs_destination}",
   ])
 
   return tuple(run_cmds)
@@ -205,7 +205,7 @@ def get_tpu_vllm_benchmark_cmds(
       # Kill background process
       "sudo docker exec $CONTAINER_NAME /bin/bash -c 'pkill vllm'",
       # Copy metrics
-      f"sudo docker exec -e GCS=\"{gcs_destination}\" $CONTAINER_NAME /bin/bash -c 'gsutil cp metric_report.jsonl $GCS'",
+      f"sudo docker exec -e GCS=\"{gcs_destination}\" $CONTAINER_NAME /bin/bash -c 'gcloud storage cp metric_report.jsonl $GCS'",
       # Stop the container
       "sudo docker stop $CONTAINER_NAME",
   ])

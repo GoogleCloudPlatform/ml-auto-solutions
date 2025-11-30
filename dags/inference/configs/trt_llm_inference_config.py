@@ -56,10 +56,10 @@ def get_trt_llm_gpu_config(
       "sudo chmod a+w /scratch",
       "cd /scratch",
       # Install TensorRT-LLM.
-      "gsutil -m cp -r gs://tohaowu/llama_3_8B_Instruct_HF_model .",
-      "gsutil -m cp -r gs://tohaowu/llama_3.1_70B_Instruct_HF_model .",
-      "gsutil -m cp -r gs://tohaowu/Mixtral-8x22B-Instruct-v0.1 .",
-      "gsutil -m cp -r gs://yijiaj/gemma/gemma-2-27b-it .",
+      "gcloud storage cp --recursive gs://tohaowu/llama_3_8B_Instruct_HF_model .",
+      "gcloud storage cp --recursive gs://tohaowu/llama_3.1_70B_Instruct_HF_model .",
+      "gcloud storage cp --recursive gs://tohaowu/Mixtral-8x22B-Instruct-v0.1 .",
+      "gcloud storage cp --recursive gs://yijiaj/gemma/gemma-2-27b-it .",
       "sudo apt-get update",
       "sudo apt-get -y install git git-lfs",
       "git clone https://github.com/NVIDIA/TensorRT-LLM.git",
@@ -122,7 +122,7 @@ def get_trt_llm_gpu_config(
       f'docker exec -i {docker_container_name} /bin/bash -c "{docker_cmd}"',
       f"docker cp {docker_container_name}:/app/tensorrt_llm/benchmarks/python/{jsonl_output_path} {jsonl_output_path}",
       f"cat {jsonl_output_path}",
-      f"gsutil cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.GpuVmTest(
