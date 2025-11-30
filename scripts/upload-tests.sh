@@ -23,7 +23,7 @@ FOLDERS_TO_UPLOAD=("dags" "xlml")
 # TODO(ranran): handle tests from Jsonnet
 for folder in "${FOLDERS_TO_UPLOAD[@]}"
 do
-  gsutil -m rsync -c -d -r "$folder" "$GCS_DAGS_FOLDER"/"$folder"
+  gcloud storage rsync --checksums-only --delete-unmatched-destination-objects --recursive "$folder" "$GCS_DAGS_FOLDER"/"$folder"
 done
 
 ROOT_PATH=$GCS_DAGS_FOLDER
@@ -31,6 +31,6 @@ if [[ "$GCS_DAGS_FOLDER" == */dags ]]; then
     ROOT_PATH="${GCS_DAGS_FOLDER%/dags}"
 fi
 
-gsutil -m rsync -c -d -r -x '.*\.md$' plugins "$ROOT_PATH"/plugins
+gcloud storage rsync --checksums-only --delete-unmatched-destination-objects --recursive --exclude '.*\.md$' plugins "$ROOT_PATH"/plugins
 
 echo "Successfully uploaded tests."

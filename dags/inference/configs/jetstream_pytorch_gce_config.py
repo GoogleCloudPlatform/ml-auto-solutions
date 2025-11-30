@@ -86,7 +86,7 @@ def get_jetstream_pytorch_inference_nightly_config(
       f"export CKPT_PATH={model_configs['checkpoint']}",
       f"export QUANTIZE={str(model_configs['quantize'])}",
       "mkdir -p /dev/shm/ckpt_dir/${MODEL_ID}/hf_original",
-      "gsutil cp -r ${CKPT_PATH}/* /dev/shm/ckpt_dir/${MODEL_ID}/hf_original/",
+      "gcloud storage cp --recursive ${CKPT_PATH}/* /dev/shm/ckpt_dir/${MODEL_ID}/hf_original/",
       # Start jetstream-pytorch server in the background
       """jpt serve \
         --model_id=${MODEL_ID} \
@@ -116,7 +116,7 @@ def get_jetstream_pytorch_inference_nightly_config(
       # Upload results (in jsonlines format) to GCS to be post-processed into
       # our BigQuery table
       "mv ${BENCHMARK_OUTPUT} metric_report.jsonl",
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.TpuVmTest(
