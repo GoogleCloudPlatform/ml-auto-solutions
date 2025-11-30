@@ -18,6 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
+import os
 from dags.common.quarantined_tests import QuarantineTests
 from typing import Optional, Tuple, Union
 import airflow
@@ -122,6 +123,14 @@ def run_queued_resource_test(
       )
       queued_resource_op >> setup_task
 
+    # Pass in the COMPOSER_ env vars and GCP project to the SSH session
+    composer_env = dict(
+        [
+            (x, os.environ[x])
+            for x in os.environ
+            if (x.startswith("COMPOSER_") or x == "GCP_PROJECT")
+        ]
+    )
     run_model = tpu.ssh_tpu.override(
         task_id="run_model",
         execution_timeout=task_test_config.timeout,
@@ -131,7 +140,10 @@ def run_queued_resource_test(
         task_test_config.test_script,
         ssh_keys,
         all_workers,
-        env={metric_config.SshEnvVars.GCS_OUTPUT.name: output_location},
+        env={
+            **composer_env,
+            metric_config.SshEnvVars.GCS_OUTPUT.name: output_location,
+        },
     )
 
     with TaskGroup(group_id="post_process") as post_process:

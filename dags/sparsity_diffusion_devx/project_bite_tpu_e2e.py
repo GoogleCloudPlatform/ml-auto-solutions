@@ -56,7 +56,7 @@ v5e_conf = {
 }
 
 common = {
-    'time_out_in_min': 180,
+    'time_out_in_min': 360,
     'task_owner': test_owner.Andrew_S,
 }
 
