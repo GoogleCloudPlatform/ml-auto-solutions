@@ -27,7 +27,7 @@ from xlml.utils import name_format
 from xlml.apis import metric_config
 
 # Run once a day at 3 am UTC (7 pm PST)
-SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "15 1 * * *" if composer_env.is_prod_env() else None
 BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
 
 

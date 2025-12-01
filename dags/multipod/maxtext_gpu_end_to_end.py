@@ -29,7 +29,7 @@ from dags.multipod.configs import gke_config
 from xlml.utils import gke
 
 # Run once a day at 4 am UTC (8 pm PST)
-SCHEDULED_TIME = "30 5 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 5 * * *" if composer_env.is_prod_env() else None
 
 # Number of nodes on A3 cluster to be scaled up to
 A3_NUM_NODES = 10

@@ -247,7 +247,7 @@ RECIPE_NAME = RECIPE_INSTANCE.value.lower()
 with models.DAG(
     dag_id=RECIPE_NAME,
     start_date=datetime.datetime(2025, 1, 1),
-    schedule_interval="00 10 * * *",
+    schedule_interval="0 10 * * *",
     catchup=False,
     default_args={
         "retries": 0,

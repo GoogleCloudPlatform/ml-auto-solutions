@@ -6,7 +6,7 @@ from dags.framework3p.configs.microbenchmarks_config import get_microbenchmark_c
 
 
 # Run once a day at 2 am
-SCHEDULED_TIME = "0 1 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 0 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(

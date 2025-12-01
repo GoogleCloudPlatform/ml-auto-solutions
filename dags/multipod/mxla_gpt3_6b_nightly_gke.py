@@ -25,7 +25,7 @@ from dags.multipod.configs import gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
 # Pause test on GKE
-SCHEDULED_TIME = "0 1 * * *"
+SCHEDULED_TIME = "15 0 * * *"
 
 with models.DAG(
     dag_id="mxla_gpt_6b_nightly_gke",

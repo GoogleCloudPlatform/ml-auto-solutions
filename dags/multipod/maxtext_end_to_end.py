@@ -26,7 +26,7 @@ from dags.multipod.configs import gke_config
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
-SCHEDULED_TIME = "30 4 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
 HF_TOKEN = models.Variable.get("HF_TOKEN", None)
 
 

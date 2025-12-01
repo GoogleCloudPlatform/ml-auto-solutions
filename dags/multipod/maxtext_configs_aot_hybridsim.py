@@ -29,7 +29,7 @@ from xlml.apis import metric_config
 
 
 # Run once a day at 1 pm UTC (5 am PST / 6 am PDT)
-SCHEDULED_TIME = "0 13 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "30 2 * * *" if composer_env.is_prod_env() else None
 
 
 def hybridsim_compile_and_run(test_group_id):
