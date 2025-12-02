@@ -1,4 +1,19 @@
-"""A DAG orchestrates the process of verifying TensorCore utilization metrics.
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+A DAG orchestrates the process of verifying TensorCore utilization metrics.
 
 This is done by comparing data from Cloud Logging and Cloud Monitoring.
 """
@@ -16,7 +31,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from dags.common.vm_resource import Region, Zone
 from dags.map_reproducibility.utils import constants
-from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig, log_metadata
+from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
@@ -25,8 +40,9 @@ from dags.tpu_observability.utils.jobset_util import JobSet, Workload
 
 
 @task
-def get_tpu_info_from_pod(node_pool: node_pool.Info, pod_name: str) -> str:
-  """Executes the 'tpu-info' command within a specified pod and returns its output.
+def get_tpu_info_from_pod(info: node_pool.Info, pod_name: str) -> str:
+  """
+  Executes the `tpu-info` command in a specified pod and returns its output.
 
   This task uses kubectl to run the 'tpu-info' command inside the given pod
   in the 'default' namespace. The output of the command is captured and
@@ -44,7 +60,7 @@ def get_tpu_info_from_pod(node_pool: node_pool.Info, pod_name: str) -> str:
     env["KUBECONFIG"] = temp_config_file.name
 
     cmd = " && ".join([
-        jobset.Command.get_credentials_command(node_pool),
+        jobset.Command.get_credentials_command(info),
         f"kubectl exec {pod_name} -n default -- tpu-info",
     ])
 
@@ -53,7 +69,9 @@ def get_tpu_info_from_pod(node_pool: node_pool.Info, pod_name: str) -> str:
 
 @task
 def verify_table_amount(tpu_info_output: list[tpu_info.Table]):
-  """Verifies if all expected tables are present in the parsed tpu_info dictionary."""
+  """
+  Verifies if all expected tables are present.
+  """
   expect_table_names = {
       "TPU Chips",
       "TPU Runtime Utilization",
@@ -77,7 +95,9 @@ def validate_chips_table(
     tpu_info_output: list[tpu_info.Table],
     tpu_config: TpuConfig,
 ):
-  """Validates the row count and content for the 'TPU Chips' table."""
+  """
+  Validates the row count and content for the 'TPU Chips' table.
+  """
   errors = []
   content = next(
       (table for table in tpu_info_output if table.name == "TPU Chips"),
@@ -125,7 +145,9 @@ def validate_chips_table(
 
 @task
 def validate_runtime_table(tpu_info_output: list[tpu_info.Table]):
-  """Validates the row count and content for the 'TPU Runtime Utilization' table."""
+  """
+  Validates the row count and content of table 'TPU Runtime Utilization'
+  """
   errors = []
   content = next(
       (
@@ -147,9 +169,9 @@ def validate_runtime_table(tpu_info_output: list[tpu_info.Table]):
     for header, data in row_dict.items():
       match header:
         case "HBM Usage (GiB)":
-          hbm_match = re.match(r"(\d+\.\d+)\s*GiB\s*/\s*(\d+\.\d+)\s*GiB", data)
-          if hbm_match:
-            used, total = float(hbm_match.group(1)), float(hbm_match.group(2))
+          regex = re.match(r"(\d+\.\d+)\s*GiB\s*/\s*(\d+\.\d+)\s*GiB", data)
+          if regex:
+            used, total = float(regex.group(1)), float(regex.group(2))
             if used > total:
               errors.append(
                   f"Unexpected {header}; expect: 'used HBM <= total HBM'; got:"
@@ -178,7 +200,9 @@ def validate_runtime_table(tpu_info_output: list[tpu_info.Table]):
 
 @task
 def validate_tensorcore_table(tpu_info_output: list[tpu_info.Table]):
-  """Validates the row count and content for the 'TensorCore Utilization' table."""
+  """
+  Validates the row count and content of table 'TensorCore Utilization'
+  """
   errors = []
   content = next(
       (
@@ -216,7 +240,9 @@ def validate_tensorcore_table(tpu_info_output: list[tpu_info.Table]):
 
 @task
 def validate_latency_table(tpu_info_output: list[tpu_info.Table]):
-  """Validates the row count and content for the TPU Buffer Transfer Latency table."""
+  """
+  Validates the row count and content of table 'TPU Buffer Transfer Latency'
+  """
   errors = []
   content = next(
       (
@@ -253,7 +279,9 @@ def validate_latency_table(tpu_info_output: list[tpu_info.Table]):
     )
 
 
-with models.DAG(
+# Keyword arguments are generated dynamically at runtime (pylint does not
+# know this signature).
+with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="tpu_info_format_validation_dag",
     start_date=datetime.datetime(2025, 8, 15),
     default_args={"retries": 0},
@@ -273,9 +301,9 @@ with models.DAG(
       ### Description
       This DAG automates the validation of the tpu-info command-line tool's
       output format.It verifies the structure and content of key metric tables,
-      including "TPU Chips", "TPU Runtime Utilization", "TensorCore Utilization",
-      and "TPU Buffer Transfer Latency", by running the tool on a live GKE
-      cluster with TPU node pools.
+      including "TPU Chips", "TPU Runtime Utilization", "TensorCore
+      Utilization", and "TPU Buffer Transfer Latency", by running the tool on a
+      live GKE cluster with TPU node pools.
 
       ### Prerequisites
       This test requires an existing GKE cluster.
@@ -286,12 +314,12 @@ with models.DAG(
       ### Procedures
       The DAG begins by creating temporary GKE TPU node pools for the test.
       Once the node pools are running, it schedules a Kubernetes JobSet and
-      waits for the pods to become active. It then executes the tpu-info command
-      within these pods to capture the raw text output. This output is parsed
-      into structured tables, and a series of validation tasks check each table
-      for the correct structure, row counts, and data formats. Finally,
-      regardless of the test outcome, the DAG cleans up all created resources,
-      including the JobSet and the temporary node pools.
+      waits for the pods to become active. It then executes the tpu-info
+      command within these pods to capture the raw text output. This output is
+      parsed into structured tables, and a series of validation tasks check
+      each table for the correct structure, row counts, and data formats.
+      Finally, regardless of the test outcome, the DAG cleans up all created
+      resources, including the JobSet and the temporary node pools.
       """,
 ) as dag:
   for machine in MachineConfigMap:
@@ -344,20 +372,16 @@ with models.DAG(
 
     workload_script = Workload.JAX_TPU_BENCHMARK
 
-    with TaskGroup(group_id=f"v{config.tpu_version.value}"):
-      with TaskGroup(group_id="create_node_pool") as create_node_pool:
-        task_id = "get_log_metadata"
-        log_op = log_metadata.override(task_id=task_id)(
-            cluster_project=cluster_info.project_id,
-            region=cluster_info.region,
-            zone=cluster_info.zone,
-            cluster_name=cluster_info.cluster_name,
-            node_pool_name=cluster_info.node_pool_name,
-            workload_id=jobset_config.jobset_name,
-            docker_image=jobset_config.image,
-            accelerator_type=cluster_info.machine_type,
-            num_slices="2",
-        )
+    # Keyword arguments are generated dynamically at runtime (pylint does not
+    # know this signature).
+    with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+        group_id=f"v{config.tpu_version.value}"
+    ):
+      # Keyword arguments are generated dynamically at runtime (pylint does not
+      # know this signature).
+      with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+          group_id="create_node_pool"
+      ) as create_node_pool:
         create_first_node_pool = node_pool.create.override(
             task_id="node_pool_1",
             retries=2,
@@ -391,37 +415,41 @@ with models.DAG(
           task_id="wait_for_job_start"
       )(cluster_info, pod_name_list=active_pods, job_apply_time=apply_time)
 
-      tpu_info_outputs = (
+      outputs_of_tpu_info = (
           get_tpu_info_from_pod.override(task_id="get_tpu_info")
-          .partial(node_pool=cluster_info)
+          .partial(info=cluster_info)
           .expand(pod_name=active_pods)
       )
 
-      tpu_info_output = (
+      output_of_tpu_info = (
           tpu_info.parse_tpu_info_output.override(
               task_id="get_each_metric_table"
           )
           .partial()
-          .expand(output=tpu_info_outputs)
+          .expand(output=outputs_of_tpu_info)
       )
 
-      with TaskGroup(group_id="verification_group") as verification_group:
+      # Keyword arguments are generated dynamically at runtime (pylint does not
+      # know this signature).
+      with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+          group_id="verification_group"
+      ) as verification_group:
         verify_table_amount_task = (
             verify_table_amount.override(task_id="verify_table_amount_task")
             .partial()
-            .expand(tpu_info_output=tpu_info_output)
+            .expand(tpu_info_output=output_of_tpu_info)
         )
 
         validate_tpu_chips_metric = (
             validate_chips_table.override(task_id="validate_tpu_chips_metric")
             .partial(tpu_config=config)
-            .expand(tpu_info_output=tpu_info_output)
+            .expand(tpu_info_output=output_of_tpu_info)
         )
 
         validate_runtime_metric = (
             validate_runtime_table.override(task_id="validate_runtime_metric")
             .partial()
-            .expand(tpu_info_output=tpu_info_output)
+            .expand(tpu_info_output=output_of_tpu_info)
         )
 
         validate_tensorcore_metric = (
@@ -429,13 +457,13 @@ with models.DAG(
                 task_id="validate_tensorcore_metric"
             )
             .partial()
-            .expand(tpu_info_output=tpu_info_output)
+            .expand(tpu_info_output=output_of_tpu_info)
         )
 
         validate_latency_metric = (
             validate_latency_table.override(task_id="validate_latency_metric")
             .partial()
-            .expand(tpu_info_output=tpu_info_output)
+            .expand(tpu_info_output=output_of_tpu_info)
         )
 
       clean_up_workload = jobset.end_workload.override(
@@ -448,7 +476,11 @@ with models.DAG(
           setups=apply_time
       )
 
-      with TaskGroup(group_id="cleanup_node_pool") as cleanup_node_pool:
+      # Keyword arguments are generated dynamically at runtime (pylint does not
+      # know this signature).
+      with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+          group_id="cleanup_node_pool"
+      ) as cleanup_node_pool:
         cleanup_first_node_pool = node_pool.delete.override(
             task_id="cleanup_node_pool_1",
             trigger_rule=TriggerRule.ALL_DONE,
@@ -465,6 +497,8 @@ with models.DAG(
             setups=create_node_pool,
         )
 
+      # Airflow uses >> for task chaining, which is pointless for pylint.
+      # pylint: disable=pointless-statement
       (
           verify_table_amount_task
           >> [
@@ -483,9 +517,10 @@ with models.DAG(
           >> apply_time
           >> active_pods
           >> wait_for_job_start
-          >> tpu_info_outputs
-          >> tpu_info_output
+          >> outputs_of_tpu_info
+          >> output_of_tpu_info
           >> verification_group
           >> clean_up_workload
           >> cleanup_node_pool
       )
+      # pylint: enable=pointless-statement
