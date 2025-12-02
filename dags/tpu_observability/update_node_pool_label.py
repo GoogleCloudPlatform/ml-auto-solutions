@@ -1,18 +1,34 @@
-"""A DAG to update the label of a node pool to make node pool unavailable for a while"""
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+A DAG to update the label of a node pool to make node pool unavailable
+"""
 
 import datetime
 
 from airflow import models
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
-
-from dags.common.vm_resource import Project, Region, Zone
+from airflow.utils.trigger_rule import TriggerRule
+from dags.common.vm_resource import Region, Zone
 from dags.map_reproducibility.utils import constants
-from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.configs.common import MachineConfigMap
+from dags.tpu_observability.utils import node_pool_util as node_pool
 
-
-with models.DAG(
+# Keyword arguments are generated dynamically at runtime (pylint does not
+# know this signature).
+with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="gke_node_pool_label_update",
     start_date=datetime.datetime(2025, 8, 1),
     schedule=constants.Schedule.DAILY_PST_7_30_PM,
@@ -62,7 +78,11 @@ with models.DAG(
 
     LABELS_TO_UPDATE = {"env": "prod"}
 
-    with TaskGroup(group_id=f"v{config.tpu_version.value}"):
+    # Keyword arguments are generated dynamically at runtime (pylint does not
+    # know this signature).
+    with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+        group_id=f"v{config.tpu_version.value}"
+    ):
       create_node_pool = node_pool.create.override(task_id="create_node_pool")(
           node_pool=node_pool_info,
           reservation="cloudtpu-20251107233000-1246578561",
@@ -90,6 +110,8 @@ with models.DAG(
           setups=[create_node_pool],
       )
 
+      # Airflow uses >> for task chaining, which is pointless for pylint.
+      # pylint: disable=pointless-statement
       (
           create_node_pool
           >> wait_for_availability
@@ -98,3 +120,4 @@ with models.DAG(
           >> wait_node_pool_recovered
           >> cleanup_node_pool
       )
+      # pylint: enable=pointless-statement

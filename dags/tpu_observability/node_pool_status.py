@@ -1,3 +1,17 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """A DAG to validate the status of a GKE node pool through its lifecycle."""
 
 import copy
@@ -8,12 +22,14 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
 
 from dags.map_reproducibility.utils import constants
-from dags.common.vm_resource import Project, Region, Zone
+from dags.common.vm_resource import Region, Zone
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.configs.common import MachineConfigMap
 
 
-with models.DAG(
+# Keyword arguments are generated dynamically at runtime (pylint does not
+# know this signature).
+with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="gke_node_pool_status",
     start_date=datetime.datetime(2025, 8, 1),
     schedule=constants.Schedule.DAILY_PST_6PM,
@@ -72,7 +88,11 @@ with models.DAG(
         "WRONG_NODE_LOCATION", default_var=Zone.ASIA_EAST1_C.value
     )
 
-    with TaskGroup(group_id=f"v{config.tpu_version.value}"):
+    # Keyword arguments are generated dynamically at runtime (pylint does not
+    # know this signature).
+    with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+        group_id=f"v{config.tpu_version.value}"
+    ):
       task_id = "create_node_pool"
       create_node_pool = node_pool.create.override(task_id=task_id)(
           node_pool=node_pool_info,
@@ -129,7 +149,8 @@ with models.DAG(
       )(
           node_pool=problematic_node_pool_info,
           # The failure is intentionally ignored because we want to validate
-          # that the status of the node pool (which fails to be created) is "ERROR".
+          # that the status of the node pool (which fails to be created) is
+          # "ERROR".
           ignore_failure=True,
       )
 
@@ -145,6 +166,8 @@ with models.DAG(
           setups=create_problematic_node_pool_info,
       )
 
+      # Airflow uses >> for task chaining, which is pointless for pylint.
+      # pylint: disable=pointless-statement
       normal_flow = (
           create_node_pool
           >> wait_for_provisioning
@@ -162,3 +185,4 @@ with models.DAG(
           >> wait_for_error
           >> cleanup_wrong_node_pool
       )
+      # pylint: enable=pointless-statement

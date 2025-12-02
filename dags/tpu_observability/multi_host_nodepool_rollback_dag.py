@@ -1,4 +1,21 @@
-"""A DAG to ensure a rollback effects the availablility of a mult-host GKE node pool as expected."""
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+A DAG to ensure a rollback effects the availability of a multi-host GKE node
+pool as expected.
+"""
 
 import datetime
 
@@ -8,12 +25,14 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags.map_reproducibility.utils import constants
-from dags.common.vm_resource import Project, Region, Zone
+from dags.common.vm_resource import Region, Zone
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.configs.common import MachineConfigMap
 
 
-with models.DAG(
+# Keyword arguments are generated dynamically at runtime (pylint does not
+# know this signature).
+with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="multi-host-availability-rollback",
     start_date=datetime.datetime(2025, 8, 10),
     schedule=constants.Schedule.DAILY_PST_6_30PM,
@@ -70,7 +89,11 @@ with models.DAG(
         tpu_topology=config.tpu_topology,
     )
 
-    with TaskGroup(group_id=f"v{config.tpu_version.value}"):
+    # Keyword arguments are generated dynamically at runtime (pylint does not
+    # know this signature).
+    with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+        group_id=f"v{config.tpu_version.value}"
+    ):
       create_node_pool = node_pool.create(
           node_pool=node_pool_info,
           reservation="cloudtpu-20251107233000-1246578561",
@@ -99,6 +122,8 @@ with models.DAG(
           setups=create_node_pool,
       )
 
+      # Airflow uses >> for task chaining, which is pointless for pylint.
+      # pylint: disable=pointless-statement
       (
           create_node_pool
           >> wait_node_pool_available
@@ -107,3 +132,4 @@ with models.DAG(
           >> wait_node_pool_recovered
           >> cleanup_node_pool
       )
+      # pylint: enable=pointless-statement

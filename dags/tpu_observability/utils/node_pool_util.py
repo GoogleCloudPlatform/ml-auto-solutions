@@ -1,3 +1,17 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utility functions for managing GKE node pools."""
 
 import dataclasses
@@ -16,6 +30,7 @@ from google.cloud import monitoring_v3
 from dags.tpu_observability.utils.time_util import TimeUtil
 from dags.tpu_observability.utils.gcp_util import query_time_series
 from dags.tpu_observability.utils import subprocess_util as subprocess
+from xlml.utils import composer
 
 
 class Status(enum.Enum):
@@ -40,7 +55,10 @@ class Status(enum.Enum):
 
 @dataclasses.dataclass
 class Info:
-  """Encapsulates information related to a GKE node pool and represents a specific node pool."""
+  """
+  Encapsulates information related to a GKE node pool and represents a specific
+  node pool.
+  """
 
   project_id: str = None
   cluster_name: str = None
@@ -61,6 +79,15 @@ def create(
     ignore_failure: bool = False,
 ) -> None:
   """Creates a GKE node pool by the given node pool information."""
+
+  composer.log_metadata_for_xlml_dashboard({
+      "cluster_project": node_pool.project_id,
+      "region": node_pool.region,
+      "zone": node_pool.zone,
+      "cluster_name": node_pool.cluster_name,
+      "node_pool_name": node_pool.node_pool_name,
+      "accelerator_type": node_pool.machine_type,
+  })
 
   command = (
       f"gcloud container node-pools create {node_pool.node_pool_name} "
