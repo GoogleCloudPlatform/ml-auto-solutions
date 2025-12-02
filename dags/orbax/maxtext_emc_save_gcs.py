@@ -19,7 +19,7 @@ from xlml.utils.gke import zone_to_region
 from dags.orbax.util import test_config_util
 
 
-SCHEDULE = "0 14 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "30 6 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_emc_save_gcs"
 
 

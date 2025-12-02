@@ -24,7 +24,7 @@ from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 6 am UTC (10 pm PST)
-SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 2 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="maxtext_profiling",

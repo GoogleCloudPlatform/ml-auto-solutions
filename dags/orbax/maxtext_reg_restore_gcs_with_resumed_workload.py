@@ -18,7 +18,7 @@ from dags.orbax.util import validation_util, test_config_util
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
 
-SCHEDULE = "0 18 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "45 8 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_regular_restore_with_resumed_workload"
 
 

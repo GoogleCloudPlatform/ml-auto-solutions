@@ -24,7 +24,7 @@ from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, 
 from dags.multipod.configs import gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
-SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 2 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="mxla_maxtext_nightly_gke",

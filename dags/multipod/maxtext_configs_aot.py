@@ -25,7 +25,7 @@ from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 5 am UTC (9 pm PST / 10 pm PDT)
-SCHEDULED_TIME = "0 5 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "15 1 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(

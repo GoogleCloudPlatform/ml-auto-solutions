@@ -25,7 +25,7 @@ from dags.multipod.configs.common import SetupMode
 from xlml.apis import gcp_config, metric_config, task, test_config
 
 # Run once a day at 6 am UTC (10 pm PST)
-SCHEDULED_TIME = "0 6 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "30 19 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="maxtext_convergence",

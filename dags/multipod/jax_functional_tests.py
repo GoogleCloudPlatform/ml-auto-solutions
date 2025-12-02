@@ -22,7 +22,7 @@ from dags.multipod.configs import jax_tests_gce_config, jax_tests_gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 10 am UTC (2 am PST)
-SCHEDULED_TIME = "0 14 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "0 19 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id="jax_functional_tests",
