@@ -20,7 +20,7 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import GpuVersion, TpuVersion, Zone, DockerImage, XpkClusters
+from dags.common.vm_resource import DockerImage
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -28,7 +28,9 @@ from dags.multipod.configs.common import SetupMode
 SCHEDULED_TIME = "15 1 * * *" if composer_env.is_prod_env() else None
 
 
-with models.DAG(
+# Keyword arguments are generated dynamically at runtime (pylint does not
+# know this signature).
+with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="maxtext_configs_aot",
     schedule=SCHEDULED_TIME,
     tags=[
@@ -71,11 +73,25 @@ with models.DAG(
     run_model_cmds = []
     for model_size, num_cores in models:
       for n in num_slices:
-        cmd = f"bash src/MaxText/configs/{tpu}/{model_size}.sh EXECUTABLE=train_compile M_COMPILE_TOPOLOGY={tpu}-{num_cores} M_COMPILE_TOPOLOGY_NUM_SLICES={n}"
+        # For EXECUTABLE=train_compile, DATASET_PATH and OUTPUT_PATH are unused.
+        # Use dummy dirs to satisfy the required CLI flags (placeholders only).
+        dataset_path = "dummy-dataset"
+        output_path = "dummy-output-dir"
+
+        cmd = (
+            f"bash src/MaxText/configs/{tpu}/{model_size}.sh "
+            "EXECUTABLE=train_compile "
+            f"M_COMPILE_TOPOLOGY={tpu}-{num_cores} "
+            f"M_COMPILE_TOPOLOGY_NUM_SLICES={n} "
+            f"DATASET_PATH={dataset_path} "
+            f"OUTPUT_PATH={output_path}"
+        )
         run_model_cmds.append(cmd)
     run_model_cmds_dict[tpu] = run_model_cmds
 
-  quarantine_task_group = TaskGroup(
+  # Keyword arguments are generated dynamically at runtime (pylint does not
+  # know this signature).
+  quarantine_task_group = TaskGroup(  # pylint: disable=unexpected-keyword-arg
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
@@ -104,8 +120,11 @@ with models.DAG(
         test_owner=test_owner.NUOJIN_C,
     ).run_with_quarantine(quarantine_task_group)
 
+    # Airflow uses >> for task chaining, which is pointless for pylint.
+    # pylint: disable=pointless-statement
     (
         maxtext_v4_configs_test
         >> maxtext_v5e_configs_test
         >> maxtext_v5p_configs_test
     )
+    # pylint: enable=pointless-statement
