@@ -229,7 +229,7 @@ def get_gpu_vllm_gce_config(
     subnetwork: str,
     model_configs: Dict = {},
     reservation: bool = False,
-):
+) -> task.GpuCreateResourceTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project.value,
       zone=gpu_zone.value,
