@@ -12,7 +12,7 @@ import google.auth.transport.requests
 from google.cloud import container_v1
 import kubernetes
 
-from xlml.apis import gcp_config
+from xlml.apis import gcp_config, test_config
 from xlml.utils import composer
 
 """Utilities for GKE."""
@@ -55,6 +55,7 @@ def get_authenticated_client(
 def run_job(
     body: Dict[str, Any],
     gcp: gcp_config.GCPConfig,
+    gke_test_config: test_config.GpuGkeTest,
     cluster_name: str,
     job_create_timeout: datetime.timedelta,
     gcs_location: str = '',
@@ -64,6 +65,7 @@ def run_job(
   Args:
     body: Dict that defines a Kubernetes `Job`.
     gcp: GCP config with the project name and zone of the GKE cluster.
+    gke_test_config: Test config with the accelerator information of the GKE cluster
     cluster_name: Name of the GCP cluster.
     job_create_timeout: Amount of time to wait for all pods to become active.
   """
@@ -72,12 +74,13 @@ def run_job(
   def deploy_job(gcs_location):
     # Log required info for XLML PLX Dashboard
     composer.log_metadata_for_xlml_dashboard({
-        'project_name': gcp.project_name,
+        'cluster_project': gcp.project_name,
         'zone': gcp.zone,
         'dataset_name': gcp.dataset_name.value,
         'composer_project': gcp.composer_project,
         'dataset_project': gcp.dataset_project,
         'cluster_name': cluster_name,
+        'accelerator_type': gke_test_config.accelerator.machine_type,
     })
 
     body['spec']['template']['spec']['containers'][0]['env'].append(
