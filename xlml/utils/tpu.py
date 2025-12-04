@@ -86,7 +86,7 @@ def create_queued_resource(
     # Log required info for XLML PLX Dashboard
     composer.log_metadata_for_xlml_dashboard({
         'instance_name': tpu_name,
-        'project_name': gcp.project_name,
+        'cluster_project': gcp.project_name,
         'zone': gcp.zone,
         'dataset_name': gcp.dataset_name.value,
         'composer_project': gcp.composer_project,
@@ -97,6 +97,7 @@ def create_queued_resource(
             'runtime_version': task_test_config.accelerator.runtime_version,
             'version': task_test_config.accelerator.version.value,
         },
+        'accelerator_type': task_test_config.accelerator.name,
     })
 
     creds, _ = google.auth.default()

@@ -319,7 +319,7 @@ def create_resource(
     # Log required info for XLML PLX Dashboard
     composer.log_metadata_for_xlml_dashboard({
         "instance_name": instance_name,
-        "project_name": gcp.project_name,
+        "cluster_project": gcp.project_name,
         "zone": gcp.zone,
         "dataset_name": gcp.dataset_name.value,
         "composer_project": gcp.composer_project,
@@ -331,6 +331,7 @@ def create_resource(
             "machine_type": accelerator.machine_type,
             "image_family": accelerator.image_family,
         },
+        "accelerator_type": accelerator.machine_type,
     })
 
     machine_type = accelerator.machine_type
