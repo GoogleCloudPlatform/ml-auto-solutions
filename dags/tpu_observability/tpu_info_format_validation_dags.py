@@ -29,6 +29,8 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+
+from dags import composer_env
 from dags.common.vm_resource import Region, Zone
 from dags.map_reproducibility.utils import constants
 from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
@@ -324,13 +326,13 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 ) as dag:
   for machine in MachineConfigMap:
     config = machine.value
+    cluster_name = "tpu-observability-automation"
+    cluster_name += "-prod" if composer_env.is_prod_env() else "-dev"
     cluster_info = node_pool.Info(
         project_id=models.Variable.get(
             "TFV_PROJECT_ID", default_var="cienet-cmcs"
         ),
-        cluster_name=models.Variable.get(
-            "TFV_CLUSTER_NAME", default_var="tpu-observability-automation"
-        ),
+        cluster_name=cluster_name,
         node_pool_name=models.Variable.get(
             "TFV_NODE_POOL_NAME", default_var="tpu-info-fromat-test-v6e"
         ),

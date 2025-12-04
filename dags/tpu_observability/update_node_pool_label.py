@@ -21,6 +21,8 @@ import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+
+from dags import composer_env
 from dags.common.vm_resource import Region, Zone
 from dags.map_reproducibility.utils import constants
 from dags.tpu_observability.configs.common import MachineConfigMap
@@ -57,11 +59,11 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 ) as dag:
   for machine in MachineConfigMap:
     config = machine.value
+    cluster_name = "tpu-observability-automation"
+    cluster_name += "-prod" if composer_env.is_prod_env() else "-dev"
     node_pool_info = node_pool.Info(
         project_id="cienet-cmcs",
-        cluster_name=models.Variable.get(
-            "CLUSTER_NAME", default_var="tpu-observability-automation"
-        ),
+        cluster_name=cluster_name,
         node_pool_name=models.Variable.get(
             "NODE_POOL_NAME", default_var="update-node-pool-label-v6e-autotest"
         ),

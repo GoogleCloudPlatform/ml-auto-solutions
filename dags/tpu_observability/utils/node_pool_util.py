@@ -82,8 +82,8 @@ def create(
 
   composer.log_metadata_for_xlml_dashboard({
       "cluster_project": node_pool.project_id,
-      "region": node_pool.region,
-      "zone": node_pool.zone,
+      "region": node_pool.location,
+      "zone": node_pool.node_locations,
       "cluster_name": node_pool.cluster_name,
       "node_pool_name": node_pool.node_pool_name,
       "accelerator_type": node_pool.machine_type,
