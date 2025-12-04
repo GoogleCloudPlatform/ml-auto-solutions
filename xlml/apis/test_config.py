@@ -396,6 +396,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
       reserved: bool,
       network: str,
       subnetwork: str,
+      task_owner: str,
       num_slices: int = 1,
   ):
     return JSonnetTpuVmTest(
@@ -416,11 +417,13 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         test_command=test_command,
         timeout=datetime.timedelta(seconds=test['timeout']),
         num_slices=num_slices,
+        task_owner=task_owner,
     )
 
   @staticmethod
   def from_jax(
       test_name: str,
+      task_owner: str,
       reserved: bool = False,
       network='default',
       subnetwork='default',
@@ -436,11 +439,13 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         reserved=reserved,
         network=network,
         subnetwork=subnetwork,
+        task_owner=task_owner,
     )
 
   @staticmethod
   def from_pytorch(
       test_name: str,
+      task_owner: str,
       reserved: bool = False,
       network='default',
       subnetwork='default',
@@ -459,6 +464,7 @@ class JSonnetTpuVmTest(TestConfig[Tpu]):
         network=network,
         subnetwork=subnetwork,
         num_slices=num_slices,
+        task_owner=task_owner,
     )
 
   @property
@@ -499,7 +505,7 @@ class GpuGkeTest(TestConfig[Gpu]):
   gcs_subfolder: str = '/tmp/'
 
   @staticmethod
-  def from_pytorch(test_name: str):
+  def from_pytorch(test_name: str, task_owner: str):
     """Parses a compiled legacy JSonnet test config from `tests/pytorch`."""
     test = _load_compiled_jsonnet(test_name)
 
@@ -517,6 +523,7 @@ class GpuGkeTest(TestConfig[Gpu]):
         test_command=test['command'],
         num_hosts=test['accelerator']['num_hosts'],
         timeout=datetime.timedelta(seconds=test['timeout']),
+        task_owner=task_owner,
     )
 
   @property
