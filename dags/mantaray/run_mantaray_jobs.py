@@ -375,7 +375,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
           catchup=False,
       ) as dag:
         run_workload = mantaray.run_workload.override(
-            owner=test_owner.MANFEI_B
+            owner=test_owner.BHAVYA_B
         )(
             workload_file_name=job["file_name"],
         )

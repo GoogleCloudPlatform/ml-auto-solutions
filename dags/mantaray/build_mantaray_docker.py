@@ -31,6 +31,6 @@ if composer_env.is_prod_env():
       catchup=False,
   ) as dag:
     run_workload = mantaray.build_docker_image.override(
-        owner=test_owner.MANFEI_B
+        owner=test_owner.BHAVYA_B
     )()
     run_workload

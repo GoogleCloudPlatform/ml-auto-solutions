@@ -37,7 +37,7 @@ US_CENTRAL1 = gcp_config.GCPConfig(
 def torchvision():
   resnet_v100_2x2 = task.GpuGkeTask(
       test_config.GpuGkeTest.from_pytorch(
-          "pt-nightly-resnet50-mp-fake-v100-x2x2", test_owner.MANFEI_B
+          "pt-nightly-resnet50-mp-fake-v100-x2x2", test_owner.BHAVYA_B
       ),
       US_CENTRAL1,
       "gpu-uc1",
@@ -45,7 +45,7 @@ def torchvision():
 
   resnet_v100_2x2_spmd = task.GpuGkeTask(
       test_config.GpuGkeTest.from_pytorch(
-          "pt-nightly-resnet50-spmd-batch-fake-v100-x2x2", test_owner.MANFEI_B
+          "pt-nightly-resnet50-spmd-batch-fake-v100-x2x2", test_owner.BHAVYA_B
       ),
       US_CENTRAL1,
       "gpu-uc1",
