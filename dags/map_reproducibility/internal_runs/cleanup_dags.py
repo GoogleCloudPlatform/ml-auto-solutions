@@ -45,6 +45,6 @@ for hypercomputer in ["a3mega", "a3ultra", "a4"]:
       start_date=datetime.datetime(2025, 1, 1),
       catchup=False,
   ) as dag:
-    cleanup_cml_workloads.override(owner=test_owner.GUNJAN_J)(
+    cleanup_cml_workloads.override(owner=test_owner.BRYAN_W)(
         cluster=cluster, cluster_region=cluster_region
     )

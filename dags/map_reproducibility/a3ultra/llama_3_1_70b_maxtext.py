@@ -64,7 +64,7 @@ with models.DAG(
   )
   run_256gpus = run_workload_with_quarantine(
       test_name=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_256gpus",
-      owner=test_owner.GUNJAN_J,
+      owner=test_owner.BRYAN_W,
       workload_function=run_workload,
       quarantine_task_group=quarantine_task_group,
       hypercomputer=HYPERCOMPUTER,
@@ -81,7 +81,7 @@ with models.DAG(
   run_512gpus = run_workload_with_quarantine(
       test_name=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_512gpus",
       workload_function=run_workload,
-      owner=test_owner.GUNJAN_J,
+      owner=test_owner.BRYAN_W,
       quarantine_task_group=quarantine_task_group,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
