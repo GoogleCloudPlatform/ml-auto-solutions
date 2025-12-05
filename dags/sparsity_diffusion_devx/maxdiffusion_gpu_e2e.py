@@ -25,7 +25,7 @@ from dags.sparsity_diffusion_devx.configs import gke_config as config
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
-SCHEDULED_TIME = "0 4 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "45 3 * * *" if composer_env.is_prod_env() else None
 
 # TODO: Expand smoke test coverage to include, inference, metrics check, and models (Flux, Wan)
 with models.DAG(

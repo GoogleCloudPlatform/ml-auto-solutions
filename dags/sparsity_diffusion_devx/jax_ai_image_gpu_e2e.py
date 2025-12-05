@@ -26,7 +26,7 @@ from xlml.utils import name_format
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 7 am UTC (11 pm PST)
-SCHEDULED_TIME = "0 7 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "30 6 * * *" if composer_env.is_prod_env() else None
 
 
 with models.DAG(
