@@ -14,12 +14,12 @@ from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
-from dags.orbax.util import validation_util, test_config_util
+from dags.post_training.util import validation_util, test_config_util
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
 
 SCHEDULE = "0 20 * * *" if composer_env.is_prod_env() else None
-DAG_TEST_NAME = "maxtext_grpo"
+DAG_TEST_NAME = "maxtext_rl"
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
@@ -27,9 +27,12 @@ with models.DAG(
     schedule_interval=SCHEDULE,
     catchup=False,
     tags=[
-        "multipod_team",
         "maxtext",
+        "post-training",
+        "rl",
         "grpo",
+        "TPU",
+        "v5p-128",
         "nightly",
     ],
     description="GRPO training for MaxText RL pipeline validation.",
@@ -45,7 +48,7 @@ with models.DAG(
       ### Execution Flow
       1. **Job Launch:** Deploy GRPO training job to GKE cluster using Pathways infrastructure
       2. **Model Loading:** Initialize Llama3.1 70B model with HuggingFace authentication
-      3. **Training Run:** Execute grpo_llama3_1_70b_demo_pw.py with JAX proxy/CPU platforms
+      3. **Training Run:** Execute train_rl with JAX proxy/CPU platforms
       4. **Log Validation:** Monitor and check for "Post GRPO Training" completion signal
       5. **Success/Failure:** Report final status based on log validation and job completion
 
@@ -58,35 +61,44 @@ with models.DAG(
     """,
     concurrency=1,
 ) as dag:
-  training_config = test_config_util.TestConfig(
+  training_config = test_config_util.RLTestConfig(
       cluster=XpkClusters.TPU_V5P_128_CLUSTER,
-      machine_type="ct5p-hightpu-4t",
       accelerator="v5p-128",
-      slices=[1],  # Single slice for GRPO training
+      slices=[1],  # Single slice for RL training
       model_name="llama3.1-70b",
-      short_id="max-grpo",
-      steps=200,
-      base_dir=test_config_util.DEFAULT_BUCKET,
+      short_id="max-rl",
+      base_dir=f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/outputs",
+      tokenizer_path="meta-llama/Llama-3.1-70B-Instruct",
+      load_parameters_path=f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/scanned-pathways/0/items/",
+      rl_config_path="src/MaxText/configs/rl.yml",
   )
   # HF token retrieved from Airflow Variables for secure credential management
   HF_TOKEN_LLAMA3_1 = models.Variable.get("HF_TOKEN_LLAMA3_1", None)
 
-  for mode, image in test_config_util.DOCKER_IMAGES_GRPO:
+  for mode, image in test_config_util.DOCKER_IMAGES_RL:
     for slice_num in training_config.slices:
       run_name = validation_util.generate_run_name(
           short_id=training_config.short_id,
-          checkpointing_type="grpo",
+          checkpointing_type="rl",
           slice_number=slice_num,
           accelerator=training_config.accelerator,
       )
 
-      grpo_training_command = [
-          f"HF_TOKEN={HF_TOKEN_LLAMA3_1}",
-          "JAX_PLATFORMS=proxy",
-          "JAX_BACKEND_TARGET=grpc://127.0.0.1:29000",
-          "ENABLE_PATHWAYS_PERSISTENCE='1'",
-          "python src/MaxText/examples/grpo_llama3_1_70b_demo_pw.py",
-      ]
+      rl_training_command = (
+          f"export HF_TOKEN={HF_TOKEN_LLAMA3_1} && "
+          "export TPU_MIN_LOG_LEVEL=0 && "
+          "export TF_CPP_MIN_LOG_LEVEL=0 && "
+          "export TPU_STDERR_LOG_LEVEL=0 && "
+          "export JAX_PLATFORMS=proxy,cpu && "
+          "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 && "
+          "export ENABLE_PATHWAYS_PERSISTENCE='1' && "
+          f"python -m src.MaxText.rl.train_rl {training_config.rl_config_path} "
+          f"run_name={run_name} "
+          f"model_name={training_config.model_name} "
+          f"tokenizer_path={training_config.tokenizer_path} "
+          f"load_parameters_path={training_config.load_parameters_path} "
+          f"base_output_directory={training_config.base_dir}",
+      )
 
       start_time = validation_util.generate_timestamp()
 
@@ -95,7 +107,7 @@ with models.DAG(
           cluster=training_config.cluster,
           time_out_in_min=30,
           test_name=f"{training_config.short_id}",
-          run_model_cmds=grpo_training_command,
+          run_model_cmds=rl_training_command,
           docker_image=image.value,
           test_owner=test_owner.JACKY_F,
       ).run(
@@ -110,7 +122,7 @@ with models.DAG(
           project_id=training_config.cluster.project,
           location=zone_to_region(training_config.cluster.zone),
           cluster_name=training_config.cluster.name,
-          text_filter="Post GRPO Training",
+          text_filter="Post RL Training",
           namespace="default",
           container_name="jax-tpu",
           pod_pattern=f"{training_config.short_id}.*",

@@ -397,7 +397,7 @@ class DockerImage(enum.Enum):
   MAXTEXT_JAX_052_RECIPES_012 = (
       "gcr.io/tpu-prod-env-multipod/maxtext_tpu_recipes:jax0.5.2-recipes0.1.2"
   )
-  MAXTEXT_GRPO_NIGHTLY = (
-      "gcr.io/cloud-tpu-multipod-dev/maxtext-grpo-nightly:"
+  MAXTEXT_POST_TRAINING_RL = (
+      "gcr.io/cloud-tpu-multipod-dev/maxtext-post-training:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )

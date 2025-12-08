@@ -26,10 +26,6 @@ DOCKER_IMAGES = [(
     DockerImage.MAXTEXT_TPU_JAX_ORBAX_HEAD,
 )]
 
-DOCKER_IMAGES_GRPO = [(
-    SetupMode.NIGHTLY,
-    DockerImage.MAXTEXT_GRPO_NIGHTLY,
-)]
 
 # Valid models and sizes for current Maxtext Repository.
 MODELS = {
