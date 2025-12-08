@@ -20,20 +20,24 @@ DOCKER_IMAGES_RL = [(
 class RLTestConfig:
   """Configuration for RL (GRPO) training tests.
 
-  This class holds the configuration parameters specific to reinforcement learning
-  training jobs, including model parameters, infrastructure settings, and RL-specific
-  training configurations.
+  This class holds the configuration parameters specific to reinforcement
+  learning training jobs, including model parameters, infrastructure
+  settings, and RL-specific training configurations.
 
   Attributes:
     cluster: The GKE cluster to use for training.
     accelerator: The type of accelerator (e.g., v5p-128).
     slices: List of slice numbers to test with.
-    model_name: The name of the model being trained (e.g., llama3.1-70b).
+    model_name: The name of the model being trained
+        (e.g., llama3.1-70b).
     short_id: A short identifier for the test run.
     base_dir: Base GCS directory for outputs.
-    tokenizer_path: Path to the tokenizer (HuggingFace model path or local path).
-    load_parameters_path: GCS path to load model parameters from.
-    rl_config_path: Path to the RL configuration YAML file (relative to MaxText root).
+    tokenizer_path: Path to the tokenizer (HuggingFace model
+        path or local path).
+    load_parameters_path: GCS path to load model parameters
+        from.
+    rl_config_path: Path to the RL configuration YAML file
+        (relative to MaxText root).
   """
 
   cluster: XpkClusters
@@ -62,14 +66,19 @@ class RLTestConfig:
 
     Args:
       cluster: The specified cluster to be used for the test.
-      accelerator: The type of accelerator (e.g., v5p-128, v6e-256) to use.
+      accelerator: The type of accelerator (e.g., v5p-128,
+          v6e-256) to use.
       slices: The number of slices to be used.
-      model_name: The name of the base model being tested (e.g., llama3.1-70b).
+      model_name: The name of the base model being tested
+          (e.g., llama3.1-70b).
       short_id: A short identifier for the test run.
       base_dir: The base GCS directory for storing outputs.
-      tokenizer_path: Path to the tokenizer (HuggingFace model path).
-      load_parameters_path: GCS path to load pretrained model parameters from.
-      rl_config_path: Path to the RL configuration YAML file (default: src/MaxText/configs/rl.yml).
+      tokenizer_path: Path to the tokenizer (HuggingFace
+          model path).
+      load_parameters_path: GCS path to load pretrained model
+          parameters from.
+      rl_config_path: Path to the RL configuration YAML file
+          (default: src/MaxText/configs/rl.yml).
     """
     self.cluster = cluster
     self.accelerator = accelerator

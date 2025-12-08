@@ -1,9 +1,11 @@
 """
-GRPO (Group Relative Policy Optimization) training DAG for Llama3.1 70B model.
+GRPO (Group Relative Policy Optimization) training DAG for Llama3.1 70B
+model.
 
-This DAG runs GRPO training validation to test the MaxText reinforcement learning pipeline.
-The workflow deploys training jobs to GKE clusters using Pathways, executes the GRPO algorithm,
-and validates successful completion through comprehensive log monitoring of training signals.
+This DAG runs GRPO training validation to test the MaxText reinforcement
+learning pipeline. The workflow deploys training jobs to GKE clusters
+using Pathways, executes the GRPO algorithm, and validates successful
+completion through comprehensive log monitoring of training signals.
 """
 
 import datetime
@@ -67,9 +69,14 @@ with models.DAG(
       slices=[1],  # Single slice for RL training
       model_name="llama3.1-70b",
       short_id="max-rl",
-      base_dir=f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/outputs",
+      base_dir=(
+          f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/outputs"
+      ),
       tokenizer_path="meta-llama/Llama-3.1-70B-Instruct",
-      load_parameters_path=f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/scanned-pathways/0/items/",
+      load_parameters_path=(
+          f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/"
+          "scanned-pathways/0/items/"
+      ),
       rl_config_path="src/MaxText/configs/rl.yml",
   )
   # HF token retrieved from Airflow Variables for secure credential management
@@ -92,8 +99,8 @@ with models.DAG(
           "export JAX_PLATFORMS=proxy,cpu && "
           "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 && "
           "export ENABLE_PATHWAYS_PERSISTENCE='1' && "
-          f"python -m src.MaxText.rl.train_rl {training_config.rl_config_path} "
-          f"run_name={run_name} "
+          f"python -m src.MaxText.rl.train_rl "
+          f"{training_config.rl_config_path} run_name={run_name} "
           f"model_name={training_config.model_name} "
           f"tokenizer_path={training_config.tokenizer_path} "
           f"load_parameters_path={training_config.load_parameters_path} "
