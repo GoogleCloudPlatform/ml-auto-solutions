@@ -47,7 +47,7 @@ with models.DAG(
       (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
   ]
-
+  test = []
   for mode, image in docker_images:
     command = (
         f'export HF_TOKEN={HF_TOKEN}',
@@ -67,3 +67,6 @@ with models.DAG(
         docker_image=image.value,
         test_owner=test_owner.SURBHI_J,
     ).run()
+    test.append(maxtext_v4_configs_test)
+  for i in range(len(test) - 1):
+    test[i] >> test[i + 1]
