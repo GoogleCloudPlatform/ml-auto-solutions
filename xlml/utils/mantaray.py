@@ -17,7 +17,6 @@ import subprocess
 import tempfile
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
-from dags import composer_env
 
 
 MANTARAY_G3_GS_BUCKET = "gs://borgcron/cmcs-benchmark-automation/mantaray"
@@ -32,7 +31,7 @@ def load_file_from_gcs(gs_file_path):
         check=False,
         shell=True,
     )
-    with open(f"{tmpdir}/file", "r") as f:
+    with open(f"{tmpdir}/file", "r") as f:  # pylint: disable=unspecified-encoding
       return f.read()
 
 
@@ -45,12 +44,16 @@ def run_workload(
   with tempfile.TemporaryDirectory() as tmpdir:
     cmds = (
         f"cd {tmpdir}",
+        # Create a virtual environment to install dependencies
+        # without affecting other DAGs.
+        "python -m venv --system-site-packages .venv",
+        "source .venv/bin/activate",
         f"gsutil -m cp -r {mantaray_gcs_bucket} .",
         "sudo apt-get update && sudo apt-get install -y rsync",  # Install rsync
-        f"cd mantaray && pip install -e .",
+        "cd mantaray && pip install -e .",
         # Install maxlibrary
         f"gsutil -m cp -r {maxlibrary_gcs_bucket} ./xlml_jobs",
-        f"pip install -e ./xlml_jobs/maxlibrary",
+        "pip install -e ./xlml_jobs/maxlibrary",
         f"python xlml_jobs/{workload_file_name}",  # Run the workload
     )
     hook = SubprocessHook()
@@ -69,7 +72,10 @@ def build_docker_image():
         f"cd {tmpdir}",
         f"gsutil -m cp -r {MANTARAY_G3_GS_BUCKET} .",
         "cd mantaray",
-        "gcloud builds submit --config docker/cloudbuild.yaml --substitutions _DATE=$(date +%Y%m%d)",  # Create nightly docker image
+        (
+            "gcloud builds submit --config docker/cloudbuild.yaml"
+            " --substitutions _DATE=$(date +%Y%m%d)"
+        ),  # Create nightly docker image
     )
     hook = SubprocessHook()
     result = hook.run_command(
