@@ -26,6 +26,7 @@ DOCKER_IMAGES = [(
     DockerImage.MAXTEXT_TPU_JAX_ORBAX_HEAD,
 )]
 
+
 # Valid models and sizes for current Maxtext Repository.
 MODELS = {
     "deepseek2",
