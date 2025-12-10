@@ -140,7 +140,6 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
-        f" --skip-validation"
     )
 
     if ramdisk_directory and not use_pathways:
@@ -159,6 +158,10 @@ def run_workload(
     # then branch is switch to "v0.4.1".
     if is_valid_gpu_version(accelerator_type) and xpk_branch == MAIN_BRANCH:
       xpk_branch = "v0.4.1"
+      # "v0.4.1" doesn't support the "--skip_validation" parameter, ignore.
+    else:
+      # Default parameter to skip validation procedure.
+      workload_create_cmd += " --skip-validation"
 
     cmds = get_xpk_setup_cmd(tmpdir, xpk_branch)
     if accelerator_type == GpuVersion.XPK_H100_MEGA.value:
