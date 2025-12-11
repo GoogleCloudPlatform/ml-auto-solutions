@@ -1,3 +1,17 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utilities for managing JobSets in GKE clusters for TPU observability."""
 
 import dataclasses
@@ -14,11 +28,13 @@ from typing import Final
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from google.cloud.monitoring_v3 import types
+import kubernetes
 
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils.gcp_util import query_time_series
 from dags.tpu_observability.utils.time_util import TimeUtil
+from xlml.utils import gke
 
 
 class Workload:
@@ -30,6 +46,7 @@ class Workload:
   JAX_TPU_BENCHMARK = json.dumps(
       textwrap.dedent(
           """
+          pip install jax[k8s] libtpu
           python -c '
           import jax
           import jax.numpy as jnp
@@ -42,7 +59,10 @@ class Workload:
           jax.distributed.initialize()
 
           global_devices = jax.devices()
-          print(f"[Host {jax.process_index()}] Got {len(global_devices)} global devices")
+          print(
+              f"[Host {jax.process_index()}] "
+              f"Got {len(global_devices)} global devices"
+          )
           mesh = Mesh(global_devices, ("x",))
 
           print(f"[Host {jax.process_index()}] Allocating data...")
@@ -73,7 +93,8 @@ class Workload:
           print(f"[Host {jax.process_index()}] Starting benchmark...")
 
           start = time.time()
-          for i in range(1_000_000): # Remember to control loop time to control experiment time
+          # Remember to control loop time to control experiment time
+          for i in range(1_000_000):
               result = matmul_ultra_heavy(x, y)
           result.block_until_ready()
           end = time.time()
@@ -89,6 +110,7 @@ class Workload:
   )
 
 
+# pylint: disable=line-too-long
 _TEMPLATE = string.Template(
     textwrap.dedent(
         """
@@ -131,11 +153,13 @@ _TEMPLATE = string.Template(
         """
     )
 )
+# pylint: enable=line-too-long
 
 
 @dataclasses.dataclass
 class JobSet:
-  """Generates YAML configurations for Kubernetes JobSets.
+  """
+  Generates YAML configurations for Kubernetes JobSets.
 
   This class helps in creating JobSet YAMLs by providing a template and allowing
   customization of various parameters like jobset name, replicas, TPU
@@ -191,7 +215,8 @@ class JobSet:
 
 
 class Command:
-  """A collection of static methods to generate Kubernetes and gcloud commands.
+  """
+  A collection of static methods to generate Kubernetes and gcloud commands.
 
   This class provides methods to construct shell commands for interacting with
   GKE clusters, including authentication, applying/deleting JobSets, and
@@ -200,14 +225,15 @@ class Command:
 
   @staticmethod
   def get_credentials_command(node_pool: node_pool.Info) -> str:
-    """Returns the command to authenticate `gcloud` with the specified GKE cluster.
+    """
+    Returns the command to authenticate `gcloud` with the specified GKE cluster.
 
     Args:
       node_pool: Configuration object with cluster details.
 
     Returns:
       A string containing the command to authenticate `gcloud` with the
-      specified GKE cluster.
+        specified GKE cluster.
     """
     for attr_name in ["cluster_name", "region", "project_id"]:
       if not getattr(node_pool, attr_name):
@@ -247,11 +273,99 @@ class Command:
     ])
 
 
+def get_replica_num(
+    replica_type: str, job_name: str, node_pool: node_pool.Info
+) -> int:
+  """
+  Get the number of a certain type of replicas from a running jobset.
+
+  This uses the Kubernetes API to connect to a desired cluster and returns
+  the number of replicas in a certain status.
+
+  Args:
+    replica_type: The type of replica being searched for.
+    job_name: The name of the job replica which is run from the jobset.
+    node_pool: The Info object containing the cluster information needed for
+    the kubernetes API to connect to it.
+  Returns:
+    The number of replicas of the specific type in the jobset.
+  """
+  api_client = gke.get_authenticated_client(
+      node_pool.project_id, node_pool.region, node_pool.cluster_name
+  )
+
+  api = kubernetes.client.CustomObjectsApi(api_client)
+
+  jobsets = api.list_namespaced_custom_object(
+      group="jobset.x-k8s.io",
+      version="v1alpha2",
+      namespace="default",
+      plural="jobsets",
+  )
+
+  try:
+    replica_job_status = jobsets["items"][0]["status"]["replicatedJobsStatus"]
+    name = replica_job_status[0]["name"]
+    replicas = replica_job_status[0][replica_type]
+    logging.info("Found %s replicas", replicas)
+
+  except (KeyError, IndexError, TypeError) as e:
+    logging.error("Error in getting jobset satus: %s", e)
+    return 0
+
+  if name != job_name:
+    raise AirflowFailException(
+        f"Jobset found '{name}' does not match jobset name given '{job_name}'"
+    )
+
+  return replicas
+
+
+def get_running_pods(
+    node_pool: node_pool.Info, namespace="default"
+) -> list[str]:
+  """
+  Get a list of pods which are in the "running" state.
+
+  Args:
+    node_pool: The Info object containing the cluster information needed for
+      the kubernetes API to connect to it.
+    namespace: The kubernetes namespace which is being searched for running
+      pods.
+  Returns:
+    A list containing the names of all the pods in the "running" state as
+      strings.
+  """
+  with tempfile.TemporaryDirectory() as tmpdir:
+    env = os.environ.copy()
+    env["KUBECONFIG"] = tmpdir + "/kubeconfig"
+
+    cmd = " && ".join([
+        Command.get_credentials_command(node_pool),
+        f"kubectl get pods -n {namespace} -o json",
+    ])
+
+    stdout = subprocess.run_exec(cmd, env=env)
+
+    data = json.loads(stdout)
+
+    running_pods = [
+        item["metadata"]["name"]
+        for item in data.get("items", [])
+        if item.get("status", {}).get("phase") == "Running"
+    ]
+
+    logging.info("Running pods: %s", running_pods)
+
+  return running_pods
+
+
 @task
 def run_workload(
     node_pool: node_pool.Info, yaml_config: str, namespace: str
 ) -> TimeUtil:
-  """Applies the specified YAML file to the GKE cluster.
+  """
+  Applies the specified YAML file to the GKE cluster.
 
   Args:
     node_pool: Configuration object with cluster details.
@@ -277,7 +391,8 @@ def run_workload(
 
 @task
 def end_workload(node_pool: node_pool.Info, jobset_name: str, namespace: str):
-  """Deletes all JobSets from the GKE cluster to clean up resources.
+  """
+  Deletes all JobSets from the GKE cluster to clean up resources.
 
   This task executes a bash script to:
   1. Authenticate `gcloud` with the specified GKE cluster.
@@ -304,7 +419,8 @@ def end_workload(node_pool: node_pool.Info, jobset_name: str, namespace: str):
 
 @task
 def get_active_pods(node_pool: node_pool.Info, namespace: str) -> list[str]:
-  """Deletes all JobSets from the GKE cluster to clean up resources.
+  """
+  Deletes all JobSets from the GKE cluster to clean up resources.
 
   This task executes a bash script to:
   1. Authenticate `gcloud` with the specified GKE cluster.
@@ -342,7 +458,9 @@ def wait_for_jobset_started(
     pod_name_list: str,
     job_apply_time: datetime.datetime,
 ) -> bool:
-  """Waits for the jobset to start by polling Cloud Logging for positive tensorcore utilization metrics.
+  """
+  Waits for the jobset to start by polling Cloud Logging for positive tensorcore
+  utilization metrics.
 
   This task polls Cloud Logging for a specific log pattern that appears
   shortly after the TPU job begins execution within the specified container.
@@ -397,3 +515,65 @@ def wait_for_jobset_started(
   ]
 
   return all(p > threshold_value for p in last_n_data_points)
+
+
+@task.sensor(poke_interval=60, timeout=3600, mode="reschedule")
+def wait_for_jobset_ttr_to_be_found(node_pool: node_pool.Info) -> bool:
+  """
+  Polls the jobset time_between_interruptions metric.
+
+  A sensor task which polls the jobset time_between_interruptions metric
+  every 60 seconds for 60 minutes. 60 minutes is used here since this
+  metric does have a long latency before appearing in monitoring, typically
+  between 30-45 minutes. While it may be possible for this latency to be
+  longer than 60 minutes, it would be exceedingly rare, and it would be
+  impractical for the test to run longer.
+
+  Args:
+    info(Info): An instance of the Info class that encapsulates
+    the configuration and metadata of a GKE node pool and workload.
+  """
+  now = datetime.datetime.now()
+
+  time_series = query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=(
+          'metric.type="kubernetes.io/jobset/times_to_recover" '
+          f'resource.labels.cluster_name="{node_pool.cluster_name}" '
+      ),
+      start_time=TimeUtil.from_datetime(now - datetime.timedelta(minutes=60)),
+      end_time=TimeUtil.from_datetime(now),
+  )
+
+  # This function checks whether the TTR metric is present;
+  # it does not assess its value.
+  logging.info("Time series: %s", time_series)
+  return len(time_series) > 0
+
+
+@task.sensor(poke_interval=30, timeout=600, mode="reschedule")
+def wait_for_jobset_status_occurrence(
+    replica_type: str, job_name: str, node_pool: node_pool.Info
+):
+  """
+  A sensor which checks if are any jobset replicas in a status type.
+
+  Args:
+    replica_type(str): The type of status being checked for.
+    job_name(str): The name of the job replica which is run from the jobset.
+    node_pool(Info): The Info object containing the cluster information needed
+    for the kubernetes API to connect to it.
+  """
+  logging.info("Checking for number of replicas of type: %s", replica_type)
+  ready_replicas = get_replica_num(
+      replica_type=replica_type,
+      job_name=job_name,
+      node_pool=node_pool,
+  )
+  return ready_replicas > 0
+
+
+@task.sensor(poke_interval=30, timeout=600, mode="reschedule")
+def wait_for_all_pods_running(num_pods: int, node_pool: node_pool.Info):
+  num_running = len(get_running_pods(node_pool=node_pool, namespace="default"))
+  return num_running == num_pods
