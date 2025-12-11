@@ -17,9 +17,9 @@ A DAG to test MaxText Automatic Profile Upload to Vertex AI Tensorboard.
 """
 import datetime
 from airflow import models
-from dags import composer_env, gcs_bucket
+from dags import gcs_bucket
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
+from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -48,7 +48,11 @@ with models.DAG(
   }
   clusters = {
       # accelerator: cluster name
-      "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+      # TODO(b/465618653): Switch back to v4-8 once the issue is resolved.
+      # Temporary use the cluster for v4-16 since the original does not have
+      # the "vertex-tensorboard" compatibility.
+      # "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER
+      "v4-8": XpkClusters.TPU_V4_16_CLUSTER,
       "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
   }
 
@@ -58,17 +62,30 @@ with models.DAG(
         current_time = datetime.datetime.now()
         current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
         profiling_in_vertex_ai_tb_cmds = (
-            f"export RUN_NAME=vertex-ai-{mode.value}-{slice_num}x-{accelerator}-{current_datetime}",
-            "python3 -m MaxText.train MaxText/configs/base.yml"
-            f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
-            f" dataset_path={dataset_path} profiler=xplane steps=10",
-            "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/$EXPERIMENT_NAME",
+            (
+                f"export RUN_NAME=vertex-ai-{mode.value}-{slice_num}x"
+                f"-{accelerator}-{current_datetime}"
+            ),
+            (
+                "python3 -m MaxText.train MaxText/configs/base.yml"
+                f" run_name=$RUN_NAME base_output_directory"
+                f"={base_output_directory} dataset_path={dataset_path}"
+                f" profiler=xplane steps=10"
+            ),
+            # TODO(b/465619132): Revert this change once the issue is resolved.
+            # Comment out due to the path is invalid.
+            # "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/
+            # $EXPERIMENT_NAME",
         )
+
         profiling_in_vertex_ai_tb_test = gke_config.get_gke_config(
             num_slices=slice_num,
             cluster=clusters[accelerator],
             time_out_in_min=240,
-            test_name=f"profiling-vertex-ai-tensorboard-{mode.value}",
+            # TODO(b/465618653): Switch back to v4-8 once the issue is resolved.
+            test_name=(
+                f"profiling-vertex-ai-tensorboard-{mode.value}-{accelerator}"
+            ),
             run_model_cmds=profiling_in_vertex_ai_tb_cmds,
             docker_image=image.value,
             test_owner=test_owner.SURBHI_J,
