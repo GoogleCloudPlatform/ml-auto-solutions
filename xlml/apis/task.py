@@ -170,7 +170,8 @@ class XpkTask(BaseTask):
   task_gcp_config: gcp_config.GCPConfig
   task_metric_config: Optional[metric_config.MetricConfig] = None
   workload_provision_timeout: datetime.timedelta = datetime.timedelta(
-      minutes=300
+      # Set the provision timeout from 300 to 60 minutes for decreasing the duration of failed tasks
+      minutes=60
   )
 
   def run(
