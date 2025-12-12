@@ -16,11 +16,12 @@
 
 import datetime
 from airflow import models
+from airflow.utils.task_group import TaskGroup
+
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import TpuVersion, Zone, RuntimeVersion, Project
 from dags.sparsity_diffusion_devx.configs import project_bite_config as config
-from airflow.utils.task_group import TaskGroup
 
 
 # Run once a day at 6 pm UTC (11 am PST)
@@ -157,41 +158,63 @@ with models.DAG(
       group_id='bite_tpu_unittests', prefix_group_id=False
   ) as bite_unittests:
     # Trillium (v6e) with JAX 0.5.3
-    config.get_bite_tpu_unittests_config(
+    jax_053_unittests_v6e_4 = config.get_bite_tpu_unittests_config(
         **trillium_conf,
         jax_version='0.5.3',
         **common,
     )
     # Trillium (v6e) with JAX 0.4.38
-    config.get_bite_tpu_unittests_config(
+    jax_0438_unittests_v6e_4 = config.get_bite_tpu_unittests_config(
         **trillium_conf,
         jax_version='0.4.38',
         **common,
     )
     # Trillium (v6e) with JAX nightly
-    config.get_bite_tpu_unittests_config(
+    jax_nightly_unittests_v6e_4 = config.get_bite_tpu_unittests_config(
         **trillium_conf,
         **common,
     )
     # V5P with JAX 0.5.3
-    config.get_bite_tpu_unittests_config(
+    jax_053_unittests_v5p_8 = config.get_bite_tpu_unittests_config(
         **v5p_conf,
         jax_version='0.5.3',
         **common,
     )
     # V5P with JAX 0.4.38
-    config.get_bite_tpu_unittests_config(
+    jax_0438_unittests_v5p_8 = config.get_bite_tpu_unittests_config(
         **v5p_conf,
         jax_version='0.4.38',
         **common,
     )
     # V5P with JAX nightly
-    config.get_bite_tpu_unittests_config(
+    jax_nightly_unittests_v5p_8 = config.get_bite_tpu_unittests_config(
         **v5p_conf,
         **common,
     )
     # V5E with JAX nightly
-    config.get_bite_tpu_unittests_config(
+    jax_nightly_unittests_v5e_8 = config.get_bite_tpu_unittests_config(
         **v5e_conf,
         **common,
     )
+
+    # Airflow uses >> for task chaining, which is pointless for pylint.
+    # pylint: disable=pointless-statement
+    [
+        jax_053_unittests_v5p_8,
+        jax_0438_unittests_v5p_8,
+        jax_nightly_unittests_v5p_8,
+        jax_nightly_unittests_v5e_8,
+        jax_053_fuji_v5p_8,
+        jax_main_fuji_v5p_8,
+    ]
+
+    # Running all v6e tests in parallel often leads to timeouts while waiting for resources.
+    (
+        jax_053_unittests_v6e_4
+        >> jax_0438_unittests_v6e_4
+        >> jax_nightly_unittests_v6e_4
+        >> jax_053_fuji_v6e_8
+        >> jax_main_fuji_v6e_8
+        >> jax_pinned_053_fuji_v6e_8
+    )
+    # pylint: enable=pointless-statement
