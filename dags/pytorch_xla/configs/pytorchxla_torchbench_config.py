@@ -325,7 +325,7 @@ def get_torchbench_tpu_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.AIRFLOW,
+      task_owner=test_owner.BHAVYA_B,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
   )
 
@@ -523,7 +523,7 @@ def get_torchbench_gpu_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_script_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.AIRFLOW,
+      task_owner=test_owner.BHAVYA_B,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/torchbench",
       use_existing_instance=False,
   )
@@ -635,6 +635,7 @@ def get_torchbench_gpu_gke_config(
           accelerator_type=accelerator_type.value,
       ),
       test_name=test_name,
+      task_owner=test_owner.BHAVYA_B,
       entrypoint_script=command_script,
       test_command="",
       timeout=datetime.timedelta(minutes=time_out_in_min),

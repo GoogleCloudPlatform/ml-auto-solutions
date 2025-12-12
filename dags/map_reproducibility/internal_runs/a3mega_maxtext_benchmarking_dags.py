@@ -23,7 +23,7 @@ from dags.map_reproducibility.utils.common_utils import run_workload_with_quaran
 from dags.map_reproducibility.utils.constants import Image
 from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_MEGA
 from dags.map_reproducibility.utils.internal_aotc_workload import run_internal_aotc_workload
-
+from dags.common import test_owner
 
 # Configuration parameters
 TEST_RUN = False if composer_env.is_prod_env() else True
@@ -98,6 +98,7 @@ for config_path, config_info in DAG_CONFIGS_MEGA.items():
     run_workload_with_quarantine(
         test_name=DAG_ID,
         workload_function=run_internal_aotc_workload,
+        owner=test_owner.BRYAN_W,
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
         backfill=BACKFILL,

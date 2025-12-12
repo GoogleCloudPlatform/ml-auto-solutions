@@ -18,11 +18,11 @@ A DAG orchestrates the process of verifying TensorCore utilization metrics.
 This is done by comparing data from Cloud Logging and Cloud Monitoring.
 """
 
-from dataclasses import replace
 import datetime
 import os
 import re
 import tempfile
+from dataclasses import replace
 
 from airflow import models
 from airflow.decorators import task
@@ -31,7 +31,9 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
-from dags.common.vm_resource import Region, Zone
+from dags.common import test_owner
+from dags.common.vm_resource import Region
+from dags.common.vm_resource import Zone
 from dags.map_reproducibility.utils import constants
 from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
 from dags.tpu_observability.utils import jobset_util as jobset
@@ -400,7 +402,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             reservation="cloudtpu-20251107233000-1246578561",
         )
 
-      apply_time = jobset.run_workload(
+      apply_time = jobset.run_workload.override(owner=test_owner.YUNA_T)(
           node_pool=cluster_info,
           yaml_config=jobset_config.generate_yaml(
               workload_script=workload_script

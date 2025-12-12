@@ -19,6 +19,7 @@ import os
 
 from airflow import models
 from dags import composer_env
+from dags.common import test_owner
 from dags.map_reproducibility.utils.common_utils import run_workload_with_quarantine
 from dags.map_reproducibility.utils.constants import Image, WorkloadLauncher
 from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA_NEMO
@@ -74,6 +75,7 @@ for config_path, config_info in DAG_CONFIGS_ULTRA_NEMO.items():
     run_workload_with_quarantine(
         test_name=DAG_ID,
         workload_function=run_internal_dag_united_workload,
+        owner=test_owner.BRYAN_W,
         relative_config_yaml_path=config_path,
         test_run=TEST_RUN,
         backfill=BACKFILL,

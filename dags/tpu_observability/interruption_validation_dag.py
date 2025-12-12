@@ -9,6 +9,8 @@ from airflow import models
 from airflow.decorators import task
 from airflow.exceptions import AirflowSkipException
 from airflow.utils.task_group import TaskGroup
+
+from dags.common import test_owner
 from dags.common.vm_resource import Project
 from dags.map_reproducibility.utils.constants import Schedule
 from dags.multipod.configs.common import Platform
@@ -555,7 +557,9 @@ def create_interruption_dag(
                 configs,
                 proper_time_range,
             )
-            check_event_count = validate_interruption_count(
+            check_event_count = validate_interruption_count.override(
+                owner=test_owner.QUINN_M
+            )(
                 metric_records,
                 log_records,
             )

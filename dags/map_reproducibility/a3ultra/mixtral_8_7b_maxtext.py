@@ -18,6 +18,7 @@ import datetime
 
 from airflow import models
 from dags import composer_env
+from dags.common import test_owner
 from dags.map_reproducibility.utils.common_utils import get_cluster, run_workload_with_quarantine
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time
 from dags.map_reproducibility.utils.common_utils import get_docker_image
@@ -66,6 +67,7 @@ with models.DAG(
   run_workload_with_quarantine(
       test_name=DAG_ID,
       workload_function=run_maxtext_workload,
+      owner=test_owner.BRYAN_W,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,

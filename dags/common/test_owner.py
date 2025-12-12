@@ -44,6 +44,7 @@ GAGIK_A = "gagika"
 
 # PYTORCH
 MANFEI_B = "manfeiBai"
+BHAVYA_B = "bhavya01"
 
 # MaxText
 TONY_C = "tonyjohnchen"
@@ -92,7 +93,18 @@ AKANKSHA_G = "guptaaka"
 
 # MAP_REPRODUCIBILITY
 GUNJAN_J = "gunjanj007"
+BRYAN_W = "bwuu"
 
 # Bite
 Maggie_Z = "jiya-zhang"
 Andrew_S = "asall"
+
+# Dashboard
+SEVERUS_H = "severus-ho"
+
+# maxtext_pathways
+JULIE_K = "JulieKuo"
+
+# TPU Observability
+YUNA_T = "yuna-tzeng"
+QUINN_M = "QuinnMMcGarry"

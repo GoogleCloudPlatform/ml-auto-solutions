@@ -17,6 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
+from dags.common import test_owner
 from dags.map_reproducibility.utils.common_utils import get_cluster
 from dags.map_reproducibility.utils.internal_aotc_workload import cleanup_cml_workloads
 
@@ -44,4 +45,6 @@ for hypercomputer in ["a3mega", "a3ultra", "a4"]:
       start_date=datetime.datetime(2025, 1, 1),
       catchup=False,
   ) as dag:
-    cleanup_cml_workloads(cluster=cluster, cluster_region=cluster_region)
+    cleanup_cml_workloads.override(owner=test_owner.BRYAN_W)(
+        cluster=cluster, cluster_region=cluster_region
+    )

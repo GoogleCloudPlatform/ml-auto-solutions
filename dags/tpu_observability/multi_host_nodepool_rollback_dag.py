@@ -25,6 +25,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
+from dags.common import test_owner
 from dags.map_reproducibility.utils import constants
 from dags.common.vm_resource import Region, Zone
 from dags.tpu_observability.utils import node_pool_util as node_pool
@@ -95,7 +96,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
-      create_node_pool = node_pool.create(
+      create_node_pool = node_pool.create.override(owner=test_owner.QUINN_M)(
           node_pool=node_pool_info,
           reservation="cloudtpu-20251107233000-1246578561",
       )

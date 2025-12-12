@@ -19,6 +19,7 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 
 from dags import composer_env
+from dags.common import test_owner
 from dags.map_reproducibility.utils.common_utils import get_scheduled_time, run_workload_with_quarantine
 from dags.map_reproducibility.utils.common_utils import run_workload
 
@@ -63,6 +64,7 @@ with models.DAG(
   )
   run_256gpus = run_workload_with_quarantine(
       test_name=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_256gpus",
+      owner=test_owner.BRYAN_W,
       workload_function=run_workload,
       quarantine_task_group=quarantine_task_group,
       hypercomputer=HYPERCOMPUTER,
@@ -79,6 +81,7 @@ with models.DAG(
   run_512gpus = run_workload_with_quarantine(
       test_name=f"{HYPERCOMPUTER}_recipes_{MODEL_ID}_{FRAMEWORK}_512gpus",
       workload_function=run_workload,
+      owner=test_owner.BRYAN_W,
       quarantine_task_group=quarantine_task_group,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,

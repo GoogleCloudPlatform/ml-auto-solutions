@@ -15,6 +15,8 @@
 """DAG to build nightly mantaray docker image: gcr.io/tpu-prod-env-multipod/mantaray_maxtext_tpu:nightly"""
 
 from airflow import models
+
+from dags.common import test_owner
 from xlml.utils import mantaray
 import datetime
 from dags import composer_env
@@ -28,5 +30,7 @@ if composer_env.is_prod_env():
       start_date=datetime.datetime(2024, 9, 4),
       catchup=False,
   ) as dag:
-    run_workload = mantaray.build_docker_image()
+    run_workload = mantaray.build_docker_image.override(
+        owner=test_owner.BHAVYA_B
+    )()
     run_workload

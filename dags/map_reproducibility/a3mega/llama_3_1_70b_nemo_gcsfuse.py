@@ -17,6 +17,8 @@
 import datetime
 
 from airflow import models
+
+from dags.common import test_owner
 from dags.map_reproducibility.utils.common_utils import run_nemo_workload, run_workload_with_quarantine
 
 MODEL_ID = "llama3-1-70b"
@@ -59,6 +61,7 @@ with models.DAG(
   run_workload_with_quarantine(
       test_name=DAG_ID,
       workload_function=run_nemo_workload,
+      owner=test_owner.BRYAN_W,
       hypercomputer=HYPERCOMPUTER,
       model_id=MODEL_ID,
       framework=FRAMEWORK,

@@ -27,6 +27,8 @@ from airflow import models
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+
+from dags.common import test_owner
 # Assuming these are accessible in your Airflow environment
 from dags.map_reproducibility.utils.constants import Image
 from dags.map_reproducibility.internal_runs.dag_configs import DAG_CONFIGS_ULTRA, DAG_CONFIGS_MEGA
@@ -68,6 +70,7 @@ def create_adaptive_backfill_dag(
     dag_id: str,
     model_configs: Dict[str, Dict[str, Any]],
     start_date: datetime.datetime,
+    owner: str = test_owner.BRYAN_W,
     dag_tags: Optional[List[str]] = None,
     schedule: Optional[str] = None,  # Default None for backfill
     test_run: bool = DEFAULT_TEST_RUN,
@@ -92,6 +95,7 @@ def create_adaptive_backfill_dag(
           values are dictionaries containing 'timeout_minutes', 'backfill_group_nightly' (int),
           and 'backfill_group_release' (int).
       start_date: The DAG's start date.
+      owner: The owner of these tests.
       dag_tags: Optional list of tags to add to the base tags.
       schedule: Airflow schedule interval (defaults to None).
       test_run: If True, potentially runs smaller test versions of tasks.
@@ -209,7 +213,9 @@ def create_adaptive_backfill_dag(
           custom_task_id = f"{config_name}_{image_type}"
 
           # Create task within the TaskGroup
-          task = run_internal_aotc_workload.override(task_id=custom_task_id)(
+          task = run_internal_aotc_workload.override(
+              task_id=custom_task_id, owner=owner
+          )(
               relative_config_yaml_path=config_path,
               test_run=test_run,
               backfill=backfill,
@@ -257,6 +263,7 @@ dag1 = create_adaptive_backfill_dag(
     model_configs=DAG_CONFIGS_ULTRA,
     start_date=datetime.datetime(2025, 4, 11),
     dag_tags=BASE_DAG_TAGS + ["a3ultra", "nvidia-h200-80gb"],
+    owner=test_owner.BRYAN_W,
 )
 
 dag2 = create_adaptive_backfill_dag(
@@ -264,4 +271,5 @@ dag2 = create_adaptive_backfill_dag(
     model_configs=DAG_CONFIGS_MEGA,
     start_date=datetime.datetime(2025, 4, 11),
     dag_tags=BASE_DAG_TAGS + ["a3mega", "nvidia-h100-80gb"],
+    owner=test_owner.BRYAN_W,
 )

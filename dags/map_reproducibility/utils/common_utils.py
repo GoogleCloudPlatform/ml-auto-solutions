@@ -37,10 +37,11 @@ from xlml.apis import metric_config
 from dags.map_reproducibility.utils import constants
 from dags.map_reproducibility.utils import gcs_automation_utils
 from dags.map_reproducibility.utils.benchmarkdb_utils import write_run
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dags import composer_env
 from google.cloud import storage
 from typing import Optional, Tuple, Callable, Any
+from dags.common import test_owner
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -2042,6 +2043,7 @@ def get_chips_per_node(hardware_id: str):
 def run_workload_with_quarantine(
     test_name: str,
     workload_function: Callable[..., Any],
+    owner: str = test_owner.BRYAN_W,
     quarantine_task_group: TaskGroup = None,
     **workload_args: Any,
 ):
@@ -2054,11 +2056,13 @@ def run_workload_with_quarantine(
     with quarantine_task_group:
       return run_with_test_name(
           test_name=test_name,
+          owner=owner,
           run_workload_function=workload_function,
           workload_args=workload_args,
       )
   return run_with_test_name(
       test_name=test_name,
+      owner=owner,
       run_workload_function=workload_function,
       workload_args=workload_args,
   )
@@ -2068,7 +2072,8 @@ def run_with_test_name(
     test_name: str,
     run_workload_function: Callable[..., Any],
     workload_args: Any,
+    owner: str = test_owner.BRYAN_W,
 ):
   test_name = test_name.replace(".", "-")
   with TaskGroup(group_id=test_name):
-    return run_workload_function(**workload_args)
+    return run_workload_function.override(owner=owner)(**workload_args)

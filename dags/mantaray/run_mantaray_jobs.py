@@ -374,7 +374,9 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
           start_date=datetime.datetime(2024, 4, 22),
           catchup=False,
       ) as dag:
-        run_workload = mantaray.run_workload(
+        run_workload = mantaray.run_workload.override(
+            owner=test_owner.BHAVYA_B
+        )(
             workload_file_name=job["file_name"],
         )
     run_workload

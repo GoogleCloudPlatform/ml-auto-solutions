@@ -15,6 +15,8 @@
 import datetime
 from airflow.decorators import task_group
 from airflow import models
+
+from dags.common import test_owner
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import composer_env
 from dags.common.vm_resource import Project, Zone, V5_NETWORKS, V5E_SUBNETWORKS, V5P_SUBNETWORKS, V6E_SUBNETWORKS, BM_NETWORKS, V5P_BM_SUBNETWORKS
@@ -34,13 +36,17 @@ US_CENTRAL1 = gcp_config.GCPConfig(
 @task_group(prefix_group_id=False)
 def torchvision():
   resnet_v100_2x2 = task.GpuGkeTask(
-      test_config.GpuGkeTest.from_pytorch("pt-2-8-resnet50-mp-fake-v100-x2x2"),
+      test_config.GpuGkeTest.from_pytorch(
+          "pt-2-8-resnet50-mp-fake-v100-x2x2",
+          test_owner.BHAVYA_B,
+      ),
       US_CENTRAL1,
       "gpu-uc1",
   ).run()
   resnet_v100_2x2_spmd = task.GpuGkeTask(
       test_config.GpuGkeTest.from_pytorch(
-          "pt-2-8-resnet50-spmd-batch-fake-v100-x2x2"
+          "pt-2-8-resnet50-spmd-batch-fake-v100-x2x2",
+          test_owner.BHAVYA_B,
       ),
       US_CENTRAL1,
       "gpu-uc1",

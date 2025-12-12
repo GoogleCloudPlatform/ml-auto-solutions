@@ -27,6 +27,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.google.cloud.operators.kubernetes_engine import GKEStartPodOperator
 from kubernetes.client import models as k8s
 
+from dags.common import test_owner
 from dags.common.vm_resource import DockerImage
 from dags.maxtext_pathways.configs import commands as cmds
 from dags.maxtext_pathways.configs import parameters as ui_params
@@ -313,6 +314,7 @@ with models.DAG(
       cmds=["/bin/bash", "-cxue", commands],
       container_security_context=k8s.V1SecurityContext(privileged=True),
       labels={"airflow-runtime": recipe_runtime},
+      owner=test_owner.JULIE_K,
   )
 
   # TODO(b/452777428): Remove this once the "apache-airflow-providers-google" in prod
