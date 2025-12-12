@@ -224,7 +224,7 @@ def get_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.YIJIA_J,
+      task_owner=test_owner.AIRFLOW,
       num_slices=num_slices,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/maxtext",
   )
