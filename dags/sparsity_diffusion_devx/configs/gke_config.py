@@ -97,7 +97,7 @@ def get_gpu_gke_test_config(
     test_owner: str,
     docker_image: str,
     num_slices: int = 1,
-) -> task.GpuCreateResourceTask:
+) -> task.XpkTask:
   job_gcp_config = gcp_config.GCPConfig(
       project_name=cluster.project,
       zone=cluster.zone,
