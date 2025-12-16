@@ -59,7 +59,7 @@ with models.DAG(
   )(Project.TPU_PROD_ENV_AUTOMATED.value, v5_tpu_zones)
   node_cloud_ml_auto_benchmarking = tpu.clean_up_idle_nodes.override(
       task_id="cleanup_nodes_cloud-ml-benchmarking"
-  )(Project.CLOUD_ML_BENCHMARKING, cloud_ml_benchmarking_tpu_zones)
+  )(Project.CLOUD_ML_BENCHMARKING.value, cloud_ml_benchmarking_tpu_zones)
 
   # QRs
   # clean up in tpu-prod-env-automated has been handled in script below:
@@ -70,7 +70,7 @@ with models.DAG(
   )(Project.CLOUD_ML_AUTO_SOLUTIONS.value, tpu_zones)
   qr_cloud_ml_benchmarking = tpu.clean_up_idle_queued_resources.override(
       task_id="cleanup_qr_cloud-ml-benchmarking"
-  )(Project.CLOUD_ML_BENCHMARKING, cloud_ml_benchmarking_tpu_zones)
+  )(Project.CLOUD_ML_BENCHMARKING.value, cloud_ml_benchmarking_tpu_zones)
 
   # Overview dependency
   node_cloud_ml_auto_solutions >> qr_cloud_ml_auto_solutions
