@@ -359,7 +359,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     )
 
     jobset_config = JobSet(
-        jobset_name="tpu-info-v6e-workload",
+        jobset_name="tpu-info-{{ ds_nodash }}-{{ ti.job_id }}",
         namespace="default",
         max_restarts=5,
         replicated_job_name="tpu-job-slice",
