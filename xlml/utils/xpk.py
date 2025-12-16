@@ -32,7 +32,7 @@ from dags.common.vm_resource import GpuVersion
 
 # NOTE: This version needs to be pinned to ensure compatibility when using
 # xpk.py for workload creation.
-MAIN_BRANCH = "v0.15.0"
+MAIN_BRANCH = "v0.17.3"
 
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
@@ -57,12 +57,18 @@ def get_xpk_setup_cmd(tmpdir, branch: str = MAIN_BRANCH):
 
   bash_setup = "set -xue"
 
-  pip_install = "pip install ruamel.yaml docker"
+  # Create venv, install uv in it, then use uv to install xpk
+  setup_xpk = (
+      f"python3 -m venv {tmpdir}/xpk_venv && "
+      f"source {tmpdir}/xpk_venv/bin/activate && "
+      f"pip install uv && "
+      f"uv pip install -e {tmpdir}/xpk"
+  )
 
   cmds = [
       bash_setup,
       clone_branch,
-      pip_install,
+      setup_xpk,
   ]
   return cmds
 
@@ -134,7 +140,8 @@ def run_workload(
     type_field = "tpu-type" if use_pathways else "device-type"
 
     workload_create_cmd = (
-        f"python {tmpdir}/xpk/xpk.py workload {create_field}"
+        f"source {tmpdir}/xpk_venv/bin/activate && "
+        f"xpk workload {create_field}"
         f" --cluster={cluster_name} --workload={workload_id}"
         f" --command='{run_cmds}' --{type_field}={accelerator_type}"
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
@@ -333,7 +340,8 @@ def clean_up_workload(
   """Delete workload."""
   with tempfile.TemporaryDirectory() as tmpdir:
     workload_delete_cmd = (
-        f"python {tmpdir}/xpk/xpk.py workload delete"
+        f"source {tmpdir}/xpk_venv/bin/activate && "
+        f"xpk workload delete"
         f" --cluster={cluster_name} --workload={workload_id}"
         f" --project={project_id} --zone={zone}"
     )
