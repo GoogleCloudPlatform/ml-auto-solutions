@@ -20,6 +20,7 @@ from airflow import models
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
 
+from dags import composer_env
 from dags.common.vm_resource import Region, Zone
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
@@ -38,7 +39,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         "cloud-ml-auto-solutions",
         "jobset",
         "time-to-recover",
-        "tpu-obervability",
+        "tpu-observability",
         "rollback",
         "TPU",
         "v6e-16",
@@ -69,12 +70,15 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       timeout, and fail.
       """,
 ) as dag:
+  cluster_name = "tpu-observability-automation"
+  cluster_name += "-prod" if composer_env.is_prod_env() else "-dev"
+
   for machine in MachineConfigMap:
     config = machine.value
     cluster_info = node_pool.Info(
         project_id=models.Variable.get("PROJECT_ID", default_var="cienet-cmcs"),
         cluster_name=models.Variable.get(
-            "CLUSTER_NAME", default_var="tpu-observability-automation"
+            "CLUSTER_NAME", default_var=cluster_name
         ),
         node_pool_name=models.Variable.get(
             "NODE_POOL_NAME", default_var="jobset-ttr-rollback-v6e"
