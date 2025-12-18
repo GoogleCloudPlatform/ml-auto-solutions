@@ -32,8 +32,8 @@ from dags.tpu_observability.configs.common import MachineConfigMap
 # know this signature).
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="jobset_rollback_ttr",
-    start_date=datetime.datetime(2025, 8, 10),
-    schedule="00 02 * * *",
+    start_date=datetime.datetime(2025, 12, 18),
+    schedule="00 19 * * *",
     catchup=False,
     tags=[
         "cloud-ml-auto-solutions",
