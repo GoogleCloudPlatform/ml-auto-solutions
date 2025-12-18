@@ -19,10 +19,9 @@ import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
-from dags.common.vm_resource import XpkClusters, DockerImage, Project, TpuVersion, Zone
+from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import gke_config
-from dags.multipod.configs.common import SetupMode
-from xlml.apis import gcp_config, metric_config, task, test_config
+from xlml.apis import metric_config
 
 # Run once a day at 6 am UTC (10 pm PST)
 SCHEDULED_TIME = "30 19 * * *" if composer_env.is_prod_env() else None
@@ -53,7 +52,12 @@ with models.DAG(
   loss_threshold = 2.7
   per_device_batch_size = 2.0  # 256 chips * 2 pdb = 512 gbs.
 
-  base_convergence_command = f"bash end_to_end/tpu/test_convergence_1b_params.sh OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path} LOSS_THRESHOLD={loss_threshold} STEPS={steps} PER_DEVICE_BATCH_SIZE={per_device_batch_size}"
+  base_convergence_command = (
+      "bash end_to_end/tpu/test_convergence_1b_params.sh"
+      f" OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path}"
+      f" LOSS_THRESHOLD={loss_threshold} STEPS={steps}"
+      f" PER_DEVICE_BATCH_SIZE={per_device_batch_size}"
+  )
   convergence_tests = {
       "maxtext-convergence-bf16": ((base_convergence_command),),
       "maxtext-convergence-int8": (
@@ -61,7 +65,8 @@ with models.DAG(
       ),
       "maxtext-convergence-subset-hosts": (
           (
-              f"export M_EXPANSION_FACTOR_REAL_DATA=2; {base_convergence_command}"
+              "export M_EXPANSION_FACTOR_REAL_DATA=2; "
+              + base_convergence_command
           ),
       ),
       "maxtext-convergence-grain": (
@@ -72,9 +77,9 @@ with models.DAG(
       ),
   }
 
-  maxtext_v6e_config_tests = {}
+  maxtext_v6e_config_tests = []
   for test_name, run_command in convergence_tests.items():
-    maxtext_v6e_config_tests[test_name] = gke_config.get_gke_config(
+    test_task = gke_config.get_gke_config(
         cluster=XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
         time_out_in_min=300,
         test_name=test_name,
@@ -84,9 +89,8 @@ with models.DAG(
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
     ).run_with_run_name_generation()
+    maxtext_v6e_config_tests.append(test_task)
 
-# Test dependencies
-(
-    maxtext_v6e_config_tests["maxtext-convergence-bf16"]
-    >> maxtext_v6e_config_tests["maxtext-convergence-subset-hosts"]
-)
+  for i in range(len(maxtext_v6e_config_tests) - 1):
+    # pylint: disable-next=pointless-statement
+    maxtext_v6e_config_tests[i] >> maxtext_v6e_config_tests[i + 1]
