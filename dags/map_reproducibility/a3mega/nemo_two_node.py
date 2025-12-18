@@ -30,7 +30,7 @@ PRECISION = "bf16"
 HYPERCOMPUTER = "a3mega"
 FRAMEWORK = "nemo"
 
-SCHEDULED_TIME = "45 5 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "15 6 * * *" if composer_env.is_prod_env() else None
 
 VALUE_YAML_PATH = (
     f"training/{HYPERCOMPUTER}/{MODEL_ID}/nemo-pretraining-gke/values.yaml"

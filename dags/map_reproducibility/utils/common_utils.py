@@ -1142,7 +1142,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
       },
       "a3mega": {
           "mixtral-8x7b": {
-              "nemo": "0 4 * * 5",
+              "nemo": "15 4 * * 5",
               "maxtext": "0 3 * * 5",
           },
           "llama3-70b": {
@@ -1154,7 +1154,7 @@ def get_scheduled_time(hardware: str, model: str, framework: str):
               "maxtext": "0 4 * * 5",
           },
           "gpt3-175b": {
-              "nemo": "0 4 * * 5",
+              "nemo": "0 1 * * 5",
           },
       },
       "a4": {

@@ -20,7 +20,7 @@ DAG_CONFIGS_INFERENCE_MEGA = {
         "timeout_minutes": 40,
         "backfill_group_nightly": 1,
         "backfill_group_release": 1,
-        "nightly_schedule": "45 6 * * 2,3,4,6",
+        "nightly_schedule": "30 7 * * 2,3,4,6",
         "release_schedule": Schedule.WEEKDAY_PDT_12AM_EXCEPT_THURSDAY,
     },
 }

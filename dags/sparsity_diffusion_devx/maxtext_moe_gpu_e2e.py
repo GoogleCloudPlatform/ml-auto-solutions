@@ -26,7 +26,7 @@ from dags.multipod.configs import gke_config
 
 
 # Run once a day at 11 am UTC (3 am PST)
-SCHEDULED_TIME = "45 17 * * *" if composer_env.is_prod_env() else None
+SCHEDULED_TIME = "45 19 * * *" if composer_env.is_prod_env() else None
 
 SCANNED_CHECKPOINT = "gs://ml-auto-solutions/output/sparsity_diffusion_devx/maxtext/chained_tests_mixtral-8x7b_nightly-2025-01-09-05-00-18//8x7b/scanned_ckpt/0/items"
 UNSCANNED_CKPT_PATH = "gs://ml-auto-solutions/output/sparsity_diffusion_devx/maxtext/chained_tests_mixtral-8x7b_nightly-2025-01-09-05-00-18//unscanned_ckpt/checkpoints/0/items"
