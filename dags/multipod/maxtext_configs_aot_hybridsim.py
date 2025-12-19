@@ -60,7 +60,7 @@ def hybridsim_compile_and_run(group_id):
             f" M_COMPILE_TOPOLOGY_NUM_SLICES={n}"
             f" DATASET_PATH=dummy-dataset OUTPUT_PATH=dummy-output-dir"
         ),
-        "gsutil -m cp -r /tmp/xla_dump/ ${GCS_OUTPUT}",
+        "gcloud storage cp --recursive /tmp/xla_dump/ ${GCS_OUTPUT}",
     )
     maxtext_aot = gke_config.get_gke_config(
         time_out_in_min=240,
@@ -74,7 +74,7 @@ def hybridsim_compile_and_run(group_id):
     cluster = clusters[tpu]
     chip_config = "default" if tpu == TpuVersion.V5E else "megacore"
     hybridsim_cmd = (
-        "gsutil cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
+        "gcloud storage cp gs://cloud-hybridsim-prod/run_hybridsim.sh .",
         (
             f"bash run_hybridsim.sh GCS_XLA_DUMP_PATH=${{GCS_OUTPUT}}xla_dump"
             f" GCS_OUTPUT_PATH=${{GCS_OUTPUT}}estimated_cost_ns.jsonl"
