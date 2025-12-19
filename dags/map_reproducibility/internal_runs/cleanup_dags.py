@@ -34,9 +34,15 @@ dag_default_args = {
     "retries": 0,
 }
 
-for hypercomputer in ["a3mega", "a3ultra", "a4"]:
+cleanup_configs = [
+    ("a3mega", "45 14 * * *"),
+    ("a3ultra", "0 13 * * *"),
+    ("a4", "0 13 * * *"),
+]
+
+for hypercomputer, schedule_time in cleanup_configs:
   cluster, cluster_region = get_cluster(hypercomputer)
-  schedule = "0 13 * * *" if not TEST_RUN else None
+  schedule = schedule_time if not TEST_RUN else None
   with models.DAG(
       dag_id=f"new_internal_cleanup_{hypercomputer}",
       default_args=dag_default_args,
