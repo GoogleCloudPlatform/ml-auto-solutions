@@ -25,7 +25,7 @@ from dags.sparsity_diffusion_devx.configs import project_bite_config as config
 
 
 # Run once a day at 6 pm UTC (11 am PST)
-SCHEDULED_TIME = '30 12 * * *' if composer_env.is_prod_env() else None
+SCHEDULED_TIME = '15 12 * * *' if composer_env.is_prod_env() else None
 
 trillium_conf = {
     'tpu_version': TpuVersion.TRILLIUM,

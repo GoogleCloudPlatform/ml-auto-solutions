@@ -18,7 +18,7 @@ from dags.orbax.util import validation_util
 from xlml.utils.gke import zone_to_region
 
 DAG_TEST_NAME = "maxtext_mtc_orbax_res_local"
-SCHEDULE = "30 7 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "45 13 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
