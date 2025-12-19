@@ -194,7 +194,7 @@ def maxtext_inference_offline_benchmark_config(
       "pip install -r maxtext/MaxText/inference_mlperf/requirements.txt",
       "cd maxtext/MaxText/inference_mlperf/trillium",
       # Copy Dataset
-      "gsutil cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
+      "gcloud storage cp gs://cloud-tpu-inference-public/mlcommons/inference/language/llama2-70b/data/processed-openorca/open_orca_gpt4_tokenized_llama.sampled_24576.pkl /tmp/processed-data.pkl",
       "cp ../user100.conf ./",
   )
 
@@ -229,7 +229,7 @@ def maxtext_inference_offline_benchmark_config(
       'jq -c "." perf_metric_report.jsonl > temp_perf.jsonl',
       'jq -c "." acc_combined_output.jsonl > temp_acc.jsonl',
       "cat temp_perf.jsonl temp_acc.jsonl > combined_results.jsonl",
-      f"gsutil cp combined_results.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp combined_results.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   run_model_cmds = run_performance + run_accuracy
