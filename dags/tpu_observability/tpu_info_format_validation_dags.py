@@ -21,6 +21,7 @@ This is done by comparing data from Cloud Logging and Cloud Monitoring.
 import datetime
 import os
 import re
+import subprocess
 import tempfile
 from dataclasses import replace
 
@@ -32,10 +33,12 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import Region
-from dags.common.vm_resource import Zone
 from dags.map_reproducibility.utils import constants
-from dags.tpu_observability.configs.common import MachineConfigMap, TpuConfig
+from dags.tpu_observability.configs.common import (
+    MachineConfigMap,
+    TpuConfig,
+    GCS_CONFIG_PATH,
+)
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
@@ -328,35 +331,13 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 ) as dag:
   for machine in MachineConfigMap:
     config = machine.value
-    cluster_name = "tpu-observability-automation"
-    cluster_name += "-prod" if composer_env.is_prod_env() else "-dev"
-    cluster_info = node_pool.Info(
-        project_id=models.Variable.get(
-            "TFV_PROJECT_ID", default_var="cienet-cmcs"
-        ),
-        cluster_name=cluster_name,
-        node_pool_name=models.Variable.get(
-            "TFV_NODE_POOL_NAME", default_var="tpu-info-fromat-test-v6e"
-        ),
-        region=models.Variable.get(
-            "TFV_REGION", default_var=Region.US_CENTRAL1.value
-        ),
-        location=models.Variable.get(
-            "TFV_LOCATION", default_var=Region.US_CENTRAL1.value
-        ),
-        node_locations=models.Variable.get(
-            "TFV_NODE_LOCATIONS", default_var=Zone.US_CENTRAL1_B.value
-        ),
-        num_nodes=models.Variable.get("TFV_NUM_NODES", default_var=4),
-        machine_type=config.machine_version.value,
-        tpu_topology=config.tpu_topology,
-    )
-    cluster_info_2 = replace(
-        cluster_info,
-        node_pool_name=models.Variable.get(
-            "TFV_NODE_POOL_NAME", default_var="tpu-info-format-test-v6e-2"
-        ),
-    )
+
+    @task
+    def generate_second_node_pool_name(
+        node_pool_info: node_pool.Info,
+    ) -> str:
+      """Generates a second node pool name."""
+      return f"{node_pool_info.node_pool_name}-2"
 
     jobset_config = JobSet(
         jobset_name="tpu-info-{{ ds_nodash }}-{{ ti.job_id }}",
@@ -381,6 +362,21 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
+      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
+          task_id="build_node_pool_info_from_gcs_yaml"
+      )(
+          gcs_path=GCS_CONFIG_PATH,
+          dag_name="tpu_info_format_validation_dag",
+          is_prod=composer_env.is_prod_env(),
+          machine_type=config.machine_version.value,
+          tpu_topology=config.tpu_topology,
+      )
+
+      cluster_info_2 = node_pool.copy_node_pool_info_with_override(
+          info=cluster_info,
+          node_pool_name=generate_second_node_pool_name(cluster_info),
+      )
+
       # Keyword arguments are generated dynamically at runtime (pylint does not
       # know this signature).
       with TaskGroup(  # pylint: disable=unexpected-keyword-arg
@@ -391,7 +387,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             retries=2,
         )(
             node_pool=cluster_info,
-            reservation="cloudtpu-20251107233000-1246578561",
         )
 
         create_second_node_pool = node_pool.create.override(
@@ -399,7 +394,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             retries=2,
         )(
             node_pool=cluster_info_2,
-            reservation="cloudtpu-20251107233000-1246578561",
         )
 
       apply_time = jobset.run_workload.override(owner=test_owner.YUNA_T)(
@@ -517,7 +511,9 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       (cleanup_first_node_pool >> cleanup_second_node_pool)
 
       (
-          create_node_pool
+          cluster_info
+          >> cluster_info_2
+          >> create_node_pool
           >> apply_time
           >> active_pods
           >> wait_for_job_start

@@ -22,7 +22,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common.vm_resource import Region, Zone
-from dags.tpu_observability.configs.common import MachineConfigMap
+from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
 from dags.tpu_observability.utils import node_pool_util as node_pool
 
 
@@ -64,33 +64,22 @@ with models.DAG(
 ) as dag:
   for machine in MachineConfigMap:
     config = machine.value
-    cluster_name = "tpu-observability-automation"
-    cluster_name += "-prod" if composer_env.is_prod_env() else "-dev"
-    node_pool_info = node_pool.Info(
-        project_id=models.Variable.get("PROJECT_ID", default_var="cienet-cmcs"),
-        cluster_name=cluster_name,
-        node_pool_name=models.Variable.get(
-            "NODE_POOL_NAME",
-            default_var="ttr-update-label-v6e-autotest",
-        ),
-        location=models.Variable.get(
-            "LOCATION", default_var=Region.US_CENTRAL1.value
-        ),
-        node_locations=models.Variable.get(
-            "NODE_LOCATIONS", default_var=Zone.US_CENTRAL1_B.value
-        ),
-        num_nodes=models.Variable.get("NUM_NODES", default_var=4),
-        machine_type=config.machine_version.value,
-        tpu_topology=config.tpu_topology,
-    )
-
     LABELS_TO_UPDATE = {"test_key": "test_val"}
 
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
+      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
+          task_id="build_node_pool_info_from_gcs_yaml"
+      )(
+          gcs_path=GCS_CONFIG_PATH,
+          dag_name="node_pool_ttr_update_label",
+          is_prod=composer_env.is_prod_env(),
+          machine_type=config.machine_version.value,
+          tpu_topology=config.tpu_topology,
+      )
+
       task_id = "create_node_pool"
       create_node_pool = node_pool.create.override(task_id=task_id)(
           node_pool=node_pool_info,
-          reservation="cloudtpu-20251107233000-1246578561",
       )
 
       task_id = "wait_for_provisioning"
@@ -126,7 +115,8 @@ with models.DAG(
       )
 
       _ = (
-          create_node_pool
+          node_pool_info
+          >> create_node_pool
           >> wait_for_provisioning
           >> wait_for_running
           >> update_node_pool_label

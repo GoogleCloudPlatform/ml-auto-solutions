@@ -29,6 +29,7 @@ from google.cloud import monitoring_v3
 from dags.tpu_observability.utils.time_util import TimeUtil
 from dags.tpu_observability.utils.gcp_util import query_time_series
 from dags.tpu_observability.utils import subprocess_util as subprocess
+from xlml.apis import gcs
 from xlml.utils import composer
 
 
@@ -69,12 +70,102 @@ class Info:
   machine_type: str = None
   num_nodes: int = None
   tpu_topology: str = None
+  reservation: str = None
+
+
+@task
+def build_node_pool_info_from_gcs_yaml(
+    gcs_path: str, dag_name: str, is_prod: bool = True, **overrides
+) -> Info:
+  """Builds a node_pool.Info instance by merging configurations.
+
+  This task merges values from the 'common' section of the provided dag_config,
+  a DAG-specific section (given by dag_name), and any provided overrides.
+  Only fields that exist in the node_pool.Info dataclass are included.
+
+  Args:
+      gcs_path: The GCS path to the DAG configuration YAML file.
+      dag_name: The top-level key in the YAML representing the
+        specific DAG's configuration (e.g., 'dag_gke_node_pool_label_update').
+      is_prod: Boolean indicating whether to load the 'prod' or 'dev' environment
+        from the YAML configuration.
+      **overrides: Additional key-value pairs to override any settings
+        from the YAML.
+
+  Returns:
+      An initialized node_pool.Info dataclass instance.
+  """
+  current_env = "prod" if is_prod else "dev"
+  config = gcs.load_yaml_from_gcs(gcs_path)
+
+  env_cfg = config.get("env", {}).get(current_env, {})
+  dag_cfg = config.get("dag", {}).get(dag_name, {})
+
+  known_fields = {f.name for f in dataclasses.fields(Info)}
+
+  def warn_unknown(name: str, d: dict) -> None:
+    unknown = [k for k in d.keys() if k not in known_fields]
+    if unknown:
+      logging.warning(f"Ignoring unknown fields in {name}: {unknown}")
+
+  warn_unknown("common section in yaml", env_cfg)
+  warn_unknown(f"{dag_name} section in yaml", dag_cfg)
+  warn_unknown("override fields", overrides)
+
+  # --- Configuration Merging Logic ---
+  # Priority Order (lowest to highest):
+  # 1. 'env' section: Base defaults for the environment (prod vs dev).
+  # 2. 'dag' section: Overrides specific to a DAG name.
+  # 3. 'overrides' dict: Code-level overrides passed into the task.
+
+  # Initialize with lowest priority: Environment-level defaults
+  merged = {k: v for k, v in env_cfg.items() if k in known_fields}
+
+  # Apply medium priority: DAG-specific config (overwrites env-level values)
+  for k, v in dag_cfg.items():
+    if k in known_fields and v is not None:
+      merged[k] = v
+
+  # Apply highest priority: Manual task overrides (overwrites both above)
+  for k, v in overrides.items():
+    if k in known_fields and v is not None:
+      merged[k] = v
+
+  return Info(**merged)
+
+
+@task
+def copy_node_pool_info_with_override(info: Info, **overrides) -> Info:
+  """Copies a node_pool.Info instance and applies overrides.
+
+  Args:
+      info: The base node_pool.Info instance to copy.
+      **overrides: Key-value pairs to override fields in the copied Info.
+
+  Returns:
+      A new node_pool.Info instance with overrides applied.
+  """
+  known = {f.name for f in dataclasses.fields(Info)}
+
+  unknown = [k for k in overrides if k not in known]
+  if unknown:
+    logging.warning(f"Ignoring unknown fields in overrides: {unknown}")
+
+  cfg = {k: v for k, v in overrides.items() if k in known and v is not None}
+  if not cfg:
+    return info  # Nothing to change.
+
+  # return dataclasses.replace(info, **cfg)
+  replaced_info = dataclasses.replace(info, **cfg)
+  logging.info(
+      f"Created a new node_pool.Info instance with overrides: {replaced_info}"
+  )
+  return replaced_info
 
 
 @task
 def create(
     node_pool: Info,
-    reservation: str = None,
     ignore_failure: bool = False,
 ) -> None:
   """Creates a GKE node pool by the given node pool information."""
@@ -99,8 +190,8 @@ def create(
       f"--tpu-topology={node_pool.tpu_topology} "
   )
 
-  if reservation:
-    command += f" --reservation-affinity=specific --reservation={reservation}"
+  if node_pool.reservation:
+    command += f" --reservation-affinity=specific --reservation={node_pool.reservation}"
 
   if ignore_failure:
     command += "2>&1 || true "
