@@ -12,10 +12,10 @@ from airflow.utils.task_group import TaskGroup
 
 from dags.common import test_owner
 from dags.common.vm_resource import Project
-from dags.map_reproducibility.utils.constants import Schedule
 from dags.multipod.configs.common import Platform
 from dags.tpu_observability.utils import gcp_util, time_util
 from google.cloud import monitoring_v3
+from dags import composer_env
 
 
 _UNKNOWN_RESOURCE_NAME = 'Unknown'
@@ -488,9 +488,10 @@ def create_interruption_dag(
 
   Returns:
     An Airflow DAG object."""
-  dag_schedule = get_staggered_schedule(
-      Schedule.DAILY_PST_6PM, schedule_offset_minutes
-  )
+  if composer_env.is_prod_env():
+    dag_schedule = get_staggered_schedule('0 18 * * *', schedule_offset_minutes)
+  else:
+    dag_schedule = None
   with models.DAG(
       dag_id=dag_id,
       start_date=datetime.datetime(2025, 7, 20),
