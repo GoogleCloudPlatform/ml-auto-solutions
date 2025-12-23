@@ -250,6 +250,40 @@ def _get_workload_job(
   return jobs.items[0]
 
 
+def _log_workload_pod_statuses(workload_id: str, pods) -> None:
+  """Logs the status of each retrieved pod and its containers for troubleshooting."""
+  if not pods.items:
+    return
+
+  logging.info(f"{f' Pod Statuses for Workload {workload_id} ':-^80}")
+
+  for pod in pods.items:
+    logging.info(f"Pod: {pod.metadata.name}, Status: {pod.status.phase}")
+
+    if not pod.status.container_statuses:
+      continue
+
+    for container_status in pod.status.container_statuses:
+      match container_status.state:
+        # Waiting status
+        case state if state.waiting:
+          w = state.waiting
+          logging.warning(
+              f"  Container '{container_status.name}' WAITING. "
+              f"Reason: {w.reason}. Message: {w.message}"
+          )
+
+        # Terminated status
+        case state if state.terminated:
+          t = state.terminated
+          logging.error(
+              f"  Container '{container_status.name}' TERMINATED. "
+              f"Reason: {t.reason}. Exit Code: {t.exit_code}"
+          )
+
+  logging.info("-" * 80)
+
+
 @task.sensor(poke_interval=60, timeout=600, mode="reschedule")
 def wait_for_workload_start(
     workload_id: str, project_id: str, region: str, cluster_name: str
@@ -257,6 +291,8 @@ def wait_for_workload_start(
   """Check if the workload has started."""
   core_api = _get_core_api_client(project_id, region, cluster_name)
   pods = _list_workload_pods(core_api, workload_id)
+
+  _log_workload_pod_statuses(workload_id, pods)
   print(f"Found {len(pods.items)} pods for workload {workload_id}")
   return len(pods.items) > 0
 
@@ -268,6 +304,8 @@ def wait_for_workload_completion(
   """Check the workload status."""
   core_api = _get_core_api_client(project_id, region, cluster_name)
   pods = _list_workload_pods(core_api, workload_id)
+
+  _log_workload_pod_statuses(workload_id, pods)
 
   if not pods.items:
     logging.info(f"No pods found for workload selector: {workload_id}.")
