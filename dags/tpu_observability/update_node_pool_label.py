@@ -24,7 +24,6 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
-from dags.map_reproducibility.utils import constants
 from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
 from dags.tpu_observability.utils import node_pool_util as node_pool
 
@@ -33,7 +32,7 @@ from dags.tpu_observability.utils import node_pool_util as node_pool
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="gke_node_pool_label_update",
     start_date=datetime.datetime(2025, 8, 1),
-    schedule=constants.Schedule.DAILY_PST_7_30_PM,
+    schedule="30 19 * * *" if composer_env.is_prod_env() else None,
     catchup=False,
     tags=["gke", "tpu-observability", "node-pool-status", "TPU", "v6e-16"],
     description=(
