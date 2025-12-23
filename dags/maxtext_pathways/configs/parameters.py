@@ -32,13 +32,13 @@ DEVICE_VERSION = ["v" + version.value for version in TpuVersion]
 
 PARAMETERS = {
     "user": Param(
-        "username",
+        "root",
         type="string",
         title="User",
         description="User name is used to confirm the first three characters of the pod in the cluster.",
     ),
     "cluster_name": Param(
-        "juliekuo-v5e-32",
+        "pw-v6e-64",
         type="string",
         title="Cluster Name",
         description="GCP cluster name for training model.",
@@ -50,27 +50,27 @@ PARAMETERS = {
         description="GCP project ID for training model.",
     ),
     "zone": Param(
-        "us-central1-a",
+        "us-central1-b",
         type="string",
         title="Zone",
         description="Cluster zone.",
     ),
     "device_version": Param(
-        "v5litepod",
+        "v6e",
         type="string",
         title="Device Version",
         description='Device type for the cluster. ex: "v5litepod"-32',
         enum=DEVICE_VERSION,
     ),
     "core_count": Param(
-        32,
+        64,
         type="integer",
         title="Core Count",
-        description='Device core count for the cluster. ex: v5litepod-"32"',
+        description='Device core count for the cluster. ex: v6e-"64"',
     ),
     "service_account": Param(
-        "one-click@cienet-cmcs.iam.gserviceaccount.com",
-        type="string",
+        None,
+        type=["string", "null"],
         title="Service account",
         description="Service account of the project.",
     ),
@@ -88,21 +88,21 @@ PARAMETERS = {
     ),
     "server_image": Param(
         # TODO(b/451750407): Replace this temporary image with a formal one.
-        "gcr.io/tpu-prod-env-one-vm/lidanny/unsanitized_server:latest",
+        "gcr.io/cienet-cmcs/lidanny/unsanitized_server:latest",
         type="string",
         title="Server Image",
         description="Server image for pathways.",
     ),
     "proxy_image": Param(
         # TODO(b/451750407): Replace this temporary image with a formal one.
-        "gcr.io/tpu-prod-env-one-vm/lidanny/unsanitized_proxy_server:latest",
+        "gcr.io/cienet-cmcs/lidanny/unsanitized_proxy_server:latest",
         type="string",
         title="Proxy Image",
         description="Proxy image for pathways.",
     ),
     "runner": Param(
         # TODO(b/451750407): Replace this temporary image with a formal one.
-        "gcr.io/tpu-prod-env-one-vm/lidanny_latest:latest",
+        "gcr.io/cienet-cmcs/lidanny_latest:latest",
         type="string",
         title="Runner Image",
         description="Runner image for the cluster.",
@@ -115,7 +115,7 @@ PARAMETERS = {
         enum=MODEL_FRAMEWORK,  # dropdown menu
     ),
     "selected_model_names": Param(
-        "llama3_1_8b_8192_v5e_256",
+        "default_basic_1",  # Available model for device type 'v6e'
         type="string",
         title="Model Name",
         description='Select a model name to run. Only when "customized_model_name" is selected for "Model Name", the input value of "customized_model_name" parameter will take effect.',
@@ -141,7 +141,7 @@ PARAMETERS = {
         description="Max restarts for the workload",
     ),
     "bq_enable": Param(
-        True,
+        False,
         type="boolean",
         title="BigQuery Enable",
         description="Enable BigQuery to store metrics data",

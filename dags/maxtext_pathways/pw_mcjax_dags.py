@@ -28,11 +28,13 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import GKEStartP
 from kubernetes.client import models as k8s
 
 from dags.common import test_owner
-from dags.common.vm_resource import DockerImage
 from dags.maxtext_pathways.configs import commands as cmds
 from dags.maxtext_pathways.configs import parameters as ui_params
 from dags.maxtext_pathways.configs import recipe_config as recipe_cfg
 from xlml.utils import xpk, gke
+
+# based on maxtext_dependencies.Dockerfile, and apply PR2715 in addition
+IMAGE = "gcr.io/cienet-cmcs/cnt_pathway:latest"
 
 
 @task.python(multiple_outputs=True)
@@ -105,24 +107,35 @@ def generate_commands(
 
 # TODO(b/455427519): DockerImage.MAXTEXT_TPU_JAX_NIGHTLY cannot directly execute benchmark recipes.
 # TODO(b/455412930): Build a Pathways-specific image. This feature will be changed to install dependencies directly from the image.
-def generate_install_dependencies_commands(service_account: str) -> str:
+def generate_install_dependencies_commands(service_account: str | None) -> str:
   """
   Generate the shell commands to install necessary dependencies in the Pod.
   """
   env_cmds_list = (
       cmds.UPDATE_APT
-      + cmds.INSTALL_MAKE
       + cmds.INSTALL_KUBECTL
-      + cmds.INSTALL_DOCKER
-      + cmds.SWITCH_SERVICE_ACCOUNT
-      + cmds.INSTALL_KUBECTL_KJOB
-      + cmds.INSTALL_KUBECTL_KUEUE
-      + cmds.INSTALL_XPK
+      # Skip switching service account if not provided.
+      # + cmds.SWITCH_SERVICE_ACCOUNT
+      # + cmds.INSTALL_XPK
+      # Install dependencies for xpk without installing the whole xpk.
+      + [
+          "apt-get update && apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin",
+          "git clone --branch v0.12.0 https://github.com/AI-Hypercomputer/xpk /root/xpk",
+          "sed -i '/validate_dependencies()/s/^/## /' ~/xpk/src/xpk/main.py || true",
+          "python3 -m venv --system-site-packages .venv",
+          "source .venv/bin/activate",
+          "cd /root/xpk",
+          "pip install --upgrade pip",
+          "set -xue",
+          # Required dependencies for xpk create pathway workload.
+          "pip install argcomplete==3.6.3 ruamel.yaml==0.18.10 docker==7.1.0 kubernetes==31.0.0 google-cloud-filestore==1.12.0",
+      ]
       + cmds.BACK_MAXTEXT
   )
 
   env_cmds = " && ".join(env_cmds_list)
-  env_cmds = env_cmds.format(service_account=service_account)
+  # Skip switching service account if not provided.
+  # env_cmds = env_cmds.format(service_account=service_account)
 
   return env_cmds
 
@@ -260,7 +273,7 @@ with models.DAG(
         "benchmark",
         "nightly",
         "TPU",
-        "v5e-32",
+        "v6e-64",
     ],
     description=f"A DAG to run a MaxText {RECIPE_NAME} on GKE.",
     params=ui_params.PARAMETERS,
@@ -305,16 +318,16 @@ with models.DAG(
       cluster_name=dag_params["cluster_name"],
       location=derived_params["region"],
       namespace="default",
-      hostnetwork=True,
-      image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
+      # This is required for `namespace="default"` under cienet-cmcs
+      node_selector={"cloud.google.com/gke-nodepool": "cpu-np"},
+      image=IMAGE,
       # TODO(b/452777428): Apply this once the "apache-airflow-providers-google" in
       # prod composer is upgraded to "16.0.0".
       # on_finish_action=OnFinishAction.DELETE_POD.value,
       get_logs=True,
       cmds=["/bin/bash", "-cxue", commands],
-      container_security_context=k8s.V1SecurityContext(privileged=True),
       labels={"airflow-runtime": recipe_runtime},
-      owner=test_owner.JULIE_K,
+      owner=test_owner.DORA_H,
   )
 
   # TODO(b/452777428): Remove this once the "apache-airflow-providers-google" in prod
