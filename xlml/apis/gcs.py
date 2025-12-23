@@ -16,11 +16,14 @@
 
 import os
 import re
+import tempfile
 from typing import List
-from absl import logging
 
+from absl import logging
 from airflow.decorators import task
+from airflow.hooks.subprocess import SubprocessHook
 from airflow.providers.google.cloud.operators.gcs import GCSHook
+import yaml
 
 
 def obtain_file_list(gcs_path: str) -> List[str]:
@@ -88,3 +91,46 @@ def wait_for_file_to_exist(file_path: str) -> bool:
 
   logging.info("Target file not found in the specified GCS path.")
   return False
+
+
+def load_yaml_from_gcs(gcs_path: str) -> dict:
+  """Loads and parses the DAG configuration YAML file from GCS."""
+  logging.info(f"Attempting to load config from: {gcs_path}")
+
+  if not gcs_path.startswith("gs://"):
+    raise ValueError(
+        f"Invalid GCS path: '{gcs_path}'. Path must start with 'gs://'."
+    )
+
+  if not (
+      gcs_path.lower().endswith(".yaml") or gcs_path.lower().endswith(".yml")
+  ):
+    logging.warning(
+        f"GCS path '{gcs_path}' does not have a typical YAML extension (.yaml or .yml). "
+        "Proceeding, but be aware this might not be a YAML file."
+    )
+
+  with tempfile.TemporaryDirectory() as tmpdir:
+    temp_file_path = os.path.join(tmpdir, "downloaded_config")
+
+    hook = SubprocessHook()
+    command = ["gsutil", "-m", "cp", gcs_path, temp_file_path]
+    logging.info(f"Running command: {' '.join(command)}")
+    result = hook.run_command(command)
+    assert (
+        result.exit_code == 0
+    ), f"gsutil command failed with exit code {result.exit_code}"
+
+    if not os.path.exists(temp_file_path):
+      logging.error(
+          f"gsutil cp command completed, but '{temp_file_path}' was not created. "
+          "This often means the copy failed. Check gsutil stdout/stderr in logs."
+      )
+      raise FileNotFoundError(
+          f"[Errno 2] Failed to download file from GCS path: {gcs_path}"
+      )
+
+    with open(temp_file_path, "r", encoding="utf-8") as f:
+      dag_yaml = f.read()
+
+  return yaml.safe_load(dag_yaml)

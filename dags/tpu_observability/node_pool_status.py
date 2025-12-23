@@ -14,19 +14,18 @@
 
 """A DAG to validate the status of a GKE node pool through its lifecycle."""
 
-import copy
 import datetime
 
 from airflow import models
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.decorators import task
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
 from dags.map_reproducibility.utils import constants
-from dags.common.vm_resource import Region, Zone
+from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
 from dags.tpu_observability.utils import node_pool_util as node_pool
-from dags.tpu_observability.configs.common import MachineConfigMap
 
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
@@ -62,46 +61,48 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 ) as dag:
   for machine in MachineConfigMap:
     config = machine.value
-    cluster_name = "tpu-observability-automation"
-    cluster_name += "-prod" if composer_env.is_prod_env() else "-dev"
-    node_pool_info = node_pool.Info(
-        project_id=models.Variable.get("PROJECT_ID", default_var="cienet-cmcs"),
-        cluster_name=cluster_name,
-        node_pool_name=models.Variable.get(
-            "NODE_POOL_NAME", default_var="node-pool-status-v6e-autotest"
-        ),
-        location=models.Variable.get(
-            "LOCATION", default_var=Region.US_CENTRAL1.value
-        ),
-        node_locations=models.Variable.get(
-            "NODE_LOCATIONS", default_var=Zone.US_CENTRAL1_B.value
-        ),
-        num_nodes=models.Variable.get("NUM_NODES", default_var=4),
-        machine_type=config.machine_version.value,
-        tpu_topology=config.tpu_topology,
-    )
 
-    problematic_node_pool_info = copy.deepcopy(node_pool_info)
-    problematic_node_pool_info.node_pool_name += "-wrong"
-    # Choosing a region that is different from the cluster location but still
-    # compatible with the specified TPU cause the cluster creation to fail
-    # due to mismatched node locations.
-    problematic_node_pool_info.node_locations = models.Variable.get(
-        "WRONG_NODE_LOCATION", default_var=Zone.ASIA_EAST1_C.value
-    )
+    @task
+    def generate_problematic_node_pool_name(
+        node_pool_info: node_pool.Info,
+    ) -> str:
+      """Generates a problematic node pool name."""
+      return f"{node_pool_info.node_pool_name}-x"
+
+    @task
+    def generate_problematic_node_location(
+        node_pool_info: node_pool.Info,
+    ) -> str:
+      """Generates a problematic node location."""
+      return f"{node_pool_info.location}-c"
 
     # Keyword arguments are generated dynamically at runtime (pylint does not
     # know this signature).
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
+      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
+          task_id="build_node_pool_info_from_gcs_yaml"
+      )(
+          gcs_path=GCS_CONFIG_PATH,
+          dag_name="gke_node_pool_status",
+          is_prod=composer_env.is_prod_env(),
+          machine_type=config.machine_version.value,
+          tpu_topology=config.tpu_topology,
+      )
+
+      problematic_node_pool_info = node_pool.copy_node_pool_info_with_override(
+          info=node_pool_info,
+          node_pool_name=generate_problematic_node_pool_name(node_pool_info),
+          node_locations=generate_problematic_node_location(node_pool_info),
+      )
+
       task_id = "create_node_pool"
       create_node_pool = node_pool.create.override(
           task_id=task_id,
           owner=test_owner.YUNA_T,
       )(
           node_pool=node_pool_info,
-          reservation="cloudtpu-20251107233000-1246578561",
       )
 
       task_id = "wait_for_provisioning"
@@ -175,7 +176,9 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       # Airflow uses >> for task chaining, which is pointless for pylint.
       # pylint: disable=pointless-statement
       normal_flow = (
-          create_node_pool
+          node_pool_info
+          >> problematic_node_pool_info
+          >> create_node_pool
           >> wait_for_provisioning
           >> wait_for_running
           >> delete_node
