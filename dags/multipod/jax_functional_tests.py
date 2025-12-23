@@ -38,7 +38,7 @@ with models.DAG(
   v5p_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5.value
   test_modes_with_docker_images = [
       (SetupMode.STABLE, None),
-      (SetupMode.JAX_STABLE_STACK, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
+      (SetupMode.JAX_STABLE_STACK, DockerImage.MAXTEXT_TPU_JAX_STABLE),
       (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
 

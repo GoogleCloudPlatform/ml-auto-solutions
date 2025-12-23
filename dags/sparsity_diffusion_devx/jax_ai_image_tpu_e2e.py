@@ -65,7 +65,7 @@ with models.DAG(
   )
 
   maxtext_docker_images = [
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
 
   maxdiffusion_docker_images = [

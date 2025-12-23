@@ -99,7 +99,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=model_cmds,
-        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
         cluster=XpkClusters.TPU_V5P_8_CLUSTER,
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
@@ -107,7 +107,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=model_cmds,
-        docker_image=DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX.value,
+        docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         cluster=XpkClusters.TPU_V5P_8_CLUSTER,
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
@@ -179,8 +179,8 @@ with models.DAG(
       return conversion_cpu, training_tpu
 
   docker_image = {
-      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE.value,
-      "nightly": DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX.value,
+      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+      "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
   }
   tests = []
   for model, test_scripts_details in multicluster_test_models.items():

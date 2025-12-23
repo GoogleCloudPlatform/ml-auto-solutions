@@ -29,7 +29,7 @@ from xlml.apis import metric_config, mlcompass
 # Run once a day at 3 am UTC (7 pm PST / 8 pm PDT)
 CONIFGS_SCHEDULED_TIME = "30 10 * * *" if composer_env.is_prod_env() else None
 DOCKER_IMAGES = [
-    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
+    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
     (SetupMode.TPU_RECIPES, DockerImage.MAXTEXT_JAX_052_RECIPES_012),
 ]
@@ -77,9 +77,9 @@ with models.DAG(
         continue
       if (
           model in need_stable_candidate_set
-          and image == DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK
+          and image == DockerImage.MAXTEXT_TPU_JAX_STABLE
       ):
-        image = DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE
+        image = DockerImage.MAXTEXT_TPU_JAX_STABLE
 
       base_run_model_cmds = [
           f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
