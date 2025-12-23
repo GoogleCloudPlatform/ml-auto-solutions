@@ -43,6 +43,15 @@ class Workload:
   Each workload is a JSON-escaped string, ready to be used as a shell argument.
   """
 
+  READY_TPU = json.dumps(
+      textwrap.dedent(
+          """
+          sleep 1000
+          """
+      ),
+      ensure_ascii=False
+  )
+
   JAX_TPU_BENCHMARK = json.dumps(
       textwrap.dedent(
           """
