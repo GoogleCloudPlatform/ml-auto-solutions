@@ -74,7 +74,7 @@ with models.DAG(
             ),
             # TODO(b/465619132): Revert this change once the issue is resolved.
             # Comment out due to the path is invalid.
-            # "gsutil ls gs://cloud-ai-platform-*/tensorboard-*/
+            # "gcloud storage ls gs://cloud-ai-platform-*/tensorboard-*/
             # $EXPERIMENT_NAME",
         )
 
