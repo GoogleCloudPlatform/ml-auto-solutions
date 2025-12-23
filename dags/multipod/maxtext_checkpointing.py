@@ -47,8 +47,8 @@ with models.DAG(
   current_time = datetime.datetime.now()
   current_datetime = current_time.strftime("%Y-%m-%d-%H-%M-%S")
   docker_images = [
-      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK_CANDIDATE),
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX),
+      (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
   ]
 
   for mode, image in docker_images:

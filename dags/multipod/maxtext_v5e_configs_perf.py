@@ -29,7 +29,7 @@ from xlml.apis import metric_config
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
 DOCKER_IMAGES = [
-    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK),
+    (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
 ]
 QUANTIZATION_SWEEP = {"M_QUANTIZATION": ["", "int8"]}

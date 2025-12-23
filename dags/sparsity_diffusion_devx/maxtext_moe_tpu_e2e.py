@@ -52,8 +52,8 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
   docker_image = {
-      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE_STACK.value,
-      "nightly": DockerImage.MAXTEXT_TPU_STABLE_STACK_NIGHTLY_JAX.value,
+      "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
+      "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
   }
 
   # Unchained tests
@@ -74,10 +74,6 @@ with models.DAG(
   unchained_tests = []
   for model, test_scripts_details in test_models_tpu.items():
     for image in docker_image.keys():
-      # TODO(shuningjin): remove this once stable image is upgraded
-      # gpt-oss with flash attention requires jax>=0.7.2, skip stable image
-      if model.startswith("gpt-oss") and image == "stable":
-        continue
       training_tpu = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
