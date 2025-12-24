@@ -163,6 +163,21 @@ def copy_node_pool_info_with_override(info: Info, **overrides) -> Info:
   return replaced_info
 
 
+def _node_pool_exists(node_pool: Info) -> bool:
+  check_cmd = (
+      f"gcloud container node-pools describe {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      f"--format='value(name)'"
+  )
+  try:
+    subprocess.run_exec(check_cmd)
+    return True
+  except Exception:
+    return False
+
+
 @task
 def create(
     node_pool: Info,
@@ -178,6 +193,12 @@ def create(
       "node_pool_name": node_pool.node_pool_name,
       "accelerator_type": node_pool.machine_type,
   })
+
+  if _node_pool_exists(node_pool):
+    logging.info(
+        f"Node pool {node_pool.node_pool_name} already exists. Skipping."
+    )
+    return
 
   command = (
       f"gcloud container node-pools create {node_pool.node_pool_name} "
@@ -202,6 +223,13 @@ def create(
 @task
 def delete(node_pool: Info) -> None:
   """Deletes the GKE node pool using gcloud command."""
+
+  """Check if the node pool is valid."""
+  if not _node_pool_exists(node_pool):
+    logging.info(
+        f"Node pool {node_pool.node_pool_name} already deleted or does not exist. Skipping."
+    )
+    return
 
   command = (
       f"gcloud container node-pools delete {node_pool.node_pool_name} "
