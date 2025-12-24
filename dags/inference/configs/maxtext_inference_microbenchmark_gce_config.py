@@ -115,7 +115,7 @@ def config(
           inference_metadata_file=MaxText/metadata.json""",
       "cat inference_microbenchmark_sweep_results.jsonl",
       "mv inference_microbenchmark_sweep_results.jsonl metric_report.jsonl",
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.TpuVmTest(

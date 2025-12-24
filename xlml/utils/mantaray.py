@@ -27,7 +27,7 @@ def load_file_from_gcs(gs_file_path):
   """Loads a file from a Google Cloud Storage bucket."""
   with tempfile.TemporaryDirectory() as tmpdir:
     subprocess.run(
-        f"gsutil -m cp {gs_file_path} {tmpdir}/file",
+        f"gcloud storage cp {gs_file_path} {tmpdir}/file",
         check=False,
         shell=True,
     )
@@ -48,11 +48,11 @@ def run_workload(
         # without affecting other DAGs.
         "python -m venv --system-site-packages .venv",
         "source .venv/bin/activate",
-        f"gsutil -m cp -r {mantaray_gcs_bucket} .",
+        f"gcloud storage cp --recursive {mantaray_gcs_bucket} .",
         "sudo apt-get update && sudo apt-get install -y rsync",  # Install rsync
         "cd mantaray && pip install -e .",
         # Install maxlibrary
-        f"gsutil -m cp -r {maxlibrary_gcs_bucket} ./xlml_jobs",
+        f"gcloud storage cp --recursive {maxlibrary_gcs_bucket} ./xlml_jobs",
         "pip install -e ./xlml_jobs/maxlibrary",
         f"python xlml_jobs/{workload_file_name}",  # Run the workload
     )
@@ -70,7 +70,7 @@ def build_docker_image():
   with tempfile.TemporaryDirectory() as tmpdir:
     cmds = (
         f"cd {tmpdir}",
-        f"gsutil -m cp -r {MANTARAY_G3_GS_BUCKET} .",
+        f"gcloud storage cp --recursive {MANTARAY_G3_GS_BUCKET} .",
         "cd mantaray",
         (
             "gcloud builds submit --config docker/cloudbuild.yaml"
