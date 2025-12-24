@@ -247,7 +247,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
             --max-num-seq=320 --gpu-memory-utilization=0.95 --tensor-parallel-size=4 --max-model-len=8192 --port 8009 & sleep 800 && \
             git clone -b inference-benchmark-script https://github.com/ManfeiBai/vllm.git vllmscript && "
         f"bash vllmscript/benchmarks/inference_benchmark_script.sh {current_request_rate} && "
-        f"gsutil cp metric_result.jsonl {output_location} && ls \
+        f"gcloud storage cp metric_result.jsonl {output_location} && ls \
           \" && sudo docker stop testooo && sudo docker rm testooo && sudo docker image rmi us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/xla:nightly_3.10_tpuvm' \
         "
     )
