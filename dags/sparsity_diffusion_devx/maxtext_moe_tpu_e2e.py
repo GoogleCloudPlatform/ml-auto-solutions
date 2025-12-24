@@ -69,6 +69,16 @@ with models.DAG(
           "cluster": XpkClusters.TPU_V5P_8_CLUSTER,
           "time_out_in_min": 90,
       },
+      "deepseek2-16b": {
+          "script_name": "tpu/deepseek/v2-16b/test_deepseek",
+          "cluster": XpkClusters.TPU_V5P_8_CLUSTER,
+          "time_out_in_min": 90,
+      },
+      "deepseek3-671b": {
+          "script_name": "tpu/deepseek/v3-671b/test_deepseek",
+          "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "time_out_in_min": 90,
+      },
   }
 
   unchained_tests = []
