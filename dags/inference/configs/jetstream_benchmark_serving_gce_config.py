@@ -207,7 +207,7 @@ def get_config(
       # Upload results (in jsonlines format) to GCS to be post-processed into
       # our BigQuery table
       "mv ${BENCHMARK_OUTPUT} metric_report.jsonl",
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cpmetric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
       f"gsutil cp /tmp/request-outputs.json {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
