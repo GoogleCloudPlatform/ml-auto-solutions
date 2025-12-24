@@ -27,6 +27,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.google.cloud.operators.kubernetes_engine import GKEStartPodOperator
 from kubernetes.client import models as k8s
 
+from dags import composer_env
 from dags.common import test_owner
 from dags.maxtext_pathways.configs import commands as cmds
 from dags.maxtext_pathways.configs import parameters as ui_params
@@ -261,7 +262,7 @@ RECIPE_NAME = RECIPE_INSTANCE.value.lower()
 with models.DAG(
     dag_id=RECIPE_NAME,
     start_date=datetime.datetime(2025, 1, 1),
-    schedule_interval="0 10 * * *",
+    schedule_interval="0 21 * * *" if composer_env.is_prod_env() else None,
     catchup=False,
     default_args={
         "retries": 0,
