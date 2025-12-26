@@ -197,6 +197,7 @@ class TpuVmTest(TestConfig[Tpu]):
   test_name: str
   set_up_cmds: Iterable[str]
   run_model_cmds: Iterable[str]
+  post_processing_cmds: Optional[str] = []
   num_slices: int = attrs.field(default=1, kw_only=True)
 
   @property
@@ -214,6 +215,10 @@ class TpuVmTest(TestConfig[Tpu]):
   @property
   def test_script(self) -> str:
     return '\n'.join(('set -xue', *self.run_model_cmds))
+
+  @property
+  def post_processing_script(self) -> Optional[str]:
+    return '\n'.join(('set -xue', *self.post_processing_cmds))
 
 
 @attrs.define

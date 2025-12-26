@@ -18,6 +18,7 @@ import abc
 import dataclasses
 import datetime
 import shlex
+import os
 from dags.common.quarantined_tests import QuarantineTests
 from typing import Optional, Tuple, Union
 import airflow
@@ -143,6 +144,25 @@ def run_queued_resource_test(
           task_gcp_config,
           folder_location=output_location,
       )
+
+      # Pass all of the AIRFLOW_* environment variables to the SSH session for
+      # custom post processing script running on the TPU VM
+      airflow_env = dict(
+          [(x, os.environ[x]) for x in os.environ if x.startswith("AIRFLOW_")]
+      )
+      custom_post_processing = tpu.ssh_tpu.override(
+          task_id="custom_script", trigger_rule="all_done"
+      )(
+          queued_resource_name,
+          task_test_config.post_processing_script,
+          ssh_keys,
+          all_workers=False,
+          env={
+              **airflow_env,
+              "GCS_OUTPUT": output_location,
+          },
+      )
+      run_model >> custom_post_processing
 
     clean_up = tpu.delete_queued_resource.override(group_id="clean_up")(
         queued_resource_name
