@@ -30,7 +30,7 @@ from airflow.exceptions import AirflowFailException
 from google.cloud.monitoring_v3 import types
 import kubernetes
 
-from dags.tpu_observability.utils import node_pool_util as node_pool
+from dags.tpu_observability.utils.node_pool_util import Info as node_pool_info
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils.gcp_util import query_time_series
 from dags.tpu_observability.utils.time_util import TimeUtil
@@ -224,7 +224,7 @@ class Command:
   """
 
   @staticmethod
-  def get_credentials_command(node_pool: node_pool.Info) -> str:
+  def get_credentials_command(node_pool: node_pool_info) -> str:
     """
     Returns the command to authenticate `gcloud` with the specified GKE cluster.
 
@@ -274,7 +274,7 @@ class Command:
 
 
 def get_replica_num(
-    replica_type: str, job_name: str, node_pool: node_pool.Info
+    replica_type: str, job_name: str, node_pool: node_pool_info
 ) -> int:
   """
   Get the number of a certain type of replicas from a running jobset.
@@ -291,7 +291,9 @@ def get_replica_num(
     The number of replicas of the specific type in the jobset.
   """
   api_client = gke.get_authenticated_client(
-      node_pool.project_id, node_pool.region, node_pool.cluster_name
+      node_pool.project_id,
+      node_pool.region,
+      node_pool.cluster_name,
   )
 
   api = kubernetes.client.CustomObjectsApi(api_client)
@@ -322,7 +324,7 @@ def get_replica_num(
 
 
 def get_running_pods(
-    node_pool: node_pool.Info, namespace="default"
+    node_pool: node_pool_info, namespace="default"
 ) -> list[str]:
   """
   Get a list of pods which are in the "running" state.
@@ -362,7 +364,7 @@ def get_running_pods(
 
 @task
 def run_workload(
-    node_pool: node_pool.Info, yaml_config: str, namespace: str
+    node_pool: node_pool_info, yaml_config: str, namespace: str
 ) -> TimeUtil:
   """
   Applies the specified YAML file to the GKE cluster.
@@ -386,11 +388,11 @@ def run_workload(
     subprocess.run_exec(cmd, env=env)
 
     current_time_utc = datetime.datetime.now(datetime.timezone.utc)
-    return current_time_utc
+    return TimeUtil.from_datetime(current_time_utc)
 
 
 @task
-def end_workload(node_pool: node_pool.Info, jobset_name: str, namespace: str):
+def end_workload(node_pool: node_pool_info, jobset_name: str, namespace: str):
   """
   Deletes all JobSets from the GKE cluster to clean up resources.
 
@@ -418,7 +420,7 @@ def end_workload(node_pool: node_pool.Info, jobset_name: str, namespace: str):
 
 
 @task
-def get_active_pods(node_pool: node_pool.Info, namespace: str) -> list[str]:
+def get_active_pods(node_pool: node_pool_info, namespace: str) -> list[str]:
   """
   Deletes all JobSets from the GKE cluster to clean up resources.
 
@@ -454,9 +456,9 @@ def get_active_pods(node_pool: node_pool.Info, namespace: str) -> list[str]:
 
 @task.sensor(poke_interval=30, timeout=900, mode="reschedule")
 def wait_for_jobset_started(
-    node_pool: node_pool.Info,
+    node_pool: node_pool_info,
     pod_name_list: str,
-    job_apply_time: datetime.datetime,
+    job_apply_time: TimeUtil,
 ) -> bool:
   """
   Waits for the jobset to start by polling Cloud Logging for positive tensorcore
@@ -473,8 +475,10 @@ def wait_for_jobset_started(
     job_apply_time: The datetime object of the time the job was applied.
   """
 
-  end_time_datatime = job_apply_time + datetime.timedelta(minutes=10)
-  start_time = TimeUtil.from_datetime(job_apply_time)
+  end_time_datatime = job_apply_time.to_datetime() + datetime.timedelta(
+      minutes=10
+  )
+  start_time = job_apply_time
   end_time = TimeUtil.from_datetime(end_time_datatime)
 
   if not pod_name_list:
@@ -518,7 +522,7 @@ def wait_for_jobset_started(
 
 
 @task.sensor(poke_interval=60, timeout=3600, mode="reschedule")
-def wait_for_jobset_ttr_to_be_found(node_pool: node_pool.Info) -> bool:
+def wait_for_jobset_ttr_to_be_found(node_pool: node_pool_info) -> bool:
   """
   Polls the jobset time_between_interruptions metric.
 
@@ -553,7 +557,7 @@ def wait_for_jobset_ttr_to_be_found(node_pool: node_pool.Info) -> bool:
 
 @task.sensor(poke_interval=30, timeout=600, mode="reschedule")
 def wait_for_jobset_status_occurrence(
-    replica_type: str, job_name: str, node_pool: node_pool.Info
+    replica_type: str, job_name: str, node_pool: node_pool_info
 ):
   """
   A sensor which checks if are any jobset replicas in a status type.
@@ -574,6 +578,6 @@ def wait_for_jobset_status_occurrence(
 
 
 @task.sensor(poke_interval=30, timeout=600, mode="reschedule")
-def wait_for_all_pods_running(num_pods: int, node_pool: node_pool.Info):
+def wait_for_all_pods_running(num_pods: int, node_pool: node_pool_info):
   num_running = len(get_running_pods(node_pool=node_pool, namespace="default"))
   return num_running == num_pods
