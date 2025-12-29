@@ -420,20 +420,24 @@ def end_workload(node_pool: node_pool_info, jobset_name: str, namespace: str):
 
 
 @task
-def get_active_pods(node_pool: node_pool_info, namespace: str) -> list[str]:
+def list_pod_names(node_pool: node_pool_info, namespace: str) -> list[str]:
   """
-  Deletes all JobSets from the GKE cluster to clean up resources.
+  Retrieves a list of active pod names from a specific GKE cluster namespace.
 
-  This task executes a bash script to:
-  1. Authenticate `gcloud` with the specified GKE cluster.
-  2. Delete all JobSets in the `default` namespace using `kubectl`.
+  This task executes a series of shell commands to:
+  1. Authenticate `gcloud` and generate a temporary kubeconfig for the cluster.
+  2. Query `kubectl` to fetch pod names filtered by the provided namespace.
 
   Args:
     node_pool: Configuration object with cluster details.
-    namespace: The YamlConfig object containing namespace information.
+    namespace: The Kubernetes namespace to query for pods.
 
   Returns:
-    A list of pod names.
+    A list of strings representing the names of the active pods.
+
+  Raises:
+    AirflowFailException: If the command returns an empty output or fails to
+      retrieve any pod names.
   """
   with tempfile.NamedTemporaryFile() as temp_config_file:
     env = os.environ.copy()
