@@ -403,19 +403,19 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           namespace=jobset_config.namespace,
       )
 
-      active_pods = jobset.get_active_pods.override(task_id="get_active_pod")(
+      pod_names = jobset.list_pod_names.override(task_id="list_pod_names")(
           node_pool=cluster_info,
           namespace=jobset_config.namespace,
       )
 
       wait_for_job_start = jobset.wait_for_jobset_started.override(
           task_id="wait_for_job_start"
-      )(cluster_info, pod_name_list=active_pods, job_apply_time=apply_time)
+      )(cluster_info, pod_name_list=pod_names, job_apply_time=apply_time)
 
       outputs_of_tpu_info = (
           get_tpu_info_from_pod.override(task_id="get_tpu_info")
           .partial(info=cluster_info)
-          .expand(pod_name=active_pods)
+          .expand(pod_name=pod_names)
       )
 
       output_of_tpu_info = (
@@ -514,7 +514,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           >> cluster_info_2
           >> create_node_pool
           >> apply_time
-          >> active_pods
+          >> pod_names
           >> wait_for_job_start
           >> outputs_of_tpu_info
           >> output_of_tpu_info
