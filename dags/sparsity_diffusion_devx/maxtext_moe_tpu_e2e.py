@@ -62,7 +62,17 @@ with models.DAG(
       "mixtral-8x22b": {
           "script_name": "tpu/mixtral/8x22b/2_test_mixtral",
           "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
-          "time_out_in_min": 60,
+          "time_out_in_min": 90,
+      },
+      "deepseek3-671b": {
+          "script_name": "tpu/deepseek/v3-671b/2_test_deepseek",
+          "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "time_out_in_min": 90,
+      },
+      "deepseek2-16b": {
+          "script_name": "tpu/deepseek/v2-16b/test_deepseek",
+          "cluster": XpkClusters.TPU_V5P_8_CLUSTER,
+          "time_out_in_min": 90,
       },
       "gpt-oss-20b": {
           "script_name": "tpu/gpt_oss/20b/test_gpt_oss",
