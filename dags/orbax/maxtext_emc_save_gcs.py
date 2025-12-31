@@ -133,7 +133,7 @@ with models.DAG(
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
             ram_disk="gcs",
-            pod_pattern=".*-0-0",
+            pod_pattern=f"{test_config.short_id}-emc.*-0-\d+-",
             start_time=start_time,
             end_time=end_time,
             steps_to_validate=steps_to_validate,
