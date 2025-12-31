@@ -82,15 +82,14 @@ with models.DAG(
   # HF token retrieved from Airflow Variables for secure credential management
   HF_TOKEN_LLAMA3_1 = models.Variable.get("HF_TOKEN_LLAMA3_1", None)
 
-  for mode, image in test_config_util.DOCKER_IMAGES_RL:
-    for slice_num in training_config.slices:
-      run_name = validation_util.generate_run_name(
-          short_id=training_config.short_id,
-          checkpointing_type="rl",
-          slice_number=slice_num,
-          accelerator=training_config.accelerator,
-      )
+  run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+  for mode, image in test_config_util.POST_TRAINING_DOCKER_IMAGES:
+    # TODO: Enable stable mode once a new version of MaxText is available
+    if mode == test_config_util.SetupMode.STABLE:
+      continue  # Skip stable for RL training tests
 
+    for slice_num in training_config.slices:
+      run_name = f"{training_config.short_id}-{mode.value}-{slice_num}x-{training_config.accelerator}-{run_time}"
       rl_training_command = (
           f"export HF_TOKEN={HF_TOKEN_LLAMA3_1} && "
           "export TPU_MIN_LOG_LEVEL=0 && "
@@ -107,7 +106,9 @@ with models.DAG(
           f"base_output_directory={training_config.base_dir}",
       )
 
-      start_time = validation_util.generate_timestamp()
+      start_time = validation_util.generate_timestamp.override(
+          task_id="generate_start_time"
+      )()
 
       grpo_training_task = gke_config.get_gke_config(
           num_slices=slice_num,
@@ -123,9 +124,13 @@ with models.DAG(
           skip_post_process=True,
       )
 
-      end_time = validation_util.generate_timestamp()
+      end_time = validation_util.generate_timestamp.override(
+          task_id="generate_end_time"
+      )()
 
-      validate_grpo_training = validation_util.validate_log_exist(
+      validate_grpo_training = validation_util.validate_log_exist.override(
+          task_id="validate_rl_training"
+      )(
           project_id=training_config.cluster.project,
           location=zone_to_region(training_config.cluster.zone),
           cluster_name=training_config.cluster.name,
@@ -137,10 +142,4 @@ with models.DAG(
           end_time=end_time,
       )
 
-      (
-          run_name
-          >> start_time
-          >> grpo_training_task
-          >> end_time
-          >> validate_grpo_training
-      )
+    (start_time >> grpo_training_task >> end_time >> validate_grpo_training)

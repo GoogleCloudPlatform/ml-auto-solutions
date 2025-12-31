@@ -9,11 +9,11 @@ from dags.multipod.configs.common import SetupMode
 
 DEFAULT_BUCKET = gcs_bucket.RL_AUTOMATION_BUCKET
 
-# Docker images for GRPO/RL training
-DOCKER_IMAGES_RL = [(
-    SetupMode.NIGHTLY,
-    DockerImage.MAXTEXT_POST_TRAINING_RL,
-)]
+# Docker images for post-training
+POST_TRAINING_DOCKER_IMAGES = [
+    (SetupMode.STABLE, DockerImage.MAXTEXT_POST_TRAINING_STABLE),
+    (SetupMode.NIGHTLY, DockerImage.MAXTEXT_POST_TRAINING_NIGHTLY),
+]
 
 
 @dataclass
