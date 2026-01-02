@@ -70,13 +70,13 @@ def get_maxtext_gpu_inference_config(
   docker_cmd = " && ".join(docker_cmds)
   run_model_cmds = (
       "pip install jsonlines",
-      "gsutil cp gs://yijiaj/temp/maxtext_gpu_microbenchmark_jsonl_converter.py .",
+      "gcloud storage cp gs://yijiaj/temp/maxtext_gpu_microbenchmark_jsonl_converter.py .",
       f"docker restart {docker_container_name}",
       f"docker cp maxtext_gpu_microbenchmark_jsonl_converter.py {docker_container_name}:/opt/maxtext/maxtext_gpu_microbenchmark_jsonl_converter.py",
       f"docker exec -i {docker_container_name} /bin/bash -c '{docker_cmd}'",
       f"docker cp {docker_container_name}:{local_output_dir}/{jsonl_output_path} {jsonl_output_path}",
       f"cat {jsonl_output_path}",
-      f"gsutil cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.GpuVmTest(
