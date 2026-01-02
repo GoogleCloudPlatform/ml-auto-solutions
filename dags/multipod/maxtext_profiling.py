@@ -55,7 +55,7 @@ with models.DAG(
         "python3 -m MaxText.train MaxText/configs/base.yml"
         f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
         f" dataset_path={dataset_path} profiler=xplane steps=20",
-        f"gsutil cp -R {base_output_directory}/$RUN_NAME/tensorboard .",
+        f"gcloud storage cp --recursive {base_output_directory}/$RUN_NAME/tensorboard .",
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
         time_out_in_min=60,
