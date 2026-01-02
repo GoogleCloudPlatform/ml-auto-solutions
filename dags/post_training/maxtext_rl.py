@@ -1,16 +1,16 @@
 """
-GRPO (Group Relative Policy Optimization) training DAG for Llama3.1 70B
-model.
+RL training DAG for Llama3.1 70B model using GRPO and GSPO algorithms.
 
-This DAG runs GRPO training validation to test the MaxText reinforcement
+This DAG runs RL training validation to test the MaxText reinforcement
 learning pipeline. The workflow deploys training jobs to GKE clusters
-using Pathways, executes the GRPO algorithm, and validates successful
+using Pathways, executes the GRPO and GSPO algorithms, and validates successful
 completion through comprehensive log monitoring of training signals.
 """
 
 import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 
 from dags import composer_env
 from dags.common import test_owner
@@ -33,42 +33,43 @@ with models.DAG(
         "post-training",
         "rl",
         "grpo",
+        "gspo",
         "TPU",
         "v5p-128",
         "nightly",
     ],
-    description="GRPO training for MaxText RL pipeline validation.",
+    description="RL training (GRPO/GSPO) for MaxText RL pipeline validation.",
     doc_md="""
-      # GRPO MaxText RL Training
+      # RL Training (GRPO/GSPO) MaxText RL Training
 
       ### Overview
-      This DAG runs GRPO (Group Relative Policy Optimization) training 
-      to validate the MaxText reinforcement learning pipeline. The workflow
-      tests the complete RL training stack including infrastructure setup,
+      This DAG runs RL training using GRPO (Group Relative Policy Optimization) 
+      and GSPO algorithms to validate the MaxText reinforcement learning pipeline. 
+      The workflow tests the complete RL training stack including infrastructure setup,
       model initialization, training execution, and result validation.
 
       ### Execution Flow
-      1. **Job Launch:** Deploy GRPO training job to GKE cluster using Pathways infrastructure
+      1. **Job Launch:** Deploy RL training jobs to GKE cluster using Pathways infrastructure
       2. **Model Loading:** Initialize Llama3.1 70B model with HuggingFace authentication
-      3. **Training Run:** Execute train_rl with JAX proxy/CPU platforms
-      4. **Log Validation:** Monitor and check for "Post GRPO Training" completion signal
+      3. **Training Run:** Execute train_rl with JAX proxy/CPU platforms for GRPO and GSPO
+      4. **Log Validation:** Monitor and check for "Post RL Training" completion signal
       5. **Success/Failure:** Report final status based on log validation and job completion
 
       ### Success Criteria
       The test passes when:
-      1. Training job completes successfully without errors
-      2. "Post GRPO Training" log message appears in jax-tpu container logs
+      1. Training jobs complete successfully without errors
+      2. "Post RL Training" log message appears in jax-tpu container logs
       3. No infrastructure failures or container launch issues occur
       4. All training steps execute within expected parameters
     """,
-    concurrency=1,
+    concurrency=2,
 ) as dag:
   training_config = test_config_util.RLTestConfig(
       cluster=XpkClusters.TPU_V5P_128_CLUSTER,
       accelerator="v5p-128",
       slices=[1],  # Single slice for RL training
       model_name="llama3.1-70b",
-      short_id="max-rl",
+      short_id="mrl",
       base_dir=(
           f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/outputs"
       ),
@@ -78,68 +79,94 @@ with models.DAG(
           "scanned-pathways/0/items/"
       ),
       rl_config_path="src/MaxText/configs/rl.yml",
+      loss_algos=[
+          test_config_util.LossAlgo.GRPO,
+          test_config_util.LossAlgo.GSPO,
+      ],
   )
   # HF token retrieved from Airflow Variables for secure credential management
   HF_TOKEN_LLAMA3_1 = models.Variable.get("HF_TOKEN_LLAMA3_1", None)
 
-  run_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
   for mode, image in test_config_util.POST_TRAINING_DOCKER_IMAGES:
     # TODO: Enable stable mode once a new version of MaxText is available
     if mode == test_config_util.SetupMode.STABLE:
       continue  # Skip stable for RL training tests
 
-    for slice_num in training_config.slices:
-      run_name = f"{training_config.short_id}-{mode.value}-{slice_num}x-{training_config.accelerator}-{run_time}"
-      rl_training_command = (
-          f"export HF_TOKEN={HF_TOKEN_LLAMA3_1} && "
-          "export TPU_MIN_LOG_LEVEL=0 && "
-          "export TF_CPP_MIN_LOG_LEVEL=0 && "
-          "export TPU_STDERR_LOG_LEVEL=0 && "
-          "export JAX_PLATFORMS=proxy,cpu && "
-          "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 && "
-          "export ENABLE_PATHWAYS_PERSISTENCE='1' && "
-          f"python -m src.MaxText.rl.train_rl "
-          f"{training_config.rl_config_path} run_name={run_name} "
-          f"model_name={training_config.model_name} "
-          f"tokenizer_path={training_config.tokenizer_path} "
-          f"load_parameters_path={training_config.load_parameters_path} "
-          f"base_output_directory={training_config.base_dir}",
-      )
+    for loss_algo in training_config.loss_algos:
+      for slice_num in training_config.slices:
+        task_suffix = f"{mode.value}_{loss_algo.value}_{slice_num}"
+        run_name = validation_util.generate_posttraining_run_name.override(
+            task_id=f"run_name_{task_suffix}"
+        )(
+            short_id=training_config.short_id,
+            checkpointing_type=loss_algo.value,
+            slice_number=slice_num,
+            mode=mode.value,
+        )
 
-      start_time = validation_util.generate_timestamp.override(
-          task_id="generate_start_time"
-      )()
+        rl_training_command = training_config.generate_rl_training_command(
+            loss_algo=loss_algo,
+            run_name=run_name,
+            hf_token=HF_TOKEN_LLAMA3_1,
+        )
 
-      grpo_training_task = gke_config.get_gke_config(
-          num_slices=slice_num,
-          cluster=training_config.cluster,
-          time_out_in_min=30,
-          test_name=f"{training_config.short_id}",
-          run_model_cmds=rl_training_command,
-          docker_image=image.value,
-          test_owner=test_owner.JACKY_F,
-      ).run(
-          use_pathways=True,
-          xpk_branch=MAIN_BRANCH,
-          skip_post_process=True,
-      )
+        start_time = validation_util.generate_timestamp.override(
+            task_id=f"start_time_{task_suffix}"
+        )()
 
-      end_time = validation_util.generate_timestamp.override(
-          task_id="generate_end_time"
-      )()
+        test_name = f"{training_config.short_id[:3]}{loss_algo.value[:3]}"
 
-      validate_grpo_training = validation_util.validate_log_exist.override(
-          task_id="validate_rl_training"
-      )(
-          project_id=training_config.cluster.project,
-          location=zone_to_region(training_config.cluster.zone),
-          cluster_name=training_config.cluster.name,
-          text_filter="Post RL Training",
-          namespace="default",
-          container_name="jax-tpu",
-          pod_pattern=f"{training_config.short_id}.*",
-          start_time=start_time,
-          end_time=end_time,
-      )
+        training_task = gke_config.get_gke_config(
+            num_slices=slice_num,
+            cluster=training_config.cluster,
+            time_out_in_min=30,
+            test_name=test_name,
+            run_model_cmds=rl_training_command,
+            docker_image=image.value,
+            test_owner=test_owner.JACKY_F,
+        ).run(
+            use_pathways=True,
+            xpk_branch=MAIN_BRANCH,
+            skip_post_process=True,
+        )
 
-    (start_time >> grpo_training_task >> end_time >> validate_grpo_training)
+        end_time = validation_util.generate_timestamp.override(
+            task_id=f"end_time_{task_suffix}"
+        )()
+
+        validate_loss_algo = validation_util.validate_log_exist.override(
+            task_id=f"validate_loss_{task_suffix}"
+        )(
+            project_id=training_config.cluster.project,
+            location=zone_to_region(training_config.cluster.zone),
+            cluster_name=training_config.cluster.name,
+            text_filter=f'"Config param loss_algo: {loss_algo.value}"',
+            namespace="default",
+            container_name="jax-tpu",
+            pod_pattern=f"{test_name}.*",
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+        validate_training = validation_util.validate_log_exist.override(
+            task_id=f"validate_training_{task_suffix}"
+        )(
+            project_id=training_config.cluster.project,
+            location=zone_to_region(training_config.cluster.zone),
+            cluster_name=training_config.cluster.name,
+            text_filter='"Post RL Training"',
+            namespace="default",
+            container_name="jax-tpu",
+            pod_pattern=f"{test_name}.*",
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+        chain(
+            run_name,
+            start_time,
+            training_task,
+            end_time,
+            validate_loss_algo,
+            validate_training,
+        )
