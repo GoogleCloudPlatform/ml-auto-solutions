@@ -41,7 +41,7 @@ local utils = import 'templates/utils.libsonnet';
     tpuSettings+: {
       tpuVmExtraSetup: |||
         # install tokenizer model
-        gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
+        gcloud storage cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
         # git clone and build llama
         git clone --branch llama2-google-next-inference https://github.com/pytorch-tpu/llama.git
@@ -113,7 +113,7 @@ local utils = import 'templates/utils.libsonnet';
         HF_CONSTRAINTS_EOF
 
         # install tokenizer model
-        gsutil cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
+        gcloud storage cp gs://tpu-pytorch/lsiyuan-experiment/llama/spiece.model .
 
         # git clone and build transformers ### llama/transformers/
         git clone -b llama2-google-next-training https://github.com/pytorch-tpu/transformers.git
@@ -128,7 +128,7 @@ local utils = import 'templates/utils.libsonnet';
         # 7B config
         mkdir 7B
         cd 7B/
-        gsutil cp gs://manfei_public_experimental/2B.json .
+        gcloud storage cp gs://manfei_public_experimental/2B.json .
       ||| % common.HuggingfacePipVersionConstraints,
     },
   },
@@ -174,7 +174,7 @@ local utils = import 'templates/utils.libsonnet';
         curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz
         tar -xf google-cloud-cli-linux-x86_64.tar.gz
         yes | ./google-cloud-sdk/install.sh
-        google-cloud-sdk/bin/gsutil cp -r gs://pytorch-airflow/llama_3/ .
+        google-cloud-sdk/bin/gcloud storage cp --recursive gs://pytorch-airflow/llama_3/ .
 
         cd transformers
         sudo pip3 install -e . -c ~/hf-constraints.txt

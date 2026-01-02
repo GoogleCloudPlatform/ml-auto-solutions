@@ -795,7 +795,7 @@ def get_nemo_metrics_cmds(
       f"--model_type {model_id} "
       f"{step_cmd}"
       f"--accelerator_type {accelertator_type} | "
-      "gsutil cp - $METRICS_FILE",
+      "gcloud storage cp - $METRICS_FILE",
   )
   return cmds
 
