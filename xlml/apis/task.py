@@ -18,15 +18,18 @@ import abc
 import dataclasses
 import datetime
 import shlex
-from dags.common.quarantined_tests import QuarantineTests
 from typing import Optional, Tuple, Union
+
 import airflow
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
+
+from dags.common.quarantined_tests import QuarantineTests
+from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, axlearn, gke
 from xlml.apis import gcp_config, metric_config, test_config, gcs
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, gke
 
 
 class BaseTask(abc.ABC):
@@ -112,7 +115,8 @@ def run_queued_resource_test(
       setup_task = tpu.ssh_tpu.override(
           task_id="setup",
           # Setup/install retries don’t need a long cooldown.
-          # 30s is enough for network connection problem; longer delays do not make sense.
+          # 30s is enough for network connection problem; longer delays do not
+          # make sense.
           retry_delay=datetime.timedelta(seconds=30),
       )(
           queued_resource_name,
@@ -120,7 +124,7 @@ def run_queued_resource_test(
           ssh_keys,
           True if task_test_config.test_name.startswith("tf_") else all_workers,
       )
-      queued_resource_op >> setup_task
+      _ = queued_resource_op >> setup_task
 
     run_model = tpu.ssh_tpu.override(
         task_id="run_model",
@@ -148,9 +152,148 @@ def run_queued_resource_test(
         queued_resource_name
     )
 
-    provision >> run_model >> post_process >> clean_up
+    _ = provision >> run_model >> post_process >> clean_up
 
   return test
+
+
+@dataclasses.dataclass
+class AXLearnTask(BaseTask):
+  """
+  This is a class to set up tasks for TPU/GPU AXLearn.
+
+  Attributes:
+    test_cfg: Test configs to run on this TPU/GPU.
+    gcp_cfg: Runtime TPU/GPU creation parameters.
+    workload_provision_timeout: Timedelta object allowed for
+      provisioning a workload.
+    workload_run_timeout: Timedelta object allowed for the actual
+      workload execution.
+    workload_post_test_timeout: Timedelta object allowed for cleanup tasks
+      after execution.
+    image_name: The name of the Docker image.
+    image_repo: The repository path of the Docker image.
+    image_full_url: The full URL of the Docker image.
+    module: The specific AXLearn module being tested.
+    model_name: The configuration file or string for the model.
+    trainer_dir: The base directory for trainer output.
+    trace_steps: A list of steps where XLA compiler will trace it.
+    label: A string used to categorize the workload, often indicating the
+      accelerator type (e.g., 'tpu-v5p') or test category.
+  """
+
+  test_cfg: Union[
+      test_config.TpuGkeTest, test_config.GpuXpkTest, test_config.CpuGkeTest
+  ]
+  gcp_cfg: gcp_config.GCPConfig
+
+  workload_provision_timeout: datetime.timedelta
+  workload_run_timeout: datetime.timedelta
+  workload_post_test_timeout: datetime.timedelta
+
+  image_name: str
+  image_repo: str
+  image_full_url: str
+
+  module: str
+  model_name: str
+  trainer_dir: str
+  trace_steps: str
+  label: str
+
+  def run(
+      self,
+      workload_id: airflow.XComArg,
+  ) -> DAGNode:
+    """
+    Run a test job within a docker image.
+
+    Attributes:
+      workload_id: A descriptive name for the test run, which is used to
+        generate the unique workload ID.
+
+    Returns:
+      A task group with the following task : run_model.
+    """
+    with TaskGroup(group_id=self.test_cfg.benchmark_id) as group:
+      update_image_tag_cmd = axlearn.update_image_tag_cmd.override(
+          owner=self.test_cfg.task_owner
+      )(
+          image_name=self.image_full_url,
+          workload_id=workload_id,
+      )
+
+      gen_cmds = axlearn.generate_axlearn_cli_command.override(
+          owner=self.test_cfg.task_owner
+      )(
+          task_id="run_workload",
+          project_id=self.gcp_cfg.project_name,
+          zone=self.gcp_cfg.zone,
+          cluster_name=self.test_cfg.cluster_name,
+          workload_id=workload_id,
+          docker_image_name=self.image_name,
+          docker_image_repo=self.image_repo,
+          docker_image_full_url=self.image_full_url,
+          accelerator_type=f"tpu-{self.test_cfg.accelerator.name}",
+          module=self.module,
+          model_config=self.model_name,
+          trainer_dir=self.trainer_dir,
+          num_slices=self.test_cfg.num_slices,
+          trace_steps=self.trace_steps,
+          label=self.label,
+      )
+
+      run_workload = axlearn.start_cli_in_kpo(
+          start_axlearn_cli_command=gen_cmds,
+          workload_id=workload_id,
+          task_owner=self.test_cfg.task_owner,
+          provisioning_timeout=self.workload_provision_timeout,
+          workload_run_timeout=self.workload_run_timeout,
+          image_full_url=self.image_full_url,
+      )
+
+      wait_for_workload_start = xpk.wait_for_workload_start.override(
+          timeout=self.workload_provision_timeout.total_seconds(),
+          owner=self.test_cfg.task_owner,
+      )(
+          workload_id=workload_id,
+          project_id=self.gcp_cfg.project_name,
+          region=gke.zone_to_region(self.gcp_cfg.zone),
+          cluster_name=self.test_cfg.cluster_name,
+      )
+
+      wait_for_workload_completion = xpk.wait_for_workload_completion.override(
+          timeout=int(self.workload_run_timeout.total_seconds()),
+          owner=self.test_cfg.task_owner,
+      )(
+          workload_id=workload_id,
+          project_id=self.gcp_cfg.project_name,
+          region=gke.zone_to_region(self.gcp_cfg.zone),
+          cluster_name=self.test_cfg.cluster_name,
+      )
+
+      cleanup = xpk.clean_up_workload.override(
+          trigger_rule=TriggerRule.ALL_DONE,
+          execution_timeout=self.workload_post_test_timeout,
+          owner=self.test_cfg.task_owner,
+      )(
+          workload_id=workload_id,
+          project_id=self.gcp_cfg.project_name,
+          zone=self.gcp_cfg.zone,
+          cluster_name=self.test_cfg.cluster_name,
+          xpk_branch=xpk.MAIN_BRANCH,
+      )
+
+      # flow1: The launcher task (Kubernetes Pod) that runs the workload.
+      # flow2: The monitoring sidecar that tracks status and handles cleanup.
+      # We run them in parallel because flow1 blocks until completion;
+      # flow2 must run concurrently to monitor progress and ensure cleanup.
+      flow1 = run_workload
+      flow2 = wait_for_workload_start >> wait_for_workload_completion >> cleanup
+
+      _ = update_image_tag_cmd >> gen_cmds >> [flow1, flow2]
+
+    return group
 
 
 @dataclasses.dataclass
@@ -208,7 +351,7 @@ class XpkTask(BaseTask):
           max_restart,
       )
       if not skip_post_process:
-        run_model >> self.post_process(gcs_path)
+        _ = run_model >> self.post_process(gcs_path)
 
     return group
 
@@ -267,7 +410,7 @@ class XpkTask(BaseTask):
           check_file_exists=check_file_exists,
       )
       if not skip_post_process:
-        run_model >> self.post_process(gcs_path)
+        _ = run_model >> self.post_process(gcs_path)
     return group
 
   def run_model_with_node_interruption(
@@ -286,7 +429,7 @@ class XpkTask(BaseTask):
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
 
-      Different behaviour for testing node interruption.
+      Different behavior for testing node interruption.
 
     Attributes:
       gcs_location: GCS path for all artifacts of the test.
@@ -360,7 +503,7 @@ class XpkTask(BaseTask):
           xpk_branch=xpk_branch,
       )
 
-      (
+      _ = (
           (workload_id, gcs_path)
           >> launch_workload_and_wait_for_reach_step
           >> run_node_interruption
@@ -443,17 +586,17 @@ class XpkTask(BaseTask):
           return f"{group.group_id}.{task_id_wait_file_exist}"
         return f"{group.group_id}.{task_id_do_nothing}"
 
-      # Conditional checks: depending on the `check_file_exists` argument specified
-      # by the upper-level caller.
+      # Conditional checks: depending on the `check_file_exists` argument
+      # specified by the upper-level caller.
       maybe_check_file_exists = task_path_decider(check_file_exists)
 
-      (
+      _ = (
           run_workload
           >> wait_for_workload_start
           >> wait_for_workload_to_reach_step
           >> maybe_check_file_exists
       )
-      maybe_check_file_exists >> [wait_for_file_to_exist, do_nothing]
+      _ = maybe_check_file_exists >> [wait_for_file_to_exist, do_nothing]
 
       return group
 
@@ -530,7 +673,7 @@ class XpkTask(BaseTask):
         run_model, gcs_path = self.run_model(
             use_pathways=use_pathways, xpk_branch=xpk_branch
         )
-        (
+        _ = (
             run_name
             >> (tb_file_location, profile_file_location)
             >> run_model
@@ -540,7 +683,7 @@ class XpkTask(BaseTask):
         run_model, gcs_path = self.run_model(
             use_pathways=use_pathways, xpk_branch=xpk_branch
         )
-        (
+        _ = (
             run_name
             >> tb_file_location
             >> run_model
@@ -601,9 +744,10 @@ class XpkTask(BaseTask):
           project_id=self.task_gcp_config.project_name,
           zone=self.task_gcp_config.zone,
           cluster_name=self.task_test_config.cluster_name,
+          xpk_branch=xpk_branch,
       )
 
-      (
+      _ = (
           (workload_id, gcs_path)
           >> launch_workload
           >> wait_for_workload_completion
@@ -653,7 +797,7 @@ class XpkTask(BaseTask):
           region=gke.zone_to_region(self.task_gcp_config.zone),
           cluster_name=self.task_test_config.cluster_name,
       )
-      run_workload >> wait_for_workload_start
+      _ = run_workload >> wait_for_workload_start
       return group
 
   def post_process(self, result_location: Optional[str] = None) -> DAGNode:
@@ -678,13 +822,13 @@ class XpkTask(BaseTask):
                 self.task_metric_config.profile.file_location
             )
         )
-        (
+        _ = (
             process_id
             >> self.task_metric_config.profile.metrics
             >> post_process_metrics
         )
       else:
-        process_id >> post_process_metrics
+        _ = process_id >> post_process_metrics
 
       return group
 
@@ -755,7 +899,7 @@ class GpuCreateResourceTask(BaseTask):
           self.task_gcp_config.project_name,
           self.task_gcp_config.zone,
       )
-      provision >> run_model >> post_process >> clean_up
+      _ = provision >> run_model >> post_process >> clean_up
     return group
 
   def run_with_existing_instance(self) -> DAGNode:
@@ -786,7 +930,7 @@ class GpuCreateResourceTask(BaseTask):
       post_process = self.post_process(gcs_location)
       run_model = self.run_model(ip_address, ssh_keys, env_variable)
       clean_up = self.clean_up_existing_instance(ssh_keys)
-      provision >> run_model >> post_process >> clean_up
+      _ = provision >> run_model >> post_process >> clean_up
     return group
 
   def provision_via_existing_instance(
@@ -854,7 +998,7 @@ class GpuCreateResourceTask(BaseTask):
           reservation=self.reservation,
       )
 
-      ip_address >> gpu.ssh_host.override(task_id="setup")(
+      _ = ip_address >> gpu.ssh_host.override(task_id="setup")(
           ip_address,
           self.task_test_config.setup_script,
           ssh_keys,
@@ -988,7 +1132,7 @@ class GpuGkeTask(BaseTask):
           gcs_location,
       )
       post_process = self.post_process(gcs_location)
-      gcs_location >> gke_run >> post_process
+      _ = gcs_location >> gke_run >> post_process
     return group
 
   def post_process(
