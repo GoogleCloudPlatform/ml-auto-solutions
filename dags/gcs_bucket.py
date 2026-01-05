@@ -28,3 +28,4 @@ BASE_OUTPUT_DIR = "gs://ml-auto-solutions/output"
 # For further question reach out to  Multi-tier Checkpointing Owners.
 ORBAX_AUTOMATION_BUCKET_EUROPE_WEST4 = "gs://orbax-automation-europe-west4"
 RL_AUTOMATION_BUCKET = "gs://rl-automation"
+AXLEARN_AUTOMATION_BUCKET = "gs://axlearn-bucket-multipod"
