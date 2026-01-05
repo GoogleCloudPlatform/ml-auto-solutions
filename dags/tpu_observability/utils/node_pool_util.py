@@ -646,8 +646,16 @@ def update_labels(node_pool: Info, node_labels: dict) -> TimeUtil:
 
 
 @task
-def get_nodepool_disk_size_gb(node_pool: Info) -> int:
-  """Returns node pool boot disk size in GB via gcloud."""
+def get_node_pool_disk_size(node_pool: Info) -> int:
+  """Gets the disk size of a GKE node pool using gcloud command.
+
+  Args:
+    node_pool: An instance of the Info class that encapsulates the
+      configuration and metadata of a GKE node pool.
+
+  Returns:
+    The disk size of the node pool in GB.
+  """
   command = (
       f"gcloud container node-pools describe {node_pool.node_pool_name} "
       f"--project={node_pool.project_id} "
@@ -655,62 +663,81 @@ def get_nodepool_disk_size_gb(node_pool: Info) -> int:
       f"--location={node_pool.location} "
       f'--format="value(config.diskSizeGb)"'
   )
+
   result = subprocess.run_exec(command).strip()
+
   return int(result)
 
 
 @dataclasses.dataclass
 class NodePoolUpdateSpec:
-  # Start with only what you need; extend later.
-  disk_size_gb: int | None = None
-  machine_type: str | None = None
-  num_nodes: int | None = None
-  # labels: dict[str, str] | None = None  # example for later
+  """Configuration parameters for updating a GKE node pool.
+
+  Attributes:
+    disk_size: The target disk size in GB.
+  """
+
+  DEFAULT_DISK_SIZE_INCREMENT = 50
+
+  disk_size: int
 
 
-class NodePoolUpdater:
-  """Builds and executes gcloud node-pool updates (supports multi-flag updates)."""
+@task
+def build_update_spec(current_disk_size: int) -> NodePoolUpdateSpec:
+  """Constructs the specification required to update the node pool.
 
-  def __init__(self, node_pool: Info) -> None:
-    self.info = node_pool
+  This task generates a NodePoolUpdateSpec object defining the target state
+  (e.g., updated disk size) for the node pool update operation.
+  """
+  updated_disk_size = (
+      current_disk_size + NodePoolUpdateSpec.DEFAULT_DISK_SIZE_INCREMENT
+  )
 
-  def update(self, spec: NodePoolUpdateSpec, *, quiet: bool = True) -> int:
-    flags: list[str] = []
+  return NodePoolUpdateSpec(disk_size=updated_disk_size)
 
-    if spec.disk_size_gb is not None:
-      flags += ["--disk-size", str(spec.disk_size_gb)]
 
-    if spec.machine_type is not None:
-      flags += ["--machine-type", spec.machine_type]
+@task
+def update(node_pool: Info, spec: NodePoolUpdateSpec) -> TimeUtil:
+  """Executes the node pool update operation based on the provided specification.
 
-    if spec.num_nodes is not None:
-      flags += ["--num-nodes", str(spec.num_nodes)]
+  This task constructs and runs the gcloud command to apply configuration
+  changes (e.g., disk size) to the node pool and returns the
+  operation start time used for TTR metric validation.
 
-    # If you later support labels, you’d serialize dict -> "k=v,k2=v2"
-    # if spec.labels is not None:
-    #     labels_str = ",".join(f"{k}={v}" for k, v in spec.labels.items())
-    #     flags += ["--update-labels", labels_str]
+  Args:
+    node_pool: An instance of the Info class that encapsulates
+      the configuration and metadata of a GKE node pool.
+    spec: An instance of the NodePoolUpdateSpec class defining the
+      target configuration parameters to be applied during the update.
 
-    if not flags:
-      raise ValueError("update(): at least one update field must be provided.")
+  Returns:
+    A TimeUtil object representing the UTC timestamp when the operation started.
 
-    command = (
-        f"gcloud container node-pools update {self.info.node_pool_name} "
-        f"--project={self.info.project_id} "
-        f"--cluster={self.info.cluster_name} "
-        f"--location={self.info.location} " + " ".join(flags)
-    )
+  Raises:
+    ValueError: If the update specification contains no valid changes.
+  """
+  base_command = (
+      f"gcloud container node-pools update {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      "--quiet "
+  )
 
-    if quiet:
-      command += " --quiet"
+  flags: list[str] = []
 
-    anchor_second = datetime.datetime.now()
-    logging.info(
-        "[nodepool_update] running: %s (anchor_time=%s)",
-        command,
-        anchor_second.isoformat(),
-    )
+  if spec.disk_size is not None:
+    flags.extend(["--disk-size", str(spec.disk_size)])
 
-    subprocess.run_exec(command)
+  if not flags:
+    raise ValueError("At least one update field must be provided.")
 
-    return anchor_second
+  full_command = base_command + " ".join(flags)
+
+  operation_start_time = TimeUtil.from_datetime(
+      datetime.datetime.now(datetime.timezone.utc)
+  )
+
+  subprocess.run_exec(full_command)
+
+  return operation_start_time
