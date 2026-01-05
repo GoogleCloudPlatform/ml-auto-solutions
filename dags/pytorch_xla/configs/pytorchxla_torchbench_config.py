@@ -294,7 +294,7 @@ def get_torchbench_tpu_config(
       ),
       "rm -rf ~/xla/benchmarks/output/metric_report.jsonl",
       "python ~/xla/benchmarks/result_analyzer.py --output-format=jsonl",
-      f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   run_script_cmds_xla2 = (
@@ -306,7 +306,7 @@ def get_torchbench_tpu_config(
       ),
       "rm -rf ~/xla/benchmarks/output/metric_report.jsonl",
       "python ~/xla/benchmarks/result_analyzer.py --output-format=jsonl",
-      f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
   run_script_cmds = run_script_cmds_xla2 if use_xla2 else run_script_cmds_xla1
 
@@ -507,7 +507,7 @@ def get_torchbench_gpu_config(
           "sudo docker cp $(sudo docker ps | awk 'NR==2 { print $1 }')"
           f":{local_output_location} ./"
       ),
-      f"gsutil cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp metric_report.jsonl {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   test_name = f"torchbench_{model_name}" if model_name else "torchbench_all"
@@ -585,13 +585,13 @@ def get_torchbench_gpu_gke_config(
       "nvidia-smi",
   )
 
-  # installs gsutil for uploading results into GCS
+  # installs gcloud cli for uploading results into GCS
   install_gsutil = (
       "curl -s -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-472.0.0-linux-x86_64.tar.gz",
       "tar -xf google-cloud-cli-472.0.0-linux-x86_64.tar.gz",
       "./google-cloud-sdk/install.sh -q",
       "source /google-cloud-sdk/path.bash.inc",
-      "which gsutil",
+      "which gcloud",
   )
   run_script_cmds_xla1 = (
       "export PJRT_DEVICE=CUDA",
@@ -602,7 +602,7 @@ def get_torchbench_gpu_gke_config(
       f"python experiment_runner.py --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --xla=None --dynamo=None --dynamo=openxla --dynamo=inductor {run_filter}",
       "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
       "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
-      f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
   run_script_cmds_xla2 = (
       "export PJRT_DEVICE=CUDA",
@@ -613,7 +613,7 @@ def get_torchbench_gpu_gke_config(
       f"python experiment_runner.py --suite-name=torchbench --accelerator=cuda --progress-bar --xla=PJRT --torch-xla2=torch_export --torch-xla2=extract_jax {run_filter}",
       "rm -rf /tmp/xla/benchmarks/output/metric_report.jsonl",
       "python /tmp/xla/benchmarks/result_analyzer.py --output-format=jsonl",
-      f"gsutil cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {local_output_location} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
   run_script_cmds = run_script_cmds_xla2 if use_xla2 else run_script_cmds_xla1
   command_script = ["bash", "-cxue"]

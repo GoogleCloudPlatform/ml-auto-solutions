@@ -58,9 +58,9 @@ def get_trt_llm_mlperf_v40_gpu_config(
       "sudo chmod a+w /scratch",
       "cd /scratch",
       # Prepare data
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/mlperf_inf_dlrmv2 .",
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/models .",
-      "gsutil -m cp -n -r gs://tohaowu/mlpinf-v40/preprocessed_data .",
+      "gcloud storage cp --no-clobber --recursive gs://tohaowu/mlpinf-v40/mlperf_inf_dlrmv2 .",
+      "gcloud storage cp --no-clobber --recursive gs://tohaowu/mlpinf-v40/models .",
+      "gcloud storage cp --no-clobber --recursive gs://tohaowu/mlpinf-v40/preprocessed_data .",
       "mv models/Llama2/fp8-quantized-ammo/llama2-70b-chat-hf-tp2pp1-fp8/ models/Llama2/fp8-quantized-ammo/llama2-70b-tp2pp1-fp8/",
       "git clone https://github.com/mlcommons/inference_results_v4.0",
       "cd /scratch/inference_results_v4.0/closed/Google",
@@ -116,7 +116,7 @@ def get_trt_llm_mlperf_v40_gpu_config(
       "cat jsonl_converter.py",
       f"python3 jsonl_converter.py {jsonl_output_path}",
       f"cat {jsonl_output_path}",
-      f"gsutil cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
+      f"gcloud storage cp {jsonl_output_path} {metric_config.SshEnvVars.GCS_OUTPUT.value}",
   )
 
   job_test_config = test_config.GpuVmTest(
