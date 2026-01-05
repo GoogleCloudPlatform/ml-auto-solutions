@@ -51,5 +51,5 @@ def setup_maxtext(mode: SetupMode, platform: Platform) -> Tuple[str]:
 def setup_mxla_collective() -> Tuple[str]:
   """Common set up for MXLA collective repo."""
   return (
-      f"mkdir -p /tmp/mxla_collective && gsutil -m cp gs://mxla_collective_benchmark_script/test_scripts/* /tmp/mxla_collective",
+      f"mkdir -p /tmp/mxla_collective && gcloud storage cp gs://mxla_collective_benchmark_script/test_scripts/* /tmp/mxla_collective",
   )
