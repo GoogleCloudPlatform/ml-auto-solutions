@@ -17,12 +17,11 @@
 
 import datetime
 from airflow import models
-from dags import composer_env, gcs_bucket
+from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import Project, TpuVersion, CpuVersion, Zone, DockerImage, GpuVersion, XpkClusters
+from dags.common.vm_resource import DockerImage, XpkClusters
 from airflow.utils.task_group import TaskGroup
 from dags.sparsity_diffusion_devx.configs import gke_config as config
-from xlml.utils import name_format
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 7 am UTC (11 pm PST)
@@ -70,7 +69,7 @@ with models.DAG(
   )
 
   docker_images = [
-      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_GPU_STABLE_STACK_NIGHTLY_JAX),
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_GPU_JAX_NIGHTLY),
   ]
 
   for model, (test_script, nnodes) in test_models_gpu.items():
