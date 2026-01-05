@@ -643,4 +643,74 @@ def update_labels(node_pool: Info, node_labels: dict) -> TimeUtil:
   )
 
   subprocess.run_exec(command)
-  return operation_start_time
+
+
+@task
+def get_nodepool_disk_size_gb(node_pool: Info) -> int:
+  """Returns node pool boot disk size in GB via gcloud."""
+  command = (
+      f"gcloud container node-pools describe {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      f'--format="value(config.diskSizeGb)"'
+  )
+  result = subprocess.run_exec(command).strip()
+  return int(result)
+
+
+@dataclasses.dataclass
+class NodePoolUpdateSpec:
+  # Start with only what you need; extend later.
+  disk_size_gb: int | None = None
+  machine_type: str | None = None
+  num_nodes: int | None = None
+  # labels: dict[str, str] | None = None  # example for later
+
+
+class NodePoolUpdater:
+  """Builds and executes gcloud node-pool updates (supports multi-flag updates)."""
+
+  def __init__(self, node_pool: Info) -> None:
+    self.info = node_pool
+
+  def update(self, spec: NodePoolUpdateSpec, *, quiet: bool = True) -> int:
+    flags: list[str] = []
+
+    if spec.disk_size_gb is not None:
+      flags += ["--disk-size", str(spec.disk_size_gb)]
+
+    if spec.machine_type is not None:
+      flags += ["--machine-type", spec.machine_type]
+
+    if spec.num_nodes is not None:
+      flags += ["--num-nodes", str(spec.num_nodes)]
+
+    # If you later support labels, you’d serialize dict -> "k=v,k2=v2"
+    # if spec.labels is not None:
+    #     labels_str = ",".join(f"{k}={v}" for k, v in spec.labels.items())
+    #     flags += ["--update-labels", labels_str]
+
+    if not flags:
+      raise ValueError("update(): at least one update field must be provided.")
+
+    command = (
+        f"gcloud container node-pools update {self.info.node_pool_name} "
+        f"--project={self.info.project_id} "
+        f"--cluster={self.info.cluster_name} "
+        f"--location={self.info.location} " + " ".join(flags)
+    )
+
+    if quiet:
+      command += " --quiet"
+
+    anchor_second = datetime.datetime.now()
+    logging.info(
+        "[nodepool_update] running: %s (anchor_time=%s)",
+        command,
+        anchor_second.isoformat(),
+    )
+
+    subprocess.run_exec(command)
+
+    return anchor_second
