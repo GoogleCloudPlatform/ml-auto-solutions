@@ -63,7 +63,7 @@ def run_maxtext_tests():
             run_model_cmds=(test_script,),
             num_slices=nnodes,
             cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
-            docker_image=DockerImage.MAXTEXT_GPU_JAX_AI_CANDIDATE_IMAGE.value,
+            docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
             test_owner=test_owner.MICHELLE_Y,
         ).run_with_quarantine(quarantine_task_group)
     )
@@ -73,7 +73,7 @@ def run_maxtext_tests():
         run_model_cmds=(test_script,),
         num_slices=nnodes,
         cluster=XpkClusters.GPU_A3PLUS_CLUSTER,
-        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE_STACK.value,
+        docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.MICHELLE_Y,
     ).run_with_quarantine(quarantine_task_group)
     candidate_a3plus_gpu >> stable_a3plus_gpu
