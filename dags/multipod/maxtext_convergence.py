@@ -77,7 +77,10 @@ with models.DAG(
       ),
   }
 
-  maxtext_v6e_config_tests = []
+  # Tests that can be run in parallel to reduce execution time.
+  parallel_test_names = ["maxtext-convergence-grain"]
+
+  sequential_tests = []
   for test_name, run_command in convergence_tests.items():
     test_task = gke_config.get_gke_config(
         cluster=XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
@@ -89,8 +92,9 @@ with models.DAG(
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
     ).run_with_run_name_generation()
-    maxtext_v6e_config_tests.append(test_task)
+    if test_name not in parallel_test_names:
+      sequential_tests.append(test_task)
 
-  for i in range(len(maxtext_v6e_config_tests) - 1):
+  for i in range(len(sequential_tests) - 1):
     # pylint: disable-next=pointless-statement
-    maxtext_v6e_config_tests[i] >> maxtext_v6e_config_tests[i + 1]
+    sequential_tests[i] >> sequential_tests[i + 1]
