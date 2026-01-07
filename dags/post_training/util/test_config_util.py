@@ -23,6 +23,14 @@ class LossAlgo(Enum):
   GRPO = "grpo"
   GSPO = "gspo"
 
+  @property
+  def loss_name(self) -> str:
+    """Returns the specific loss algorithm string used for computation."""
+    return {
+        LossAlgo.GRPO: "grpo",
+        LossAlgo.GSPO: "gspo-token",
+    }[self]
+
 
 @dataclass
 class RLTestConfig:
@@ -38,7 +46,6 @@ class RLTestConfig:
     slices: List of slice numbers to test with.
     model_name: The name of the model being trained
         (e.g., llama3.1-70b).
-    short_id: A short identifier for the test run.
     base_dir: Base GCS directory for outputs.
     tokenizer_path: Path to the tokenizer (HuggingFace model
         path or local path).
@@ -53,7 +60,6 @@ class RLTestConfig:
   accelerator: str
   slices: list[int]
   model_name: str
-  short_id: str
   base_dir: str
   tokenizer_path: str
   load_parameters_path: str
@@ -66,7 +72,6 @@ class RLTestConfig:
       accelerator: str,
       slices: list[int],
       model_name: str,
-      short_id: str,
       base_dir: str,
       tokenizer_path: str,
       load_parameters_path: str,
@@ -82,7 +87,6 @@ class RLTestConfig:
       slices: The number of slices to be used.
       model_name: The name of the base model being tested
           (e.g., llama3.1-70b).
-      short_id: A short identifier for the test run.
       base_dir: The base GCS directory for storing outputs.
       tokenizer_path: Path to the tokenizer (HuggingFace
           model path).
@@ -96,7 +100,6 @@ class RLTestConfig:
     self.accelerator = accelerator
     self.slices = slices
     self.model_name = model_name
-    self.short_id = short_id
     self.base_dir = base_dir
     self.tokenizer_path = tokenizer_path
     self.load_parameters_path = load_parameters_path
@@ -129,11 +132,9 @@ class RLTestConfig:
         f"model_name={self.model_name} "
         f"tokenizer_path={self.tokenizer_path} "
         f"load_parameters_path={self.load_parameters_path} "
-        f"base_output_directory={self.base_dir}"
+        f"base_output_directory={self.base_dir} "
+        f"loss_algo={loss_algo.loss_name}"
     )
-
-    if loss_algo == LossAlgo.GSPO:
-      command += f" loss_algo={loss_algo.value}-token"
 
     # Return as tuple for k8s yaml compatibility.
     return (command,)
