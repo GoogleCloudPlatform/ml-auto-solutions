@@ -23,6 +23,14 @@ class LossAlgo(Enum):
   GRPO = "grpo"
   GSPO = "gspo"
 
+  @property
+  def loss_name(self) -> str:
+    """Returns the specific loss algorithm string used for computation."""
+    return {
+        LossAlgo.GRPO: "grpo",
+        LossAlgo.GSPO: "gspo-token",
+    }[self]
+
 
 @dataclass
 class RLTestConfig:
@@ -129,7 +137,8 @@ class RLTestConfig:
         f"model_name={self.model_name} "
         f"tokenizer_path={self.tokenizer_path} "
         f"load_parameters_path={self.load_parameters_path} "
-        f"base_output_directory={self.base_dir}"
+        f"base_output_directory={self.base_dir} "
+        f"loss_algo={loss_algo.loss_name}"
     )
 
     if loss_algo == LossAlgo.GSPO:
