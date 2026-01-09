@@ -106,7 +106,7 @@ DAG_CONFIGS_ULTRA = {
         "timeout_minutes": 15,
         "backfill_group_nightly": 1,
         "backfill_group_release": 1,
-        "nightly_schedule": "15 10 * * 2,3,4,6",
+        "nightly_schedule": "0 11 * * 2,3,4,6",
         "release_schedule": "0 2 * * 2,3,4,6",
     },
     "recipes/a3ultra/a3ultra_llama3.1-8b_16gpus_fp8_maxtext.yaml": {
@@ -134,29 +134,29 @@ DAG_CONFIGS_ULTRA = {
         "timeout_minutes": 20,
         "backfill_group_nightly": 2,
         "backfill_group_release": 2,
-        "nightly_schedule": "0 11 * * 2,3,4,6",
-        "release_schedule": "30 11 * * 2,3,4,6",
+        "nightly_schedule": "30 11 * * 2,3,4,6",
+        "release_schedule": "0 12 * * 2,3,4,6",
     },
     "recipes/a3ultra/a3ultra_llama3.1-70b_256gpus_fp8_maxtext.yaml": {
         "timeout_minutes": 15,
         "backfill_group_nightly": 3,
         "backfill_group_release": 3,
-        "nightly_schedule": "45 12 * * 2,3,4,6",
-        "release_schedule": "0 12 * * 2,3,4,6",
+        "nightly_schedule": "15 13 * * 2,3,4,6",
+        "release_schedule": "30 12 * * 2,3,4,6",
     },
     "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_fp8_maxtext.yaml": {
         "timeout_minutes": 30,
         "backfill_group_nightly": 4,
         "backfill_group_release": 4,
-        "nightly_schedule": "30 13 * * 2,3,4,6",
-        "release_schedule": "15 14 * * 2,3,4,6",
+        "nightly_schedule": "45 13 * * 2,3,4,6",
+        "release_schedule": "30 14 * * 2,3,4,6",
     },
     "recipes/a3ultra/a3ultra_llama3.1-405b_256gpus_bf16_maxtext.yaml": {
         "timeout_minutes": 40,
         "backfill_group_nightly": 5,
         "backfill_group_release": 5,
-        "nightly_schedule": "45 9 * * 2,3,4,6",
-        "release_schedule": "0 15 * * 2,3,4,6",
+        "nightly_schedule": "15 10 * * 2,3,4,6",
+        "release_schedule": "15 15 * * 2,3,4,6",
     },
 }
 
@@ -237,14 +237,14 @@ DAG_CONFIGS_A4_NEMO = {
 DAG_CONFIGS_ULTRA_NEMO = {
     "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_fp8_nemo.yaml": {
         "timeout_minutes": 20,
-        "release_schedule": "30 2 * * 6",
+        "release_schedule": "30 1 * * 6",
     },
     "recipes/a3ultra/nemo/a3ultra_llama3.1-8b_8gpus_bf16_nemo.yaml": {
         "timeout_minutes": 20,
-        "release_schedule": "0 2 * * 6",
+        "release_schedule": "0 1 * * 6",
     },
     "recipes/a3ultra/nemo/a3ultra_llama3.1-70b_256gpus_fp8_nemo.yaml": {
         "timeout_minutes": 25,
-        "release_schedule": "45 10 * * 6",
+        "release_schedule": "0 16 * * 6",
     },
 }
