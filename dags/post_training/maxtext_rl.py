@@ -11,6 +11,7 @@ import datetime
 
 from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.utils.task_group import TaskGroup
 
 from dags import composer_env
 from dags.common import test_owner
@@ -69,7 +70,6 @@ with models.DAG(
       accelerator="v5p-128",
       slices=[1],  # Single slice for RL training
       model_name="llama3.1-70b",
-      short_id="mrl",
       base_dir=(
           f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/outputs"
       ),
@@ -94,15 +94,8 @@ with models.DAG(
 
     for loss_algo in training_config.loss_algos:
       for slice_num in training_config.slices:
-        task_suffix = f"{mode.value}_{loss_algo.value}_{slice_num}"
-        run_name = validation_util.generate_posttraining_run_name.override(
-            task_id=f"run_name_{task_suffix}"
-        )(
-            short_id=training_config.short_id,
-            checkpointing_type=loss_algo.value,
-            slice_number=slice_num,
-            mode=mode.value,
-        )
+        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        run_name = f"{loss_algo.value}-{mode.value}-{current_datetime}"
 
         rl_training_command = training_config.generate_rl_training_command(
             loss_algo=loss_algo,
@@ -110,63 +103,69 @@ with models.DAG(
             hf_token=HF_TOKEN_LLAMA3_1,
         )
 
-        start_time = validation_util.generate_timestamp.override(
-            task_id=f"start_time_{task_suffix}"
-        )()
+        with TaskGroup(
+            group_id=f"{loss_algo.value}-{mode.value}-{slice_num}x{training_config.accelerator}"
+        ) as group:
+          with TaskGroup(group_id="run_training") as training_group:
+            start_time = validation_util.generate_timestamp.override(
+                task_id="generate_start_time"
+            )()
 
-        test_name = f"{training_config.short_id[:3]}{loss_algo.value[:3]}"
+            training_task = gke_config.get_gke_config(
+                num_slices=slice_num,
+                cluster=training_config.cluster,
+                time_out_in_min=30,
+                test_name=loss_algo.value,
+                run_model_cmds=rl_training_command,
+                docker_image=image.value,
+                test_owner=test_owner.JACKY_F,
+            ).run_model(
+                use_pathways=True,
+                xpk_branch=MAIN_BRANCH,
+            )
 
-        training_task = gke_config.get_gke_config(
-            num_slices=slice_num,
-            cluster=training_config.cluster,
-            time_out_in_min=30,
-            test_name=test_name,
-            run_model_cmds=rl_training_command,
-            docker_image=image.value,
-            test_owner=test_owner.JACKY_F,
-        ).run(
-            use_pathways=True,
-            xpk_branch=MAIN_BRANCH,
-            skip_post_process=True,
-        )
+            end_time = validation_util.generate_timestamp.override(
+                task_id="generate_end_time"
+            )()
 
-        end_time = validation_util.generate_timestamp.override(
-            task_id=f"end_time_{task_suffix}"
-        )()
+            chain(
+                start_time,
+                training_task,
+                end_time,
+            )
 
-        validate_loss_algo = validation_util.validate_log_exist.override(
-            task_id=f"validate_loss_{task_suffix}"
-        )(
-            project_id=training_config.cluster.project,
-            location=zone_to_region(training_config.cluster.zone),
-            cluster_name=training_config.cluster.name,
-            text_filter=f'"Config param loss_algo: {loss_algo.value}"',
-            namespace="default",
-            container_name="jax-tpu",
-            pod_pattern=f"{test_name}.*",
-            start_time=start_time,
-            end_time=end_time,
-        )
+          with TaskGroup(group_id="validate_training") as validation_group:
+            validate_loss_algo = validation_util.validate_log_exist.override(
+                task_id="validate_loss_algo"
+            )(
+                project_id=training_config.cluster.project,
+                location=zone_to_region(training_config.cluster.zone),
+                cluster_name=training_config.cluster.name,
+                text_filter=f'"Config param loss_algo: {loss_algo.loss_name}"',
+                namespace="default",
+                container_name="jax-tpu",
+                pod_pattern=f"{loss_algo.value}.*",
+                start_time=start_time,
+                end_time=end_time,
+            )
 
-        validate_training = validation_util.validate_log_exist.override(
-            task_id=f"validate_training_{task_suffix}"
-        )(
-            project_id=training_config.cluster.project,
-            location=zone_to_region(training_config.cluster.zone),
-            cluster_name=training_config.cluster.name,
-            text_filter='"Post RL Training"',
-            namespace="default",
-            container_name="jax-tpu",
-            pod_pattern=f"{test_name}.*",
-            start_time=start_time,
-            end_time=end_time,
-        )
+            validate_training_logs = (
+                validation_util.validate_log_exist.override(
+                    task_id="validate_training_logs"
+                )(
+                    project_id=training_config.cluster.project,
+                    location=zone_to_region(training_config.cluster.zone),
+                    cluster_name=training_config.cluster.name,
+                    text_filter="Post RL Training",
+                    namespace="default",
+                    container_name="jax-tpu",
+                    pod_pattern=f"{loss_algo.value}.*",
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            )
 
-        chain(
-            run_name,
-            start_time,
-            training_task,
-            end_time,
-            validate_loss_algo,
-            validate_training,
-        )
+          chain(
+              training_group,
+              validation_group,
+          )
