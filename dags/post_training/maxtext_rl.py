@@ -44,17 +44,15 @@ with models.DAG(
       # RL Training (GRPO/GSPO) MaxText RL Training
 
       ### Overview
-      This DAG runs RL training using GRPO (Group Relative Policy Optimization) 
-      and GSPO algorithms to validate the MaxText reinforcement learning pipeline. 
-      The workflow tests the complete RL training stack including infrastructure setup,
-      model initialization, training execution, and result validation.
+      Runs RL training with GRPO/GSPO to validate MaxText RL pipeline.
+      Tests RL stack: infra, model, training, validation.
 
       ### Execution Flow
-      1. **Job Launch:** Deploy RL training jobs to GKE cluster using Pathways infrastructure
-      2. **Model Loading:** Initialize Llama3.1 70B model with HuggingFace authentication
-      3. **Training Run:** Execute train_rl with JAX proxy/CPU platforms for GRPO and GSPO
-      4. **Log Validation:** Monitor and check for "Post RL Training" completion signal
-      5. **Success/Failure:** Report final status based on log validation and job completion
+      1. **Job Launch:** Deploy RL jobs to GKE using Pathways infra
+      2. **Model Loading:** Init Llama3.1 70B with HF auth
+      3. **Training Run:** Run train_rl with JAX proxy for GRPO/GSPO
+      4. **Log Validation:** Check for 'Post RL Training' signal
+      5. **Success/Failure:** Report status from logs and completion
 
       ### Success Criteria
       The test passes when:
@@ -85,7 +83,7 @@ with models.DAG(
       ],
   )
   # HF token retrieved from Airflow Variables for secure credential management
-  HF_TOKEN_LLAMA3_1 = models.Variable.get("HF_TOKEN_LLAMA3_1", None)
+  HF_TOKEN_LLAMA3_1 = models.Variable.get("HF_TOKEN_CIENET", None)
 
   for mode, image in test_config_util.POST_TRAINING_DOCKER_IMAGES:
     # TODO: Enable stable mode once a new version of MaxText is available
@@ -104,7 +102,10 @@ with models.DAG(
         )
 
         with TaskGroup(
-            group_id=f"{loss_algo.value}-{mode.value}-{slice_num}x{training_config.accelerator}"
+            group_id=(
+                f"{loss_algo.value}-{mode.value}-"
+                f"{slice_num}x{training_config.accelerator}"
+            )
         ) as group:
           with TaskGroup(group_id="run_training") as training_group:
             start_time = validation_util.generate_timestamp.override(

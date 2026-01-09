@@ -66,6 +66,7 @@ def run_queued_resource_test(
     tpu_create_timeout: datetime.timedelta = datetime.timedelta(minutes=60),
     tpu_name_env_var: bool = False,
     all_workers: bool = True,
+    skip_post_process: bool = False,
 ):
   """This is a class to set up tasks for TPU provisioned by Queued Resource.
 
@@ -84,6 +85,7 @@ def run_queued_resource_test(
     tpu_name_env_var: The flag to define if set up env variable for tpu name.
     all_workers: The flag to define if run commands on all workers or worker 0
       only.
+    skip_post_process: If True, the post processing step will be skipped.
 
   Returns:
       A task group with the following tasks chained: provision, run_model,
@@ -138,21 +140,23 @@ def run_queued_resource_test(
         env={metric_config.SshEnvVars.GCS_OUTPUT.name: output_location},
     )
 
-    with TaskGroup(group_id="post_process") as post_process:
-      process_id = metric.generate_process_id.override(retries=0)()
-      metric.process_metrics.override(retries=0)(
-          process_id,
-          task_test_config,
-          task_metric_config,
-          task_gcp_config,
-          folder_location=output_location,
-      )
-
     clean_up = tpu.delete_queued_resource.override(group_id="clean_up")(
         queued_resource_name
     )
 
-    _ = provision >> run_model >> post_process >> clean_up
+    if skip_post_process:
+      _ = provision >> run_model >> clean_up
+    else:
+      with TaskGroup(group_id="post_process") as post_process:
+        process_id = metric.generate_process_id.override(retries=0)()
+        metric.process_metrics.override(retries=0)(
+            process_id,
+            task_test_config,
+            task_metric_config,
+            task_gcp_config,
+            folder_location=output_location,
+        )
+      _ = provision >> run_model >> post_process >> clean_up
 
   return test
 

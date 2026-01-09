@@ -1,0 +1,264 @@
+"""Utility functions for automating Jupyter notebooks in Airflow."""
+
+import inspect
+import textwrap
+
+
+def build_maxtext_setup_script() -> str:
+  """Builds the shell script for setting up the MaxText environment on TPU VM.
+
+  Returns:
+      A shell script string that clones MaxText, installs dependencies, and
+      sets up the virtual environment.
+  """
+  return textwrap.dedent(
+      """
+      set -e
+      set -x
+
+      # =======================================================================
+      # Environment Setup
+      # =======================================================================
+
+      if [ ! -d "maxtext" ]; then
+        git clone https://github.com/AI-Hypercomputer/maxtext.git
+      fi
+      cd maxtext
+
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      export PATH="$HOME/.local/bin:$PATH"
+
+      uv venv --python 3.12 --seed maxtext_venv
+      source maxtext_venv/bin/activate
+
+      # =======================================================================
+      # MaxText Installation
+      # =======================================================================
+
+      uv pip install -e .[tpu] --resolution=lowest
+      python3 -m pip install uv
+
+      install_maxtext_github_deps
+
+      # =======================================================================
+      # Post-Training Installations
+      # =======================================================================
+
+      if [ ! -d "tunix" ]; then
+        git clone https://github.com/google/tunix.git
+      fi
+      cd tunix
+      uv pip install -e .
+      cd ..
+
+      if [ ! -d "vllm" ]; then
+        git clone https://github.com/vllm-project/vllm.git
+      fi
+      cd vllm
+      uv pip install -r requirements/tpu.txt
+      VLLM_TARGET_DEVICE="tpu" uv pip install -e .
+      cd ..
+
+      if [ ! -d "tpu-inference" ]; then
+        git clone https://github.com/vllm-project/tpu-inference.git
+      fi
+      cd tpu-inference
+      uv pip install -e .
+      cd ..
+
+      # =======================================================================
+      # Notebook Automation Tools
+      # =======================================================================
+
+      uv pip install nbconvert ipykernel papermill
+
+      echo "Environment setup completed"
+      """
+  )
+
+
+def _run_parameter_injection(
+    notebook_path, output_path, parameters, env_params
+):
+  """
+  Injects literal values or environment lookups into a notebook's code cells.
+
+  This function searches for lines matching `KEY = VALUE` in the notebook and
+  replaces the assignment with either a literal repr of the provided value
+  or an `os.getenv` call.
+
+  Args:
+      notebook_path: Path to the source .ipynb file.
+      output_path: Path where the modified .ipynb will be saved.
+      parameters: Dict of {key: value} for literal injection.
+      env_params: List of keys to be injected as `os.getenv("KEY")`.
+  """
+  import json
+  import re
+
+  with open(notebook_path, encoding="utf-8") as f:
+    nb = json.load(f)
+
+  all_keys_to_match = set(parameters.keys()) | set(env_params)
+  found_keys = set()
+
+  for cell in (c for c in nb["cells"] if c["cell_type"] == "code"):
+    source = cell.get("source", [])
+    if isinstance(source, str):
+      lines = source.splitlines(keepends=True)
+    else:
+      lines = source
+
+    new_lines = []
+    for line in lines:
+      # Match KEY=VALUE assignments with leading spaces and trailing comments.
+      # Allow empty values and don't anchor to $ for robustness.
+      match = re.match(r"^(\s*)(\w+)(\s*=\s*)([^#\n]*)(.*)", line)
+      if match and (key := match.group(2)) in all_keys_to_match:
+        found_keys.add(key)
+        val = (
+            repr(parameters[key])
+            if key in parameters
+            else f"os.getenv({key!r})"
+        )
+        # Preserve original indentation and comments
+        line = f"{match.group(1)}{key}{match.group(3)}{val}{match.group(5)}\n"
+        new_lines.append(line)
+        # Add a diagnostic print only for HF_TOKEN length if requested
+        if key == "HF_TOKEN":
+          new_lines.append(
+              match.group(1)
+              + (
+                  f"print('DEBUG: HF_TOKEN length: ' + "
+                  f"str(len({key}) if {key} else 0))\n"
+              )
+          )
+        continue
+
+      new_lines.append(line)
+    cell["source"] = new_lines
+
+  injected_source = []
+  if env_params:
+    injected_source.append("import os\n")
+
+  if missing := all_keys_to_match - found_keys:
+    if injected_source:
+      injected_source.append("\n")
+    injected_source.append("# Injected missing parameters (fallback)\n")
+    for key in sorted(list(missing)):
+      val = (
+          repr(parameters[key]) if key in parameters else f"os.getenv({key!r})"
+      )
+      injected_source.append(f"{key} = {val}\n")
+
+      if key == "HF_TOKEN":
+        injected_source.append(
+            f"print('DEBUG: HF_TOKEN length: ' + "
+            f"str(len({key}) if {key} else 0))\n"
+        )
+
+  if injected_source:
+    nb["cells"].insert(
+        0,
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {"tags": ["injected-parameters"]},
+            "outputs": [],
+            "source": injected_source,
+        },
+    )
+
+  with open(output_path, "w", encoding="utf-8") as f:
+    json.dump(nb, f, indent=2)
+
+  print(f"Prepared notebook: {output_path}")
+
+
+def build_notebook_execution_command(
+    notebook_path: str,
+    parameters: dict,
+    maxtext_path: str = "$(pwd)",
+    venv_path: str | None = None,
+    env_params: dict[str, any] | None = None,
+) -> str:
+  """
+  Builds a shell command to execute a notebook with injected parameters.
+
+  Args:
+      notebook_path: Path to the input notebook file on the TPU VM.
+      parameters: Parameters to inject literally (e.g., {"BATCH_SIZE": 32}).
+      maxtext_path: Root directory for execution (defaults to current dir).
+      venv_path: Path to a virtualenv to activate (relative to maxtext_path).
+      env_params: Parameters to pass as environment variables. The notebook
+          will be modified to read these via `os.getenv`.
+
+  Returns:
+      A shell command string that sets up the env and runs the notebook.
+  """
+  env_params = env_params or {}
+
+  # Construct the shell command for environment setup and notebook run
+  exports = " && ".join(f"export {k}={v}" for k, v in env_params.items())
+  export_prefix = f"{exports} && " if exports else ""
+
+  venv_cmd = f"source {venv_path}/bin/activate" if venv_path else "true"
+  output_nb = "/tmp/notebook_with_params.ipynb"
+
+  env_setup_script = textwrap.dedent(
+      f"""
+      cd {maxtext_path}
+      {venv_cmd}
+      """
+  )
+
+  # Serialize the injection function and the call to it
+  python_injection_script = textwrap.dedent(
+      f"""
+      python << 'PYEOF'
+      {inspect.getsource(_run_parameter_injection)}
+
+      _run_parameter_injection(
+          {notebook_path!r},
+          {output_nb!r},
+          {parameters!r},
+          {list(env_params.keys())!r}
+      )
+      PYEOF
+      """
+  )
+
+  notebook_run_script = (
+      f"{export_prefix}papermill {output_nb} {output_nb} --log-output"
+  )
+
+  verification_script = textwrap.dedent(
+      f"""
+      if ! grep -q "Training Completed Successfully!" {output_nb}; then
+        echo "Error: Notebook did not report successful completion."
+        exit 1
+      fi
+      """
+  )
+
+  return textwrap.dedent(
+      f"""
+      set -ex
+      set -o pipefail
+
+      # 1. Environment Setup
+      {env_setup_script}
+
+      # 2. Parameter Injection
+      {python_injection_script}
+
+      # 3. Notebook Execution
+      {notebook_run_script}
+
+      # 4. Success Verification
+      {verification_script}
+
+      echo "Notebook execution completed successfully"
+      """
+  )
