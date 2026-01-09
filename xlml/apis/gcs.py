@@ -114,17 +114,17 @@ def load_yaml_from_gcs(gcs_path: str) -> dict:
     temp_file_path = os.path.join(tmpdir, "downloaded_config")
 
     hook = SubprocessHook()
-    command = ["gsutil", "-m", "cp", gcs_path, temp_file_path]
+    command = ["gcloud", "storage", "cp", gcs_path, temp_file_path]
     logging.info(f"Running command: {' '.join(command)}")
     result = hook.run_command(command)
     assert (
         result.exit_code == 0
-    ), f"gsutil command failed with exit code {result.exit_code}"
+    ), f"gcloud storage command failed with exit code {result.exit_code}"
 
     if not os.path.exists(temp_file_path):
       logging.error(
-          f"gsutil cp command completed, but '{temp_file_path}' was not created. "
-          "This often means the copy failed. Check gsutil stdout/stderr in logs."
+          f"gcloud storage cp command completed, but '{temp_file_path}' was not created. "
+          "This often means the copy failed. Check gcloud storage stdout/stderr in logs."
       )
       raise FileNotFoundError(
           f"[Errno 2] Failed to download file from GCS path: {gcs_path}"
