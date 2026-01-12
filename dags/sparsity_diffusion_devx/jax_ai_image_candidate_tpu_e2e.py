@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to run end-to-end JAX AI Image Candidate TPU tests before public release."""
+"""A DAG to run end-to-end JAX Stable Stack TPU tests."""
 
 
 import datetime
@@ -24,29 +24,33 @@ from dags.common.vm_resource import Project, TpuVersion, CpuVersion, Zone, Docke
 from dags.sparsity_diffusion_devx.configs import gke_config as config
 from dags.multipod.configs.common import SetupMode
 from xlml.utils import name_format
+from xlml.apis import metric_config
+
+# Run once a day at 3 am UTC (7 pm PST)
+SCHEDULED_TIME = "30 1 * * *" if composer_env.is_prod_env() else None
+BASE_OUTPUT_DIRECTORY = gcs_bucket.BASE_OUTPUT_DIR
 
 
 with models.DAG(
-    dag_id="jax_ai_image_candidate_tpu_e2e",
+    dag_id="jax_ai_image_tpu_e2e_time",
+    schedule=SCHEDULED_TIME,
     tags=[
         "jax_models_and_performance",
         "multipod_team",
         "maxtext",
+        "maxdiffusion",
+        "tpu",
         "jax-stable-stack",
         "mlscale_devx",
-        "TPU",
-        "v4-16",
         "v5-8",
         "v6e-256",
     ],
-    start_date=datetime.datetime(2025, 7, 24),
+    start_date=datetime.datetime(2024, 6, 7),
     catchup=False,
-    schedule=None,
 ) as dag:
   current_datetime = config.get_current_datetime()
   maxtext_test_configs = {
       # accelerator: list of slices to test
-      "v4-16": [1],
       "v5-8": [1, 2],
       "v6e-256": [1],
   }
@@ -60,15 +64,16 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
-  maxtext_docker_images = [(
-      SetupMode.STABLE,
-      "gcr.io/tpu-prod-env-multipod/maxtext_stable_stack_candidate:latest",
-  )]
+  maxtext_docker_images = [
+      (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
+  ]
 
-  maxdiffusion_docker_images = [(
-      SetupMode.STABLE,
-      "gcr.io/tpu-prod-env-multipod/maxdiffusion_stable_stack_candidate:latest",
-  )]
+  maxdiffusion_docker_images = [
+      (
+          SetupMode.NIGHTLY,
+          DockerImage.MAXDIFFUSION_TPU_STABLE_STACK_NIGHTLY_JAX,
+      ),
+  ]
 
   for accelerator, slices in maxtext_test_configs.items():
     cores = accelerator.rsplit("-", maxsplit=1)[-1]
@@ -80,6 +85,12 @@ with models.DAG(
             cluster=cluster,
             time_out_in_min=60,
             run_model_cmds=(
+                "export JAX_DISTRIBUTED_SERVICE_TIME_OUT_SECONDS=3600 "
+                "JAX_COORDINATION_SERVICE_HEARTBEAT_TIMEOUT_SECONDS=3600 "
+                "JAX_RPC_TIMEOUT_MS=600000 "
+                "JAX_COORDINATION_SERVICE_POLL_THRESHOLD=3600 "
+                "JAX_BARRIER_SYNC_TIMEOUT_SECONDS=3600 && "
+                "sleep $((RANDOM % 30)) && "
                 f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
                 f"python -m MaxText.train MaxText/configs/base.yml run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxtext-jax-stable-stack-{current_datetime} "
                 "steps=30 per_device_batch_size=1 max_target_length=4096 model_name=llama2-7b "
@@ -87,8 +98,8 @@ with models.DAG(
                 "dataset_type=synthetic async_checkpointing=false "
                 f"base_output_directory={gcs_bucket.BASE_OUTPUT_DIR}/maxtext/jax-stable-stack/automated/{current_datetime}",
             ),
-            test_name=f"maxtext-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}x",
-            docker_image=image,
+            test_name=f"maxtext-jax-stable-stack-{mode.value}",
+            docker_image=image.value,
             test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)
 
@@ -102,16 +113,22 @@ with models.DAG(
             cluster=cluster,
             time_out_in_min=60,
             run_model_cmds=(
+                "export JAX_DISTRIBUTED_SERVICE_TIME_OUT_SECONDS=3600 "
+                "JAX_COORDINATION_SERVICE_HEARTBEAT_TIMEOUT_SECONDS=3600 "
+                "JAX_RPC_TIMEOUT_MS=600000 "
+                "JAX_COORDINATION_SERVICE_POLL_THRESHOLD=3600 "
+                "JAX_BARRIER_SYNC_TIMEOUT_SECONDS=3600 && "
+                "sleep $((RANDOM % 30)) && "
                 f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
                 f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
                 f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
                 f"revision=refs/pr/95 activations_dtype=bfloat16 weights_dtype=bfloat16 "
-                f"dataset_name=jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_sdxl resolution=1024 per_device_batch_size=1 "
+                f"dataset_name=gs://jfacevedo-maxdiffusion-v5p/pokemon-datasets/pokemon-gpt4-captions_sdxl resolution=1024 per_device_batch_size=1 "
                 f"jax_cache_dir=gs://jfacevedo-maxdiffusion/cache_dir/ max_train_steps=20 attention=flash enable_profiler=True "
                 f"run_name={slice_num}slice-V{cluster.device_version}_{cores}-maxdiffusion-jax-stable-stack-{current_datetime} "
                 f"output_dir={gcs_bucket.BASE_OUTPUT_DIR}/maxdiffusion-jax-stable-stack-{mode.value}-{accelerator}-{slice_num}/automated/{current_datetime}",
             ),
-            test_name=f"maxdiffusion-jax-stable-stack-sdxl-{mode.value}-{accelerator}-{slice_num}x",
-            docker_image=image,
+            test_name=f"maxdiffusion-jax-ai-image-{mode.value}",
+            docker_image=image.value,
             test_owner=test_owner.ROHAN_B,
         ).run_with_quarantine(quarantine_task_group)
