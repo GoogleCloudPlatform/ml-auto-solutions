@@ -53,7 +53,7 @@ with models.DAG(
   }
   clusters = {
       # accelerator: cluster name
-      "v5p-8": XpkClusters.TPU_V5P_8_CLUSTER,
+      "v5p-8": XpkClusters.TPU_V5P_8_CLUSTER_V2,
   }
 
   for mode, image in docker_images:
@@ -72,4 +72,4 @@ with models.DAG(
             run_model_cmds=command,
             docker_image=image.value,
             test_owner=test_owner.ABHINAV_S,
-        ).run(ramdisk_directory="local")
+        ).run(ramdisk_directory="local", mtc_enabled=True)
