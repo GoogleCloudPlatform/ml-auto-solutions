@@ -554,7 +554,9 @@ def create_interruption_dag(
                 configs,
                 proper_time_range,
             )
-            log_records = fetch_interruption_log_records(
+            log_records = fetch_interruption_log_records.override(
+                owner=test_owner.QUINN_M
+            )(
                 configs,
                 proper_time_range,
             )
