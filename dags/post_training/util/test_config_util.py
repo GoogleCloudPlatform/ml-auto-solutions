@@ -133,7 +133,7 @@ class RLTestConfig:
         f"tokenizer_path={self.tokenizer_path} "
         f"load_parameters_path={self.load_parameters_path} "
         f"base_output_directory={self.base_dir} "
-        f"loss_algo={loss_algo.loss_name}"
+        f"rl.loss_algo={loss_algo.loss_name}"
     )
 
     # Return as tuple for k8s yaml compatibility.
