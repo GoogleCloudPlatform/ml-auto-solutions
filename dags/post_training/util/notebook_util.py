@@ -124,15 +124,6 @@ def _run_parameter_injection(
         # Preserve original indentation and comments
         line = f"{match.group(1)}{key}{match.group(3)}{val}{match.group(5)}\n"
         new_lines.append(line)
-        # Add a diagnostic print only for HF_TOKEN length if requested
-        if key == "HF_TOKEN":
-          new_lines.append(
-              match.group(1)
-              + (
-                  f"print('DEBUG: HF_TOKEN length: ' + "
-                  f"str(len({key}) if {key} else 0))\n"
-              )
-          )
         continue
 
       new_lines.append(line)
@@ -151,12 +142,6 @@ def _run_parameter_injection(
           repr(parameters[key]) if key in parameters else f"os.getenv({key!r})"
       )
       injected_source.append(f"{key} = {val}\n")
-
-      if key == "HF_TOKEN":
-        injected_source.append(
-            f"print('DEBUG: HF_TOKEN length: ' + "
-            f"str(len({key}) if {key} else 0))\n"
-        )
 
   if injected_source:
     nb["cells"].insert(
@@ -213,21 +198,18 @@ def build_notebook_execution_command(
       """
   )
 
-  # Serialize the injection function and the call to it
-  python_injection_script = textwrap.dedent(
-      f"""
-      python << 'PYEOF'
-      {inspect.getsource(_run_parameter_injection)}
+  # Bash heredoc containing Python code to inject notebook parameters
+  python_injection_script = f"""python << 'PYEOF'
+{inspect.getsource(_run_parameter_injection)}
 
-      _run_parameter_injection(
-          {notebook_path!r},
-          {output_nb!r},
-          {parameters!r},
-          {list(env_params.keys())!r}
-      )
-      PYEOF
-      """
-  )
+_run_parameter_injection(
+    {notebook_path!r},
+    {output_nb!r},
+    {parameters!r},
+    {list(env_params.keys())!r}
+)
+PYEOF
+"""
 
   notebook_run_script = (
       f"{export_prefix}papermill {output_nb} {output_nb} --log-output"
@@ -251,7 +233,9 @@ def build_notebook_execution_command(
       {env_setup_script}
 
       # 2. Parameter Injection
-      {python_injection_script}
+"""
+      + python_injection_script
+      + f"""
 
       # 3. Notebook Execution
       {notebook_run_script}
