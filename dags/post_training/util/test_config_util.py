@@ -119,15 +119,8 @@ class RLTestConfig:
     Returns:
       A tuple containing the RL training command string.
     """
-    command = (
-        f"export HF_TOKEN={hf_token} && "
-        "export TPU_MIN_LOG_LEVEL=0 && "
-        "export TF_CPP_MIN_LOG_LEVEL=0 && "
-        "export TPU_STDERR_LOG_LEVEL=0 && "
-        "export JAX_PLATFORMS=proxy,cpu && "
-        "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000 && "
-        "export ENABLE_PATHWAYS_PERSISTENCE='1' && "
-        f"python -m src.MaxText.rl.train_rl "
+    rl_command = (
+        "python -m src.MaxText.rl.train_rl "
         f"{self.rl_config_path} run_name={run_name} "
         f"model_name={self.model_name} "
         f"tokenizer_path={self.tokenizer_path} "
@@ -135,6 +128,132 @@ class RLTestConfig:
         f"base_output_directory={self.base_dir} "
         f"rl.loss_algo={loss_algo.loss_name}"
     )
+    command = " && ".join([
+        f"export HF_TOKEN={hf_token}",
+        "export TPU_MIN_LOG_LEVEL=0",
+        "export TF_CPP_MIN_LOG_LEVEL=0",
+        "export TPU_STDERR_LOG_LEVEL=0",
+        "export JAX_PLATFORMS=proxy,cpu",
+        "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000",
+        "export ENABLE_PATHWAYS_PERSISTENCE='1'",
+        rl_command,
+    ])
+
+    # Return as tuple for k8s yaml compatibility.
+    return (command,)
+
+
+@dataclass
+class SFTTestConfig:
+  """Configuration for SFT (Supervised Fine-Tuning) training tests.
+
+  This class holds the configuration parameters specific to SFT jobs,
+  including model parameters, infrastructure settings, and SFT-specific
+  training configurations.
+
+  Attributes:
+    cluster: The GKE cluster to use for training.
+    accelerator: The type of accelerator (e.g., v5p-128).
+    slices: List of slice numbers to test with.
+    model_name: The name of the model being trained (e.g., llama3.1-70b).
+    steps: The number of training steps to run.
+    short_id: A short identifier for the test run (e.g., 'msft').
+    base_dir: Base GCS directory for outputs.
+    tokenizer_path: Path to the tokenizer (HuggingFace model path or local
+      path).
+    load_parameters_path: GCS path to load model parameters from.
+    sft_config_path: Path to the SFT configuration YAML file (relative to
+      MaxText root).
+  """
+
+  cluster: XpkClusters
+  accelerator: str
+  slices: list[int]
+  model_name: str
+  steps: int
+  short_id: str
+  base_dir: str
+  tokenizer_path: str
+  load_parameters_path: str
+  sft_config_path: str = "src/MaxText/configs/sft.yml"
+
+  def __init__(
+      self,
+      cluster: XpkClusters,
+      accelerator: str,
+      slices: list[int],
+      model_name: str,
+      steps: int,
+      short_id: str,
+      base_dir: str,
+      tokenizer_path: str,
+      load_parameters_path: str,
+      sft_config_path: str = "src/MaxText/configs/sft.yml",
+  ):
+    """Initializes the SFT test configurations.
+
+    Args:
+      cluster: The specified cluster to be used for the test.
+      accelerator: The type of accelerator (e.g., v5p-128) to use.
+      slices: The number of slices to be used.
+      model_name: The name of the base model being tested (e.g.,
+        llama3.1-70b).
+      steps: The number of training steps to run.
+      short_id: A short identifier for the test run.
+      base_dir: The base GCS directory for storing outputs.
+      tokenizer_path: Path to the tokenizer (HuggingFace model path).
+      load_parameters_path: GCS path to load pretrained model parameters
+        from.
+      sft_config_path: Path to the SFT configuration YAML file (default:
+        src/MaxText/configs/sft.yml).
+    """
+    self.cluster = cluster
+    self.accelerator = accelerator
+    self.slices = slices
+    self.model_name = model_name
+    self.steps = steps
+    self.short_id = short_id
+    self.base_dir = base_dir
+    self.tokenizer_path = tokenizer_path
+    self.load_parameters_path = load_parameters_path
+    self.sft_config_path = sft_config_path
+
+  def generate_sft_training_command(
+      self, run_name: str, hf_token: str
+  ) -> tuple[str]:
+    """Generates the SFT training command as a tuple for GKE compatibility.
+
+    Args:
+      run_name: The run name for the training job.
+      hf_token: The HuggingFace token for authentication.
+
+    Returns:
+      A tuple containing the SFT training command string.
+    """
+    sft_command = (
+        "python3 -m MaxText.sft.sft_trainer "
+        f"{self.sft_config_path} run_name={run_name} "
+        f"base_output_directory={self.base_dir} "
+        f"model_name={self.model_name} "
+        f"load_parameters_path={self.load_parameters_path} "
+        f"hf_access_token={hf_token} "
+        f"tokenizer_path={self.tokenizer_path} "
+        f"steps={self.steps} "
+        "per_device_batch_size=1 "
+        "checkpoint_storage_use_zarr3=False "
+        "checkpoint_storage_use_ocdbt=False "
+        "enable_single_controller=True"
+    )
+    command = " && ".join([
+        f"export HF_TOKEN={hf_token}",
+        "export JAX_PLATFORMS=proxy",
+        "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000",
+        "export ENABLE_PATHWAYS_PERSISTENCE=1",
+        "export TPU_MIN_LOG_LEVEL=0",
+        "export TF_CPP_MIN_LOG_LEVEL=0",
+        "export TPU_STDERR_LOG_LEVEL=0",
+        sft_command,
+    ])
 
     # Return as tuple for k8s yaml compatibility.
     return (command,)
