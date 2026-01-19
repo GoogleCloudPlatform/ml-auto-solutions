@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities to run workloads with xpk (https://github.com/AI-Hypercomputer/xpk)."""
+"""Utilities to run workloads with xpk
+(https://github.com/AI-Hypercomputer/xpk)."""
 
 import os
 import tempfile
@@ -82,7 +83,6 @@ def is_valid_gpu_version(accelerator_type: str):
 @task
 def generate_workload_id(benchmark_id: str) -> str:
   """Generate a valid workload ID."""
-  import re
 
   short_id = str(uuid.uuid4())[:8]
   # Remove all non-alphanumeric characters, and truncate to ensure the result
@@ -106,10 +106,13 @@ def run_workload(
     num_slices: int = 1,
     use_vertex_tensorboard: bool = False,
     use_pathways: bool = False,
-    ramdisk_directory: str = "",  # Directory for enabling emergency checkpointing
+    # Directory for enabling emergency checkpointing
+    ramdisk_directory: str = "",
     mtc_enabled: bool = False,  # It enables MTC phase-2 drivers
     xpk_branch: str = MAIN_BRANCH,
     max_restart: int = 0,
+    # to avoid workload preemption by manual tests.
+    priority: str = "high",
 ):
   """Run workload through xpk tool."""
 
@@ -146,6 +149,7 @@ def run_workload(
         f" --command='{run_cmds}' --{type_field}={accelerator_type}"
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
+        f" --priority={priority}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
     )
 
@@ -251,7 +255,8 @@ def _get_workload_job(
 
 
 def _log_workload_pod_statuses(workload_id: str, pods) -> None:
-  """Logs the status of each retrieved pod and its containers for troubleshooting."""
+  """Logs the status of each retrieved pod
+  and its containers for troubleshooting."""
   if not pods.items:
     return
 
@@ -336,23 +341,24 @@ def wait_for_workload_completion(
   if any(pod.status.phase in ["Pending", "Running"] for pod in pods.items):
     logging.info("At least one pod has yet to complete.")
     return False
-
+  last_pod = pods.items[-1] if pods.items else None
   try:
     for pod in pods.items:
       if pod.status.phase == "Failed":
+        last_pod = pod
         # Don't keep retrying if the pod has failed
         raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
       elif pod.status.phase in ["Unknown"]:
         raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
   finally:
     # TODO(jonbolin): log printing for GPUs, which have multiple containers
-    if len(pod.spec.containers) == 1:
+    if last_pod and len(last_pod.spec.containers) == 1:
       # Print the logs of the last pod checked - either the first failed pod or
       # the last successful one.
       logs = core_api.read_namespaced_pod_log(
-          name=pod.metadata.name, namespace=pod.metadata.namespace
+          name=last_pod.metadata.name, namespace=last_pod.metadata.namespace
       )
-      logging.info(f"Logs for pod {pod.metadata.name}:")
+      logging.info(f"Logs for pod {last_pod.metadata.name}:")
       for line in logs.split("\n"):
         logging.info(line)
     url = LOGGING_URL_FORMAT.format(
@@ -538,6 +544,6 @@ def delete_node(
     logging.info(f"Deletion operation started for node: {node_name}")
     logging.info(f"Operation: {operation.name}")
     logging.info(f"Deletion command executed for node: {node_name}")
-  except Exception as e:
+  except Exception as e:  # pylint: disable=broad-exception-caught
     logging.info(f"Error deleting node {node_name}: {e}", file=sys.stderr)
     sys.exit(1)
