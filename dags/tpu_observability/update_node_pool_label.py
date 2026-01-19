@@ -88,9 +88,12 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="wait_for_initial_availability"
       )(node_pool=node_pool_info, availability=True)
 
-      update_node_pool_label = node_pool.update_labels.override(
+      update_node_pool_label = node_pool.update.override(
           task_id="update_node_pool_label"
-      )(node_pool=node_pool_info, node_labels=LABELS_TO_UPDATE)
+      )(
+          node_pool=node_pool_info,
+          spec=node_pool.NodePoolUpdateSpec.Label(delta=LABELS_TO_UPDATE),
+      )
 
       wait_for_unavailable = node_pool.wait_for_availability.override(
           task_id="wait_for_unavailability_after_update"

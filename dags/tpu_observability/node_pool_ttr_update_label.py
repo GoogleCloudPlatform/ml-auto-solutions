@@ -21,7 +21,6 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
-from dags.common.vm_resource import Region, Zone
 from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
 from dags.tpu_observability.utils import node_pool_util as node_pool
 
@@ -93,9 +92,10 @@ with models.DAG(
       )
 
       task_id = "update_node_pool_label"
-      update_node_pool_label = node_pool.update_labels.override(
-          task_id=task_id
-      )(node_pool=node_pool_info, node_labels=LABELS_TO_UPDATE)
+      update_node_pool_label = node_pool.update.override(task_id=task_id)(
+          node_pool=node_pool_info,
+          spec=node_pool.NodePoolUpdateSpec.Label(delta=LABELS_TO_UPDATE),
+      )
 
       task_id = "wait_for_recovered"
       wait_for_recovered = node_pool.wait_for_status.override(task_id=task_id)(

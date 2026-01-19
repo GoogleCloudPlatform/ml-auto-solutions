@@ -605,42 +605,170 @@ def wait_for_ttr(
   return False
 
 
-@task
-def update_labels(node_pool: Info, node_labels: dict) -> TimeUtil:
-  """Updates the labels of a GKE node pool using gcloud command.
-
-  This task updates GKE node pool labels via gcloud.
-  It captures the current time before execution and returns it as
-  a TimeUtil object for downstream tracking.
+def get_node_pool_disk_size(node_pool: Info) -> int:
+  """Gets the disk size of a GKE node pool using gcloud command.
 
   Args:
-    node_pool: An instance of the Info class.
-    node_labels: A dictionary of labels to update or remove.
+    node_pool: An instance of the Info class that encapsulates the
+      configuration and metadata of a GKE node pool.
+
+  Returns:
+    The disk size of the node pool in GB.
+  """
+  command = (
+      f"gcloud container node-pools describe {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      f'--format="value(config.diskSizeGb)"'
+  )
+
+  result = subprocess.run_exec(command).strip()
+
+  return int(result)
+
+
+def get_node_pool_labels(node_pool: Info) -> dict[str, str]:
+  """Gets the labels of a GKE node pool using gcloud command.
+
+  Args:
+    node_pool: An instance of the Info class that encapsulates the
+      configuration and metadata of a GKE node pool.
+
+  Returns:
+    A dictionary contains the node pool labels.
+  """
+  command = (
+      f"gcloud container node-pools describe {node_pool.node_pool_name} "
+      f"--project={node_pool.project_id} "
+      f"--cluster={node_pool.cluster_name} "
+      f"--location={node_pool.location} "
+      f"--format='json(config.resourceLabels)'"
+  )
+
+  result = (
+      json.loads(subprocess.run_exec(command).strip())
+      .get("config", {})
+      .get("resourceLabels", {})
+  )
+
+  return result
+
+
+class UpdateTarget(enum.Enum):
+  """Defines what to update on the node pool."""
+
+  DISK_SIZE = "disk-size"
+  LABEL = "labels"
+
+
+@dataclasses.dataclass
+class NodePoolUpdateSpec:
+  """Configuration parameters defining a mutation on a GKE node pool.
+
+  Attributes:
+    target: The specific node pool attribute to update.
+    delta: The change to apply to the target's current state.
+  """
+
+  target: UpdateTarget
+  delta: int | dict[str, str]
+
+  @staticmethod
+  def DiskSize(delta: int) -> "NodePoolUpdateSpec":
+    if not isinstance(delta, int):
+      raise TypeError(f"Disk size delta must be an integer. Got: {type(delta)}")
+
+    if delta <= 0:
+      raise ValueError(f"Disk size delta must be positive. Got: {delta}")
+
+    return NodePoolUpdateSpec(
+        target=UpdateTarget.DISK_SIZE,
+        delta=delta,
+    )
+
+  @staticmethod
+  def Label(delta: dict[str, str]) -> "NodePoolUpdateSpec":
+    if not isinstance(delta, dict):
+      raise TypeError(f"Label delta must be a dictionary. Got: {type(delta)}")
+
+    key_pattern = re.compile(r"^[a-z][a-z0-9_-]*$")
+    for k, v in delta.items():
+      if not isinstance(k, str) or not isinstance(v, str):
+        raise TypeError(
+            f"All label keys and values must be strings. "
+            f"Found incompatible item: key='{k}'({type(k)}), "
+            f"value='{v}'({type(v)})"
+        )
+
+      if not key_pattern.match(k):
+        raise ValueError(
+            f"Invalid label key: '{k}'. "
+            "Keys must start with a lowercase letter and contain only "
+            "lowercase letters ([a-z]), numeric characters ([0-9]), "
+            "underscores (_) and dashes (-)."
+        )
+
+    return NodePoolUpdateSpec(
+        target=UpdateTarget.LABEL,
+        delta=delta,
+    )
+
+
+@task
+def update(node_pool: Info, spec: NodePoolUpdateSpec) -> TimeUtil:
+  """Applies an update to a GKE node pool based on the provided specification.
+
+  This task performs a state-aware update. It retrieves the current node pool
+  state, resolves the final desired configuration based on the provided `spec`,
+  and executes the update operation.
+
+  Args:
+    node_pool: An instance of the Info class that encapsulates the
+      configuration and metadata of a GKE node pool.
+    spec: An instance of the NodePoolUpdateSpec class defining the
+      update target and parameters.
 
   Returns:
     A TimeUtil object representing the UTC timestamp when the operation started.
+
+  Raises:
+    ValueError: If the target is unsupported.
   """
-  operation_start_time = TimeUtil.from_datetime(
-      datetime.datetime.now(datetime.timezone.utc)
-  )
+  flags: list[str] = []
 
-  if not node_labels:
-    logging.info("The specified label is empty, nothing to update.")
-    return operation_start_time
+  match spec.target:
+    case UpdateTarget.DISK_SIZE:
+      current_disk_size = get_node_pool_disk_size(node_pool=node_pool)
+      updated_disk_size = current_disk_size + spec.delta
+      flags.append(f"--{spec.target.value}={updated_disk_size}")
 
-  labels = []
+    case UpdateTarget.LABEL:
+      current_labels = get_node_pool_labels(node_pool=node_pool)
+      updated_labels = []
+      for key, val in spec.delta.items():
+        if current_labels.get(key) == val:
+          val += val
+        updated_labels.append(f"{key}={val}")
+      flags.append(f"--{spec.target.value}={','.join(updated_labels)}")
 
-  for key, val in node_labels.items():
-    labels.append(f"{key}={val}")
+    case _:
+      raise ValueError(f"Unsupported target: {spec.target}")
 
-  command = (
+  flags_str = " ".join(flags)
+
+  update_cmd = (
       f"gcloud container node-pools update {node_pool.node_pool_name} "
       f"--project={node_pool.project_id} "
       f"--cluster={node_pool.cluster_name} "
       f"--location={node_pool.location} "
-      f"--labels={','.join(labels)} "
-      "--quiet"
+      f"--quiet "
+      f"{flags_str}"
   )
 
-  subprocess.run_exec(command)
+  operation_start_time = TimeUtil.from_datetime(
+      datetime.datetime.now(datetime.timezone.utc)
+  )
+
+  subprocess.run_exec(update_cmd)
   return operation_start_time
