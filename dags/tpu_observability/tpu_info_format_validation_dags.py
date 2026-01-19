@@ -28,6 +28,7 @@ from dataclasses import replace
 from airflow import models
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -350,7 +351,10 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         tpu_accelerator_type="tpu-v6e-slice",
         tpu_topology="4x4",
         container_name="jax-tpu-worker",
-        image="asia-northeast1-docker.pkg.dev/cienet-cmcs/yuna-docker/tpu-info:v0.5.1",
+        image=(
+            "asia-northeast1-docker.pkg.dev/cienet-cmcs/yuna-docker/"
+            "tpu-info:v0.5.1"
+        ),
         tpu_cores_per_pod=4,
     )
 
@@ -494,32 +498,30 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             setups=create_node_pool,
         )
 
-      # Airflow uses >> for task chaining, which is pointless for pylint.
-      # pylint: disable=pointless-statement
-      (
-          verify_table_amount_task
-          >> [
+      chain(
+          verify_table_amount_task,
+          [
               validate_tpu_chips_metric,
               validate_runtime_metric,
               validate_tensorcore_metric,
               validate_latency_metric,
-          ]
+          ],
       )
 
       [create_first_node_pool, create_second_node_pool]
-      (cleanup_first_node_pool >> cleanup_second_node_pool)
 
-      (
-          cluster_info
-          >> cluster_info_2
-          >> create_node_pool
-          >> apply_time
-          >> pod_names
-          >> wait_for_job_start
-          >> outputs_of_tpu_info
-          >> output_of_tpu_info
-          >> verification_group
-          >> clean_up_workload
-          >> cleanup_node_pool
+      chain(cleanup_first_node_pool, cleanup_second_node_pool)
+
+      chain(
+          cluster_info,
+          cluster_info_2,
+          create_node_pool,
+          apply_time,
+          pod_names,
+          wait_for_job_start,
+          outputs_of_tpu_info,
+          output_of_tpu_info,
+          verification_group,
+          clean_up_workload,
+          cleanup_node_pool,
       )
-      # pylint: enable=pointless-statement

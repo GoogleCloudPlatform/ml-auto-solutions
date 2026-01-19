@@ -19,6 +19,7 @@ A DAG to update the label of a node pool to make node pool unavailable
 import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -106,15 +107,12 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           setups=[create_node_pool],
       )
 
-      # Airflow uses >> for task chaining, which is pointless for pylint.
-      # pylint: disable=pointless-statement
-      (
-          node_pool_info
-          >> create_node_pool
-          >> wait_for_availability
-          >> update_node_pool_label
-          >> wait_for_unavailable
-          >> wait_node_pool_recovered
-          >> cleanup_node_pool
+      chain(
+          node_pool_info,
+          create_node_pool,
+          wait_for_availability,
+          update_node_pool_label,
+          wait_for_unavailable,
+          wait_node_pool_recovered,
+          cleanup_node_pool,
       )
-      # pylint: enable=pointless-statement

@@ -8,6 +8,7 @@ import re
 from airflow import models
 from airflow.decorators import task
 from airflow.exceptions import AirflowSkipException
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 
 from dags.common import test_owner
@@ -567,10 +568,10 @@ def create_interruption_dag(
                 log_records,
             )
 
-            (
-                proper_time_range
-                >> [metric_records, log_records]
-                >> check_event_count
+            chain(
+                proper_time_range,
+                [metric_records, log_records],
+                check_event_count,
             )
 
     return dag
