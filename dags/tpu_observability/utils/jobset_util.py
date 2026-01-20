@@ -272,6 +272,15 @@ class Command:
         f"-n {namespace} -o jsonpath={{.items[*].metadata.name}}",
     ])
 
+  @staticmethod
+  def k8s_delete_pod_command(
+      kubeconfig: str, pod_name: str, namespace: str
+  ) -> str:
+    return " ".join([
+        f"kubectl --kubeconfig={kubeconfig} delete pod {pod_name}",
+        f"-n {namespace} --wait=false",
+    ])
+
 
 def get_replica_num(
     replica_type: str, job_name: str, node_pool: node_pool_info
@@ -458,6 +467,51 @@ def list_pod_names(node_pool: node_pool_info, namespace: str) -> list[str]:
     return pod_list
 
 
+@task
+def delete_one_random_pod(
+    node_pool: node_pool_info, namespace: str = "default"
+):
+  """
+  Randomly selects and deletes one pod that is currently in the "running" state.
+
+  This task is used for fault injection to test the self-healing and recovery
+  capabilities of a JobSet. It first retrieves all running pods in the
+  specified namespace and then triggers a deletion via kubectl.
+
+  Args:
+    node_pool: The Info object containing the cluster information needed for
+      the kubernetes API to connect to it.
+    namespace: The kubernetes namespace where the target pod resides.
+      Defaults to "default".
+
+  Raises:
+    AirflowFailException: If no running pods are found in the specified namespace.
+  """
+  running_pods = get_running_pods(node_pool=node_pool, namespace=namespace)
+  if not running_pods:
+    logging.error(f"No running pods found in namespace: {namespace}")
+    raise AirflowFailException(
+        f"No running pods found in namespace: {namespace}"
+    )
+
+  target_pod = random.choice(running_pods)
+  logging.info(f"Targeting pod for deletion: {target_pod}")
+
+  with tempfile.NamedTemporaryFile() as temp_config_file:
+    env = os.environ.copy()
+    env["KUBECONFIG"] = temp_config_file.name
+
+    cmd = " && ".join([
+        Command.get_credentials_command(node_pool),
+        Command.k8s_delete_pod_command(
+            temp_config_file.name, target_pod, namespace
+        ),
+    ])
+
+    subprocess.run_exec(cmd, env=env)
+    logging.info(f"Successfully initiated deletion for pod: {target_pod}")
+
+
 @task.sensor(poke_interval=30, timeout=900, mode="poke")
 def wait_for_jobset_started(
     node_pool: node_pool_info,
@@ -526,7 +580,9 @@ def wait_for_jobset_started(
 
 
 @task.sensor(poke_interval=60, timeout=3600, mode="poke")
-def wait_for_jobset_ttr_to_be_found(node_pool: node_pool_info) -> bool:
+def wait_for_jobset_ttr_to_be_found(
+    node_pool: node_pool_info, jobset_name: str
+) -> bool:
   """
   Polls the jobset time_between_interruptions metric.
 
@@ -548,6 +604,7 @@ def wait_for_jobset_ttr_to_be_found(node_pool: node_pool_info) -> bool:
       filter_str=(
           'metric.type="kubernetes.io/jobset/times_to_recover" '
           f'resource.labels.cluster_name="{node_pool.cluster_name}" '
+          f'resource.labels.entity_name="{jobset_name}"'
       ),
       start_time=TimeUtil.from_datetime(now - datetime.timedelta(minutes=60)),
       end_time=TimeUtil.from_datetime(now),
