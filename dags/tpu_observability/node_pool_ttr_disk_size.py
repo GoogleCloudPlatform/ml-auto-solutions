@@ -35,10 +35,11 @@ with models.DAG(
     schedule="00 20 * * *" if composer_env.is_prod_env() else None,
     catchup=False,
     tags=[
-        "cloud-ml-auto-solutions",
-        "node_pool_ttr_disk_size",
-        "tpu_obervability",
-        "time_to_recover",
+        "gke",
+        "tpu-observability",
+        "node-pool-ttr-disk-size",
+        "TPU",
+        "v6e-16",
     ],
     description=(
         "This DAG verifies the GKE node pool's Times To Recover(TTR) metrics "
