@@ -23,6 +23,9 @@ V5_NETWORKS_PREFIX = "projects/tpu-prod-env-automated"
 V5_NETWORKS = f"{V5_NETWORKS_PREFIX}/global/networks/mas-test"
 V5E_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east1/subnetworks/mas-test"
 V5P_SUBNETWORKS = f"{V5_NETWORKS_PREFIX}/regions/us-east5/subnetworks/mas-test"
+V5P_SUBNETWORKS_V2 = (
+    f"{V5_NETWORKS_PREFIX}/regions/europe-west4/subnetworks/mas-test-v2"
+)
 V6E_SUBNETWORKS = (
     f"{V5_NETWORKS_PREFIX}/regions/us-central2/subnetworks/mas-test"
 )
