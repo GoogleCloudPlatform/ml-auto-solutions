@@ -17,6 +17,7 @@
 import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -114,13 +115,13 @@ with models.DAG(
           setups=create_node_pool,
       )
 
-      _ = (
-          node_pool_info
-          >> create_node_pool
-          >> wait_for_provisioning
-          >> wait_for_running
-          >> update_node_pool_label
-          >> wait_for_recovered
-          >> wait_for_ttr
-          >> cleanup_node_pool
+      chain(
+          node_pool_info,
+          create_node_pool,
+          wait_for_provisioning,
+          wait_for_running,
+          update_node_pool_label,
+          wait_for_recovered,
+          wait_for_ttr,
+          cleanup_node_pool,
       )

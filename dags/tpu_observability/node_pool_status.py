@@ -18,6 +18,7 @@ import datetime
 
 from airflow import models
 from airflow.decorators import task
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -172,25 +173,22 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           setups=create_problematic_node_pool_info,
       )
 
-      # Airflow uses >> for task chaining, which is pointless for pylint.
-      # pylint: disable=pointless-statement
-      normal_flow = (
-          node_pool_info
-          >> problematic_node_pool_info
-          >> create_node_pool
-          >> wait_for_provisioning
-          >> wait_for_running
-          >> delete_node
-          >> wait_for_repair
-          >> wait_for_recovered
-          >> delete_node_pool
-          >> wait_for_stopping
-          >> cleanup_node_pool
+      chain(
+          node_pool_info,
+          problematic_node_pool_info,
+          create_node_pool,
+          wait_for_provisioning,
+          wait_for_running,
+          delete_node,
+          wait_for_repair,
+          wait_for_recovered,
+          delete_node_pool,
+          wait_for_stopping,
+          cleanup_node_pool,
       )
 
-      flow_for_error_state = (
-          create_problematic_node_pool_info
-          >> wait_for_error
-          >> cleanup_wrong_node_pool
+      chain(
+          create_problematic_node_pool_info,
+          wait_for_error,
+          cleanup_wrong_node_pool,
       )
-      # pylint: enable=pointless-statement
