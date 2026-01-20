@@ -466,7 +466,8 @@ def xplane_to_metrics(dir_location: str | airflow.XComArg) -> dict:
       op_profile = get_tool_data(input_path, tool="op_profile", params={})
       out.update({
           "TPU FLOPS Utilization (%): exclude_idle": round_number(
-              op_profile["byProgramExcludeIdle"]["metrics"]["flops"] * 100, 2
+              op_profile["byProgramExcludeIdle"]["metrics"]["flops"] * 100,
+              2,
           ),
           "HBM Bandwidth Utilization (%): exclude_idle": round_number(
               op_profile["byProgramExcludeIdle"]["metrics"]["bandwidthUtils"][0]
@@ -739,7 +740,38 @@ def update_dataset_name_if_needed(
   return prod_dataset_name.value
 
 
-def get_xpk_job_status(benchmark_id: str) -> bigquery.JobStatus:
+def find_full_task_id_from_upstream(
+    start_task: airflow.models.baseoperator.BaseOperator,
+    target_task_name: str,
+) -> str:
+  """Finds a task in the upstream hierarchy that contains the given substring.
+
+  For example if the current task has taskd_id as below
+  `chained_tests_llama2-70b_nightly.maxtext-nightly-llama2-70b-m1-megamem-96-1.post_process.process_metrics`
+  we want to find a task_id with the substring `wait_for_workload_completion`,
+  then we expect to find the task_id from the upstream like below.
+  `chained_tests_llama2-70b_nightly.maxtext-nightly-llama2-70b-m1-megamem-96-1.run_model.wait_for_workload_completion`
+  """
+  dag = start_task.dag
+  queue = [start_task]
+  visited_task_ids = {start_task.task_id}
+  while queue:
+    current = queue.pop(0)
+    if target_task_name in current.task_id:
+      logging.info("found task_id from upstream: %s", current.task_id)
+      return current.task_id
+    for upstream_task_id in current.upstream_task_ids:
+      upstream_task = dag.get_task(upstream_task_id)
+      if upstream_task and upstream_task.task_id not in visited_task_ids:
+        visited_task_ids.add(upstream_task.task_id)
+        queue.append(upstream_task)
+  raise AirflowFailException(
+      f"Could not find task with substring '{target_task_name}' in upstream"
+      " tasks."
+  )
+
+
+def get_xpk_job_status() -> bigquery.JobStatus:
   """Get job status for the GKE run.
 
   FAILED - if any failure occurs in run_model
@@ -749,8 +781,13 @@ def get_xpk_job_status(benchmark_id: str) -> bigquery.JobStatus:
   execution_date = context["dag_run"].logical_date
   current_dag = context["dag"]
 
+  workload_completion_task_id = find_full_task_id_from_upstream(
+      context["task"],
+      "wait_for_workload_completion",
+  )
+
   workload_completion = current_dag.get_task(
-      task_id=f"{benchmark_id}.run_model.wait_for_workload_completion"
+      task_id=workload_completion_task_id
   )
   workload_completion_ti = TaskInstance(workload_completion, execution_date)
   workload_completion_state = workload_completion_ti.current_state()
@@ -1011,7 +1048,7 @@ def process_metrics(
   )
 
   if hasattr(task_test_config, "cluster_name"):
-    test_job_status = get_xpk_job_status(task_test_config.benchmark_id)
+    test_job_status = get_xpk_job_status()
   elif isinstance(task_test_config, test_config.GpuGkeTest):
     test_job_status = get_gke_job_status(task_test_config)
   else:
