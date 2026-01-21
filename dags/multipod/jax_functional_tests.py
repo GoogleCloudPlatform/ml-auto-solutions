@@ -17,7 +17,7 @@
 import datetime
 from airflow import models
 from dags import composer_env
-from dags.common.vm_resource import DockerImage, TpuVersion, Zone, Project, V5_NETWORKS, V5P_SUBNETWORKS, RuntimeVersion, XpkClusters
+from dags.common.vm_resource import DockerImage, TpuVersion, Zone, Project, V5_NETWORKS, V5P_SUBNETWORKS_V2, RuntimeVersion, XpkClusters
 from dags.multipod.configs import jax_tests_gce_config, jax_tests_gke_config
 from dags.multipod.configs.common import SetupMode
 
@@ -34,7 +34,7 @@ with models.DAG(
   default_test_name = "jax-distributed-initialize"
   v5p_project_name = Project.TPU_PROD_ENV_AUTOMATED.value
   v5p_network = V5_NETWORKS
-  v5p_subnetwork = V5P_SUBNETWORKS
+  v5p_subnetwork = V5P_SUBNETWORKS_V2
   v5p_runtime_version = RuntimeVersion.V2_ALPHA_TPUV5.value
   test_modes_with_docker_images = [
       (SetupMode.STABLE, None),
@@ -50,7 +50,7 @@ with models.DAG(
       jax_gce_v4_8 = jax_tests_gce_config.get_jax_distributed_initialize_config(
           tpu_version=TpuVersion.V4,
           tpu_cores=8,
-          tpu_zone=Zone.US_CENTRAL2_B.value,
+          tpu_zone=Zone.EUROPE_WEST4_B.value,
           time_out_in_min=60,
           is_tpu_reserved=False,
           num_slices=num_slices,
