@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to test jobset time-to-recover metric using a node-pool rollback."""
+"""A DAG to test jobset time-to-recover metric using a jobset pod delete."""
 
 import datetime
 
@@ -30,8 +30,8 @@ from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_P
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
-    dag_id="jobset_rollback_ttr",
-    start_date=datetime.datetime(2025, 8, 10),
+    dag_id="jobset_ttr_pod_delete",
+    start_date=datetime.datetime(2026, 1, 8),
     schedule="0 18 * * *" if composer_env.is_prod_env() else None,
     catchup=False,
     tags=[
@@ -39,23 +39,21 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         "jobset",
         "time-to-recover",
         "tpu-observability",
-        "rollback",
+        "delete_pod",
         "TPU",
         "v6e-16",
     ],
     description=(
-        "This DAG tests the use of a node-pool rollback to interrupt a "
-        "jobset, then polls the jobset time-to-recover metric to check "
-        "if it is updated."
+        "This DAG tests the JobSet time-to-recover metric by deleting a random "
+        "pod to trigger a recovery, then polls the metric to check if it is updated."
     ),
     doc_md="""
-      # JobSet Time-To-Recover (TTR) Test Using Node-Pool Rollback
+      # JobSet Time-To-Recover (TTR) Test Using Random Pod Deletion
 
       ### Description
-      This DAG automates the process of creating a node-pool, launching a jobset
-      then using a node-pool rollback to interrupt the node-pool, and afterwards
-      monitors if the jobset TTR metric gets updated. Finally the DAG cleans up
-      the jobset and node-pool which were created.
+      This DAG verifies that JobSet can recover from a single pod failure.
+      It launches a JobSet, deletes one running pod, and then uses a sensor
+      to confirm that the JobSet controller triggers a restart.
 
       ### Prerequisites
       This test requires an existing cluster to run.
@@ -63,17 +61,17 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       ### Procedures
       First the node-pool is created, a jobset yaml is then launched on the
       cluster and given a short period of time to initialize. After this a
-      rollback is run on the previously created node-pool to interrupt it.
-      A sensor is finally run which will either detect that the jobset
-      time-to-recover metric has been updated, resulting in a success, or
-      timeout, and fail.
+      random pod deletion is triggered to interrupt the jobset. A sensor is
+      finally run which will poll Cloud Monitoring to detect that the jobset
+      time-to-recover (TTR) metric has been updated, resulting in a success,
+      or timeout, and fail.
       """,
 ) as dag:
   for machine in MachineConfigMap:
     config = machine.value
 
     jobset_config = JobSet(
-        jobset_name="ttr-rollback-v6e-workload",
+        jobset_name="ttr-delete-v6e-workload",
         namespace="default",
         max_restarts=5,
         replicated_job_name="tpu-job-slice",
@@ -97,17 +95,17 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="build_node_pool_info_from_gcs_yaml"
       )(
           gcs_path=GCS_CONFIG_PATH,
-          dag_name="jobset_rollback_ttr",
+          dag_name="jobset_ttr_pod_delete",
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
       )
 
-      create_node_pool = node_pool.create(
+      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
           node_pool=cluster_info,
       )
 
-      start_workload = jobset.run_workload(
+      start_workload = jobset.run_workload.override(task_id="start_workload")(
           node_pool=cluster_info,
           yaml_config=jobset_config.generate_yaml(
               workload_script=Workload.JAX_TPU_BENCHMARK
@@ -115,14 +113,20 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           namespace=jobset_config.namespace,
       )
 
-      ensure_all_pods_running = jobset.wait_for_all_pods_running(
+      ensure_all_pods_running = jobset.wait_for_all_pods_running.override(
+          task_id="ensure_all_pods_running"
+      )(
           num_pods=(jobset_config.replicas * jobset_config.parallelism),
           node_pool=cluster_info,
       )
 
-      rollback_node_pool = node_pool.rollback(node_pool=cluster_info)
+      delete_random_pod = jobset.delete_one_random_pod.override(
+          task_id="delete_random_pod"
+      )(node_pool=cluster_info, namespace=jobset_config.namespace)
 
-      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found(
+      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
+          task_id="wait_for_jobset_ttr_to_be_found"
+      )(
           node_pool=cluster_info,
           jobset_name=jobset_config.jobset_name,
       )
@@ -144,11 +148,10 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       chain(
-          cluster_info,
           create_node_pool,
           start_workload,
           ensure_all_pods_running,
-          rollback_node_pool,
+          delete_random_pod,
           wait_for_metric_upload,
           cleanup_workload,
           cleanup_node_pool,
