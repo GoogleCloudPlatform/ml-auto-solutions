@@ -50,7 +50,7 @@ with models.DAG(
       jax_gce_v4_8 = jax_tests_gce_config.get_jax_distributed_initialize_config(
           tpu_version=TpuVersion.V4,
           tpu_cores=8,
-          tpu_zone=Zone.EUROPE_WEST4_B.value,
+          tpu_zone=Zone.US_CENTRAL2_B.value,
           time_out_in_min=60,
           is_tpu_reserved=False,
           num_slices=num_slices,
@@ -83,7 +83,7 @@ with models.DAG(
               tpu_version=TpuVersion.V5P,
               tpu_cores=8,
               num_slices=num_slices,
-              tpu_zone=Zone.US_EAST5_A.value,
+              tpu_zone=Zone.EUROPE_WEST4_B.value,
               runtime_version=v5p_runtime_version,
               project_name=v5p_project_name,
               time_out_in_min=60,
