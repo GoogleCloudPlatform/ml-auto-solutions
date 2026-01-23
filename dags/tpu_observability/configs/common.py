@@ -24,3 +24,5 @@ class MachineConfigMap(enum.Enum):
 GCS_CONFIG_PATH = (
     "gs://ml-auto-solutions-dag-configs/tpu_observability/dag_config.yaml"
 )
+
+VM_GCS_CONFIG_PATH = "gs://ml-auto-solutions-dag-configs/tpu_observability/dag_config_tony_vm.yaml"
