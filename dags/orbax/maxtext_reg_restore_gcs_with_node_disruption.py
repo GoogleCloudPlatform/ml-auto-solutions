@@ -149,7 +149,7 @@ with models.DAG(
                 project_id=test_config.cluster.project,
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
-                pod_pattern=".*0-0",
+                pod_pattern=f"{test_config.short_id}.*0-0",
                 interrupt_at_step=step_to_interrupt,
                 start_time=start_time,
                 end_time=end_time,

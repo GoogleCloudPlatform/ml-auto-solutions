@@ -100,7 +100,7 @@ with models.DAG(
         workload_command = test_config.generate_workload_command(
             checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
-            out_folder=f"maxtext_emc_orbax_save_gcs",
+            out_folder="maxtext_emc_orbax_save_gcs",
             enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
             slice_num=slice_num,
         )
