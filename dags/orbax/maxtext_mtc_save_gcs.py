@@ -103,7 +103,7 @@ with models.DAG(
             checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
             slice_num=slice_num,
-            out_folder=f"maxtext_mtc_orbax_save_gcs",
+            out_folder="maxtext_mtc_orbax_save_gcs",
             enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
         )
 

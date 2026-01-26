@@ -205,7 +205,7 @@ with models.DAG(
                 project_id=test_config.cluster.project,
                 location=zone_to_region(test_config.cluster.zone),
                 cluster_name=test_config.cluster.name,
-                pod_pattern="max.*-job-0-0",
+                pod_pattern=f"{test_config.short_id}.*-job-0-0",
                 interrupt_at_step=first_training_step - 1,
                 start_time=start_time,
                 end_time=end_time,
