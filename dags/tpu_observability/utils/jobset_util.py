@@ -642,3 +642,212 @@ def wait_for_jobset_status_occurrence(
 def wait_for_all_pods_running(num_pods: int, node_pool: node_pool_info):
   num_running = len(get_running_pods(node_pool=node_pool, namespace="default"))
   return num_running == num_pods
+
+
+@task
+def list_instance_ids_by_pod_names(
+    node_pool: node_pool_info, namespace: str, jobset_name: str
+) -> list[str]:
+  """
+  Retrieves GCE Instance IDs for pods in a specific JobSet.
+  This task executes a series of shell commands to:
+  1. Authenticate `gcloud` and generate a temporary kubeconfig for the cluster.
+  2. Query `kubectl` to fetch the node names of pods associated with the
+      specified JobSet.
+
+  Args:
+    node_pool: Configuration object with cluster details.
+    namespace: The Kubernetes namespace to query for pods.
+    jobset_name: The name of the JobSet to filter pods.
+
+  Returns:
+    A list of strings representing the GCE Instance IDs of the pods.
+
+  Raises:
+    ValueError: If no Instance IDs are found for the specified JobSet.
+  """
+  with tempfile.NamedTemporaryFile() as temp_config_file:
+    env = os.environ.copy()
+    env["KUBECONFIG"] = temp_config_file.name
+
+    get_id_cmd = (
+        f"kubectl get pods -n {namespace} "
+        f"--kubeconfig={temp_config_file.name} "
+        f"-l jobset.sigs.k8s.io/jobset-name={jobset_name} "
+        "-o jsonpath='{range .items[*]}{.spec.nodeName}{\"\\n\"}{end}' | "
+        "xargs -I NODE_NAME kubectl get node NODE_NAME "
+        f"--kubeconfig={temp_config_file.name} "
+        "-o jsonpath='{.metadata.annotations.container\\.googleapis\\.com/instance_id}{\"\\n\"}'"
+    )
+
+    cmd = " && ".join([
+        Command.get_credentials_command(node_pool),
+        get_id_cmd,
+    ])
+
+    stdout = subprocess.run_exec(cmd, env=env)
+    if not stdout or not stdout.strip():
+      logging.info(f"Could not find Instance IDs for {jobset_name}.")
+      raise ValueError("Empty Instance ID list.")
+    instance_ids = [
+        line.strip() for line in stdout.strip().split("\n") if line.strip()
+    ]
+    return instance_ids
+
+
+@task.sensor(poke_interval=60, timeout=3600, mode="poke")
+def wait_for_tpu_active_chips(
+    node_pool: node_pool_info,
+    instance_id: str,
+    job_apply_time: TimeUtil,
+) -> bool:
+  """
+  Polls the TPU active_chips metric for a specific GCE instance.
+
+  This sensor waits for the monitoring system to report the number of active
+  TPU chips. Note that there is often a few minutes of latency between
+  the TPU VM starting and the metric appearing in Cloud Monitoring.
+
+  Args:
+    node_pool: Configuration object with project and cluster details.
+    instance_id: The specific GCE Instance ID to monitor.
+    job_apply_time: The time when the job was applied.
+
+  Returns:
+    True if the active_chips metric is found, False otherwise.
+  """
+  now = datetime.datetime.now()
+
+  time_series = query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=(
+          'metric.type="compute.googleapis.com/instance/tpu/active_chips" '
+          f'resource.labels.instance_id="{instance_id}"'
+      ),
+      start_time=job_apply_time,
+      end_time=TimeUtil.from_datetime(now),
+  )
+  logging.info(
+      "TPU Active Chips Time series for %s: %s", instance_id, time_series
+  )
+
+  return len(time_series) > 0
+
+
+@task.sensor(poke_interval=60, timeout=3600, mode="poke")
+def wait_for_tpu_scheduled_chips(
+    node_pool: node_pool_info,
+    instance_id: str,
+    job_apply_time: TimeUtil,
+) -> bool:
+  """
+  Polls the TPU scheduled_chips metric for a specific GCE instance.
+
+  This metric indicates the number of TPU chips scheduled by the system for
+  a given instance. It is often the first indicator that a TPU resource
+  has been successfully allocated to a VM.
+
+  Args:
+    node_pool: Configuration object with project and cluster details.
+    instance_id: The specific GCE Instance ID to monitor.
+    job_apply_time: The time when the job was applied.
+
+  Returns:
+    True if the scheduled_chips metric is found, False otherwise.
+  """
+  now = datetime.datetime.now()
+
+  time_series = query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=(
+          'metric.type="compute.googleapis.com/instance/tpu/scheduled_chips" '
+          f'resource.labels.instance_id="{instance_id}"'
+      ),
+      start_time=job_apply_time,
+      end_time=TimeUtil.from_datetime(now),
+  )
+  logging.info(
+      "TPU Scheduled Chips Time series for %s: %s", instance_id, time_series
+  )
+
+  return len(time_series) > 0
+
+
+@task.sensor(poke_interval=60, timeout=3600, mode="poke")
+def wait_for_tpu_utilized_chips(
+    node_pool: node_pool_info,
+    instance_id: str,
+    job_apply_time: TimeUtil,
+) -> bool:
+  """
+  Polls the TPU utilized_chips metric for a specific GCE instance.
+
+  This metric represents the number of TPU chips currently being utilized by
+  a workload. It is the best indicator that the training software (JAX/PyTorch)
+   has successfully opened the TPU device and started computation.
+
+  Args:
+    node_pool: Configuration object with project and cluster details.
+    instance_id: The specific GCE Instance ID to monitor.
+    job_apply_time: The time when the job was applied.
+
+  Returns:
+    True if the utilized_chips metric is found, False otherwise.
+  """
+  now = datetime.datetime.now()
+
+  time_series = query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=(
+          'metric.type="compute.googleapis.com/instance/tpu/utilized_chips" '
+          f'resource.labels.instance_id="{instance_id}"'
+      ),
+      start_time=job_apply_time,
+      end_time=TimeUtil.from_datetime(now),
+  )
+  logging.info(
+      "TPU Utilized Chips Time series for %s: %s", instance_id, time_series
+  )
+
+  return len(time_series) > 0
+
+
+@task.sensor(poke_interval=60, timeout=3600, mode="poke")
+def wait_for_tpu_chip_state(
+    node_pool: node_pool_info,
+    instance_id: str,
+    job_apply_time: TimeUtil,
+) -> bool:
+  """
+  Polls the TPU chip_state metric for a specific GCE instance.
+  This metric indicates the health status of TPU chips. The sensor checks
+  for the presence of the "HEALTHY" state, which signifies that the TPU chips
+  are functioning correctly.
+
+  Args:
+    node_pool: Configuration object with project and cluster details.
+    instance_id: The specific GCE Instance ID to monitor.
+    job_apply_time: The time when the job was applied.
+
+  Returns:
+    True if at least one TPU chip is in the "HEALTHY" state, False otherwise.
+  """
+  now = datetime.datetime.now()
+
+  filter_str = (
+      'metric.type="compute.googleapis.com/instance/tpu/chip_state" '
+      'metric.labels.state="HEALTHY" '
+      f'resource.labels.instance_id="{instance_id}"'
+  )
+
+  time_series = query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=filter_str,
+      start_time=job_apply_time,
+      end_time=TimeUtil.from_datetime(now),
+  )
+  logging.info(
+      "TPU Healthy Chips Time series for %s: %s", instance_id, time_series
+  )
+
+  return len(time_series) > 0

@@ -105,6 +105,59 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="wait_for_job_start"
       )(cluster_info, pod_name_list=pod_names, job_apply_time=apply_time)
 
+      instance_ids = jobset.list_instance_ids_by_pod_names.override(
+          task_id="list_instance_ids_by_pod_names"
+      )(
+          node_pool=cluster_info,
+          namespace=jobset_config.namespace,
+          jobset_name=jobset_config.jobset_name,
+      )
+
+      # Keyword arguments are generated dynamically at runtime (pylint does not
+      # know this signature).
+      with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+          group_id="verification_group"
+      ) as verification_group:
+        scheduled_chips = (
+            jobset.wait_for_tpu_scheduled_chips.override(
+                task_id="wait_for_tpu_scheduled_chips"
+            )
+            .partial(node_pool=cluster_info, job_apply_time=apply_time)
+            .expand(
+                instance_id=instance_ids,
+            )
+        )
+
+        tpu_active_chips = (
+            jobset.wait_for_tpu_active_chips.override(
+                task_id="wait_for_tpu_active_chips"
+            )
+            .partial(node_pool=cluster_info, job_apply_time=apply_time)
+            .expand(
+                instance_id=instance_ids,
+            )
+        )
+
+        tpu_utilized_chips = (
+            jobset.wait_for_tpu_utilized_chips.override(
+                task_id="wait_for_tpu_utilized_chips"
+            )
+            .partial(node_pool=cluster_info, job_apply_time=apply_time)
+            .expand(
+                instance_id=instance_ids,
+            )
+        )
+
+        tpu_chips_status = (
+            jobset.wait_for_tpu_chip_state.override(
+                task_id="wait_for_tpu_chip_state"
+            )
+            .partial(node_pool=cluster_info, job_apply_time=apply_time)
+            .expand(
+                instance_id=instance_ids,
+            )
+        )
+
       clean_up_workload = jobset.end_workload.override(
           task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
       )(
@@ -129,6 +182,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           >> apply_time
           >> pod_names
           >> wait_for_job_start
+          >> instance_ids
+          >> verification_group
           >> clean_up_workload
           >> cleanup_node_pool
       )
