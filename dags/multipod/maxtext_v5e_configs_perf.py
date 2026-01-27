@@ -20,7 +20,7 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags.common.vm_resource import Project, XpkClusters, DockerImage
 from dags.common.model_configs import MaxTextV5eModelConfigs
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
@@ -57,7 +57,10 @@ with models.DAG(
     for model in MaxTextV5eModelConfigs:
       base_run_model_cmds = [
           "bash preflight.sh",
-          f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
+          f"python3 -m benchmarks.benchmark_runner on-device "
+          f"--base_output_directory={BASE_OUTPUT_DIRECTORY} "
+          f"--model_name={model.value} --libtpu_type=maxtext-docker "
+          f"--num_steps=15",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -76,7 +79,7 @@ with models.DAG(
           )
       )
 
-      chain_num = 4
+      chain_num = 16
       prev = maxtext_sweep_gke_test[0].run_with_name_gen_and_quarantine(
           quarantine_task_group
       )
@@ -85,7 +88,7 @@ with models.DAG(
             quarantine_task_group
         )
         if i % chain_num != 0:
-          prev >> curr
+          _ = prev >> curr
         prev = curr
 
 
@@ -113,7 +116,10 @@ with models.DAG(
   for mode, image in DOCKER_IMAGES:
     for model in MaxTextV5eModelConfigs:
       base_run_model_cmds = [
-          f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15 --use_pathways=True",
+          f"python3 -m benchmarks.benchmark_runner on-device "
+          f"--base_output_directory={BASE_OUTPUT_DIRECTORY} "
+          f"--model_name={model.value} --libtpu_type=maxtext-docker "
+          f"--num_steps=15 --use_pathways=True",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -141,5 +147,5 @@ with models.DAG(
             quarantine_task_group, use_pathways=True
         )
         if i % chain_num != 0:
-          prev >> curr
+          _ = prev >> curr
         prev = curr
