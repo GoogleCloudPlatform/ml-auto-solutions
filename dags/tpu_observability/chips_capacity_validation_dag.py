@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to test jobset uptime metric."""
+"""DAG for validating TPU chips capacity reporting."""
 
 import datetime
 
@@ -43,9 +43,25 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         "TPU",
         "v6e-16",
     ],
-    description=(" "),
+    description=("DAG for validating TPU chips capacity reporting."),
     doc_md="""
-
+    # TPU Chips Capacity Validation DAG
+    This DAG validates the TPU chips capacity reporting by deploying
+    workloads on different TPU v6e configurations and verifying the
+    reported chip states.
+    1. **Node Pool Creation**: For each machine configuration defined in
+        `MachineConfigMap`, a node pool is created using the specified machine
+        type and TPU topology.
+    2. **Workload Deployment**: A JAX TPU benchmark workload is deployed
+        using a JobSet configuration tailored for TPU v6e slices.
+    3. **Job Monitoring**: The DAG monitors the job status, ensuring that
+        the workload starts successfully and retrieves the associated pod names
+        and instance IDs.
+    4. **Chips Capacity Verification**: For each instance, the DAG verifies
+        the scheduled, active, and utilized TPU chips, as well as the overall
+        chip state.
+    5. **Cleanup**: After verification, the workload and node pool are cleaned up
+        to free up resources.
       """,
 ) as dag:
   jobset_config = JobSet(
