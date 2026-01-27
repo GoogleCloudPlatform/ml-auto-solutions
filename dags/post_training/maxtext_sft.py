@@ -152,7 +152,7 @@ with models.DAG(
 
     for slice_num in training_config.slices:
       current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-      run_name = f"{mode.value}-{current_datetime}"
+      run_name = f"sft-{mode.value}-{current_datetime}"
 
       sft_training_command = training_config.generate_sft_training_command(
           run_name=run_name,
