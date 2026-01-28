@@ -88,7 +88,7 @@ with models.DAG(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
           run_model_cmds=(
-              f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details['script_name']}.sh",
+              f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details['script_name']}.sh",
           ),
           docker_image=docker_image[image],
           test_owner=test_owner.SHUNING_J,
@@ -148,7 +148,7 @@ with models.DAG(
           time_out_in_min=test_scripts_details[0]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
           docker_image=docker_image,
           test_owner=test_owner.SHUNING_J,
@@ -158,7 +158,7 @@ with models.DAG(
           time_out_in_min=test_scripts_details[1]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[1]['script_name']}.sh",
           ),
           docker_image=docker_image,
           test_owner=test_owner.SHUNING_J,

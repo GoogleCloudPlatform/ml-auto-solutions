@@ -119,7 +119,9 @@ def get_maxtext_end_to_end_test_config(
 
   test_platform = common.Platform.GCE
   set_up_cmds = common.setup_maxtext(test_mode, test_platform)
-  run_model_cmds = (f"cd /tmp/maxtext && bash end_to_end/tpu/{test_script}.sh",)
+  run_model_cmds = (
+      f"cd /tmp/maxtext && bash tests/end_to_end/tpu/{test_script}.sh",
+  )
 
   job_test_config = test_config.TpuVmTest(
       test_config.Tpu(

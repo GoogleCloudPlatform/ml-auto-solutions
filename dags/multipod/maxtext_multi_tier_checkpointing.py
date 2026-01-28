@@ -60,7 +60,7 @@ with models.DAG(
     for accelerator, slices in test_configs.items():
       for slice_num in slices:
         command = (
-            "bash end_to_end/test_multi_tier_checkpointing.sh"
+            "bash tests/end_to_end/test_multi_tier_checkpointing.sh"
             f" multi_tier_checkpointing-{slice_num}x-{accelerator}"
             f" {base_output_directory} {dataset_path}",
         )

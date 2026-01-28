@@ -50,40 +50,42 @@ with models.DAG(
   test_models_tpu = {
       "llama2-7b": {
           "owner": test_owner.MOHIT_K,
-          "commands": ["bash end_to_end/tpu/llama2/7b/test_llama2_7b.sh"],
+          "commands": ["bash tests/end_to_end/tpu/llama2/7b/test_llama2_7b.sh"],
       },
       "mistral-7b": {
           "owner": test_owner.MOHIT_K,
-          "commands": ["bash end_to_end/tpu/mistral/7b/test_mistral-7b.sh"],
+          "commands": [
+              "bash tests/end_to_end/tpu/mistral/7b/test_mistral-7b.sh"
+          ],
       },
       "gemma-2b": {
           "owner": test_owner.MOHIT_K,
-          "commands": ["bash end_to_end/tpu/gemma/2b/test_gemma.sh"],
+          "commands": ["bash tests/end_to_end/tpu/gemma/2b/test_gemma.sh"],
       },
       "gemma2-2b": {
           "owner": test_owner.HENGTAO_G,
           "commands": [
-              "bash end_to_end/tpu/gemma2/2b/test_gemma2_to_mt.sh",
-              "bash end_to_end/tpu/gemma2/2b/test_gemma2_to_hf.sh",
+              "bash tests/end_to_end/tpu/gemma2/2b/test_gemma2_to_mt.sh",
+              "bash tests/end_to_end/tpu/gemma2/2b/test_gemma2_to_hf.sh",
           ],
       },
       "gemma3-4b": {
           "owner": test_owner.HENGTAO_G,
           "commands": [
-              "bash end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
-              "bash end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
+              "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
+              "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
           ],
       },
       "qwen3-4b": {
           "owner": test_owner.HENGTAO_G,
           "commands": [
-              "bash end_to_end/tpu/qwen3/4b/test_qwen3_to_mt.sh",
-              "bash end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
+              "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_mt.sh",
+              "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
           ],
       },
       "gpt3": {
           "owner": test_owner.MOHIT_K,
-          "commands": ["bash end_to_end/tpu/test_gpt3.sh"],
+          "commands": ["bash tests/end_to_end/tpu/test_gpt3.sh"],
       },
   }
 
@@ -160,7 +162,7 @@ with models.DAG(
           time_out_in_min=test_scripts_details[0]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[0]['script_name']}.sh",
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
           docker_image=docker_image,
           test_owner=test_owner.ANISHA_M,
@@ -170,7 +172,7 @@ with models.DAG(
           time_out_in_min=test_scripts_details[1]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash end_to_end/{test_scripts_details[1]['script_name']}.sh",
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[1]['script_name']}.sh",
           ),
           docker_image=docker_image,
           test_owner=test_owner.ANISHA_M,

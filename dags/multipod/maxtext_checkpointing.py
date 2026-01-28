@@ -56,7 +56,7 @@ with models.DAG(
       async_checkpointing = chkpt_mode == "async"
       run_name = f"checkpointing-{mode.value}-{chkpt_mode}-{current_datetime}"
       command = (
-          "bash end_to_end/test_checkpointing.sh "
+          "bash tests/end_to_end/test_checkpointing.sh "
           f" {run_name} {base_output_directory} {dataset_path}"
           f" true tfds autoselected {async_checkpointing}",
       )
@@ -79,7 +79,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"maxtext-checkpoint-resharding-{mode.value}",
         run_model_cmds=(
-            f"bash end_to_end/tpu/test_checkpoint_resharding.sh checkpoint-resharding-{mode.value} {base_output_directory} {dataset_path}",
+            f"bash tests/end_to_end/tpu/test_checkpoint_resharding.sh checkpoint-resharding-{mode.value} {base_output_directory} {dataset_path}",
         ),
         docker_image=image.value,
         test_owner=test_owner.SURBHI_J,
