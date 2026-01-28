@@ -29,7 +29,7 @@ from dags.tpu_observability.utils import node_pool_util as node_pool
 with models.DAG(
     dag_id="node_pool_ttr_update_label",
     start_date=datetime.datetime(2025, 9, 30),
-    schedule="0 20 * * *" if composer_env.is_prod_env() else None,
+    schedule="30 21 * * *" if composer_env.is_prod_env() else None,
     catchup=False,
     tags=[
         "gke",
