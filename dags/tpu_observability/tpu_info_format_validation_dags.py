@@ -353,7 +353,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         container_name="jax-tpu-worker",
         image=(
             "asia-northeast1-docker.pkg.dev/cienet-cmcs/yuna-docker/"
-            "tpu-info:v0.5.1"
+            "tpu-info:v0.8.1"
         ),
         tpu_cores_per_pod=4,
     )
