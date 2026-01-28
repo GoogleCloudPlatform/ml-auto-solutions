@@ -59,21 +59,26 @@ class Workload:
           jax.distributed.initialize()
 
           global_devices = jax.devices()
-          print(
-              f"[Host {jax.process_index()}] "
-              f"Got {len(global_devices)} global devices"
-          )
+          print(f"[Host {jax.process_index()}] Got {len(global_devices)} global devices")
           mesh = Mesh(global_devices, ("x",))
 
           print(f"[Host {jax.process_index()}] Allocating data...")
-          size = 32832
-          x_global = jnp.ones((size, size), dtype=jnp.float32)
-          y_global = jnp.ones((size, size), dtype=jnp.float32)
-
-          print(f"[Host {jax.process_index()}] Sharding data...")
+          print(f"[Host {jax.process_index()}] Defining sharding...")
+          size = 32768
+          global_shape = (size, size)
           sharding = NamedSharding(mesh, jax.sharding.PartitionSpec("x", None))
-          x = jax.device_put(x_global, sharding)
-          y = jax.device_put(y_global, sharding)
+
+          print(f"[Host {jax.process_index()}] Creating sharded data directly on devices...")
+
+          def ones_callback(index):
+            resolved_indices = [s.indices(global_shape[i]) for i, s in enumerate(index)]
+            local_shape = tuple(stop - start for start, stop, step in resolved_indices)
+
+            return jnp.ones(local_shape, dtype=jnp.float32)
+
+          x = jax.make_array_from_callback(global_shape, sharding, ones_callback)
+          y = jax.make_array_from_callback(global_shape, sharding, ones_callback)
+
           print(f"[Host {jax.process_index()}] Data on device")
 
           # ========= Define heavy workload =========
@@ -93,16 +98,15 @@ class Workload:
           print(f"[Host {jax.process_index()}] Starting benchmark...")
 
           start = time.time()
-          # Remember to control loop time to control experiment time
-          for i in range(1_000_000):
+          for i in range(1_000_000): # Remember to control loop time to control experiment time
               result = matmul_ultra_heavy(x, y)
           result.block_until_ready()
           end = time.time()
 
           if jax.process_index() == 0:
               print(f"Total time: {end - start:.2f} seconds (on full v6e-16)")
-          ' &&
-          echo "Workload finished, sleeping now..." &&
+          '
+          echo "sleep..."
           sleep 10000
           """
       ),
