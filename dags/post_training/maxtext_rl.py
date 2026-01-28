@@ -66,7 +66,7 @@ with models.DAG(
   training_config = test_config_util.RLTestConfig(
       cluster=XpkClusters.TPU_V5P_128_CLUSTER,
       accelerator="v5p-128",
-      slices=[1],  # Single slice for RL training
+      slices=[1, 2],  # Multi-slice support
       model_name="llama3.1-70b",
       base_dir=(
           f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/outputs"
@@ -99,6 +99,7 @@ with models.DAG(
             loss_algo=loss_algo,
             run_name=run_name,
             hf_token=HF_TOKEN_LLAMA3_1,
+            num_slices=slice_num,
         )
 
         with TaskGroup(
@@ -122,6 +123,8 @@ with models.DAG(
                 test_owner=test_owner.JACKY_F,
             ).run_model(
                 use_pathways=True,
+                use_vertex_tensorboard=True,
+                experiment_name=loss_algo.value,
                 xpk_branch=MAIN_BRANCH,
             )
 
