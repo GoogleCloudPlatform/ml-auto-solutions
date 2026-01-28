@@ -32,7 +32,7 @@ from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_P
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id="jobset_rollback_ttr",
     start_date=datetime.datetime(2025, 8, 10),
-    schedule="0 18 * * *" if composer_env.is_prod_env() else None,
+    schedule="30 22 * * *" if composer_env.is_prod_env() else None,
     catchup=False,
     tags=[
         "cloud-ml-auto-solutions",
