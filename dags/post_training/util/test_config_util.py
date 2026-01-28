@@ -107,28 +107,38 @@ class RLTestConfig:
     self.rl_config_path = rl_config_path
 
   def generate_rl_training_command(
-      self, loss_algo: LossAlgo, run_name: str, hf_token: str
+      self,
+      loss_algo: LossAlgo,
+      run_name: str,
+      hf_token: str,
+      num_slices: int = 1,
   ) -> tuple[str]:
-    """Generates the RL training command as a tuple for GKE compatibility.
+    """Generates the RL training command as a tuple for GKE compatibility."""
+    command_params = [
+        f"run_name={run_name}",
+        f"model_name={self.model_name}",
+        f"tokenizer_path={self.tokenizer_path}",
+        f"load_parameters_path={self.load_parameters_path}",
+        f"base_output_directory={self.base_dir}",
+        f"rl.loss_algo={loss_algo.loss_name}",
+    ]
 
-    Args:
-      loss_algo: The loss algorithm to use (e.g., LossAlgo.GRPO).
-      run_name: The run name for the training job.
-      hf_token: The HuggingFace token for authentication.
+    num_trainer = 1
+    num_samplers = max(1, num_slices - num_trainer)
 
-    Returns:
-      A tuple containing the RL training command string.
-    """
+    if num_slices > 1:
+      command_params.extend([
+          f"num_trainer_slices={num_trainer}",
+          f"num_samplers_slices={num_samplers}",
+          f"rollout_data_parallelism={num_samplers * 2}",
+      ])
+
     rl_command = (
         "python -m src.MaxText.rl.train_rl "
-        f"{self.rl_config_path} run_name={run_name} "
-        f"model_name={self.model_name} "
-        f"tokenizer_path={self.tokenizer_path} "
-        f"load_parameters_path={self.load_parameters_path} "
-        f"base_output_directory={self.base_dir} "
-        f"rl.loss_algo={loss_algo.loss_name}"
+        f"{self.rl_config_path} " + " ".join(command_params)
     )
-    command = " && ".join([
+
+    environment_variables = [
         f"export HF_TOKEN={hf_token}",
         "export TPU_MIN_LOG_LEVEL=0",
         "export TF_CPP_MIN_LOG_LEVEL=0",
@@ -136,11 +146,17 @@ class RLTestConfig:
         "export JAX_PLATFORMS=proxy,cpu",
         "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000",
         "export ENABLE_PATHWAYS_PERSISTENCE='1'",
-        rl_command,
-    ])
+    ]
 
-    # Return as tuple for k8s yaml compatibility.
-    return (command,)
+    if num_slices > 1:
+      environment_variables.extend([
+          f"export NUM_SLICES={num_samplers}",
+          "export JAX_RANDOM_WEIGHTS=true",
+          "export VLLM_ENABLE_V1_MULTIPROCESSING=0",
+      ])
+
+    full_command = " && ".join(environment_variables + [rl_command])
+    return (full_command,)
 
 
 @dataclass

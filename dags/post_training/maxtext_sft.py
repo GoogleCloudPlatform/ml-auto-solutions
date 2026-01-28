@@ -49,6 +49,8 @@ def run_training(
         test_owner=test_owner.JACKY_F,
     ).run_model(
         use_pathways=True,
+        use_vertex_tensorboard=True,
+        experiment_name="sft",
         xpk_branch=MAIN_BRANCH,
     )
 
@@ -128,7 +130,7 @@ with models.DAG(
   training_config = test_config_util.SFTTestConfig(
       cluster=XpkClusters.TPU_V5P_128_CLUSTER,
       accelerator="v5p-128",
-      slices=[1],  # Single slice for SFT training
+      slices=[2],
       model_name="llama3.1-70b",
       steps=training_steps,
       short_id="msft",
