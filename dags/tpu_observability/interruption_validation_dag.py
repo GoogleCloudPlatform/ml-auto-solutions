@@ -490,7 +490,9 @@ def create_interruption_dag(
   Returns:
     An Airflow DAG object."""
   if composer_env.is_prod_env():
-    dag_schedule = get_staggered_schedule('30 18 * * *', schedule_offset_minutes)
+    dag_schedule = get_staggered_schedule(
+        '30 18 * * *', schedule_offset_minutes
+    )
   else:
     dag_schedule = None
   with models.DAG(
