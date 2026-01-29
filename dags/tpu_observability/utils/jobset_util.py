@@ -594,9 +594,9 @@ def wait_for_jobset_started(
 
 @task.sensor(poke_interval=60, timeout=3600, mode="poke")
 def wait_for_jobset_ttr_to_be_found(
-    node_pool: node_pool_info, jobset_name: str
+    node_pool: node_pool_info, jobset_name: str, start_time: TimeUtil = None
 ) -> bool:
-  """Polls the jobset time_between_interruptions metric.
+  """Polls the jobset time-to-recover metric.
 
   A sensor task which polls the jobset time_between_interruptions metric
   every 60 seconds for 60 minutes. 60 minutes is used here since this
@@ -606,11 +606,20 @@ def wait_for_jobset_ttr_to_be_found(
   impractical for the test to run longer.
 
   Args:
-    node_pool: An instance of the Info class that encapsulates
-      the configuration and metadata of a GKE node pool and workload.
-    jobset_name: The name of the JobSet.
+    node_pool (Info): An instance of the Info class containing GKE metadata.
+    jobset_name (str): The name of the JobSet to monitor.
+    start_time (TimeUtil, optional): The UTC timestamp to start polling from.
+    If not provided, defaults to 60 minutes before the current time.
+
+  Returns:
+    bool: True if the TTR metric is found in Cloud Monitoring, False otherwise.
   """
   now = datetime.datetime.now()
+  query_start = (
+      start_time
+      if start_time
+      else TimeUtil.from_datetime(now - datetime.timedelta(minutes=60))
+  )
 
   time_series = query_time_series(
       project_id=node_pool.project_id,
@@ -619,7 +628,7 @@ def wait_for_jobset_ttr_to_be_found(
           f'resource.labels.cluster_name="{node_pool.cluster_name}" '
           f'resource.labels.entity_name="{jobset_name}"'
       ),
-      start_time=TimeUtil.from_datetime(now - datetime.timedelta(minutes=60)),
+      start_time=query_start,
       end_time=TimeUtil.from_datetime(now),
   )
 
