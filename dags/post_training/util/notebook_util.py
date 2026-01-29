@@ -1,7 +1,20 @@
 """Utility functions for automating Jupyter notebooks in Airflow."""
 
+import datetime
 import inspect
 import textwrap
+from airflow.models.taskmixin import DAGNode
+
+from dags.common.vm_resource import (
+    Project,
+    RuntimeVersion,
+    TpuVersion,
+    V6E_GCE_NETWORK,
+    V6E_GCE_SUBNETWORK,
+    Zone,
+)
+from dags.post_training.util import test_config_util
+from xlml.apis import gcp_config, metric_config, task, test_config
 
 
 def build_maxtext_setup_script() -> str:
@@ -65,6 +78,10 @@ def build_maxtext_setup_script() -> str:
       cd tpu-inference
       uv pip install -e .
       cd ..
+
+      uv pip install --no-deps qwix==0.1.4
+      uv pip install --no-deps protobuf==5.29.5
+      python3 -m pip freeze
 
       # =======================================================================
       # Notebook Automation Tools
@@ -252,4 +269,51 @@ def build_notebook_execution_command(
       injection_script=injection_script,
       notebook_run_script=notebook_run_script,
       verification_script=verification_script,
+  )
+
+
+def initialize_notebook_test(
+    test_name: str,
+    dag_name: str,
+    notebook_path: str,
+    set_up_script: str,
+    parameters: dict[str, any],
+    task_owner: str,
+) -> test_config.TpuVmTest:
+  """Creates a TpuVmTest configuration for notebook execution."""
+  notebook_execution = build_notebook_execution_command(
+      notebook_path=notebook_path,
+      parameters=parameters,
+      maxtext_path="maxtext",
+      venv_path="maxtext_venv",
+  )
+  return test_config.TpuVmTest(
+      test_config.Tpu(
+          version=TpuVersion.TRILLIUM,
+          cores=8,
+          runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
+          reserved=False,
+          network=V6E_GCE_NETWORK,
+          subnetwork=V6E_GCE_SUBNETWORK,
+      ),
+      test_name=test_name,
+      set_up_cmds=[set_up_script],
+      run_model_cmds=[notebook_execution],
+      timeout=datetime.timedelta(minutes=180),
+      task_owner=task_owner,
+      num_slices=1,
+      gcs_subfolder=f"{test_config_util.DEFAULT_BUCKET}/{dag_name}",
+  )
+
+
+def run_training(config: test_config.TpuVmTest, hf_token: str) -> DAGNode:
+  return task.run_queued_resource_test(
+      task_test_config=config,
+      task_gcp_config=gcp_config.GCPConfig(
+          project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+          zone=Zone.EUROPE_WEST4_A.value,
+          dataset_name=metric_config.DatasetOption.XLML_DATASET,
+      ),
+      skip_post_process=True,
+      custom_env={"HF_TOKEN": hf_token},
   )
