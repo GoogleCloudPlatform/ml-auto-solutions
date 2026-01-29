@@ -67,6 +67,7 @@ def run_queued_resource_test(
     tpu_name_env_var: bool = False,
     all_workers: bool = True,
     skip_post_process: bool = False,
+    custom_env: dict[str, str] = {},
 ):
   """This is a class to set up tasks for TPU provisioned by Queued Resource.
 
@@ -86,6 +87,7 @@ def run_queued_resource_test(
     all_workers: The flag to define if run commands on all workers or worker 0
       only.
     skip_post_process: If True, the post processing step will be skipped.
+    custom_env: Extra enviroment variables.
 
   Returns:
       A task group with the following tasks chained: provision, run_model,
@@ -137,7 +139,12 @@ def run_queued_resource_test(
         task_test_config.test_script,
         ssh_keys,
         all_workers,
-        env={metric_config.SshEnvVars.GCS_OUTPUT.name: output_location},
+        # We purposely put `custom_env` last to allow overriding values.
+        # For example, `GCS_OUTPUT` can be overridden if needed.
+        env={
+            metric_config.SshEnvVars.GCS_OUTPUT.name: output_location,
+            **custom_env,
+        },
     )
 
     clean_up = tpu.delete_queued_resource.override(group_id="clean_up")(
