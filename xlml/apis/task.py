@@ -706,7 +706,6 @@ class XpkTask(BaseTask):
       self,
       gcs_location: Optional[airflow.XComArg] = None,
       use_vertex_tensorboard: bool = False,
-      experiment_name: str = "",
       use_pathways: bool = False,
       ramdisk_directory: str = "",
       mtc_enabled: bool = False,
@@ -719,7 +718,6 @@ class XpkTask(BaseTask):
       gcs_location: GCS path for all artifacts of the test.
       use_vertex_tensorboard: Set to True to view workload data on
         Vertex AI Tensorboard.
-      experiment_name: The name of the experiment for Vertex AI Tensorboard.
 
     Returns:
       A DAG node that executes the model test.
@@ -737,7 +735,6 @@ class XpkTask(BaseTask):
           workload_id,
           gcs_path,
           use_vertex_tensorboard,
-          experiment_name,
           use_pathways,
           ramdisk_directory,
           mtc_enabled,
@@ -774,7 +771,6 @@ class XpkTask(BaseTask):
       workload_id: str,
       gcs_path: str,
       use_vertex_tensorboard: bool,
-      experiment_name: str = "",
       use_pathways: bool = False,
       ramdisk_directory: str = "",
       mtc_enabled: bool = False,
@@ -798,7 +794,6 @@ class XpkTask(BaseTask):
           run_cmds=self.task_test_config.test_script,
           num_slices=self.task_test_config.num_slices,
           use_vertex_tensorboard=use_vertex_tensorboard,
-          experiment_name=experiment_name,
           use_pathways=use_pathways,
           ramdisk_directory=ramdisk_directory,
           mtc_enabled=mtc_enabled,

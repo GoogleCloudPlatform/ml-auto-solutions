@@ -33,7 +33,7 @@ from dags.common.vm_resource import GpuVersion
 
 # NOTE: This version needs to be pinned to ensure compatibility when using
 # xpk.py for workload creation.
-MAIN_BRANCH = "v1.1.2"
+MAIN_BRANCH = "v0.17.3"
 
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
@@ -105,7 +105,6 @@ def run_workload(
     run_cmds: str,
     num_slices: int = 1,
     use_vertex_tensorboard: bool = False,
-    experiment_name: str = "",
     use_pathways: bool = False,
     # Directory for enabling emergency checkpointing
     ramdisk_directory: str = "",
@@ -180,8 +179,6 @@ def run_workload(
       workload_create_cmd += " --scheduler=gke.io/topology-aware-auto"
     if use_vertex_tensorboard:
       workload_create_cmd += " --use-vertex-tensorboard"
-      if experiment_name:
-        workload_create_cmd += f" --experiment-name={experiment_name}"
       vertex_ai_dependency = (
           "pip install -U google-cloud-aiplatform cloud-accelerator-diagnostics"
       )
