@@ -53,7 +53,7 @@ with models.DAG(
   per_device_batch_size = 2.0  # 256 chips * 2 pdb = 512 gbs.
 
   base_convergence_command = (
-      "bash end_to_end/tpu/test_convergence_1b_params.sh"
+      "bash tests/end_to_end/tpu/test_convergence_1b_params.sh"
       f" OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path}"
       f" LOSS_THRESHOLD={loss_threshold} STEPS={steps}"
       f" PER_DEVICE_BATCH_SIZE={per_device_batch_size}"

@@ -168,31 +168,31 @@ def run_maxtext_tests(dag: models.DAG):
       ),
       "generate-param-only-checkpoint": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-          f"bash end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-8 "
+          f"bash tests/end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-8 "
           "-o gs://runner-maxtext-logs -d gs://maxtext-dataset -i 4 -a dot_product",
           1,
       ),
       "generate-param-only-checkpoint-int8": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-          f"bash end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-9 "
+          f"bash tests/end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-9 "
           "-o gs://runner-maxtext-logs -d gs://maxtext-dataset -i 4 -q int8 -a dot_product",
           1,
       ),
       "grain-checkpoint-determinism": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-          "bash end_to_end/test_checkpointing.sh runner gs://runner-maxtext-logs "
+          "bash tests/end_to_end/test_checkpointing.sh runner gs://runner-maxtext-logs "
           "gs://maxtext-dataset False c4-array_record dot_product",
           1,
       ),
       "checkpoint-compatibility": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-          "bash end_to_end/test_checkpoint_compatibility.sh runner "
+          "bash tests/end_to_end/test_checkpoint_compatibility.sh runner "
           "gs://runner-maxtext-logs gs://maxtext-dataset dot_product",
           1,
       ),
       "llama2-7b-train-1node": ("bash MaxText/configs/a3/llama_2_7b/1vm.sh", 1),
       "llama2-7b-train-2node": ("bash MaxText/configs/a3/llama_2_7b/2vm.sh", 2),
-      "llama2-7b": ("bash end_to_end/gpu/a3/test_llama2_7b.sh", 1),
+      "llama2-7b": ("bash tests/end_to_end/gpu/a3/test_llama2_7b.sh", 1),
   }
 
   quarantine_task_group = TaskGroup(
