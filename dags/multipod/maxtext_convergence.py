@@ -51,11 +51,13 @@ with models.DAG(
   steps = 10200  # Half Chinchilla
   loss_threshold = 2.7
   per_device_batch_size = 2.0  # 256 chips * 2 pdb = 512 gbs.
+  eval_interval = 5000
 
   base_convergence_command = (
       "bash tests/end_to_end/tpu/test_convergence_1b_params.sh"
       f" OUTPUT_PATH={base_output_directory} DATASET_PATH={dataset_path}"
       f" LOSS_THRESHOLD={loss_threshold} STEPS={steps}"
+      f" EVAL_INTERVAL={eval_interval}"
       f" PER_DEVICE_BATCH_SIZE={per_device_batch_size}"
   )
   convergence_tests = {
