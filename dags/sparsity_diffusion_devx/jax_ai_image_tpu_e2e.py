@@ -107,6 +107,8 @@ with models.DAG(
             cluster=cluster,
             time_out_in_min=60,
             run_model_cmds=(
+                "export JAX_COORDINATION_SERVICE_HEARTBEAT_TIMEOUT_SECONDS=1200 "
+                "JAX_ENABLE_COMPILATION_CACHE=false "
                 f"JAX_PLATFORMS=tpu,cpu ENABLE_PJRT_COMPATIBILITY=true TPU_SLICE_BUILDER_DUMP_CHIP_FORCE=true TPU_SLICE_BUILDER_DUMP_ICI=true JAX_FORCE_TPU_INIT=true ENABLE_TPUNETD_CLIENT=true && "
                 f"pip install . && python src/maxdiffusion/train_sdxl.py src/maxdiffusion/configs/base_xl.yml "
                 f"pretrained_model_name_or_path=gs://maxdiffusion-github-runner-test-assets/checkpoints/models--stabilityai--stable-diffusion-xl-base-1.0 "
