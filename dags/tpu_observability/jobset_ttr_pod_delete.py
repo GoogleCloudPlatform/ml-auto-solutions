@@ -24,8 +24,12 @@ from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
-from dags.tpu_observability.utils.jobset_util import JobSet, Workload
-from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
+from dags.tpu_observability.utils.jobset_util import Workload
+from dags.tpu_observability.configs.common import (
+    MachineConfigMap,
+    GCS_CONFIG_PATH,
+    GCS_JOBSET_CONFIG_PATH,
+)
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
@@ -70,27 +74,15 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
   for machine in MachineConfigMap:
     config = machine.value
 
-    jobset_config = JobSet(
-        jobset_name="ttr-delete-v6e-workload",
-        namespace="default",
-        max_restarts=5,
-        replicated_job_name="tpu-job-slice",
-        replicas=1,
-        backoff_limit=0,
-        completions=4,
-        parallelism=4,
-        tpu_accelerator_type="tpu-v6e-slice",
-        tpu_topology="4x4",
-        container_name="jax-tpu-worker",
-        image="python:3.11",
-        tpu_cores_per_pod=4,
-    )
-
     # Keyword arguments are generated dynamically at runtime (pylint does not
     # know this signature).
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
+      jobset_config = jobset.build_jobset_from_gcs_yaml(
+          gcs_path=GCS_JOBSET_CONFIG_PATH, dag_name="jobset_ttr_pod_delete"
+      )
+
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
           task_id="build_node_pool_info_from_gcs_yaml"
       )(
@@ -107,37 +99,34 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
       start_workload = jobset.run_workload.override(task_id="start_workload")(
           node_pool=cluster_info,
-          yaml_config=jobset_config.generate_yaml(
-              workload_script=Workload.JAX_TPU_BENCHMARK
-          ),
-          namespace=jobset_config.namespace,
+          jobset_config=jobset_config,
+          workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
       ensure_all_pods_running = jobset.wait_for_all_pods_running.override(
           task_id="ensure_all_pods_running"
       )(
-          num_pods=(jobset_config.replicas * jobset_config.parallelism),
           node_pool=cluster_info,
+          jobset_config=jobset_config,
       )
 
       delete_random_pod = jobset.delete_one_random_pod.override(
           task_id="delete_random_pod"
-      )(node_pool=cluster_info, namespace=jobset_config.namespace)
+      )(
+          node_pool=cluster_info,
+          jobset_config=jobset_config,
+      )
 
       wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
           task_id="wait_for_jobset_ttr_to_be_found"
       )(
           node_pool=cluster_info,
-          jobset_name=jobset_config.jobset_name,
+          jobset_config=jobset_config,
       )
 
       cleanup_workload = jobset.end_workload.override(
           task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          node_pool=cluster_info,
-          jobset_name=jobset_config.jobset_name,
-          namespace=jobset_config.namespace,
-      ).as_teardown(
+      )(node_pool=cluster_info, jobset_config=jobset_config).as_teardown(
           setups=start_workload
       )
 
@@ -148,6 +137,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       chain(
+          jobset_config,
+          cluster_info,
           create_node_pool,
           start_workload,
           ensure_all_pods_running,

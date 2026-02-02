@@ -23,7 +23,6 @@ import os
 import re
 import subprocess
 import tempfile
-from dataclasses import replace
 
 from airflow import models
 from airflow.decorators import task
@@ -38,12 +37,13 @@ from dags.tpu_observability.configs.common import (
     MachineConfigMap,
     TpuConfig,
     GCS_CONFIG_PATH,
+    GCS_JOBSET_CONFIG_PATH,
 )
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils import tpu_info_util as tpu_info
-from dags.tpu_observability.utils.jobset_util import JobSet, Workload
+from dags.tpu_observability.utils.jobset_util import Workload
 
 
 @task
@@ -339,32 +339,16 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       """Generates a second node pool name."""
       return f"{node_pool_info.node_pool_name}-2"
 
-    jobset_config = JobSet(
-        jobset_name="tpu-info-{{ ds_nodash }}-{{ ti.job_id }}",
-        namespace="default",
-        max_restarts=5,
-        replicated_job_name="tpu-job-slice",
-        replicas=2,
-        backoff_limit=0,
-        completions=4,
-        parallelism=4,
-        tpu_accelerator_type="tpu-v6e-slice",
-        tpu_topology="4x4",
-        container_name="jax-tpu-worker",
-        image=(
-            "asia-northeast1-docker.pkg.dev/cienet-cmcs/yuna-docker/"
-            "tpu-info:v0.8.1"
-        ),
-        tpu_cores_per_pod=4,
-    )
-
-    workload_script = Workload.JAX_TPU_BENCHMARK
-
     # Keyword arguments are generated dynamically at runtime (pylint does not
     # know this signature).
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
+      jobset_config = jobset.build_jobset_from_gcs_yaml(
+          gcs_path=GCS_JOBSET_CONFIG_PATH,
+          dag_name="tpu_info_format_validation_dag",
+      )
+
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
           task_id="build_node_pool_info_from_gcs_yaml"
       )(
@@ -375,7 +359,9 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           tpu_topology=config.tpu_topology,
       )
 
-      cluster_info_2 = node_pool.copy_node_pool_info_with_override(
+      cluster_info_2 = node_pool.copy_node_pool_info_with_override.override(
+          task_id="copy_node_pool_info_with_override"
+      )(
           info=cluster_info,
           node_pool_name=generate_second_node_pool_name(cluster_info),
       )
@@ -399,17 +385,21 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             node_pool=cluster_info_2,
         )
 
-      apply_time = jobset.run_workload.override(owner=test_owner.YUNA_T)(
+      apply_time = jobset.run_workload.override(
+          owner=test_owner.YUNA_T, task_id="run_workload"
+      )(
           node_pool=cluster_info,
-          yaml_config=jobset_config.generate_yaml(
-              workload_script=workload_script
-          ),
-          namespace=jobset_config.namespace,
+          jobset_config=jobset_config,
+          workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
-      pod_names = jobset.list_pod_names.override(task_id="list_pod_names")(
+      pod_names = jobset.list_pod_names.override(
+          task_id="list_pod_names",
+          retries=5,
+          retry_delay=datetime.timedelta(seconds=10),
+      )(
           node_pool=cluster_info,
-          namespace=jobset_config.namespace,
+          jobset_config=jobset_config,
       )
 
       wait_for_job_start = jobset.wait_for_jobset_started.override(
@@ -471,8 +461,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
       )(
           node_pool=cluster_info,
-          jobset_name=jobset_config.jobset_name,
-          namespace=jobset_config.namespace,
+          jobset_config=jobset_config,
       ).as_teardown(
           setups=apply_time
       )
@@ -508,11 +497,12 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           ],
       )
 
-      [create_first_node_pool, create_second_node_pool]
+      chain(create_first_node_pool, create_second_node_pool)
 
       chain(cleanup_first_node_pool, cleanup_second_node_pool)
 
       chain(
+          jobset_config,
           cluster_info,
           cluster_info_2,
           create_node_pool,
