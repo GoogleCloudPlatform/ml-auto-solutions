@@ -20,6 +20,7 @@ from dags.common import test_owner
 from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.post_training.util import validation_util, test_config_util
+from dags.post_training.util.test_config_util import VertexAI
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
 
@@ -128,7 +129,7 @@ with models.DAG(
   training_config = test_config_util.SFTTestConfig(
       cluster=XpkClusters.TPU_V5P_128_CLUSTER,
       accelerator="v5p-128",
-      slices=[1],  # Single slice for SFT training
+      slices=[2],
       model_name="llama3.1-70b",
       steps=training_steps,
       short_id="msft",
@@ -151,8 +152,11 @@ with models.DAG(
       continue  # Skip stable for SFT training tests
 
     for slice_num in training_config.slices:
-      current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-      run_name = f"sft-{mode.value}-{current_datetime}"
+      run_name = validation_util.generate_run_name(
+          prefix="sft",
+          mode=mode.value,
+          num_slices=slice_num,
+      )
 
       sft_training_command = training_config.generate_sft_training_command(
           run_name=run_name,
@@ -168,4 +172,13 @@ with models.DAG(
             training_config, training_steps, start_time, end_time
         )
 
-        chain(training_group, validation_group)
+        upload_to_vertex_ai = validation_util.upload_to_vertex_ai(
+            project_id=VertexAI.POST_TRAINING.project_id,
+            region=VertexAI.POST_TRAINING.region,
+            tensorboard_id=VertexAI.POST_TRAINING.tensorboard_id,
+            logdir=f"{training_config.base_dir}/{run_name}/tensorboard/",
+            experiment_name="sft",
+            run_name_prefix=run_name,
+        )
+
+        chain(training_group, [validation_group, upload_to_vertex_ai])

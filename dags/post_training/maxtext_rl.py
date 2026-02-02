@@ -18,6 +18,7 @@ from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
 from dags.post_training.util import validation_util, test_config_util
+from dags.post_training.util.test_config_util import VertexAI
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
 
@@ -52,7 +53,8 @@ with models.DAG(
       2. **Model Loading:** Init Llama3.1 70B with HF auth
       3. **Training Run:** Run train_rl with JAX proxy for GRPO/GSPO
       4. **Log Validation:** Check for 'Post RL Training' signal
-      5. **Success/Failure:** Report status from logs and completion
+      5. **Vertex AI Upload:** Execute script to upload metrics to TensorBoard
+      6. **Success/Failure:** Report status from logs and completion
 
       ### Success Criteria
       The test passes when:
@@ -60,13 +62,14 @@ with models.DAG(
       2. "Post RL Training" log message appears in jax-tpu container logs
       3. No infrastructure failures or container launch issues occur
       4. All training steps execute within expected parameters
+      5. Metrics are successfully synced to Vertex AI TensorBoard
     """,
     concurrency=2,
 ) as dag:
   training_config = test_config_util.RLTestConfig(
       cluster=XpkClusters.TPU_V5P_128_CLUSTER,
       accelerator="v5p-128",
-      slices=[1],  # Single slice for RL training
+      slices=[1, 2],  # Multi-slice support
       model_name="llama3.1-70b",
       base_dir=(
           f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/outputs"
@@ -92,13 +95,17 @@ with models.DAG(
 
     for loss_algo in training_config.loss_algos:
       for slice_num in training_config.slices:
-        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        run_name = f"{loss_algo.value}-{mode.value}-{current_datetime}"
+        run_name = validation_util.generate_run_name(
+            prefix=loss_algo.value,
+            mode=mode.value,
+            num_slices=slice_num,
+        )
 
         rl_training_command = training_config.generate_rl_training_command(
             loss_algo=loss_algo,
             run_name=run_name,
             hf_token=HF_TOKEN_LLAMA3_1,
+            num_slices=slice_num,
         )
 
         with TaskGroup(
@@ -166,7 +173,13 @@ with models.DAG(
                 )
             )
 
-          chain(
-              training_group,
-              validation_group,
+          upload_to_vertex_ai = validation_util.upload_to_vertex_ai(
+              project_id=VertexAI.POST_TRAINING.project_id,
+              region=VertexAI.POST_TRAINING.region,
+              tensorboard_id=VertexAI.POST_TRAINING.tensorboard_id,
+              logdir=f"{training_config.base_dir}/{run_name}/tensorboard/",
+              experiment_name=loss_algo.value,
+              run_name_prefix=run_name,
           )
+
+          chain(training_group, [validation_group, upload_to_vertex_ai])
