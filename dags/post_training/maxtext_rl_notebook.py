@@ -83,7 +83,7 @@ with models.DAG(
     rl_notebook_test = notebook_util.initialize_notebook_test(
         test_name=f"{DAG_TEST_NAME}_rl_{loss_algo.value}",
         dag_name=DAG_TEST_NAME,
-        notebook_path="src/MaxText/examples/rl_llama3_demo.ipynb",
+        notebook_path="src/maxtext/examples/rl_llama3_demo.ipynb",
         set_up_script=setup_script,
         parameters={"LOSS_ALGO": loss_algo.loss_name},
         task_owner=test_owner.DEPP_L,

@@ -75,7 +75,7 @@ with models.DAG(
   sft_notebook_test = notebook_util.initialize_notebook_test(
       test_name=f"{DAG_TEST_NAME}_sft",
       dag_name=DAG_TEST_NAME,
-      notebook_path="src/MaxText/examples/sft_llama3_demo.ipynb",
+      notebook_path="src/maxtext/examples/sft_llama3_demo.ipynb",
       set_up_script=setup_script,
       parameters={},
       task_owner=test_owner.DEPP_L,
