@@ -24,7 +24,7 @@ from dags.common.vm_resource import Project, XpkClusters, DockerImage
 from dags.common.model_configs import MaxTextV5pModelConfigs
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
-from xlml.apis import metric_config
+from xlml.apis import metric_config, task
 
 # Run once a day at 4 am UTC (8 pm PST / 9 pm PDT)
 SCHEDULED_TIME = "0 1 * * *" if composer_env.is_prod_env() else None
@@ -53,11 +53,15 @@ with models.DAG(
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
+  all_tests: list[task.XpkTask] = []
   for mode, image in DOCKER_IMAGES:
     for model in MaxTextV5pModelConfigs:
       base_run_model_cmds = [
           "bash preflight.sh",
-          f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
+          f"python3 -m benchmarks.benchmark_runner on-device "
+          f"--base_output_directory={BASE_OUTPUT_DIRECTORY} "
+          f"--model_name={model.value} --libtpu_type=maxtext-docker "
+          f"--num_steps=15",
       ]
       maxtext_sweep_gke_test = (
           maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
@@ -75,15 +79,12 @@ with models.DAG(
               sweep_params=QUANTIZATION_SWEEP,
           )
       )
+      all_tests.extend(maxtext_sweep_gke_test)
 
-      chain_num = 4
-      prev = maxtext_sweep_gke_test[0].run_with_name_gen_and_quarantine(
-          quarantine_task_group
-      )
-      for i in range(1, len(maxtext_sweep_gke_test)):
-        curr = maxtext_sweep_gke_test[i].run_with_name_gen_and_quarantine(
-            quarantine_task_group
-        )
-        if i % chain_num != 0:
-          prev >> curr
-        prev = curr
+  chain_num = 16
+  prev = all_tests[0].run_with_name_gen_and_quarantine(quarantine_task_group)
+  for i in range(1, len(all_tests)):
+    curr = all_tests[i].run_with_name_gen_and_quarantine(quarantine_task_group)
+    if i % chain_num != 0:
+      _ = prev >> curr
+    prev = curr

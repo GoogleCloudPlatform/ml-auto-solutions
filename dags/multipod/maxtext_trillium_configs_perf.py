@@ -20,11 +20,11 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags.common.vm_resource import Project, XpkClusters, DockerImage
 from dags.common.model_configs import MaxTextTrilliumModelConfigs
 from dags.multipod.configs import maxtext_sweep_gke_config
 from dags.multipod.configs.common import SetupMode
-from xlml.apis import metric_config, mlcompass
+from xlml.apis import metric_config, mlcompass, task
 
 # Run once a day at 3 am UTC (7 pm PST / 8 pm PDT)
 CONIFGS_SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
@@ -66,7 +66,7 @@ with models.DAG(
   quarantine_task_group = TaskGroup(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
-  all_tests = []
+  all_tests: list[task.XpkTask] = []
   for mode, image in DOCKER_IMAGES:
     for model in MaxTextTrilliumModelConfigs:
       # No tpu-recipe for DeepSeek v3
@@ -82,7 +82,11 @@ with models.DAG(
         image = DockerImage.MAXTEXT_TPU_JAX_STABLE
 
       base_run_model_cmds = [
-          f"python3 -m benchmarks.benchmark_runner on-device --base_output_directory={BASE_OUTPUT_DIRECTORY} --model_name={model.value} --libtpu_type=maxtext-docker --num_steps=15",
+          "bash preflight.sh",
+          f"python3 -m benchmarks.benchmark_runner on-device "
+          f"--base_output_directory={BASE_OUTPUT_DIRECTORY} "
+          f"--model_name={model.value} --libtpu_type=maxtext-docker "
+          f"--num_steps=15",
       ]
       num_slices = (
           [2]
@@ -110,16 +114,16 @@ with models.DAG(
               enable_profile_config=enable_profile_config,
           )
       )
-      all_tests += maxtext_sweep_gke_test
+      all_tests.extend(maxtext_sweep_gke_test)
 
   # Add dependencies between the tests so they are not all launched at once
   mlcompass_scheduler = mlcompass.Scheduler()
-  chain_num = 4
+  chain_num = 16
   prev = all_tests[0].run_with_name_gen_and_quarantine(quarantine_task_group)
   mlcompass_scheduler.register(prev)
   for i in range(1, len(all_tests)):
     curr = all_tests[i].run_with_name_gen_and_quarantine(quarantine_task_group)
     mlcompass_scheduler.register(curr)
     if i % chain_num != 0:
-      prev >> curr
+      _ = prev >> curr
     prev = curr
