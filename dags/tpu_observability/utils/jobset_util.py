@@ -746,3 +746,76 @@ def wait_for_all_pods_running(node_pool: node_pool_info, jobset_config: JobSet):
   )
   num_pods = jobset_config.replicas * jobset_config.parallelism
   return num_running == num_pods
+
+
+def query_uptime_metrics(
+    node_pool: node_pool_info,
+    jobset_name: str,
+    start_time: datetime.datetime,
+    end_time: datetime.datetime,
+):
+  """Queries the JobSet's uptime metric from Cloud Monitoring."""
+  start_time = TimeUtil.from_datetime(start_time)
+  end_time = TimeUtil.from_datetime(end_time)
+
+  filter_string = [
+      'metric.type="kubernetes.io/jobset/uptime"',
+      f'resource.labels.project_id = "{node_pool.project_id}"',
+      f'resource.labels.cluster_name = "{node_pool.cluster_name}"',
+      f'resource.labels.entity_name = "{jobset_name}"',
+  ]
+
+  return query_time_series(
+      project_id=node_pool.project_id,
+      filter_str=" AND ".join(filter_string),
+      start_time=start_time,
+      end_time=end_time,
+      view=types.ListTimeSeriesRequest.TimeSeriesView.FULL,
+      log_enable=True,
+  )
+
+
+@task.sensor(poke_interval=30, timeout=3600, mode="reschedule")
+def wait_for_jobset_uptime_data(
+    node_pool: node_pool_info,
+    jobset_name: str,
+    jobset_apply_time: TimeUtil,
+):
+  """Verify uptime data exists after jobset application."""
+  start_time = jobset_apply_time.to_datetime()
+  end_time = datetime.datetime.now(datetime.timezone.utc)
+  data = query_uptime_metrics(node_pool, jobset_name, start_time, end_time)
+
+  logging.info(f"Uptime data query result: {data}")
+  if len(data) > 0:
+    return True
+  return False
+
+
+@task.sensor(poke_interval=30, timeout=360, mode="reschedule")
+def ensure_no_jobset_uptime_data(
+    node_pool: node_pool_info,
+    jobset_name: str,
+    jobset_clear_time: TimeUtil,
+    wait_time_seconds: int,
+):
+  """Ensure no uptime data is recorded after jobset deletion."""
+  start_time = jobset_clear_time.to_datetime()
+  now = datetime.datetime.now(datetime.timezone.utc)
+  data = query_uptime_metrics(node_pool, jobset_name, start_time, now)
+
+  logging.info(f"Uptime data query result: {data}")
+  if len(data) > 0:
+    raise AirflowFailException(f"Data detected: {data}")
+
+  if now - start_time >= datetime.timedelta(seconds=wait_time_seconds):
+    logging.info("Stability period passed with no data detected.")
+    return True
+  return False
+
+
+@task
+def get_current_time() -> TimeUtil:
+  """Get the current time in UTC."""
+  current_time_utc = datetime.datetime.now(datetime.timezone.utc)
+  return TimeUtil.from_datetime(current_time_utc)
