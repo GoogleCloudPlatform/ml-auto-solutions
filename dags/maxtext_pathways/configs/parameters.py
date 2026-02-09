@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Configuration parameters for MaxText Pathways DAGs."""
+
 from airflow.models.param import Param
 from dags.maxtext_pathways.configs import model_configs as model_cfg
 from dags.common.vm_resource import TpuVersion
@@ -35,10 +37,13 @@ PARAMETERS = {
         "root",
         type="string",
         title="User",
-        description="User name is used to confirm the first three characters of the pod in the cluster.",
+        description=(
+            "User name is used to confirm the first three characters "
+            "of the pod in the cluster."
+        ),
     ),
     "cluster_name": Param(
-        "pw-v6e-64",
+        "pw-v6e-8",
         type="string",
         title="Cluster Name",
         description="GCP cluster name for training model.",
@@ -63,7 +68,7 @@ PARAMETERS = {
         enum=DEVICE_VERSION,
     ),
     "core_count": Param(
-        64,
+        8,
         type="integer",
         title="Core Count",
         description='Device core count for the cluster. ex: v6e-"64"',
@@ -118,14 +123,23 @@ PARAMETERS = {
         "default_basic_1",  # Available model for device type 'v6e'
         type="string",
         title="Model Name",
-        description='Select a model name to run. Only when "customized_model_name" is selected for "Model Name", the input value of "customized_model_name" parameter will take effect.',
+        description=(
+            "Select a model name to run. Only when 'customized_model_name' "
+            "is selected for 'Model Name', the input value of "
+            "'customized_model_name' parameter will take effect."
+        ),
         enum=["customized_model_name"] + MODEL_NAME,
     ),
     "customized_model_name": Param(
         None,
         type=["null", "string"],
         title="Customized Model Name",
-        description='Select a customized model name to run. Only when "customized_model_name" is selected for "Model Name", the input value of "customized_model_name" parameter will take effect.',
+        description=(
+            "Select a customized model name to run. Only when "
+            "'customized_model_name' is selected for 'Model Name', "
+            "the input value of 'customized_model_name' parameter "
+            "will take effect."
+        ),
     ),
     "priority": Param(
         "medium",
@@ -164,9 +178,10 @@ PARAMETERS = {
         type=["null", "integer"],
         title="Override Timeout In Minutes",
         description=(
-            "Timeout in minutes for the workload task. "
-            "Adjust it when your meet (airflow.exceptions.AirflowException: Timed out after ...) issue. "
-            "The default value `None` means automatic calculation of timeout."
+            "Timeout in minutes for the workload task. Adjust it when you "
+            "meet (airflow.exceptions.AirflowException: Timed out after ...) "
+            "issue. The default value `None` means automatic calculation "
+            "of timeout."
         ),
     ),
 }
