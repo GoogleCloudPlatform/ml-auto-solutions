@@ -141,7 +141,7 @@ with models.DAG(
           f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/"
           "scanned-pathways/0/items/"
       ),
-      sft_config_path="src/MaxText/configs/sft.yml",
+      sft_config_path="src/maxtext/configs/post_train/sft.yml",
   )
   # HF token retrieved from Airflow Variables for secure credential management
   HF_TOKEN_CIENET = models.Variable.get("HF_TOKEN_CIENET", None)

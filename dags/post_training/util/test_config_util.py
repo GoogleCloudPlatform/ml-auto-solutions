@@ -215,7 +215,7 @@ class SFTTestConfig:
   base_dir: str
   tokenizer_path: str
   load_parameters_path: str
-  sft_config_path: str = "src/MaxText/configs/sft.yml"
+  sft_config_path: str = "src/maxtext/configs/post_train/sft.yml"
 
   def __init__(
       self,
@@ -228,7 +228,7 @@ class SFTTestConfig:
       base_dir: str,
       tokenizer_path: str,
       load_parameters_path: str,
-      sft_config_path: str = "src/MaxText/configs/sft.yml",
+      sft_config_path: str = "src/maxtext/configs/post_train/sft.yml",
   ):
     """Initializes the SFT test configurations.
 
@@ -245,7 +245,7 @@ class SFTTestConfig:
       load_parameters_path: GCS path to load pretrained model parameters
         from.
       sft_config_path: Path to the SFT configuration YAML file (default:
-        src/MaxText/configs/sft.yml).
+        src/maxtext/configs/post_train/sft.yml).
     """
     self.cluster = cluster
     self.accelerator = accelerator
