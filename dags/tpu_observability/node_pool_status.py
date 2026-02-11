@@ -26,14 +26,20 @@ from dags import composer_env
 from dags.common import test_owner
 from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
 from dags.tpu_observability.utils import node_pool_util as node_pool
+from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
+
+DAG_ID = "gke_node_pool_status"
+DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
+SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
-    dag_id="gke_node_pool_status",
+    dag_id=DAG_ID,
     start_date=datetime.datetime(2025, 8, 1),
-    schedule="0 18 * * *" if composer_env.is_prod_env() else None,
+    schedule=SCHEDULE if composer_env.is_prod_env() else None,
+    dagrun_timeout=DAGRUN_TIMEOUT,
     catchup=False,
     tags=["gke", "tpu-observability", "node-pool-status", "TPU", "v6e-16"],
     description=(

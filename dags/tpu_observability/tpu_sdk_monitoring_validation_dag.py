@@ -33,6 +33,12 @@ from dags.tpu_observability.configs.common import (
     GCS_CONFIG_PATH,
     GCS_JOBSET_CONFIG_PATH,
 )
+from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
+
+
+DAG_ID = "tpu_sdk_monitoring_validation"
+DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
+SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 
 @task
@@ -79,9 +85,10 @@ def validate_monitoring_sdk(info: node_pool.Info, pod_name: str) -> None:
 
 
 with models.DAG(
-    dag_id="tpu_sdk_monitoring_validation",
+    dag_id=DAG_ID,
     start_date=datetime.datetime(2026, 1, 13),
-    schedule="0 22 * * *" if composer_env.is_prod_env() else None,
+    schedule=SCHEDULE if composer_env.is_prod_env() else None,
+    dagrun_timeout=DAGRUN_TIMEOUT,
     catchup=False,
     tags=[
         "cloud-ml-auto-solutions",
