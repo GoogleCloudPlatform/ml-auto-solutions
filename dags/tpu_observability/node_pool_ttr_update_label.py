@@ -24,12 +24,18 @@ from airflow.utils.trigger_rule import TriggerRule
 from dags import composer_env
 from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
 from dags.tpu_observability.utils import node_pool_util as node_pool
+from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
+
+DAG_ID = "node_pool_ttr_update_label"
+DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
+SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 with models.DAG(
-    dag_id="node_pool_ttr_update_label",
+    dag_id=DAG_ID,
     start_date=datetime.datetime(2025, 9, 30),
-    schedule="30 21 * * *" if composer_env.is_prod_env() else None,
+    schedule=SCHEDULE if composer_env.is_prod_env() else None,
+    dagrun_timeout=DAGRUN_TIMEOUT,
     catchup=False,
     tags=[
         "gke",
