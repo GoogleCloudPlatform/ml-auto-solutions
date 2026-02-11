@@ -17,6 +17,7 @@
 import dataclasses
 
 from airflow.decorators import task
+from airflow.models import Variable
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -27,6 +28,7 @@ class SshKeys:
 
   private: str
   public: str
+  user: str
 
 
 @task
@@ -46,4 +48,25 @@ def generate_ssh_keys() -> SshKeys:
       serialization.Encoding.OpenSSH, serialization.PublicFormat.OpenSSH
   )
 
-  return SshKeys(private=private_key.decode(), public=public_key.decode())
+  return SshKeys(
+      private=private_key.decode(),
+      public=public_key.decode(),
+      user="ml-auto-solutions",
+  )
+
+
+@task
+def obtain_persist_ssh_keys() -> SshKeys:
+  """Obtain persistent SSH keys and user from Airflow Variables."""
+  try:
+    user = Variable.get("os-login-ssh-user")
+    private_key = Variable.get("os-login-ssh-private-key")
+    public_key = Variable.get("os-login-ssh-public-key")
+  except KeyError as e:
+    raise ValueError(
+        f"Required Airflow Variable {e} is not set. "
+        "Please ensure 'os-login-ssh-user', 'os-login-ssh-private-key', "
+        "and 'os-login-ssh-public-key' are configured."
+    ) from e
+
+  return SshKeys(private=private_key, public=public_key, user=user)

@@ -102,7 +102,7 @@ def run_queued_resource_test(
         tpu_name = tpu.generate_tpu_name(
             task_test_config.benchmark_id, tpu_name_env_var
         )
-        ssh_keys = ssh.generate_ssh_keys()
+        ssh_keys = ssh.obtain_persist_ssh_keys()
         output_location = name_format.generate_gcs_folder_location(
             task_test_config.gcs_subfolder,
             task_test_config.benchmark_id,

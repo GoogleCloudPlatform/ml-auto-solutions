@@ -128,7 +128,7 @@ def create_queued_resource(
       )
 
     metadata = {
-        'ssh-keys': f'ml-auto-solutions:{ssh_keys.public}',
+        'ssh-keys': f'{ssh_keys.user}:{ssh_keys.public}',
         'startup-script': startup_script_command,
     }
 
@@ -374,16 +374,6 @@ def ssh_tpu(
       client.get_node(name=os.path.join(node.parent, 'nodes', node.node_id))
       for node in queued_resource.tpu.node_spec
   ]
-  node_metadata = nodes[0].metadata
-  is_oslogin_enabled = node_metadata.get('enable-oslogin', '') == 'TRUE'
-
-  user = 'ml-auto-solutions'
-  if is_oslogin_enabled:
-    logging.info('Auto-detected OS Login enabled on node {nodes[0].name}..')
-    # get private key from  Airflow Variable
-    user = Variable.get('os-login-ssh-user')
-    ssh_keys.private = Variable.get('os-login-ssh-private-key')
-    ssh_keys.public = Variable.get('os-login-ssh-public-key')
 
   if all_workers:
     endpoints = itertools.chain.from_iterable(
@@ -407,7 +397,7 @@ def ssh_tpu(
       *ip_addresses,
       connect_kwargs={
           'auth_strategy': paramiko.auth_strategy.InMemoryPrivateKey(
-              user, pkey
+              ssh_keys.user, pkey
           ),
           # See https://stackoverflow.com/a/59453832
           'banner_timeout': 200,
