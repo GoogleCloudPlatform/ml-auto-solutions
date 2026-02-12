@@ -86,8 +86,12 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
+      selector = jobset.generate_node_pool_selector("jobset-ttr-pod-delete")
+
       jobset_config = jobset.build_jobset_from_gcs_yaml(
-          gcs_path=GCS_JOBSET_CONFIG_PATH, dag_name="jobset_ttr_pod_delete"
+          gcs_path=GCS_JOBSET_CONFIG_PATH,
+          dag_name="jobset_ttr_pod_delete",
+          node_pool_selector=selector,
       )
 
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
@@ -98,6 +102,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
+          node_pool_selector=selector,
       )
 
       create_node_pool = node_pool.create.override(task_id="create_node_pool")(
@@ -144,6 +149,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       chain(
+          selector,
           jobset_config,
           cluster_info,
           create_node_pool,

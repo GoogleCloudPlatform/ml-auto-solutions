@@ -346,6 +346,10 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       """Generates a second node pool name."""
       return f"{node_pool_info.node_pool_name}-2"
 
+    selector = jobset.generate_node_pool_selector(
+        "tpu-info-format-validation-dag"
+    )
+
     # Keyword arguments are generated dynamically at runtime (pylint does not
     # know this signature).
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
@@ -354,6 +358,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       jobset_config = jobset.build_jobset_from_gcs_yaml(
           gcs_path=GCS_JOBSET_CONFIG_PATH,
           dag_name="tpu_info_format_validation_dag",
+          node_pool_selector=selector,
       )
 
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
@@ -364,6 +369,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
+          node_pool_selector=selector,
       )
 
       cluster_info_2 = node_pool.copy_node_pool_info_with_override.override(
@@ -509,6 +515,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       chain(cleanup_first_node_pool, cleanup_second_node_pool)
 
       chain(
+          selector,
           jobset_config,
           cluster_info,
           cluster_info_2,
