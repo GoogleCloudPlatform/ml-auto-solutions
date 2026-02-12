@@ -43,7 +43,7 @@ PARAMETERS = {
         ),
     ),
     "cluster_name": Param(
-        "pw-v6e-8",
+        "pw-v6e-32x4",
         type="string",
         title="Cluster Name",
         description="GCP cluster name for training model.",
@@ -68,7 +68,7 @@ PARAMETERS = {
         enum=DEVICE_VERSION,
     ),
     "core_count": Param(
-        8,
+        32,
         type="integer",
         title="Core Count",
         description='Device core count for the cluster. ex: v6e-"64"',
