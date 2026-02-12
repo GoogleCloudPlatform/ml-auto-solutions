@@ -34,11 +34,24 @@ import kubernetes
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils.gcp_util import query_time_series
 from dags.tpu_observability.utils.node_pool_util import Info as node_pool_info
+from dags.tpu_observability.utils.node_pool_util import NODE_POOL_SELECTOR_KEY
 from dags.tpu_observability.utils.time_util import TimeUtil
-from google.cloud.monitoring_v3 import types
-import kubernetes
 from xlml.apis import gcs
 from xlml.utils import gke
+
+
+@task
+def generate_node_pool_selector(prefix: str) -> str:
+  """Generates a unique node_pool_selector value.
+
+  Args:
+    prefix: An identifier for the workload type (e.g., "resize", "rollback").
+
+  Returns:
+    The selector value string (e.g., "rollback-20260212123456").
+  """
+  run_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+  return f"{prefix}-{run_id}"
 
 
 class Workload:
@@ -129,7 +142,7 @@ class Workload:
 # pylint: disable=line-too-long
 _TEMPLATE = string.Template(
     textwrap.dedent(
-        """
+        f"""
         apiVersion: jobset.x-k8s.io/v1alpha2
         kind: JobSet
         metadata:
@@ -153,6 +166,7 @@ _TEMPLATE = string.Template(
                     nodeSelector:
                       cloud.google.com/gke-tpu-accelerator: $tpu_accelerator_type
                       cloud.google.com/gke-tpu-topology: $tpu_topology
+                      {NODE_POOL_SELECTOR_KEY}: $node_pool_selector
                     containers:
                     - name: $container_name
                       image: $image
@@ -212,6 +226,7 @@ class JobSet:
   container_name: str
   image: str
   tpu_cores_per_pod: int
+  node_pool_selector: str
 
   def generate_yaml(self, workload_script: Workload) -> str:
     """Generates the final JobSet YAML content.
@@ -226,6 +241,7 @@ class JobSet:
     params = dataclasses.asdict(self)
     params["command"] = ["bash", "-c"]
     params["args"] = workload_script
+    params["node_pool_selector"] = self.node_pool_selector or ""
 
     return _TEMPLATE.substitute(params)
 
@@ -472,6 +488,7 @@ def run_workload(
   Args:
     node_pool: Configuration object with cluster details.
     jobset_config: The JobSet object containing YAML configuration.
+    workload_type: The workload script to execute.
   Returns:
     The UTC time when the workload was started.
   """

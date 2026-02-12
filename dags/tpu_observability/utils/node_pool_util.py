@@ -33,6 +33,16 @@ from xlml.apis import gcs
 from xlml.utils import composer
 
 
+NODE_POOL_SELECTOR_KEY = "tpu-observability/workload"
+"""The label key for binding JobSet workloads to specific GKE node pools.
+
+This key is used as a Kubernetes node label to ensure pods are scheduled
+on the correct node pool. It is applied to both:
+- GKE node pools via `--node-labels` during creation
+- JobSet YAML via `nodeSelector` to target the labeled nodes
+"""
+
+
 class Status(enum.Enum):
   """Enum for GKE node pool status."""
 
@@ -71,6 +81,7 @@ class Info:
   num_nodes: int = None
   tpu_topology: str = None
   reservation: str = None
+  node_pool_selector: str = None
 
 
 @task
@@ -183,7 +194,12 @@ def create(
     node_pool: Info,
     ignore_failure: bool = False,
 ) -> None:
-  """Creates a GKE node pool by the given node pool information."""
+  """Creates a GKE node pool by the given node pool information.
+
+  Args:
+    node_pool: The node pool configuration.
+    ignore_failure: If True, command failures are ignored.
+  """
 
   composer.log_metadata_for_xlml_dashboard({
       "cluster_project": node_pool.project_id,
@@ -213,6 +229,9 @@ def create(
 
   if node_pool.reservation:
     command += f" --reservation-affinity=specific --reservation={node_pool.reservation}"
+
+  if node_pool.node_pool_selector:
+    command += f" --node-labels={NODE_POOL_SELECTOR_KEY}={node_pool.node_pool_selector}"
 
   if ignore_failure:
     command += "2>&1 || true "
