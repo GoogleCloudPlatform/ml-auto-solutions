@@ -234,10 +234,15 @@ def build_notebook_execution_command(
       f"{export_prefix}papermill {output_nb} {output_nb} --log-output"
   )
 
+  # Verify the success message exists in the notebook's output.
+  # We 'grep -v "print("' to ignore the Python source code line
+  # and ensure we are matching an actual execution result.
+  expected_completed_message = "Training Completed Successfully!"
   verification_script = textwrap.dedent(
       f"""
-      if ! grep -q "Training Completed Successfully!" {output_nb}; then
-        echo "Error: Notebook did not report successful completion."
+      set -o pipefail
+      if ! grep "{expected_completed_message}" {output_nb} | grep -vq "print("; then
+        echo "Error: Notebook did not report '{expected_completed_message}'."
         exit 1
       fi
       """
