@@ -1,5 +1,5 @@
 sqlalchemy-spanner==1.11.0
-apache-airflow==2.10.2
+apache-airflow==3.0.6
 apache-airflow-providers-sendgrid
 apache-airflow-providers-cncf-kubernetes
 fabric
