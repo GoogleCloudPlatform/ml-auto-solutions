@@ -18,14 +18,13 @@ A DAG to run MXLA MaxText tests.
 import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
-from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
+from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
 # Pause test on GKE
-SCHEDULED_TIME = "15 0 * * *"
+SCHEDULED_TIME = "30 0 * * *"
 
 with models.DAG(
     dag_id="mxla_gpt_6b_nightly_gke",
@@ -117,14 +116,14 @@ with models.DAG(
       test_owner=test_owner.TONY_C,
   ).run_with_quarantine(quarantine_task_group)
 
-  (
+  _ = (
       gpt3_6b_nightly_1slice_v4_8
       >> gpt3_6b_nightly_2slice_v4_8
       >> gpt3_6b_nightly_4slice_v4_8
       >> gpt3_6b_nightly_8slice_v4_8
   )
 
-  (
+  _ = (
       gpt3_6b_nightly_1slice_v5p_8
       >> gpt3_6b_nightly_2slice_v5p_8
       >> gpt3_6b_nightly_4slice_v5p_8
