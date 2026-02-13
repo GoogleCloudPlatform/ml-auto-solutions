@@ -33,6 +33,7 @@ import kubernetes
 
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils.gcp_util import query_time_series
+from dags.tpu_observability.utils.gcp_util import list_time_series
 from dags.tpu_observability.utils.node_pool_util import Info as node_pool_info
 from dags.tpu_observability.utils.node_pool_util import NODE_POOL_SELECTOR_KEY
 from dags.tpu_observability.utils.time_util import TimeUtil
@@ -437,7 +438,7 @@ def _generate_jobset_name(dag_id_prefix: str) -> str:
   timestamp = now_utc.strftime("%Y%m%d%H%M%S")
   dag_id_prefix = dag_id_prefix.replace("_", "-").lower()
 
-  return f"{dag_id_prefix}-workload-{timestamp}"
+  return f"{dag_id_prefix}-{timestamp}"
 
 
 @task
@@ -676,7 +677,7 @@ def wait_for_jobset_started(
       f'resource.labels.cluster_name = "{node_pool.cluster_name}"',
       f'resource.labels.pod_name = "{pod_name}"',
   ]
-  time_series_data = query_time_series(
+  time_series_data = list_time_series(
       project_id=node_pool.project_id,
       filter_str=" AND ".join(filter_string),
       start_time=start_time,
@@ -737,7 +738,7 @@ def wait_for_jobset_ttr_to_be_found(
       else TimeUtil.from_datetime(now - datetime.timedelta(minutes=60))
   )
 
-  time_series = query_time_series(
+  time_series = list_time_series(
       project_id=node_pool.project_id,
       filter_str=(
           'metric.type="kubernetes.io/jobset/times_to_recover" '

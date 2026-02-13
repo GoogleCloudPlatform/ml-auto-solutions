@@ -48,6 +48,22 @@ class TimeUtil:
     iso_str = self.to_datetime().isoformat()
     return iso_str.replace("+00:00", "Z")
 
+  def to_mql_string(self) -> str:
+    dt = self.to_datetime()
+    return dt.strftime("d'%Y/%m/%d-%H:%M:%S'")
+
+  def __add__(self, other: datetime.timedelta) -> "TimeUtil":
+    """Allows usage like: TimeUtil(...) + timedelta(minutes=10)."""
+    if isinstance(other, datetime.timedelta):
+      return TimeUtil(self.time + int(other.total_seconds()))
+    return NotImplemented
+
+  def __sub__(self, other: datetime.timedelta) -> "TimeUtil":
+    """Allows usage like: TimeUtil(...) - timedelta(minutes=10)."""
+    if isinstance(other, datetime.timedelta):
+      return TimeUtil(self.time - int(other.total_seconds()))
+    return NotImplemented
+
 
 if __name__ == "__main__":
   time = "2025-09-19T04:08:35.951+00:00"
