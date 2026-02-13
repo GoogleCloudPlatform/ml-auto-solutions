@@ -79,7 +79,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="build_node_pool_info_from_gcs_yaml"
       )(
           gcs_path=GCS_CONFIG_PATH,
-          dag_name="gke_node_pool_label_update",
+          dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,

@@ -32,6 +32,12 @@ from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.jobset_util import Workload
 from dags.tpu_observability.utils.time_util import TimeUtil
+from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
+
+
+DAG_ID = "jobset_uptime_validation"
+DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
+SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 
 @task
@@ -44,10 +50,11 @@ def get_current_time() -> TimeUtil:
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
-    dag_id="jobset_uptime_validation",
+    dag_id=DAG_ID,
     start_date=datetime.datetime(2025, 8, 15),
     default_args={"retries": 0},
-    schedule="30 16 * * *" if composer_env.is_prod_env() else None,
+    schedule=SCHEDULE if composer_env.is_prod_env() else None,
+    dagrun_timeout=DAGRUN_TIMEOUT,
     catchup=False,
     tags=[
         "cloud-ml-auto-solutions",
@@ -93,19 +100,23 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
+      selector = jobset.generate_node_pool_selector("jobset-rollback-ttr")
+
       jobset_config = jobset.build_jobset_from_gcs_yaml(
           gcs_path=GCS_JOBSET_CONFIG_PATH,
-          dag_name="jobset_uptime_validation",
+          dag_name=DAG_ID,
+          node_pool_selector=selector,
       )
 
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
           task_id="build_node_pool_info_from_gcs_yaml"
       )(
           gcs_path=GCS_CONFIG_PATH,
-          dag_name="jobset_uptime_validation",
+          dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
+          node_pool_selector=selector,
       )
 
       create_node_pool = node_pool.create.override(task_id="create_node_pool")(

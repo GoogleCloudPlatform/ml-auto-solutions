@@ -78,7 +78,7 @@ with models.DAG(
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
       node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
-          dag_name="node_pool_ttr_disk_size",
+          dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,

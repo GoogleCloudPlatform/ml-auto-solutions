@@ -31,7 +31,7 @@ from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
 
-DAG_ID = "multi-host-availability-rollback"
+DAG_ID = "multi_host_nodepool_rollback"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
@@ -91,7 +91,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="build_node_pool_info_from_gcs_yaml"
       )(
           gcs_path=GCS_CONFIG_PATH,
-          dag_name="multi_host_nodepool_rollback",
+          dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
