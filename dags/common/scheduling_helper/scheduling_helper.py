@@ -45,12 +45,13 @@ REGISTERED_DAGS: dict[str, DagIdToTimeout] = {
         "jobset_rollback_ttr": dt.timedelta(minutes=90),
         "jobset_ttr_node_pool_resize": dt.timedelta(minutes=90),
         "jobset_ttr_pod_delete": dt.timedelta(minutes=90),
-        "multi-host-availability-rollback": dt.timedelta(minutes=30),
+        "multi_host_nodepool_rollback": dt.timedelta(minutes=30),
         "node_pool_ttr_disk_size": dt.timedelta(minutes=90),
         "node_pool_ttr_update_label": dt.timedelta(minutes=90),
         "tpu_info_format_validation_dag": dt.timedelta(minutes=30),
         "tpu_sdk_monitoring_validation": dt.timedelta(minutes=30),
         "jobset_ttr_kill_process": dt.timedelta(minutes=90),
+        "jobset_uptime_validation": dt.timedelta(minutes=90),
     },
 }
 
