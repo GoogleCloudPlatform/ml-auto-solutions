@@ -285,22 +285,26 @@ with models.DAG(
       """Generates a second node pool name."""
       return f"{node_pool_info.node_pool_name}-2"
 
-    workload_script = jobset.Workload.JAX_TPU_BENCHMARK
-
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
+      selector = jobset.generate_node_pool_selector(
+          "tpu_info_metrics_verification"
+      )
+
       jobset_config = jobset.build_jobset_from_gcs_yaml(
           gcs_path=GCS_JOBSET_CONFIG_PATH,
-          dag_name="tpu_info_metrics_verification",
+          dag_name=DAG_ID,
+          node_pool_selector=selector,
       )
 
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
           task_id="build_node_pool_info_from_gcs_yaml"
       )(
           gcs_path=GCS_CONFIG_PATH,
-          dag_name="tpu_info_metrics_verification",
+          dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
+          node_pool_selector=selector,
       )
 
       cluster_info_2 = node_pool.copy_node_pool_info_with_override(
@@ -417,6 +421,7 @@ with models.DAG(
         chain(cleanup_first_node_pool, cleanup_second_node_pool)
 
       chain(
+          selector,
           jobset_config,
           cluster_info,
           cluster_info_2,
