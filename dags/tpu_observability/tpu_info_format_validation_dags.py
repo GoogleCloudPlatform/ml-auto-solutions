@@ -406,10 +406,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
-      pod_names = jobset.list_pod_names.override(
-          task_id="list_pod_names",
-          retries=5,
-          retry_delay=datetime.timedelta(seconds=10),
+      running_pods = jobset.wait_for_all_pods_running.override(
+          task_id="ensure_all_pods_running"
       )(
           node_pool=cluster_info,
           jobset_config=jobset_config,
@@ -417,12 +415,16 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
       wait_for_job_start = jobset.wait_for_jobset_started.override(
           task_id="wait_for_job_start"
-      )(cluster_info, pod_name_list=pod_names, job_apply_time=apply_time)
+      )(
+          cluster_info,
+          pod_name_list=running_pods,
+          job_apply_time=apply_time,
+      )
 
       outputs_of_tpu_info = (
           get_tpu_info_from_pod.override(task_id="get_tpu_info")
           .partial(info=cluster_info)
-          .expand(pod_name=pod_names)
+          .expand(pod_name=running_pods)
       )
 
       output_of_tpu_info = (
@@ -521,7 +523,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           cluster_info_2,
           create_node_pool,
           apply_time,
-          pod_names,
+          running_pods,
           wait_for_job_start,
           outputs_of_tpu_info,
           output_of_tpu_info,
