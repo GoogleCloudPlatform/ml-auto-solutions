@@ -56,7 +56,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     ],
     description=(
         "This DAG tests the JobSet time-to-recover metric by deleting a random "
-        "pod to trigger a recovery, then polls the metric to check if it is updated."
+        "pod to trigger a recovery, then polls the metric to check if it is"
+        " updated."
     ),
     doc_md="""
       # JobSet Time-To-Recover (TTR) Test Using Random Pod Deletion

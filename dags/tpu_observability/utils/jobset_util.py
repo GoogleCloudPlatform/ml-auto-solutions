@@ -28,6 +28,7 @@ from typing import Final
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
+from airflow.sensors.base import PokeReturnValue
 from google.cloud.monitoring_v3 import types
 import kubernetes
 
@@ -38,6 +39,7 @@ from dags.tpu_observability.utils.node_pool_util import Info as node_pool_info
 from dags.tpu_observability.utils.node_pool_util import NODE_POOL_SELECTOR_KEY
 from dags.tpu_observability.utils.time_util import TimeUtil
 from xlml.apis import gcs
+from xlml.utils import composer
 from xlml.utils import gke
 
 
@@ -507,6 +509,24 @@ def run_workload(
 
     subprocess.run_exec(cmd, env=env)
 
+    # Log metadata for XLML dashboard
+    # Pod names follow the pattern:
+    #   {jobset_name}-{replicated_job_name}-{job-index}-{pod-index}-{random}
+    # The jobset_name prefix is stable across pod recreations, so a regex
+    # pattern is more reliable than an exact pod name list.
+    pod_name_pattern = f"{jobset_config.jobset_name}.*"
+    jobset_metadata = {
+        "project_id": node_pool.project_id,
+        "cluster_name": node_pool.cluster_name,
+        "node_pool_name": node_pool.node_pool_name,
+        "jobset_name": jobset_config.jobset_name,
+        "pod_name_pattern": pod_name_pattern,
+    }
+    composer.log_metadata_for_xlml_dashboard(jobset_metadata)
+    logging.info(
+        "Logged JobSet metadata to XLML dashboard: %s", jobset_metadata
+    )
+
     current_time_utc = datetime.datetime.now(datetime.timezone.utc)
     return TimeUtil.from_datetime(current_time_utc)
 
@@ -724,7 +744,8 @@ def wait_for_jobset_ttr_to_be_found(
 
   Args:
     node_pool (Info): An instance of the Info class containing GKE metadata.
-    jobset_config: An instance of the JobSet class representing the jobset configuration.
+    jobset_config: An instance of the JobSet class representing the jobset
+      configuration.
     start_time (TimeUtil, optional): The UTC timestamp to start polling from.
     If not provided, defaults to 60 minutes before the current time.
 
@@ -749,23 +770,39 @@ def wait_for_jobset_ttr_to_be_found(
       end_time=TimeUtil.from_datetime(now),
   )
 
-  # This function checks whether the TTR metric is present;
-  # it does not assess its value.
   logging.info("Time series: %s", time_series)
   return len(time_series) > 0
 
 
 @task.sensor(poke_interval=30, timeout=600, mode="poke")
-def wait_for_all_pods_running(node_pool: node_pool_info, jobset_config: JobSet):
-  num_running = len(
-      get_running_pods(
-          node_pool=node_pool,
-          jobset_name=jobset_config.jobset_name,
-          namespace="default",
-      )
+def wait_for_all_pods_running(
+    node_pool: node_pool_info, jobset_config: JobSet
+) -> PokeReturnValue:
+  """Waits for all pods to be running and returns the pod names.
+
+  Args:
+    node_pool: The Info object containing the cluster information.
+    jobset_config: The JobSet configuration.
+
+  Returns:
+    PokeReturnValue with is_done=True and pod names when all pods are running,
+    or is_done=False to continue polling.
+  """
+  running_pods = get_running_pods(
+      node_pool=node_pool,
+      jobset_name=jobset_config.jobset_name,
+      namespace="default",
   )
   num_pods = jobset_config.replicas * jobset_config.parallelism
-  return num_running == num_pods
+  if len(running_pods) == num_pods:
+    logging.info(
+        "All %d pods are running for JobSet '%s': %s",
+        num_pods,
+        jobset_config.jobset_name,
+        running_pods,
+    )
+    return PokeReturnValue(is_done=True, xcom_value=running_pods)
+  return PokeReturnValue(is_done=False)
 
 
 def query_uptime_metrics(

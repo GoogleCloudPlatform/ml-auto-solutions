@@ -162,7 +162,9 @@ with models.DAG(
         workload_type=Workload.JAX_TPU_BENCHMARK,
     )
 
-    pod_names = jobset.list_pod_names.override(task_id="list_pod_names")(
+    running_pods = jobset.wait_for_all_pods_running.override(
+        task_id="ensure_all_pods_running"
+    )(
         node_pool=cluster_info,
         jobset_config=jobset_config,
     )
@@ -170,15 +172,15 @@ with models.DAG(
     wait_for_jobset_started = jobset.wait_for_jobset_started.override(
         task_id="wait_for_jobset_started"
     )(
-        node_pool=cluster_info,
-        pod_name_list=pod_names,
+        cluster_info,
+        pod_name_list=running_pods,
         job_apply_time=apply_time,
     )
 
     sdk_validation = (
         validate_monitoring_sdk.override(task_id="sdk_validation")
         .partial(info=cluster_info)
-        .expand(pod_name=pod_names)
+        .expand(pod_name=running_pods)
     )
 
     cleanup_workload = jobset.end_workload.override(
@@ -202,7 +204,7 @@ with models.DAG(
         cluster_info,
         create_node_pool,
         apply_time,
-        pod_names,
+        running_pods,
         wait_for_jobset_started,
         sdk_validation,
         cleanup_workload,
