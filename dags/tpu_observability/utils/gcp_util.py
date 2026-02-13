@@ -49,7 +49,7 @@ def retry_log_before_sleep(rs: RetryCallState) -> None:
     retry=retry_if_exception(api_quota_exceeded),
     before_sleep=retry_log_before_sleep,
 )
-def query_time_series(
+def list_time_series(
     project_id: str,
     filter_str: str,
     start_time: TimeUtil,
@@ -173,3 +173,43 @@ def query_log_entries(
   )
 
   return list(log_entries)
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=60, min=60, max=600),
+    retry=retry_if_exception(api_quota_exceeded),
+    before_sleep=retry_log_before_sleep,
+)
+def query_time_series(
+    project_id: str, query: str
+) -> list[monitoring_types.TimeSeriesData]:
+  """Executes a Monitoring Query Language (MQL) query and returns the results.
+
+  This function initializes a QueryServiceClient and sends a request to the
+  Google Cloud Monitoring API using the provided MQL string.
+
+  Args:
+    project_id: The Google Cloud Project ID (e.g., 'my-project-123') where
+      the metrics are stored.
+    query: A valid MQL query string.
+      Example: "fetch k8s_container | metric '...' | within 1h"
+
+  Returns:
+    A list of `TimeSeriesData` objects. Each object represents a time series
+    that matches the query, containing label values (descriptor) and
+    point data (values and timestamps).
+
+  Raises:
+    google.api_core.exceptions.GoogleAPICallError: If the API call fails
+      (e.g., invalid query syntax, permission denied, or quota exceeded).
+  """
+  client = monitoring_v3.QueryServiceClient()
+  request = monitoring_v3.QueryTimeSeriesRequest(
+      name=f"projects/{project_id}",
+      query=query,
+  )
+
+  results = client.query_time_series(request)
+
+  return list(results)

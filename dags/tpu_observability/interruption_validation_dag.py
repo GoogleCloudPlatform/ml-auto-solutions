@@ -162,7 +162,7 @@ def fetch_interruption_metric_records(
 
   # key: resource_name, value: EventRecord
   event_records: dict[str, EventRecord] = {}
-  response = gcp_util.query_time_series(
+  response = gcp_util.list_time_series(
       project_id=configs.project_id,
       filter_str=metric_filter,
       start_time=time_util.TimeUtil.from_unix_seconds(time_range.start),

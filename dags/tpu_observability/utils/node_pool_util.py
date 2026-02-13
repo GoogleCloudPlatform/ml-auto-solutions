@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowFailException
 from google.cloud import monitoring_v3
 
 from dags.tpu_observability.utils.time_util import TimeUtil
-from dags.tpu_observability.utils.gcp_util import query_time_series
+from dags.tpu_observability.utils.gcp_util import list_time_series
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from xlml.apis import gcs
 from xlml.utils import composer
@@ -236,7 +236,20 @@ def create(
   if ignore_failure:
     command += "2>&1 || true "
 
-  subprocess.run_exec(command)
+  try:
+    subprocess.run_exec(command)
+  except Exception as e:
+    debug_cmd = (
+        "gcloud container operations list "
+        f"--project={node_pool.project_id} "
+        f"--region={node_pool.location} "
+        f"--format=json(name,status)"
+    )
+    debug_res = subprocess.run_exec(debug_cmd)
+
+    raise AirflowFailException(
+        f"Primary task failed. Current operations:\n{debug_res}"
+    ) from e
 
 
 @task
@@ -411,7 +424,7 @@ def _query_status_metric(node_pool: Info) -> Status:
   # data points from all series into a single flat list ('records'). It then
   # finds the record with the maximum timestamp from this list to ensure the
   # true latest status is identified.
-  time_series_data = query_time_series(
+  time_series_data = list_time_series(
       project_id=node_pool.project_id,
       filter_str=" AND ".join(filter_string),
       start_time=start_time,
@@ -526,7 +539,7 @@ def wait_for_availability(
       f'resource.labels.node_pool_name="{node_pool.node_pool_name}"',
   ]
 
-  page_result = query_time_series(
+  page_result = list_time_series(
       project_id=node_pool.project_id,
       filter_str=" AND ".join(filter_string),
       start_time=start_time,
@@ -608,7 +621,7 @@ def wait_for_ttr(
       f'resource.labels.node_pool_name = "{node_pool.node_pool_name}"',
   ]
 
-  page_result = query_time_series(
+  page_result = list_time_series(
       project_id=node_pool.project_id,
       filter_str=" AND ".join(filter_string),
       start_time=start_time,
