@@ -73,11 +73,19 @@ with models.DAG(
           "cluster": XpkClusters.TPU_V5P_8_CLUSTER,
           "time_out_in_min": 90,
       },
+      "qwen3-next-80b": {
+          "script_name": "tpu/qwen/next/qwen3-next-80b-a3b/2_test_qwen3_next_80b_a3b",
+          "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "time_out_in_min": 90,
+          "owner": test_owner.ROHAN_B,
+      },
   }
 
   unchained_tests = []
   for model, test_scripts_details in test_models_tpu.items():
     for image in docker_image.keys():
+      current_owner = test_scripts_details.get("owner", test_owner.SHUNING_J)
+
       training_tpu = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
@@ -85,7 +93,7 @@ with models.DAG(
               f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details['script_name']}.sh",
           ),
           docker_image=docker_image[image],
-          test_owner=test_owner.SHUNING_J,
+          test_owner=current_owner,
           cluster=test_scripts_details["cluster"],
       ).run_with_quarantine(quarantine_task_group)
       unchained_tests.append(training_tpu)
@@ -129,6 +137,7 @@ with models.DAG(
       docker_image,
       model,
       test_scripts_details,
+      current_owner,
   ):
     with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
       test_name = f"{test_name_prefix}_{image}_{model}"
@@ -145,7 +154,7 @@ with models.DAG(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[0]['script_name']}.sh",
           ),
           docker_image=docker_image,
-          test_owner=test_owner.SHUNING_J,
+          test_owner=current_owner,
           cluster=test_scripts_details[0]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       training_tpu = gke_config.get_gke_config(
@@ -155,7 +164,7 @@ with models.DAG(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[1]['script_name']}.sh",
           ),
           docker_image=docker_image,
-          test_owner=test_owner.SHUNING_J,
+          test_owner=current_owner,
           cluster=test_scripts_details[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu
@@ -165,6 +174,7 @@ with models.DAG(
     gcs_subfolder = (
         f"{test_owner.Team.JAX_MODELS_AND_PERFORMANCE.value}/maxtext"
     )
+    current_owner = test_scripts_details[0].get("owner", test_owner.SHUNING_J)
     for image in docker_image.keys():
       test_group_id = "chained_tests" + "_" + model + "_" + image
       if QuarantineTests.is_quarantined(test_group_id):
@@ -176,6 +186,7 @@ with models.DAG(
               docker_image[image],
               model,
               test_scripts_details,
+              current_owner,
           )
       else:
         mode_cpu, mode_tpu = convert_checkpoint_and_run_training(
@@ -185,6 +196,7 @@ with models.DAG(
             docker_image[image],
             model,
             test_scripts_details,
+            current_owner,
         )
       tests.append(mode_cpu)
       tests.append(mode_tpu)
