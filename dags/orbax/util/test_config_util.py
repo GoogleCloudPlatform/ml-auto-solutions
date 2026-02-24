@@ -189,7 +189,7 @@ class TestConfig(TestConfigAbstract):
     command = (
         f"export TPU_PREMAPPED_BUFFER_SIZE={tpu_premmapped_size} && "
         f"export TPU_PREMAPPED_BUFFER_TRANSFER_THRESHOLD_BYTES={tpu_premmapped_size} && "
-        "python3 -m MaxText.train MaxText/configs/base.yml "
+        "python3 -m MaxText.train maxtext/configs/base.yml "
         "remat_policy=full "
         "global_parameter_scale=1 "
         f"base_output_directory={posixpath.join(self.base_dir, out_folder)} "
