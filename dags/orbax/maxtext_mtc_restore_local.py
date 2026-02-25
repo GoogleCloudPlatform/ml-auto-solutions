@@ -149,8 +149,8 @@ with models.DAG(
         )
 
         log_filters = [
-            "jsonPayload.message:\"'event_type': 'restore'\"",
-            "jsonPayload.message:\"'directory': '/local\"",
+            "textPayload:\"'event_type': 'restore'\"",
+            "textPayload:\"'directory': '/local\"",
         ]
         validate_restored_source = validation_util.validate_log_exist.override(
             task_id="validate_restore_copy_from_peer"

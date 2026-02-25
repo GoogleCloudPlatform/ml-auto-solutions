@@ -68,21 +68,19 @@ def validate_checkpoint_at_steps_are_saved(
       location=location,
       cluster_name=cluster_name,
       pod_pattern=pod_pattern,
-      text_filter=f'jsonPayload.message=~"{log_pattern}"',
+      text_filter=f'textPayload=~"{log_pattern}"',
       start_time=start_time,
       end_time=end_time,
   )
 
   steps_are_saved: set[int] = set()  # Use a set for faster lookup.
   for entry in entries:
-    if not isinstance(entry, logging_api.StructEntry):
+    if not isinstance(entry, logging_api.TextEntry):
       raise AirflowFailException(
-          "Log entry must be contain a jsonPayload attribute."
+          "Log entry must be contain a textPayload attribute."
       )
-    message = entry.payload.get("message")
-    if not message:
-      raise AirflowFailException(f"Failed to parse entry {entry}")
 
+    message = entry.payload
     m = complied_pattern.search(message)
     if m:
       steps_are_saved.add(int(m.group(1)))
@@ -468,7 +466,7 @@ def validate_restored_correct_checkpoint(
       cluster_name=cluster_name,
       namespace="default",
       pod_pattern=pod_pattern,
-      text_filter="jsonPayload.message:\"'event_type'\"",
+      text_filter="textPayload:\"'event_type'\"",
       start_time=start_time,
       end_time=end_time,
   )
@@ -478,12 +476,12 @@ def validate_restored_correct_checkpoint(
 
   local_saved_steps_before_restore = []
   for entry in entries:
-    if not isinstance(entry, logging_api.StructEntry):
+    if not isinstance(entry, logging_api.TextEntry):
       raise AirflowFailException(
-          "Log entry must be contain a jsonPayload attribute."
+          "Log entry must be contain a textPayload attribute."
       )
 
-    message = entry.payload.get("message")
+    message = entry.payload
 
     if re.search(r"'event_type': 'save'", message):
       saved_step_match = re.search(r"'step': (\d+)", message)
