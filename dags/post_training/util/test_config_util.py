@@ -88,7 +88,7 @@ class RLTestConfig:
   tokenizer_path: str
   load_parameters_path: str
   loss_algos: list[LossAlgo]
-  rl_config_path: str = "src/MaxText/configs/rl.yml"
+  rl_config_path: str = "src/maxtext/configs/post_train/rl.yml"
 
   def __init__(
       self,
@@ -100,7 +100,7 @@ class RLTestConfig:
       tokenizer_path: str,
       load_parameters_path: str,
       loss_algos: list[LossAlgo],
-      rl_config_path: str = "src/MaxText/configs/rl.yml",
+      rl_config_path: str = "src/maxtext/configs/post_train/rl.yml",
   ):
     """Initializes the RL test configurations.
 
@@ -158,7 +158,7 @@ class RLTestConfig:
       ])
 
     rl_command = (
-        "python -m src.MaxText.rl.train_rl "
+        "python -m src.maxtext.rl.train_rl "
         f"{self.rl_config_path} " + " ".join(command_params)
     )
 

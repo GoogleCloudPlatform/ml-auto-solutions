@@ -79,7 +79,7 @@ with models.DAG(
           f"{test_config_util.DEFAULT_BUCKET}/llama3.1-70b-Instruct/"
           "scanned-pathways/0/items/"
       ),
-      rl_config_path="src/MaxText/configs/rl.yml",
+      rl_config_path="src/maxtext/configs/post_train/rl.yml",
       loss_algos=[
           test_config_util.LossAlgo.GRPO,
           test_config_util.LossAlgo.GSPO,
