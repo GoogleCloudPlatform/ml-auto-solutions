@@ -43,8 +43,7 @@ SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 @task
 def get_current_time() -> TimeUtil:
   """Get the current time in UTC."""
-  current_time_utc = datetime.datetime.now(datetime.timezone.utc)
-  return TimeUtil.from_datetime(current_time_utc)
+  return TimeUtil.now()
 
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
