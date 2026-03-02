@@ -822,7 +822,7 @@ def query_uptime_metrics(
       f'resource.labels.entity_name = "{jobset_name}"',
   ]
 
-  return query_time_series(
+  return list_time_series(
       project_id=node_pool.project_id,
       filter_str=" AND ".join(filter_string),
       start_time=start_time,

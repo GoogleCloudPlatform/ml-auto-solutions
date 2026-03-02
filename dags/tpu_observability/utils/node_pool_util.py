@@ -243,7 +243,8 @@ def create(
         "gcloud container operations list "
         f"--project={node_pool.project_id} "
         f"--region={node_pool.location} "
-        f"--format=json(name,status)"
+        f"--filter='status=RUNNING AND targetLink:{node_pool.node_pool_name}' "
+        f"--format='json(name,status)'"
     )
     debug_res = subprocess.run_exec(debug_cmd)
 
