@@ -237,7 +237,7 @@ with models.DAG(
     dag_id=DAG_ID,
     start_date=datetime.datetime(2025, 8, 15),
     default_args={"retries": 0},
-    schedule=SCHEDULE,
+    schedule=SCHEDULE if composer_env.is_prod_env() else None,
     catchup=False,
     tags=["gke", "tpu-observability", "tpu-info", "TPU", "v6e-16"],
     description=(
