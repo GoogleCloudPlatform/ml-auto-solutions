@@ -54,7 +54,7 @@ with models.DAG(
     for model_size in models:
       run_cmds = [
           "pip show aqtp",
-          f"bash MaxText/configs/{tpu}/{model_size}.sh EXECUTABLE=train.py OUTPUT_PATH={base_output_directory} PLATFORM=gke",
+          f"bash maxtext/configs/tpu/{tpu}/{model_size}.sh EXECUTABLE=train.py OUTPUT_PATH={base_output_directory} PLATFORM=gke",
       ]
 
       tests.extend(

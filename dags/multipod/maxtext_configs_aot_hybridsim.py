@@ -54,7 +54,7 @@ def hybridsim_compile_and_run(group_id):
             ' --xla_dump_large_constants"'
         ),
         (
-            f"bash src/MaxText/configs/v{tpu_version_str}/{model_size}.sh"
+            f"bash src/maxtext/configs/tpu/v{tpu_version_str}/{model_size}.sh"
             " EXECUTABLE=train_compile"
             f" M_COMPILE_TOPOLOGY=v{tpu_version_str}-{num_cores}"
             f" M_COMPILE_TOPOLOGY_NUM_SLICES={n}"

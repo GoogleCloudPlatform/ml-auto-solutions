@@ -48,7 +48,7 @@ with models.DAG(
   )
 
   # GPU AoT tests
-  cmd = "bash src/MaxText/configs/a3/llama_2_7b/8vm.sh EXECUTABLE=train_compile M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=8"
+  cmd = "bash src/maxtext/configs/gpu/a3/llama_2_7b/8vm.sh EXECUTABLE=train_compile M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=8"
   stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
       time_out_in_min=300,
       test_name="maxtext-aot-a3-stable",
