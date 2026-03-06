@@ -191,10 +191,12 @@ def run_maxtext_tests(dag: models.DAG):
           1,
       ),
       "llama2-7b-train-1node": (
-          "bash src/maxtext/configs/gpu/a3/llama_2_7b/1vm.sh", 1
+          "bash src/maxtext/configs/gpu/a3/llama_2_7b/1vm.sh",
+          1,
       ),
       "llama2-7b-train-2node": (
-          "bash src/maxtext/configs/gpu/a3/llama_2_7b/2vm.sh", 2
+          "bash src/maxtext/configs/gpu/a3/llama_2_7b/2vm.sh",
+          2,
       ),
       "llama2-7b": ("bash src/maxtext/configs/gpu/a3/test_llama2_7b.sh", 1),
   }
