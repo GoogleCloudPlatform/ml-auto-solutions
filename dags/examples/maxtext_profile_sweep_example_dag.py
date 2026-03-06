@@ -45,7 +45,7 @@ test_models_tpu = {
         "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
         "train_command": [
             f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
-            "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
+            "python3 -m MaxText.train src/maxtext/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
             # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
             "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
             + dict_to_arg({
@@ -81,7 +81,7 @@ test_models_tpu = {
         "base_output_directory": "gs://runner-maxtext-logs",
         "train_command": [
             f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
-            "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
+            "python3 -m MaxText.train src/maxtext/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
             # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
             "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
             + dict_to_arg({

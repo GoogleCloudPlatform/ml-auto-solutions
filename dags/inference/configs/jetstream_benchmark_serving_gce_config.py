@@ -155,7 +155,7 @@ def get_config(
       f"export KV_QUANT_AXIS={model_configs['kv_quant_axis']}",
       # Start JetStream MaxText server in the background
       """python3 -m MaxText.maxengine_server \
-        MaxText/configs/inference_jetstream.yml \
+        src/maxtext/configs/inference/inference_jetstream.yml \
         model_name=${MODEL_NAME} \
         tokenizer_path=${TOKENIZER_PATH} \
         weight_dtype=${WEIGHT_DTYPE} \

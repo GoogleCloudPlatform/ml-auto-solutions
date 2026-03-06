@@ -88,7 +88,7 @@ def config(
       # Configure flags
       "export XLA_FLAGS='--xla_disable_hlo_passes=rematerialization'",
       f"""python3 -m MaxText.inference_microbenchmark_sweep \
-          MaxText/configs/base.yml \
+          src/maxtext/configs/base.yml \
           model_name={model_configs['model_name']} \
           tokenizer_path=assets/{model_configs['tokenizer']} \
           weight_dtype={model_configs['weight_dtype']} \

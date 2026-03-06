@@ -67,7 +67,7 @@ with models.DAG(
                 f"-{accelerator}-{current_datetime}"
             ),
             (
-                "python3 -m MaxText.train MaxText/configs/base.yml"
+                "python3 -m MaxText.train src/maxtext/configs/base.yml"
                 f" run_name=$RUN_NAME base_output_directory"
                 f"={base_output_directory} dataset_path={dataset_path}"
                 f" profiler=xplane steps=10"

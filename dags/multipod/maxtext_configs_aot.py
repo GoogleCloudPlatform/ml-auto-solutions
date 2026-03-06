@@ -79,7 +79,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         output_path = "dummy-output-dir"
 
         cmd = (
-            f"bash src/MaxText/configs/{tpu}/{model_size}.sh "
+            f"bash src/maxtext/configs/tpu/{tpu}/{model_size}.sh "
             "EXECUTABLE=train_compile "
             f"M_COMPILE_TOPOLOGY={tpu}-{num_cores} "
             f"M_COMPILE_TOPOLOGY_NUM_SLICES={n} "

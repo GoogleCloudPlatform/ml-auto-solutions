@@ -33,7 +33,7 @@ docker_image = {
 
 base_command = (
     f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
-    + "python3 -m MaxText.train MaxText/configs/base.yml base_output_directory=gs://runner-maxtext-logs run_name=${RUN_NAME} model_name=mixtral-8x7b tokenizer_path=assets/tokenizer.mistral-v1 dataset_path=gs://maxtext-dataset per_device_batch_size=4 enable_checkpointing=false ici_fsdp_parallelism=-1 max_target_length=1024 async_checkpointing=false attention=flash dtype=bfloat16 weight_dtype=bfloat16"
+    + "python3 -m MaxText.train src/maxtext/configs/base.yml base_output_directory=gs://runner-maxtext-logs run_name=${RUN_NAME} model_name=mixtral-8x7b tokenizer_path=assets/tokenizer.mistral-v1 dataset_path=gs://maxtext-dataset per_device_batch_size=4 enable_checkpointing=false ici_fsdp_parallelism=-1 max_target_length=1024 async_checkpointing=false attention=flash dtype=bfloat16 weight_dtype=bfloat16"
 )
 
 test_models_tpu = {
