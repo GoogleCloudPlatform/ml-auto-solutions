@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Helper module for scheduling DAGs across clusters."""
+
 import datetime as dt
 import enum
 from typing import TypeAlias
@@ -67,6 +68,24 @@ def get_dag_timeout(dag_id: str) -> dt.timedelta:
   )
 
 
+class SchedulingError(ValueError):
+  """Base class for scheduling errors."""
+
+  pass
+
+
+class UnregisteredDagError(SchedulingError):
+  """Raised when a DAG is not found in REGISTERED_DAGS."""
+
+  pass
+
+
+class ScheduleWindowError(SchedulingError):
+  """Raised when a schedule exceeds the 24-hour daily window."""
+
+  pass
+
+
 class SchedulingHelper:
   """Manages DAG scheduling across different clusters."""
 
@@ -88,16 +107,19 @@ class SchedulingHelper:
 
       offset = dt.timedelta(0)
       for current_dag_id, timeout in dags.items():
+        if offset >= dt.timedelta(hours=24) or timeout >= dt.timedelta(
+            hours=24
+        ):
+          raise ScheduleWindowError(
+              f"Schedule exceeds 24h window at '{dag_id} '"
+              f"in cluster '{cluster_name}'."
+          )
+
         if current_dag_id == dag_id:
           schedule = anchor + offset
           return f"{schedule.minute} {schedule.hour} * * {day_of_week.value}"
         offset += timeout + cls.DEFAULT_MARGIN
 
-        if offset >= dt.timedelta(hours=24):
-          raise ValueError(
-              f"Schedule exceeds 24h window at '{dag_id}' in cluster '{cluster_name}'."
-          )
-
-    raise ValueError(
+    raise UnregisteredDagError(
         f"DAG '{dag_id}' is not registered. Please add it to REGISTERED_DAGS."
     )
