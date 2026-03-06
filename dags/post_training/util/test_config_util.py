@@ -158,7 +158,7 @@ class RLTestConfig:
       ])
 
     rl_command = (
-        "python -m src.maxtext.rl.train_rl "
+        "python -m src.MaxText.rl.train_rl "
         f"{self.rl_config_path} " + " ".join(command_params)
     )
 

@@ -75,7 +75,7 @@ def validate_training(
         project_id=config.cluster.project,
         location=zone_to_region(config.cluster.zone),
         cluster_name=config.cluster.name,
-        text_filter=f"\"'step': {steps}\"",
+        text_filter=f'"Training: 100%" AND "{steps}/{steps}"',
         namespace="default",
         container_name="jax-tpu",
         pod_pattern=f"{config.short_id}.*",
@@ -122,7 +122,7 @@ with models.DAG(
       3. No infrastructure failures or container launch issues occur
       4. All training steps execute within expected parameters
     """,
-    concurrency=2,
+    concurrency=1,
 ) as dag:
   training_steps = 30
 
@@ -152,19 +152,19 @@ with models.DAG(
       continue  # Skip stable for SFT training tests
 
     for slice_num in training_config.slices:
-      run_name = validation_util.generate_run_name(
-          prefix="sft",
-          mode=mode.value,
-          num_slices=slice_num,
-      )
-
-      sft_training_command = training_config.generate_sft_training_command(
-          run_name=run_name,
-          hf_token=HF_TOKEN_CIENET,
-      )
       with TaskGroup(
           group_id=f"sft-{mode.value}-{slice_num}x{training_config.accelerator}"
       ) as group:
+        run_name = validation_util.generate_run_name(
+            prefix="sft",
+            mode=mode.value,
+            num_slices=slice_num,
+        )
+
+        sft_training_command = training_config.generate_sft_training_command(
+            run_name=run_name,
+            hf_token=HF_TOKEN_CIENET,
+        )
         training_group, start_time, end_time = run_training(
             slice_num, training_config, sft_training_command, image
         )
@@ -181,4 +181,4 @@ with models.DAG(
             run_name_prefix=run_name,
         )
 
-        chain(training_group, [validation_group, upload_to_vertex_ai])
+        chain(run_name, training_group, [validation_group, upload_to_vertex_ai])
