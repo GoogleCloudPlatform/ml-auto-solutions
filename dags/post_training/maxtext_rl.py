@@ -64,7 +64,7 @@ with models.DAG(
       4. All training steps execute within expected parameters
       5. Metrics are successfully synced to Vertex AI TensorBoard
     """,
-    concurrency=2,
+    concurrency=1,
 ) as dag:
   training_config = test_config_util.RLTestConfig(
       cluster=XpkClusters.TPU_V5P_128_CLUSTER,
@@ -88,6 +88,7 @@ with models.DAG(
   # HF token retrieved from Airflow Variables for secure credential management
   HF_TOKEN_LLAMA3_1 = models.Variable.get("HF_TOKEN_CIENET", None)
 
+  tests = []
   for mode, image in test_config_util.POST_TRAINING_DOCKER_IMAGES:
     # TODO: Enable stable mode once a new version of MaxText is available
     if mode == test_config_util.SetupMode.STABLE:
@@ -95,19 +96,6 @@ with models.DAG(
 
     for loss_algo in training_config.loss_algos:
       for slice_num in training_config.slices:
-        run_name = validation_util.generate_run_name(
-            prefix=loss_algo.value,
-            mode=mode.value,
-            num_slices=slice_num,
-        )
-
-        rl_training_command = training_config.generate_rl_training_command(
-            loss_algo=loss_algo,
-            run_name=run_name,
-            hf_token=HF_TOKEN_LLAMA3_1,
-            num_slices=slice_num,
-        )
-
         with TaskGroup(
             group_id=(
                 f"{loss_algo.value}-{mode.value}-"
@@ -115,14 +103,26 @@ with models.DAG(
             )
         ) as group:
           with TaskGroup(group_id="run_training") as training_group:
+            run_name = validation_util.generate_run_name(
+                prefix=loss_algo.value,
+                mode=mode.value,
+                num_slices=slice_num,
+            )
+
+            rl_training_command = training_config.generate_rl_training_command(
+                loss_algo=loss_algo,
+                run_name=run_name,
+                hf_token=HF_TOKEN_LLAMA3_1,
+                num_slices=slice_num,
+            )
             start_time = validation_util.generate_timestamp.override(
                 task_id="generate_start_time"
             )()
 
             training_task = gke_config.get_gke_config(
+                time_out_in_min=30,
                 num_slices=slice_num,
                 cluster=training_config.cluster,
-                time_out_in_min=30,
                 test_name=loss_algo.value,
                 run_model_cmds=rl_training_command,
                 docker_image=image.value,
@@ -137,6 +137,7 @@ with models.DAG(
             )()
 
             chain(
+                run_name,
                 start_time,
                 training_task,
                 end_time,
@@ -149,7 +150,7 @@ with models.DAG(
                 project_id=training_config.cluster.project,
                 location=zone_to_region(training_config.cluster.zone),
                 cluster_name=training_config.cluster.name,
-                text_filter=f'"Config param loss_algo: {loss_algo.loss_name}"',
+                text_filter=f"\"'loss_algo': '{loss_algo.loss_name}'\"",
                 namespace="default",
                 container_name="jax-tpu",
                 pod_pattern=f"{loss_algo.value}.*",
@@ -183,3 +184,6 @@ with models.DAG(
           )
 
           chain(training_group, [validation_group, upload_to_vertex_ai])
+          tests.append(group)
+
+        chain(*tests)
