@@ -10,6 +10,7 @@ google-cloud-container>=2.54.0
 google-cloud-tpu>=1.16.0
 jsonlines
 tensorflow-cpu
+tensorboard
 kubernetes
 pyarrow
 apache-airflow-providers-google
