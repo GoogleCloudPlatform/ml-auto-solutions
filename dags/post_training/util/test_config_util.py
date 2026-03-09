@@ -158,7 +158,7 @@ class RLTestConfig:
       ])
 
     rl_command = (
-        "python -m src.MaxText.rl.train_rl "
+        "python -m maxtext.trainers.post_train.rl.train_rl "
         f"{self.rl_config_path} " + " ".join(command_params)
     )
 
@@ -271,7 +271,7 @@ class SFTTestConfig:
       A tuple containing the SFT training command string.
     """
     sft_command = (
-        "python3 -m MaxText.sft.sft_trainer "
+        "python3 -m maxtext.trainers.post_train.sft.train_sft "
         f"{self.sft_config_path} run_name={run_name} "
         f"base_output_directory={self.base_dir} "
         f"model_name={self.model_name} "
