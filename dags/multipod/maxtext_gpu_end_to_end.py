@@ -128,13 +128,13 @@ def run_maxtext_tests(dag: models.DAG):
   timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
   train_base = (
       "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-      "python3 -m MaxText.train MaxText/configs/base.yml "
+      "python3 -m MaxText.train src/maxtext/configs/base.yml "
       "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
       "steps=2 enable_checkpointing=false attention=dot_product"
   )
   decode_base = (
       "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-      "python3 -m MaxText.decode MaxText/configs/base.yml "
+      "python3 -m MaxText.decode src/maxtext/configs/base.yml "
       "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
       "steps=2 enable_checkpointing=false attention=dot_product "
       "max_target_length=128 per_device_batch_size=1"
@@ -190,9 +190,15 @@ def run_maxtext_tests(dag: models.DAG):
           "gs://runner-maxtext-logs gs://maxtext-dataset dot_product",
           1,
       ),
-      "llama2-7b-train-1node": ("bash MaxText/configs/a3/llama_2_7b/1vm.sh", 1),
-      "llama2-7b-train-2node": ("bash MaxText/configs/a3/llama_2_7b/2vm.sh", 2),
-      "llama2-7b": ("bash tests/end_to_end/gpu/a3/test_llama2_7b.sh", 1),
+      "llama2-7b-train-1node": (
+          "bash src/maxtext/configs/gpu/a3/llama_2_7b/1vm.sh",
+          1,
+      ),
+      "llama2-7b-train-2node": (
+          "bash src/maxtext/configs/gpu/a3/llama_2_7b/2vm.sh",
+          2,
+      ),
+      "llama2-7b": ("bash src/maxtext/configs/gpu/a3/test_llama2_7b.sh", 1),
   }
 
   quarantine_task_group = TaskGroup(
