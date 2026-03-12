@@ -41,7 +41,7 @@ def build_maxtext_setup_script() -> str:
       curl -LsSf https://astral.sh/uv/install.sh | sh
       export PATH="$HOME/.local/bin:$PATH"
 
-      uv venv --python 3.12 --seed maxtext_venv
+      uv venv --python 3.12 --seed --clear maxtext_venv
       source maxtext_venv/bin/activate
 
       # =======================================================================
@@ -51,7 +51,7 @@ def build_maxtext_setup_script() -> str:
       uv pip install -e .[tpu] --resolution=lowest
       python3 -m pip install uv
 
-      install_maxtext_github_deps
+      install_maxtext_tpu_github_deps
 
       # =======================================================================
       # Post-Training Installations
