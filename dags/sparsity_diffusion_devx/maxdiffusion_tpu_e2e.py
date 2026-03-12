@@ -51,7 +51,7 @@ with models.DAG(
   maxdiffusion_test_configs_sdxl = {
       # accelerator: list of slices to test
       "v6e-256": [1, 2],
-      "v5-8": [1, 2],
+      "v5-8v2": [1, 2],
   }
   maxdiffusion_test_configs_sdv2 = {
       # accelerator: list of slices to test

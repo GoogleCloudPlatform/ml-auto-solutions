@@ -27,6 +27,7 @@ clusters = {
     "v4-8": XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
     "v4-16": XpkClusters.TPU_V4_16_CLUSTER,
     "v5-8": XpkClusters.TPU_V5P_8_CLUSTER,
+    "v5-8v2": XpkClusters.TPU_V5P_8_CLUSTER_V2,
     "v6e-256": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
     "a3": XpkClusters.GPU_A3_CLUSTER,
     "a3plus": XpkClusters.GPU_A3PLUS_CLUSTER,
