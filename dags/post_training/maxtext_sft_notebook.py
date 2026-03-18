@@ -10,6 +10,7 @@ import datetime
 from airflow import models
 
 from dags import composer_env
+from dags import gcs_bucket
 from dags.common import test_owner
 from dags.post_training.util import notebook_util
 
@@ -67,6 +68,9 @@ with models.DAG(
   # Test configuration
   test_run_name = "llama31_rl_notebook"
   current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+  BASE_OUTPUT_DIRECTORY = (
+      f"{gcs_bucket.ORBAX_AUTOMATION_BUCKET_EUROPE_WEST4}/post-training/sft/"
+  )
 
   # Setup commands for MaxText environment
   setup_script = notebook_util.build_maxtext_setup_script()
@@ -77,7 +81,7 @@ with models.DAG(
       dag_name=DAG_TEST_NAME,
       notebook_path="src/maxtext/examples/sft_llama3_demo_tpu.ipynb",
       set_up_script=setup_script,
-      parameters={},
+      parameters={"BASE_OUTPUT_DIRECTORY": BASE_OUTPUT_DIRECTORY},
       task_owner=test_owner.DEPP_L,
   )
 
