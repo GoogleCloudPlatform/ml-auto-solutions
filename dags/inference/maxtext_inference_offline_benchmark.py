@@ -190,7 +190,7 @@ def maxtext_inference_offline_benchmark_config(
       "cd inference/loadgen && pip install . && cd ../..",
       # Setup MaxText
       git_clone_maxtext,
-      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
+      f"cd maxtext && bash src/dependencies/scripts/setup.sh MODE={test_mode.value} && cd ..",
       "pip install -r maxtext/MaxText/inference_mlperf/requirements.txt",
       "cd maxtext/MaxText/inference_mlperf/trillium",
       # Copy Dataset
