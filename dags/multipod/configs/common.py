@@ -44,7 +44,7 @@ def download_maxtext() -> Tuple[str]:
 def setup_maxtext(mode: SetupMode, platform: Platform) -> Tuple[str]:
   """Common set up for MaxText repo."""
   return download_maxtext() + (
-      f"cd /tmp/maxtext && bash setup.sh MODE={mode.value} && bash preflight.sh PLATFORM={platform.value}",
+      f"cd /tmp/maxtext && bash src/dependencies/scripts/setup.sh MODE={mode.value} && bash src/dependencies/scripts/preflight.sh PLATFORM={platform.value}",
   )
 
 

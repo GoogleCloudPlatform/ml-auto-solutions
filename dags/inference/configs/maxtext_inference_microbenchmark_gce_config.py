@@ -60,7 +60,7 @@ def config(
       "python -m venv .env",
       "source .env/bin/activate",
       # Setup MaxText
-      f"cd maxtext && bash setup.sh MODE={test_mode.value} && cd ..",
+      f"cd maxtext && bash src/dependencies/scripts/setup.sh MODE={test_mode.value} && cd ..",
       "pip install torch --index-url https://download.pytorch.org/whl/cpu",
   )
 

@@ -82,7 +82,7 @@ with models.DAG(
         image = DockerImage.MAXTEXT_TPU_JAX_STABLE
 
       base_run_model_cmds = [
-          "bash preflight.sh",
+          "bash src/dependencies/scripts/preflight.sh",
           f"python3 -m benchmarks.benchmark_runner on-device "
           f"--base_output_directory={BASE_OUTPUT_DIRECTORY} "
           f"--model_name={model.value} --libtpu_type=maxtext-docker "
