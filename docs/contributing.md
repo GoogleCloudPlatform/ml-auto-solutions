@@ -60,7 +60,7 @@ To run the local environment, use the following commands:
 
 ```
 gcloud auth login --update-adc
-scripts/local-airflow.sh path/to/dag_file.py
+bash scripts/local-airflow.sh path/to/dag_file.py
 ```
 
 Comment out any test cases in the DAG that you do not want to run, or create a temporary DAG file to avoid running all tests.
@@ -71,8 +71,8 @@ If you're in the PyTorch/XLA team, you may test the DAG changes using a staging
 Airflow instance:
 
 ```sh
-scripts/gen-configs.sh
-scripts/upload-tests.sh gs://us-central1-ptxla-team-b851831a-bucket/dags
+bash scripts/gen-configs.sh
+bash scripts/upload-tests.sh gs://us-central1-ptxla-team-b851831a-bucket/dags
 ```
 
 Then go to http://shortn/_1OASLXUCHS (Composer UI) or http://shortn/_cIsy3Grl5u
@@ -97,7 +97,7 @@ If you encounter an error related to the gcloud installation being `managed by a
 If you're running a JSonnet-based test, run this each time any time the test changes:
 
 ```
-scripts/gen-configs.sh
+bash scripts/gen-configs.sh
 ```
 
 Airflow will print a link to a local instance. From the UI, find your dag and run it manually.
