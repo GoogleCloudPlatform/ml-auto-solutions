@@ -213,8 +213,14 @@ with models.DAG(
         )
 
         log_filters = [
-            "textPayload:\"'event_type': 'restore'\"",
-            "textPayload:\"'directory': 'gs://\"",
+            (
+                "(textPayload:\"'event_type': 'restore'\" OR"
+                " jsonPayload.message:\"'event_type': 'restore'\")"
+            ),
+            (
+                "(textPayload:\"'directory': 'gs://\" OR"
+                " jsonPayload.message:\"'directory': 'gs://\")"
+            ),
         ]
         validate_restore_source = validation_util.validate_log_exist.override(
             task_id="validate_emc_restored_from_gcs"
