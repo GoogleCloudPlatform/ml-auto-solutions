@@ -28,7 +28,7 @@ from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
 
 from dags.common.quarantined_tests import QuarantineTests
-from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, axlearn, gke
+from xlml.utils import gpu, metric, name_format, ssh, tpu, xpk, axlearn, gke, kpo
 from xlml.apis import gcp_config, metric_config, test_config, gcs
 
 
@@ -254,8 +254,8 @@ class AXLearnTask(BaseTask):
           label=self.label,
       )
 
-      run_workload = axlearn.start_cli_in_kpo(
-          start_axlearn_cli_command=gen_cmds,
+      run_workload = kpo.run_command_in_kpo(
+          start_cli_command=gen_cmds,
           workload_id=workload_id,
           task_owner=self.test_cfg.task_owner,
           provisioning_timeout=self.workload_provision_timeout,

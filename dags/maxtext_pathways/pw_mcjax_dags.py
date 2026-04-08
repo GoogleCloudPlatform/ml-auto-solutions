@@ -24,18 +24,12 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.utils.trigger_rule import TriggerRule
 
-from airflow.providers.google.cloud.operators.kubernetes_engine import GKEStartPodOperator
-from kubernetes.client import models as k8s
-
 from dags import composer_env
 from dags.common import test_owner
 from dags.maxtext_pathways.configs import commands as cmds
 from dags.maxtext_pathways.configs import parameters as ui_params
 from dags.maxtext_pathways.configs import recipe_config as recipe_cfg
-from xlml.utils import xpk, gke
-
-# based on maxtext_dependencies.Dockerfile, and apply PR2715 in addition
-IMAGE = "gcr.io/cienet-cmcs/cnt_pathway:latest"
+from xlml.utils import kpo, xpk, gke
 
 
 @task.python(multiple_outputs=True)
@@ -58,7 +52,7 @@ def generate_derived_parameters(dag_params: dict) -> dict:
   # Generate recipe workload_id and temp_key.
   name, temp_post_fix = generate_recipe_workload_id(dag_params)
   derived_params["temp_key"] = temp_post_fix
-  derived_params["recipe_workload_id"] = name
+  derived_params["workload_id"] = name
 
   # Generate region by zone
   derived_params["region"] = gke.zone_to_region(dag_params["zone"])
@@ -312,42 +306,19 @@ with models.DAG(
   derived_params = generate_derived_parameters(dag_params)
   commands = generate_commands(dag_params, derived_params, RECIPE_INSTANCE)
 
-  start_recipe = GKEStartPodOperator(
-      task_id="start_recipe",
-      name=RECIPE_NAME.replace("_", "-"),
-      project_id=dag_params["project"],
-      cluster_name=dag_params["cluster_name"],
-      location=derived_params["region"],
-      namespace="default",
-      # This is required for `namespace="default"` under cienet-cmcs
-      node_selector={"cloud.google.com/gke-nodepool": "cpu-np"},
-      image=IMAGE,
-      # TODO(b/452777428): Apply this once the "apache-airflow-providers-google" in
-      # prod composer is upgraded to "16.0.0".
-      # on_finish_action=OnFinishAction.DELETE_POD.value,
-      get_logs=True,
-      cmds=["/bin/bash", "-cxue", commands],
-      labels={"airflow-runtime": recipe_runtime},
-      owner=test_owner.DORA_H,
-  )
-
-  # TODO(b/452777428): Remove this once the "apache-airflow-providers-google" in prod
-  # composer is upgraded to "16.0.0".
-  # Explicitly clean up the pod since the `on_finish_action` of
-  # `GKEStartPodOperator` is not functioning.
-  clean_up_start_recipe_pod = clean_up_pod.override(
-      trigger_rule=TriggerRule.ALL_DONE
-  )(
-      cluster_name=dag_params["cluster_name"],
-      region=derived_params["region"],
-      project=dag_params["project"],
-      airflow_runtime=recipe_runtime,
+  start_recipe = kpo.run_command_in_kpo(
+      start_cli_command=commands,
+      workload_id="start_recipe",
+      task_owner=test_owner.DORA_H,
+      provisioning_timeout=datetime.timedelta(minutes=5),
+      workload_run_timeout=datetime.timedelta(minutes=15),
+      image_full_url=dag_params["runner"],
   )
 
   check_recipe_log = wait_workload_complete.override(
       task_id="check_recipe_log",
   )(
-      workload_id=derived_params["recipe_workload_id"],
+      workload_id=derived_params["workload_id"],
       project_id=dag_params["project"],
       region=derived_params["region"],
       cluster_name=dag_params["cluster_name"],
@@ -359,7 +330,7 @@ with models.DAG(
   clean_up_recipe = xpk.clean_up_workload.override(
       task_id="clean_up_recipe", trigger_rule=TriggerRule.ALL_DONE
   )(
-      workload_id=derived_params["recipe_workload_id"],
+      workload_id=derived_params["workload_id"],
       project_id=dag_params["project"],
       zone=dag_params["zone"],
       cluster_name=dag_params["cluster_name"],
@@ -375,4 +346,4 @@ with models.DAG(
       >> check_recipe_log
       >> clean_up_recipe
   )
-  start_recipe >> clean_up_start_recipe_pod
+  start_recipe >> check_recipe_log

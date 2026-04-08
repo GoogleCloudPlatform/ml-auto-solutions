@@ -53,6 +53,6 @@ RECIPE_FLAG = [
     "bq_enable",
     "bq_db_project",
     "bq_db_dataset",
-    "temp_key",
+    "workload_id",
     "device_type",
 ]
