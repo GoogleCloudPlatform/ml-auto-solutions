@@ -52,15 +52,7 @@ def validate_checkpoint_at_steps_are_saved(
     None: This function does not return a value.
   """
 
-  directory_pattern = (
-      rf"{re.escape(ram_disk)}/(\d+)"
-      if ram_disk != "gcs"
-      else r"gs://[^/]+/[^/]+/[^/]+/checkpoints/(\d+)"
-  )
-  log_pattern = (
-      rf"Finished async_save \(blocking \+ background\)\. "
-      rf"Time taken: \d+\.\d+s\. directory={directory_pattern}"
-  )
+  log_pattern = "'step': (\d+)"
 
   complied_pattern = re.compile(log_pattern)
   entries = list_log_entries(
@@ -68,7 +60,11 @@ def validate_checkpoint_at_steps_are_saved(
       location=location,
       cluster_name=cluster_name,
       pod_pattern=pod_pattern,
-      text_filter=f'(textPayload=~"{log_pattern}" OR jsonPayload.message=~"{log_pattern}")',
+      text_filter=(
+          "\"'event_type': 'save'\" AND "
+          f'(textPayload=~"{log_pattern}" OR '
+          f'jsonPayload.message=~"{log_pattern}")'
+      ),
       start_time=start_time,
       end_time=end_time,
   )
