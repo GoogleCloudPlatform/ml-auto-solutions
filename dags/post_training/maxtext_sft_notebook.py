@@ -15,7 +15,7 @@ from dags.common import test_owner
 from dags.post_training.util import notebook_util
 
 
-SCHEDULE = "0 23 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "0 19 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_sft_notebook"
 
 with models.DAG(
