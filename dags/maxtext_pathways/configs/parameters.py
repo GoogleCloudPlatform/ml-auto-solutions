@@ -95,15 +95,17 @@ PARAMETERS = {
         description="Number of slices",
     ),
     "server_image": Param(
-        # Reference to https://g3doc.corp.google.com/cloud/tpu/g3doc/fas/pathways-on-cloud/index.md?cl=head
-        "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:20260102-jax_0.8.1",
+        # Reference to:
+        # https://g3doc.corp.google.com/cloud/tpu/g3doc/fas/pathways-on-cloud/index.md?cl=head
+        "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest",
         type="string",
         title="Server Image",
         description="Server image for pathways.",
     ),
     "proxy_image": Param(
-        # Reference to https://g3doc.corp.google.com/cloud/tpu/g3doc/fas/pathways-on-cloud/index.md?cl=head
-        "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:20260102-jax_0.8.1",
+        # Reference to:
+        # https://g3doc.corp.google.com/cloud/tpu/g3doc/fas/pathways-on-cloud/index.md?cl=head
+        "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest",
         type="string",
         title="Proxy Image",
         description="Proxy image for pathways.",
