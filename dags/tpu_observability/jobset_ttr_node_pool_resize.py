@@ -114,17 +114,10 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool=cluster_info,
       )
 
-      start_workload = jobset.run_workload.override(task_id="start_workload")(
+      startup = jobset.create_jobset_startup_group(
           node_pool=cluster_info,
           jobset_config=jobset_config,
           workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
-
-      ensure_all_pods_running = jobset.wait_for_all_pods_running.override(
-          task_id="ensure_all_pods_running"
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
       )
 
       node_pool_resize = node_pool.update.override(task_id="node_pool_resize")(
@@ -147,7 +140,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool=cluster_info,
           jobset_config=jobset_config,
       ).as_teardown(
-          setups=start_workload
+          setups=startup.jobset_start_time
       )
 
       cleanup_node_pool = node_pool.delete.override(
@@ -161,8 +154,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           jobset_config,
           cluster_info,
           create_node_pool,
-          start_workload,
-          ensure_all_pods_running,
+          startup.task_group,
           node_pool_resize,
           wait_for_metric_upload,
           cleanup_workload,

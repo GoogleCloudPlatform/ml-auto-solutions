@@ -297,7 +297,10 @@ def validate_latency_table(tpu_info_output: list[tpu_info.Table]):
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
     dag_id=DAG_ID,
     start_date=datetime.datetime(2025, 8, 15),
-    default_args={"retries": 0},
+    default_args={
+        "retries": 0,
+        "owner": test_owner.YUNA_T,
+    },
     schedule=SCHEDULE if composer_env.is_prod_env() else None,
     dagrun_timeout=DAGRUN_TIMEOUT,
     catchup=False,
@@ -398,33 +401,16 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             node_pool=cluster_info_2,
         )
 
-      apply_time = jobset.run_workload.override(
-          owner=test_owner.YUNA_T, task_id="run_workload"
-      )(
+      startup = jobset.create_jobset_startup_group(
           node_pool=cluster_info,
           jobset_config=jobset_config,
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
-      running_pods = jobset.wait_for_all_pods_running.override(
-          task_id="ensure_all_pods_running"
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-      )
-
-      wait_for_job_start = jobset.wait_for_jobset_started.override(
-          task_id="wait_for_job_start"
-      )(
-          cluster_info,
-          pod_name_list=running_pods,
-          job_apply_time=apply_time,
-      )
-
       outputs_of_tpu_info = (
           get_tpu_info_from_pod.override(task_id="get_tpu_info")
           .partial(info=cluster_info)
-          .expand(pod_name=running_pods)
+          .expand(pod_name=startup.running_pods)
       )
 
       output_of_tpu_info = (
@@ -478,7 +464,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool=cluster_info,
           jobset_config=jobset_config,
       ).as_teardown(
-          setups=apply_time
+          setups=startup.jobset_start_time
       )
 
       # Keyword arguments are generated dynamically at runtime (pylint does not
@@ -522,9 +508,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           cluster_info,
           cluster_info_2,
           create_node_pool,
-          apply_time,
-          running_pods,
-          wait_for_job_start,
+          startup.task_group,
           outputs_of_tpu_info,
           output_of_tpu_info,
           verification_group,
