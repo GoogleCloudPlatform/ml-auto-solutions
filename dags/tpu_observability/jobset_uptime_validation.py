@@ -122,27 +122,18 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool=cluster_info,
       )
 
-      apply_time = jobset.run_workload.override(task_id="run_workload")(
+      startup = jobset.create_jobset_startup_group(
           node_pool=cluster_info,
           jobset_config=jobset_config,
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
-
-      pod_names = jobset.list_pod_names.override(task_id="list_pod_names")(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-      )
-
-      wait_for_job_start = jobset.wait_for_jobset_started.override(
-          task_id="wait_for_job_start"
-      )(cluster_info, pod_name_list=pod_names, job_apply_time=apply_time)
 
       wait_for_jobset_uptime_data = jobset.wait_for_jobset_uptime_data.override(
           task_id="wait_for_jobset_uptime_data"
       )(
           node_pool=cluster_info,
           jobset_config=jobset_config,
-          jobset_apply_time=apply_time,
+          jobset_apply_time=startup.jobset_start_time,
       )
 
       clean_up_workload = jobset.end_workload.override(
@@ -151,7 +142,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool=cluster_info,
           jobset_config=jobset_config,
       ).as_teardown(
-          setups=apply_time
+          setups=startup.jobset_start_time
       )
 
       jobset_clear_time = get_current_time.override(
@@ -175,11 +166,11 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       chain(
+          selector,
+          jobset_config,
           cluster_info,
           create_node_pool,
-          apply_time,
-          pod_names,
-          wait_for_job_start,
+          startup.task_group,
           wait_for_jobset_uptime_data,
           clean_up_workload,
           jobset_clear_time,
