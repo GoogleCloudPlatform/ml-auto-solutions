@@ -76,12 +76,6 @@ PARAMETERS = {
         title="Core Count",
         description='Device core count for the cluster. ex: v6e-"64"',
     ),
-    "service_account": Param(
-        None,
-        type=["string", "null"],
-        title="Service account",
-        description="Service account of the project.",
-    ),
     "benchmark_steps": Param(
         20,
         type="integer",
