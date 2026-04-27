@@ -48,40 +48,8 @@ def build_maxtext_setup_script() -> str:
       # MaxText Installation
       # =======================================================================
 
-      uv pip install -e .[tpu] --resolution=lowest
-      python3 -m pip install uv
-
-      install_maxtext_tpu_github_deps
-
-      # =======================================================================
-      # Post-Training Installations
-      # =======================================================================
-
-      if [ ! -d "tunix" ]; then
-        git clone https://github.com/google/tunix.git
-      fi
-      cd tunix
-      uv pip install -e .
-      cd ..
-
-      if [ ! -d "vllm" ]; then
-        git clone https://github.com/vllm-project/vllm.git
-      fi
-      cd vllm
-      uv pip install -r requirements/tpu.txt
-      VLLM_TARGET_DEVICE="tpu" uv pip install -e .
-      cd ..
-
-      if [ ! -d "tpu-inference" ]; then
-        git clone https://github.com/vllm-project/tpu-inference.git
-      fi
-      cd tpu-inference
-      uv pip install -e .
-      cd ..
-
-      uv pip install --no-deps qwix==0.1.4
-      uv pip install --no-deps protobuf==5.29.5
-      python3 -m pip freeze
+      uv pip install -e .[tpu-post-train] --resolution=lowest
+      install_tpu_post_train_extra_deps
 
       # =======================================================================
       # Notebook Automation Tools
@@ -294,7 +262,7 @@ def initialize_notebook_test(
   )
   return test_config.TpuVmTest(
       test_config.Tpu(
-          version=TpuVersion.TRILLIUM,
+          version=TpuVersion.V5E,
           cores=8,
           runtime_version=RuntimeVersion.V2_ALPHA_TPUV6.value,
           reserved=False,
@@ -316,7 +284,7 @@ def run_training(config: test_config.TpuVmTest, hf_token: str) -> DAGNode:
       task_test_config=config,
       task_gcp_config=gcp_config.GCPConfig(
           project_name=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
-          zone=Zone.EUROPE_WEST4_A.value,
+          zone=Zone.EUROPE_WEST4_B.value,
           dataset_name=metric_config.DatasetOption.XLML_DATASET,
       ),
       skip_post_process=True,

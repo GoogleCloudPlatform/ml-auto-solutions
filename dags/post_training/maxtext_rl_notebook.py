@@ -8,6 +8,7 @@ training on single-host TPU VMs.
 import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 
 from dags import composer_env
 from dags.common import test_owner
@@ -78,6 +79,7 @@ with models.DAG(
   # Setup commands for MaxText environment
   setup_script = notebook_util.build_maxtext_setup_script()
 
+  notebook_rl_tests = []
   # Test both GRPO and GSPO algorithms
   for loss_algo in loss_algos:
     rl_notebook_test = notebook_util.initialize_notebook_test(
@@ -89,4 +91,8 @@ with models.DAG(
         task_owner=test_owner.DEPP_L,
     )
 
-    notebook_util.run_training(rl_notebook_test, HF_TOKEN_LLAMA31)
+    notebook_rl_tests.append(
+        notebook_util.run_training(rl_notebook_test, HF_TOKEN_LLAMA31)
+    )
+
+  chain(*notebook_rl_tests)
