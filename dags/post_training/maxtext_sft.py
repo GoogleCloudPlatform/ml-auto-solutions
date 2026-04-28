@@ -75,7 +75,10 @@ def validate_training(
         project_id=config.cluster.project,
         location=zone_to_region(config.cluster.zone),
         cluster_name=config.cluster.name,
-        text_filter=f'"Training: 100%" AND "{steps}/{steps}"',
+        text_filter=(
+            f"(jsonPayload.message: \"'event_type': 'save'\" "
+            f"AND jsonPayload.message: \"'step': {steps}\")"
+        ),
         namespace="default",
         container_name="jax-tpu",
         pod_pattern=f"{config.short_id}.*",
