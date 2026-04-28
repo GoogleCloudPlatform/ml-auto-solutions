@@ -839,7 +839,9 @@ def upgrade_cluster_master(node_pool_info: Info, latest_version: str) -> str:
 
 
 def upgrade_cluster_node_pool(
-    node_pool_info: Info, latest_version: str, node_pool_name: str = "default-pool"
+    node_pool_info: Info,
+    latest_version: str,
+    node_pool_name: str = "default-pool",
 ) -> str:
   """Upgrades a specific node pool of the GKE cluster."""
   command = (
