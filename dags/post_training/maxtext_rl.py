@@ -165,7 +165,7 @@ with models.DAG(
                     project_id=training_config.cluster.project,
                     location=zone_to_region(training_config.cluster.zone),
                     cluster_name=training_config.cluster.name,
-                    text_filter="Post RL Training",
+                    text_filter='"Post RL Training"',
                     namespace="default",
                     container_name="jax-tpu",
                     pod_pattern=f"{loss_algo.value}.*",
