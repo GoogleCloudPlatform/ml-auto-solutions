@@ -212,9 +212,17 @@ def create(
 
   if _node_pool_exists(node_pool):
     logging.info(
-        f"Node pool {node_pool.node_pool_name} already exists. Skipping."
+        f"Node pool {node_pool.node_pool_name} already exists. Deleting before"
+        " recreation."
     )
-    return
+    delete_command = (
+        f"gcloud container node-pools delete {node_pool.node_pool_name} "
+        f"--project={node_pool.project_id} "
+        f"--cluster={node_pool.cluster_name} "
+        f"--location={node_pool.location} "
+        "--quiet"
+    )
+    subprocess.run_exec(delete_command)
 
   command = (
       f"gcloud container node-pools create {node_pool.node_pool_name} "
@@ -805,3 +813,41 @@ def update(node_pool: Info, spec: NodePoolUpdateSpec) -> TimeUtil:
 
   subprocess.run_exec(update_cmd)
   return operation_start_time
+
+
+def describe_cluster(node_pool_info: Info) -> str:
+  """Describes the GKE cluster using gcloud command."""
+  command = (
+      f"gcloud container clusters describe {node_pool_info.cluster_name} "
+      f"--project={node_pool_info.project_id} "
+      f"--region={node_pool_info.region} "
+      "--format='json'"
+  )
+  return subprocess.run_exec(command)
+
+
+def upgrade_cluster_master(node_pool_info: Info, latest_version: str) -> str:
+  """Upgrades the master of the GKE cluster."""
+  command = (
+      f"gcloud container clusters upgrade {node_pool_info.cluster_name} "
+      "--master "
+      f"--cluster-version={latest_version} "
+      f"--project={node_pool_info.project_id} "
+      f"--region={node_pool_info.region} --quiet"
+  )
+  return subprocess.run_exec(command)
+
+
+def upgrade_cluster_node_pool(
+    node_pool_info: Info, latest_version: str, node_pool_name: str = "default-pool"
+) -> str:
+  """Upgrades a specific node pool of the GKE cluster."""
+  command = (
+      f"gcloud container clusters upgrade {node_pool_info.cluster_name} "
+      f"--project={node_pool_info.project_id} "
+      f"--region={node_pool_info.region} "
+      f"--cluster-version={latest_version} "
+      f"--node-pool={node_pool_name} "
+      "--quiet"
+  )
+  return subprocess.run_exec(command)
