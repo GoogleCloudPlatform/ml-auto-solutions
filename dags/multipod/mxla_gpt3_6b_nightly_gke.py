@@ -24,7 +24,7 @@ from dags.multipod.configs import gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
 # Pause test on GKE
-SCHEDULED_TIME = "30 0 * * *"
+SCHEDULED_TIME = "0 11 * * *"
 
 with models.DAG(
     dag_id="mxla_gpt_6b_nightly_gke",
@@ -82,7 +82,7 @@ with models.DAG(
   ).run_with_quarantine(quarantine_task_group)
 
   gpt3_6b_nightly_1slice_v5p_8 = gke_config.get_gke_gpt3_6b_nightly_config(
-      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
       time_out_in_min=60,
       test_name=default_gpt3_6b_test_name,
       docker_image=jax_nightly_image.value,
@@ -91,7 +91,7 @@ with models.DAG(
 
   gpt3_6b_nightly_2slice_v5p_8 = gke_config.get_gke_gpt3_6b_nightly_config(
       num_slices=2,
-      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
       time_out_in_min=60,
       test_name=default_gpt3_6b_test_name,
       docker_image=jax_nightly_image.value,
@@ -100,7 +100,7 @@ with models.DAG(
 
   gpt3_6b_nightly_4slice_v5p_8 = gke_config.get_gke_gpt3_6b_nightly_config(
       num_slices=4,
-      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
       time_out_in_min=60,
       test_name=default_gpt3_6b_test_name,
       docker_image=jax_nightly_image.value,
@@ -109,7 +109,7 @@ with models.DAG(
 
   gpt3_6b_nightly_8slice_v5p_8 = gke_config.get_gke_gpt3_6b_nightly_config(
       num_slices=8,
-      cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+      cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
       time_out_in_min=60,
       test_name=default_gpt3_6b_test_name,
       docker_image=jax_nightly_image.value,
