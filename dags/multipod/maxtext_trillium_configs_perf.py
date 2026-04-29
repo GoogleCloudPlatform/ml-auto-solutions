@@ -27,7 +27,9 @@ from dags.multipod.configs.common import SetupMode
 from xlml.apis import metric_config, mlcompass, task
 
 # Run once a day at 3 am UTC (7 pm PST / 8 pm PDT)
-CONIFGS_SCHEDULED_TIME = "0 9 * * *" if composer_env.is_prod_env() else None
+CONIFGS_SCHEDULED_TIME = (
+    "30 9 * * 1 3 5" if composer_env.is_prod_env() else None
+)
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
