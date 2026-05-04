@@ -162,60 +162,6 @@ def clean_up_pod(
   ), f"kubectl clean-up failed with code {result.exit_code}"
 
 
-@task
-def wait_workload_complete(
-    workload_id: str,
-    project_id: str,
-    region: str,
-    cluster_name: str,
-    benchmark_steps: int,
-    override_timeout_in_min: int = 10,
-    poke_interval_in_second: int = 60,
-) -> bool:
-  """
-  Checks for the completion of an workload by repeatedly executing its core logic.
-  The core logic uses workload logs to report the detailed status of successful or failed completion.
-  """
-  # Extract and reuse the logic in the` xpk` module to wait for a workload to be completed.
-  impl = getattr(
-      xpk.wait_for_workload_completion, "python_callable", None
-  ) or getattr(xpk.wait_for_workload_completion, "__wrapped__", None)
-
-  if impl is None:
-    raise AirflowException(
-        f"Cannot extract core callable from {xpk.wait_for_workload_completion}."
-        "It might not be a valid task/sensor or is wrapped too deeply."
-    )
-
-  # Dynamically sets the Airflow task timeout based on a custom flag or calculates it using a benchmark step count.
-  if override_timeout_in_min:
-    timeout_in_min = override_timeout_in_min
-  else:
-    max_step_min = 5  # Average time required for each step in lama3-1-405b.
-    timeout_in_min = benchmark_steps * max_step_min
-
-  timeout_in_sec = timeout_in_min * 60
-
-  logging.info(
-      f"The timeout for this task is {timeout_in_min} minutes ({timeout_in_sec} seconds).\n"
-      f"Check if completed every {poke_interval_in_second} seconds."
-  )
-
-  deadline = datetime.datetime.now() + datetime.timedelta(
-      seconds=timeout_in_sec
-  )
-  while datetime.datetime.now() < deadline:
-    # Call the core function to check if the workload is complete.
-    if impl(workload_id, project_id, region, cluster_name):
-      return True
-
-    time.sleep(poke_interval_in_second)
-
-  raise AirflowException(
-      f"Timed out after {timeout_in_min}min({timeout_in_sec}s). Please adjust `Override Timeout In Minutes` in UI input."
-  )
-
-
 RECIPE_INSTANCE = recipe_cfg.Recipe.PW_MCJAX_BENCHMARK_RECIPE
 RECIPE_NAME = RECIPE_INSTANCE.value.lower()
 
@@ -247,7 +193,6 @@ with models.DAG(
 
     ### Prerequisites
     - This test requires an existing cluster.
-    - This test requires that a dataset with the same name as the UI parameter "[BigQuery Database Dataset]".
     - If you're using a service account to pull an image from a different project, you need to grant the service account the `Artifact Registry Reader` role in that project.
 
     ### Procedures
@@ -276,16 +221,13 @@ with models.DAG(
       image_full_url=dag_params["runner"],
   )
 
-  check_recipe_log = wait_workload_complete.override(
-      task_id="check_recipe_log",
+  wait_for_workload_complete = xpk.wait_for_workload_completion.override(
+      task_id="wait_for_workload_complete",
   )(
       workload_id=derived_params["workload_id"],
       project_id=dag_params["project"],
       region=derived_params["region"],
       cluster_name=dag_params["cluster_name"],
-      benchmark_steps=dag_params["benchmark_steps"],
-      override_timeout_in_min=dag_params["override_timeout_in_min"],
-      poke_interval_in_second=30,
   )
 
   clean_up_recipe = xpk.clean_up_workload.override(
@@ -302,7 +244,7 @@ with models.DAG(
       >> derived_params
       >> commands
       >> start_recipe
-      >> check_recipe_log
+      >> wait_for_workload_complete
       >> clean_up_recipe
   )
-  start_recipe >> check_recipe_log
+  start_recipe >> wait_for_workload_complete

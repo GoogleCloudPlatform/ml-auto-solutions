@@ -41,7 +41,6 @@ RECIPE_FLAG = [
     "cluster_name",
     "project",
     "zone",
-    "benchmark_steps",
     "num_slices_list",
     "server_image",
     "proxy_image",
@@ -50,9 +49,6 @@ RECIPE_FLAG = [
     "selected_model_names",
     "priority",
     "max_restarts",
-    "bq_enable",
-    "bq_db_project",
-    "bq_db_dataset",
     "workload_id",
     "device_type",
 ]
