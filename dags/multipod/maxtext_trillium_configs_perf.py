@@ -33,7 +33,6 @@ CONIFGS_SCHEDULED_TIME = (
 DOCKER_IMAGES = [
     (SetupMode.STABLE, DockerImage.MAXTEXT_TPU_JAX_STABLE),
     (SetupMode.NIGHTLY, DockerImage.MAXTEXT_TPU_JAX_NIGHTLY),
-    (SetupMode.TPU_RECIPES, DockerImage.MAXTEXT_JAX_052_RECIPES_012),
 ]
 BASE_OUTPUT_DIRECTORY = "gs://runner-maxtext-logs"
 
@@ -71,12 +70,6 @@ with models.DAG(
   all_tests: list[task.XpkTask] = []
   for mode, image in DOCKER_IMAGES:
     for model in MaxTextTrilliumModelConfigs:
-      # No tpu-recipe for DeepSeek v3
-      if (
-          model == MaxTextTrilliumModelConfigs.DEEPSEEK_V3_EP16
-          and image == DockerImage.MAXTEXT_JAX_052_RECIPES_012
-      ):
-        continue
       if (
           model in need_stable_candidate_set
           and image == DockerImage.MAXTEXT_TPU_JAX_STABLE

@@ -24,7 +24,6 @@ class SetupMode(enum.Enum):
   STABLE = "stable"
   NIGHTLY = "nightly"
   JAX_STABLE_STACK = "jax_stable_stack"
-  TPU_RECIPES = "tpu_recipes"
 
 
 class Platform(enum.Enum):
