@@ -72,17 +72,24 @@ with models.DAG(
       f"{gcs_bucket.ORBAX_AUTOMATION_BUCKET_EUROPE_WEST4}/post-training/sft/"
   )
 
+  # Load configurations from GCS
+  config_arg = notebook_util.load_notebook_config_from_gcs_yaml(
+      gcs_path=notebook_util.NOTEBOOK_CONFIG_GCS_PATH,
+      dag_name=DAG_TEST_NAME,
+  )
+  config = notebook_util.NotebookConfig(config_arg)
+
   # Setup commands for MaxText environment
   setup_script = notebook_util.build_maxtext_setup_script()
 
-  # Test SFT training
-  sft_notebook_test = notebook_util.initialize_notebook_test(
-      test_name=f"{DAG_TEST_NAME}_sft",
+  notebook_util.run_notebook_tests(
       dag_name=DAG_TEST_NAME,
+      task_id_prefix="sft",
       notebook_path="src/maxtext/examples/sft_llama3_demo_tpu.ipynb",
       set_up_script=setup_script,
       parameters={"BASE_OUTPUT_DIRECTORY": BASE_OUTPUT_DIRECTORY},
       task_owner=test_owner.DEPP_L,
+      hf_token=HF_TOKEN_LLAMA31,
+      config=config,
+      previous_task=config_arg,
   )
-
-  notebook_util.run_training(sft_notebook_test, HF_TOKEN_LLAMA31)

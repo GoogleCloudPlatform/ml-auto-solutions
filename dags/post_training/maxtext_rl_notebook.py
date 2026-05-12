@@ -8,7 +8,6 @@ training on single-host TPU VMs.
 import datetime
 
 from airflow import models
-from airflow.models.baseoperator import chain
 
 from dags import composer_env
 from dags.common import test_owner
@@ -76,23 +75,26 @@ with models.DAG(
   test_run_name = "llama31_rl_notebook"
   current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
+  # Load configurations from GCS
+  config_arg = notebook_util.load_notebook_config_from_gcs_yaml(
+      gcs_path=notebook_util.NOTEBOOK_CONFIG_GCS_PATH,
+      dag_name=DAG_TEST_NAME,
+  )
+  config = notebook_util.NotebookConfig(config_arg)
+
   # Setup commands for MaxText environment
   setup_script = notebook_util.build_maxtext_setup_script()
 
-  notebook_rl_tests = []
-  # Test both GRPO and GSPO algorithms
+  previous_task = config_arg
   for loss_algo in loss_algos:
-    rl_notebook_test = notebook_util.initialize_notebook_test(
-        test_name=f"{DAG_TEST_NAME}_rl_{loss_algo.value}",
+    previous_task = notebook_util.run_notebook_tests(
         dag_name=DAG_TEST_NAME,
+        task_id_prefix=f"rl_{loss_algo.value}",
         notebook_path="src/maxtext/examples/rl_llama3_demo.ipynb",
         set_up_script=setup_script,
         parameters={"LOSS_ALGO": loss_algo.loss_name},
         task_owner=test_owner.DEPP_L,
+        hf_token=HF_TOKEN_LLAMA31,
+        config=config,
+        previous_task=previous_task,
     )
-
-    notebook_rl_tests.append(
-        notebook_util.run_training(rl_notebook_test, HF_TOKEN_LLAMA31)
-    )
-
-  chain(*notebook_rl_tests)

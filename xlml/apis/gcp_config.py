@@ -15,7 +15,11 @@
 """Config file for Google Cloud Project (GCP)."""
 
 import dataclasses
+from typing import Any
 
+from airflow.exceptions import AirflowException
+from airflow.models.xcom_arg import XComArg
+from airflow.operators.python import get_current_context
 from dags.common.vm_resource import Project
 from xlml.apis import metric_config
 
@@ -33,7 +37,32 @@ class GCPConfig:
   """
 
   project_name: str
-  zone: str
+  zone: str | XComArg
   dataset_name: metric_config.DatasetOption
   dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value
   composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value
+
+  def __getattribute__(self, name: str) -> Any:
+    # First obtain the underlying value of the attribute.
+    value = super().__getattribute__(name)
+
+    # Actively resolve an XComArg under execution phase.
+    match value:
+      case XComArg():
+        try:
+          context = get_current_context()
+        except AirflowException:
+          # AirflowException means we are not in execution phase yet,
+          # return the XComArg as-is
+          return value
+
+        resolved_value = value.resolve(context)
+
+        # Store the resolved result back so that
+        # further references won't have to resolve again.
+        super().__setattr__(name, resolved_value)
+
+        return resolved_value
+
+      case _:
+        return value
