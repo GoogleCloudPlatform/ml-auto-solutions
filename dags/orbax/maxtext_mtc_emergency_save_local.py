@@ -10,17 +10,19 @@ multi-pod cluster.
 import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
 
 from dags import composer_env
 from dags.common import test_owner
+from dags.common.quarantined_tests import QuarantineTests
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
-from dags.orbax.util import validation_util
 from dags.orbax.util import checkpoint_util
-from xlml.utils.gke import zone_to_region
 from dags.orbax.util import test_config_util
+from dags.orbax.util import validation_util
+from xlml.utils.gke import zone_to_region
 
 
 SCHEDULE = "0 12 * * *" if composer_env.is_prod_env() else None
@@ -73,8 +75,8 @@ with models.DAG(
     """,
     concurrency=2,
 ) as dag:
-  # Only one set of test configurations (e.g., v5p-128) is supported at the moment.
-  # Other configurations (e.g., v5e and/or v6e) may be introduced later.
+  # Only one set of test configurations (e.g., v5p-128) is supported at the
+  # moment. Other configurations may be introduced later.
   test_configs = [
       test_config_util.TestConfig(
           cluster=XpkClusters.TPU_V5P_128_CLUSTER,
@@ -91,6 +93,15 @@ with models.DAG(
       ),
   ]
 
+  quarantine_task_group = TaskGroup(
+      group_id="Quarantine", dag=dag, prefix_group_id=False
+  )
+
+  def run_with_quarantine(tg: TaskGroup) -> TaskGroup:
+    if QuarantineTests.is_quarantined(tg.group_id):
+      quarantine_task_group.add(tg)
+    return tg
+
   task_groups = []
 
   for checkpointing in [
@@ -106,6 +117,7 @@ with models.DAG(
     with TaskGroup(
         group_id=f"maxtext_{checkpointing.name}_orbax_save_local",
     ) as group:
+      group = run_with_quarantine(group)
       for mode, image in test_config_util.DOCKER_IMAGES:
         for test_config in test_configs:
           for slice_num in test_config.slices:
@@ -129,7 +141,9 @@ with models.DAG(
                 run_name=run_name,
                 slice_num=slice_num,
                 out_folder=f"maxtext_{checkpointing.name}_orbax_save_local",
-                enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
+                enable_multi_tier_checkpointing=(
+                    checkpointing.enable_multi_tier_checkpointing
+                ),
             )
 
             start_time = validation_util.generate_timestamp()
@@ -173,6 +187,7 @@ with models.DAG(
                 )(test_config.cpc_config).as_teardown(setups=apply_cpc)
             )
 
+            # pylint: disable=pointless-statement
             (
                 wait_delete_cpc
                 >> apply_cpc
@@ -183,9 +198,9 @@ with models.DAG(
                 >> validate_local_check_steps
                 >> wait_delete_cpc_final
             )
+            # pylint: enable=pointless-statement
       # Add to a list of test to chain them sequentially.
       task_groups.append(group)
 
   # Chain all task groups sequentially.
-  for idx in range(len(task_groups) - 1):
-    task_groups[idx] >> task_groups[idx + 1]
+  chain(*task_groups)
