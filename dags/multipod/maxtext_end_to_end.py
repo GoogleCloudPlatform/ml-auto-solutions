@@ -102,7 +102,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
-        cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+        cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
