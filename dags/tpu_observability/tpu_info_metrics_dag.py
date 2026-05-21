@@ -327,7 +327,7 @@ with models.DAG(
 
         _ = [create_first_node_pool, create_second_node_pool]
 
-      startup = jobset.create_jobset_startup_group(
+      startup = jobset.create_jobset_startup_tasks(
           node_pool=cluster_info,
           jobset_config=jobset_config,
           workload_type=Workload.JAX_TPU_BENCHMARK,
@@ -417,7 +417,7 @@ with models.DAG(
           cluster_info,
           cluster_info_2,
           create_node_pool,
-          startup.task_group,
+          *startup.tasks,
           all_verification_groups,
           summary,
           clean_up_workload,
