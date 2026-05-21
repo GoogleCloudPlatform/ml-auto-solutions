@@ -29,10 +29,12 @@ from typing import Final
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from airflow.sensors.base import PokeReturnValue
+from airflow.models import BaseOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.task_group import TaskGroup
 from google.cloud.monitoring_v3 import types
 from airflow.models.baseoperator import chain
+from websocket import WebSocketConnectionClosedException
 import kubernetes
 
 from dags.tpu_observability.utils import subprocess_util as subprocess
@@ -168,12 +170,15 @@ _TEMPLATE = string.Template(
                 parallelism: $parallelism
                 template:
                   spec:
+                    hostPID: $host_pid
                     nodeSelector:
                       cloud.google.com/gke-tpu-accelerator: $tpu_accelerator_type
                       cloud.google.com/gke-tpu-topology: $tpu_topology
                       {NODE_POOL_SELECTOR_KEY}: $node_pool_selector
                     containers:
                     - name: $container_name
+                      securityContext:
+                        privileged: $privileged
                       image: $image
                       command: $command
                       args:
@@ -189,6 +194,46 @@ _TEMPLATE = string.Template(
     )
 )
 # pylint: enable=line-too-long
+
+
+class PodOperation(enum.Enum):
+  """Enum for different types of pod operations."""
+
+  REBOOT = enum.auto()
+
+
+@dataclasses.dataclass
+class PodOperationSpec:
+  """Defines the specification for a pod operation, including type.
+
+  This setup mirrors NodeOperationSpec but focuses entirely on container-level
+  infrastructure tasks (e.g., triggering host reboots via an active privileged pod).
+  """
+
+  target: PodOperation
+  command_template: str = ""
+  extra_flags: str = ""
+
+  @staticmethod
+  def Reboot() -> "PodOperationSpec":
+    """
+    Defines a node reboot operation executed via a Kubernetes Pod.
+
+    This method generates a command template utilizing 'kubectl exec' to access
+    a privileged Pod with hostPID capabilities, using 'nsenter' to trigger a
+    reboot on the host OS.
+
+    Returns:
+      NodeOperationSpec: Configured for K8S_CLI approach with the
+                         reboot command template.
+    """
+    reboot_cmd = "nsenter -t 1 -m -u -n -i reboot -f"
+    return PodOperationSpec(
+        target=PodOperation.REBOOT,
+        command_template="kubectl exec {pod_name} -n {namespace} -- "
+        + reboot_cmd,
+        extra_flags="",
+    )
 
 
 @dataclasses.dataclass
@@ -216,6 +261,11 @@ class JobSet:
     container_name: The name of the container in the pod.
     image: The container image to use.
     tpu_cores_per_pod: The number of TPU cores requested per pod.
+    privileged: A test-specific flag to enable privileged mode and hostPID.
+      This unconventional setup is required for E2E validation tasks, such as
+      node-level fault injection (e.g., node reboots), where the pod must
+      interact with the host OS via nsenter. Should remain False for all
+      standard workloads. Defaults to False.
   """
 
   jobset_name: str
@@ -232,6 +282,7 @@ class JobSet:
   image: str
   tpu_cores_per_pod: int
   node_pool_selector: str
+  privileged: bool = False
 
   def generate_yaml(self, workload_script: Workload) -> str:
     """Generates the final JobSet YAML content.
@@ -247,30 +298,30 @@ class JobSet:
     params["command"] = ["bash", "-c"]
     params["args"] = workload_script
     params["node_pool_selector"] = self.node_pool_selector or ""
+    params["privileged"] = "true" if self.privileged else "false"
+    params["host_pid"] = "true" if self.privileged else "false"
 
     return _TEMPLATE.substitute(params)
 
 
 @dataclasses.dataclass
 class JobSetStartupOutput:
-  """
-  Output encapsulated from the JobSet startup TaskGroup.
+  """Output encapsulated from the JobSet startup sequence.
 
-  This dataclass bundles the TaskGroup and its essential XCom outputs,
-  allowing downstream tasks to easily access the startup metadata without
-  relying on manual tuple unpacking.
+  This dataclass bundles the core list of startup tasks along with their
+  essential XCom outputs. It allows downstream tasks to easily access
+  the startup metadata without relying on error-prone manual tuple unpacking.
 
   Attributes:
-    task_group: The Airflow TaskGroup containing the startup logic (apply,
-      wait for pods, and wait for workload start).
-    running_pods: An XComArg representing a snapshot of pod names that
-      reached the 'Running' state. Note that this list is a point-in-time
-      reference and may change as pods are dynamically managed by Kubernetes.
-    jobset_start_time: An XComArg containing the UTC timestamp when the
-      JobSet was applied. Used as a baseline for monitoring queries.
+    tasks: A list of Airflow operators representing the sequenced startup steps
+      (e.g., applying manifests, waiting for pods, and tracking workload start).
+    running_pods: An XComArg representing a point-in-time snapshot of pod names
+      that successfully reached the 'Running' state.
+    jobset_start_time: An XComArg containing the UTC timestamp when the JobSet
+      was applied, used as a baseline for observability and monitoring queries.
   """
 
-  task_group: TaskGroup
+  tasks: list[BaseOperator]
   running_pods: XComArg
   jobset_start_time: XComArg
 
@@ -685,6 +736,72 @@ def delete_one_random_pod(
     logging.info("Successfully initiated deletion for pod: %s", target_pod)
 
 
+@task
+def draw_random_pod(
+    node_pool: node_pool_info,
+    jobset_config: JobSet,
+) -> str:
+  """Randomly selects one running pod from the specified JobSet pool."""
+  running_pods = get_running_pods(
+      node_pool=node_pool,
+      jobset_name=jobset_config.jobset_name,
+      namespace=jobset_config.namespace,
+  )
+  if not running_pods:
+    logging.error(
+        "No running pods found in namespace: %s", jobset_config.namespace
+    )
+    raise AirflowFailException(
+        f"No running pods found in namespace: {jobset_config.namespace}"
+    )
+
+  pods_list = list(running_pods)
+  random.shuffle(pods_list)
+  target_pod = pods_list[0]
+
+  logging.info(
+      "Randomly selected pod '%s' from JobSet for operation.", target_pod
+  )
+  return target_pod
+
+
+@task
+def operate_pod(
+    node_pool: node_pool_info,
+    pod_name: str,
+    operation: PodOperationSpec,
+    namespace: str = "default",
+) -> str:
+  """Performs an operation through a specific pod based on the provided specification."""
+  base_command = operation.command_template.format(
+      pod_name=pod_name,
+      namespace=namespace,
+  )
+
+  logging.info("Select pod '%s' to %s", pod_name, operation.target.name)
+
+  with tempfile.NamedTemporaryFile() as temp_config_file:
+    env = os.environ.copy()
+    env["KUBECONFIG"] = temp_config_file.name
+
+    commands = [
+        Command.get_credentials_command(node_pool),
+        (f"{base_command} {operation.extra_flags}").strip(),
+    ]
+
+    try:
+      subprocess.run_exec(" && ".join(commands), env=env)
+    except WebSocketConnectionClosedException:
+      if operation.target == PodOperation.REBOOT:
+        logging.info(
+            "Node reboot initiated: WebSocket connection closed as expected."
+        )
+        return pod_name
+      raise
+
+  return pod_name
+
+
 @task.sensor(poke_interval=30, timeout=900, mode="poke")
 def wait_for_jobset_started(
     node_pool: node_pool_info,
@@ -824,18 +941,16 @@ def wait_for_all_pods_running(
   return PokeReturnValue(is_done=False)
 
 
-def create_jobset_startup_group(
+def create_jobset_startup_tasks(
     node_pool: node_pool_info,
     jobset_config: JobSet,
     workload_type: str = Workload.JAX_TPU_BENCHMARK,
 ) -> JobSetStartupOutput:
-  """
-  Provides a standardized TaskGroup for JobSet startup and preparation.
+  """Provides a standardized sequence of tasks for JobSet startup and preparation.
 
-  This helper encapsulates the three essential steps for a stable JobSet:
+  This helper encapsulates and chains the three essential steps for a stable JobSet:
   1. run_workload: Applies the JobSet YAML to the cluster.
-  2. wait_for_all_pods_running: Polls until all worker pods
-     are in 'Running' state.
+  2. wait_for_all_pods_running: Polls until all worker pods are in 'Running' state.
   3. wait_for_job_start: Ensures the JAX/workload initialization is complete.
 
   Args:
@@ -844,33 +959,32 @@ def create_jobset_startup_group(
     workload_type: The predefined workload script to execute.
 
   Returns:
-    JobSetStartupOutput: An object containing the TaskGroup and its
-      associated XCom output arguments.
+    JobSetStartupOutput: An object containing the ordered list of startup tasks
+      and their associated XCom output arguments.
   """
-  with TaskGroup(group_id="jobset_startup_and_prepare") as tg:
-    apply_time = run_workload.override(task_id="run_workload")(
-        node_pool=node_pool,
-        jobset_config=jobset_config,
-        workload_type=workload_type,
-    )
+  apply_time = run_workload.override(task_id="run_workload")(
+      node_pool=node_pool,
+      jobset_config=jobset_config,
+      workload_type=workload_type,
+  )
 
-    running_pods = wait_for_all_pods_running.override(
-        task_id="ensure_all_pods_running"
-    )(
-        node_pool=node_pool,
-        jobset_config=jobset_config,
-    )
+  running_pods = wait_for_all_pods_running.override(
+      task_id="ensure_all_pods_running"
+  )(
+      node_pool=node_pool,
+      jobset_config=jobset_config,
+  )
 
-    wait_start = wait_for_jobset_started.override(task_id="wait_for_job_start")(
-        node_pool=node_pool,
-        pod_name_list=running_pods,
-        job_apply_time=apply_time,
-    )
+  wait_start = wait_for_jobset_started.override(task_id="wait_for_job_start")(
+      node_pool=node_pool,
+      pod_name_list=running_pods,
+      job_apply_time=apply_time,
+  )
 
-    chain(apply_time, running_pods, wait_start)
+  chain(apply_time, running_pods, wait_start)
 
   return JobSetStartupOutput(
-      task_group=tg,
+      tasks=[apply_time, running_pods, wait_start],
       running_pods=running_pods,
       jobset_start_time=apply_time,
   )

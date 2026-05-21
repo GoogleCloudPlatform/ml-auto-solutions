@@ -401,7 +401,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             node_pool=cluster_info_2,
         )
 
-      startup = jobset.create_jobset_startup_group(
+      startup = jobset.create_jobset_startup_tasks(
           node_pool=cluster_info,
           jobset_config=jobset_config,
           workload_type=Workload.JAX_TPU_BENCHMARK,
@@ -508,7 +508,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           cluster_info,
           cluster_info_2,
           create_node_pool,
-          startup.task_group,
+          *startup.tasks,
           outputs_of_tpu_info,
           output_of_tpu_info,
           verification_group,
