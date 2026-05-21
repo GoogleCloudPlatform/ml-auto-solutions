@@ -48,29 +48,30 @@ SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 
 @task
-def kill_tpu_pod_workload(info: node_pool.Info, pod_name: str) -> None:
+def kill_tpu_pod_workloads(info: node_pool.Info, pod_names: list[str]) -> None:
   """
-  Kills the python process on a single pod.
+  Kills the python process on a list of pods.
 
   This task retrieves cluster credentials, then attempts to kill the JAX
-  python process inside the specified pod. It ignores errors if the pod
+  python process inside each specified pod. It ignores errors if the pod
   has already been deleted to ensure pipeline continuity.
   """
   with tempfile.NamedTemporaryFile() as temp_config_file:
     env = os.environ.copy()
     env["KUBECONFIG"] = temp_config_file.name
 
-    cmd = " && ".join([
-        jobset.Command.get_credentials_command(info),
-        f"kubectl exec {pod_name} -n default -- pkill -9 -f python",
-    ])
+    for pod_name in pod_names:
+      cmd = " && ".join([
+          jobset.Command.get_credentials_command(info),
+          f"kubectl exec {pod_name} -n default -- pkill -9 -f python",
+      ])
 
-    try:
-      subprocess.run_exec(cmd, env=env)
-    except subprocess.ProcessKilledException:
-      logging.info("Process was terminated with SIGKILL")
-    except Exception as e:
-      raise e
+      try:
+        subprocess.run_exec(cmd, env=env)
+      except subprocess.ProcessKilledException:
+        logging.info(f"Process in pod {pod_name} was terminated with SIGKILL")
+      except Exception as e:
+        raise e
 
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
@@ -156,10 +157,11 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
-      kill_tasks = (
-          kill_tpu_pod_workload.override(task_id="kill_tpu_pod_workload")
-          .partial(info=cluster_info)
-          .expand(pod_name=startup.running_pods)
+      kill_tasks = kill_tpu_pod_workloads.override(
+          task_id="kill_tpu_pod_workloads"
+      )(
+          info=cluster_info,
+          pod_names=startup.running_pods,
       )
 
       wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
