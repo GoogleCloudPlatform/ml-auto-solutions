@@ -23,6 +23,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
@@ -32,6 +33,10 @@ DAG_ID = "node_pool_ttr_disk_size"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 _DISK_SIZE_INCREMENT = 50
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 with models.DAG(
     dag_id=DAG_ID,
@@ -84,46 +89,59 @@ with models.DAG(
           tpu_topology=config.tpu_topology,
       )
 
-      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
-          node_pool=node_pool_info
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        create_node_pool = node_pool.create.override(
+            task_id="create_node_pool"
+        )(node_pool=node_pool_info)
 
-      wait_for_provisioning = node_pool.wait_for_status.override(
-          task_id="wait_for_provisioning"
-      )(node_pool=node_pool_info, status=node_pool.Status.PROVISIONING)
+        wait_for_provisioning = node_pool.wait_for_status.override(
+            task_id="wait_for_provisioning"
+        )(node_pool=node_pool_info, status=node_pool.Status.PROVISIONING)
 
-      wait_for_running = node_pool.wait_for_status.override(
-          task_id="wait_for_running"
-      )(node_pool=node_pool_info, status=node_pool.Status.RUNNING)
+        wait_for_running = node_pool.wait_for_status.override(
+            task_id="wait_for_running"
+        )(node_pool=node_pool_info, status=node_pool.Status.RUNNING)
 
-      update_start_time = node_pool.update.override(task_id="update_node_pool")(
-          node_pool=node_pool_info,
-          spec=node_pool.NodePoolUpdateSpec.DiskSize(
-              delta=_DISK_SIZE_INCREMENT
-          ),
-      )
+        chain(create_node_pool, wait_for_provisioning, wait_for_running)
 
-      wait_for_recovered = node_pool.wait_for_status.override(
-          task_id="wait_for_recovered"
-      )(node_pool=node_pool_info, status=node_pool.Status.RUNNING)
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        update_start_time = node_pool.update.override(
+            task_id="update_node_pool"
+        )(
+            node_pool=node_pool_info,
+            spec=node_pool.NodePoolUpdateSpec.DiskSize(
+                delta=_DISK_SIZE_INCREMENT
+            ),
+        )
 
-      wait_for_ttr = node_pool.wait_for_ttr(
-          node_pool=node_pool_info, operation_start_time=update_start_time
-      )
+        wait_for_recovered = node_pool.wait_for_status.override(
+            task_id="wait_for_recovered"
+        )(node_pool=node_pool_info, status=node_pool.Status.RUNNING)
 
-      cleanup_node_pool = node_pool.delete.override(
-          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=node_pool_info).as_teardown(
-          setups=create_node_pool,
-      )
+        wait_for_ttr = node_pool.wait_for_ttr(
+            node_pool=node_pool_info, operation_start_time=update_start_time
+        )
+
+        chain(update_start_time, wait_for_recovered, wait_for_ttr)
+
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        cleanup_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=node_pool_info)
 
       chain(
           node_pool_info,
-          create_node_pool,
-          wait_for_provisioning,
-          wait_for_running,
-          update_start_time,
-          wait_for_recovered,
-          wait_for_ttr,
-          cleanup_node_pool,
+          pre_test,
+          test,
+          post_test,
       )
