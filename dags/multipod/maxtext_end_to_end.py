@@ -72,8 +72,9 @@ with models.DAG(
       "gemma3-4b": {
           "owner": test_owner.HENGTAO_G,
           "commands": [
-              "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
-              "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
+              "export RUN_NAME=$(date +%Y-%m-%d-%H-%M-%S)",
+              "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh $RUN_NAME",
+              "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3.sh $RUN_NAME",
           ],
       },
       "qwen3-4b": {
