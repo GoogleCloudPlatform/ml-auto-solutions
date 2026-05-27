@@ -21,7 +21,7 @@ from dags.orbax.util import test_config_util
 from dags.orbax.util import checkpoint_util
 from xlml.utils.gke import zone_to_region
 
-SCHEDULE = "45 18 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "45 15 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_mtc_resume_from_gcs"
 
 with models.DAG(
@@ -39,7 +39,10 @@ with models.DAG(
         "TPU",
         "v5p-128",
     ],
-    description="A DAG to test MaxText Multi-tier Checkpointing (MTC) GCS restore functionality.",
+    description=(
+        "A DAG to test MaxText Multi-tier Checkpointing (MTC)"
+        " GCS restore functionality."
+    ),
     doc_md="""
       # Multi-tier Checkpointing (MTC) GCS Restore Validation DAG
 
@@ -139,7 +142,9 @@ with models.DAG(
             run_name=run_name,
             slice_num=slice_num,
             out_folder=out_folder,
-            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=(
+                checkpointing.enable_multi_tier_checkpointing
+            ),
         )
 
         start_time = validation_util.generate_timestamp.override(
@@ -175,7 +180,9 @@ with models.DAG(
             run_name=run_name,
             slice_num=slice_num,
             out_folder=out_folder,
-            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=(
+                checkpointing.enable_multi_tier_checkpointing
+            ),
         )
 
         resume_training_run = gke_config.get_gke_config(
@@ -239,7 +246,8 @@ with models.DAG(
             )
         )
 
-        # Validate that MTC checkpoint files exist in GCS bucket with correct backup folder structure
+        # Validate that MTC checkpoint files exist in GCS bucket with
+        # correct backup folder structure
         validate_mtc_gcs_files = (
             validation_util.validate_gcs_checkpoint_files.override(
                 task_id="validate_mtc_gcs_files"
@@ -256,6 +264,8 @@ with models.DAG(
             task_id="wait_delete_cpc_final",
         )(test_config.cpc_config).as_teardown(setups=apply_cpc)
 
+        # Airflow uses >> for task chaining, which is pointless for pylint.
+        # pylint: disable=pointless-statement
         (
             wait_delete_cpc
             >> apply_cpc
@@ -272,3 +282,4 @@ with models.DAG(
             >> validate_mtc_gcs_files
             >> wait_delete_cpc_final
         )
+        # pylint: enable=pointless-statement

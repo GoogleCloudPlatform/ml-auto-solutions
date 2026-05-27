@@ -18,7 +18,7 @@ from dags.orbax.util import validation_util
 from xlml.utils.gke import zone_to_region
 
 DAG_TEST_NAME = "maxtext_emc_orbax_res_gcs"
-SCHEDULE = "0 10 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "30 18 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
@@ -34,7 +34,10 @@ with models.DAG(
         "TPU",
         "v5p-128",
     ],
-    description="DAG to verify MaxText's emergency restore from GCS checkpoints after a full cluster interruption.",
+    description=(
+        "DAG to verify MaxText's emergency restore from GCS"
+        " checkpoints after a full cluster interruption."
+    ),
     doc_md="""
       # MaxText Emergency Restore from GCS Validation DAG
 
@@ -108,7 +111,9 @@ with models.DAG(
             run_name=run_name,
             slice_num=slice_num,
             out_folder="maxtext_emc_orbax_res_gcs",
-            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=(
+                checkpointing.enable_multi_tier_checkpointing
+            ),
         )
 
         start_time = validation_util.generate_timestamp.override(
@@ -174,11 +179,14 @@ with models.DAG(
             is_local=False
         )
 
-        validate_saved_checkpoints_steps_gcs = validation_util.validate_gcs_checkpoint_files(
-            bucket_path=(
-                f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}"
-            ),
-            steps_to_validate=gcs_saved_steps_to_validate,
+        validate_saved_checkpoints_steps_gcs = (
+            validation_util.validate_gcs_checkpoint_files(
+                bucket_path=(
+                    f"{test_config_util.DEFAULT_BUCKET}"
+                    f"/{DAG_TEST_NAME}/{run_name}"
+                ),
+                steps_to_validate=gcs_saved_steps_to_validate,
+            )
         )
         # Final CPC cleanup to ensure symmetric start/end
         wait_delete_cpc_final = checkpoint_util.wait_for_cpc_deletion.override(
@@ -186,6 +194,8 @@ with models.DAG(
             task_id="wait_delete_cpc_final",
         )(test_config.cpc_config).as_teardown(setups=apply_cpc)
 
+        # Airflow uses >> for task chaining, which is pointless for pylint.
+        # pylint: disable=pointless-statement
         (
             wait_delete_cpc
             >> apply_cpc
@@ -198,3 +208,4 @@ with models.DAG(
             >> validate_saved_checkpoints_steps_gcs
             >> wait_delete_cpc_final
         )
+        # pylint: enable=pointless-statement

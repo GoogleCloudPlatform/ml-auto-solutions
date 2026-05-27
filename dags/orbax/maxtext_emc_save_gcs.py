@@ -14,12 +14,12 @@ from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
 from dags.orbax.util import checkpoint_util
+from dags.orbax.util import test_config_util
 from dags.orbax.util import validation_util
 from xlml.utils.gke import zone_to_region
-from dags.orbax.util import test_config_util
 
 
-SCHEDULE = "45 12 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "15 11 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_emc_save_gcs"
 
 
@@ -37,7 +37,10 @@ with models.DAG(
         "TPU",
         "v5p-128",
     ],
-    description="DAG that verifies the orbax multi-tier checkpointing saving functionality with replicator to GCS bucket",
+    description=(
+        "DAG that verifies the orbax multi-tier checkpointing saving"
+        " functionality with replicator to GCS bucket"
+    ),
     doc_md="""
       # Multi-tier Checkpoint Validation DAG
 
@@ -101,7 +104,9 @@ with models.DAG(
             checkpoint_dir=test_config_util.DEFAULT_RAM_DISK,
             run_name=run_name,
             out_folder="maxtext_emc_orbax_save_gcs",
-            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=(
+                checkpointing.enable_multi_tier_checkpointing
+            ),
             slice_num=slice_num,
         )
 
@@ -133,16 +138,21 @@ with models.DAG(
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
             ram_disk="gcs",
-            pod_pattern=f"{test_config.short_id}-emc.*-0-\d+-",
+            pod_pattern=rf"{test_config.short_id}-emc.*-0-\d+-",
             start_time=start_time,
             end_time=end_time,
             steps_to_validate=steps_to_validate,
         )
 
         # Validate that GCS restore happened during the second training run
-        validate_checkpoints_steps_gcs = validation_util.validate_gcs_checkpoint_files(
-            bucket_path=f"{test_config_util.DEFAULT_BUCKET}/maxtext_emc_orbax_save_gcs/{run_name}",
-            steps_to_validate=steps_to_validate,
+        validate_checkpoints_steps_gcs = (
+            validation_util.validate_gcs_checkpoint_files(
+                bucket_path=(
+                    f"{test_config_util.DEFAULT_BUCKET}"
+                    f"/maxtext_emc_orbax_save_gcs/{run_name}"
+                ),
+                steps_to_validate=steps_to_validate,
+            )
         )
 
         # Final CPC cleanup to ensure symmetric start/end
@@ -151,6 +161,8 @@ with models.DAG(
             task_id="wait_delete_cpc_final",
         )(test_config.cpc_config).as_teardown(setups=apply_cpc)
 
+        # Airflow uses >> for task chaining, which is pointless for pylint.
+        # pylint: disable=pointless-statement
         (
             wait_delete_cpc
             >> apply_cpc
@@ -162,3 +174,4 @@ with models.DAG(
             >> validate_checkpoints_steps_gcs
             >> wait_delete_cpc_final
         )
+        # pylint: enable=pointless-statement

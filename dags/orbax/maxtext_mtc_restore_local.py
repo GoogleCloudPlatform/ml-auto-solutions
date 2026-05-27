@@ -18,7 +18,7 @@ from dags.orbax.util import validation_util
 from xlml.utils.gke import zone_to_region
 
 DAG_TEST_NAME = "maxtext_mtc_orbax_res_local"
-SCHEDULE = "45 13 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "30 21 * * *" if composer_env.is_prod_env() else None
 
 with models.DAG(
     dag_id=DAG_TEST_NAME,
@@ -35,7 +35,10 @@ with models.DAG(
         "TPU",
         "v5p-128",
     ],
-    description="DAG to verify MaxText's multi-tier restore from local checkpoints after a node interruption.",
+    description=(
+        "DAG to verify MaxText's multi-tier restore from local"
+        " checkpoints after a node interruption."
+    ),
     doc_md="""
       # MaxText Multi-tier Restore from Local Checkpoint Validation DAG
 
@@ -109,7 +112,9 @@ with models.DAG(
             run_name=run_name,
             slice_num=slice_num,
             out_folder="maxtext_mtc_orbax_res_local",
-            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
+            enable_multi_tier_checkpointing=(
+                checkpointing.enable_multi_tier_checkpointing
+            ),
         )
 
         start_time = validation_util.generate_timestamp.override(
@@ -188,6 +193,8 @@ with models.DAG(
             task_id="wait_delete_cpc_final",
         )(test_config.cpc_config).as_teardown(setups=apply_cpc)
 
+        # Airflow uses >> for task chaining, which is pointless for pylint.
+        # pylint: disable=pointless-statement
         (
             wait_delete_cpc
             >> apply_cpc
@@ -200,3 +207,4 @@ with models.DAG(
             >> validate_local_saved_steps
             >> wait_delete_cpc_final
         )
+        # pylint: enable=pointless-statement
