@@ -73,9 +73,7 @@ with models.DAG(
     LABELS_TO_UPDATE = {"test_key": "test_val"}
 
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
-      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
-          task_id="build_node_pool_info_from_gcs_yaml"
-      )(
+      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
@@ -122,7 +120,6 @@ with models.DAG(
       )
 
       chain(
-          node_pool_info,
           create_node_pool,
           wait_for_provisioning,
           wait_for_running,

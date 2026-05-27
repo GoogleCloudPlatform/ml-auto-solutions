@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import tempfile
+import copy
 
 from airflow import models
 from airflow.decorators import task
@@ -342,13 +343,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
   for machine in MachineConfigMap:
     config = machine.value
 
-    @task
-    def generate_second_node_pool_name(
-        node_pool_info: node_pool.Info,
-    ) -> str:
-      """Generates a second node pool name."""
-      return f"{node_pool_info.node_pool_name}-2"
-
     selector = jobset.generate_node_pool_selector(
         "tpu-info-format-validation-dag"
     )
@@ -364,9 +358,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool_selector=selector,
       )
 
-      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
-          task_id="build_node_pool_info_from_gcs_yaml"
-      )(
+      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
@@ -375,12 +367,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool_selector=selector,
       )
 
-      cluster_info_2 = node_pool.copy_node_pool_info_with_override.override(
-          task_id="copy_node_pool_info_with_override"
-      )(
-          info=cluster_info,
-          node_pool_name=generate_second_node_pool_name(cluster_info),
-      )
+      cluster_info_2 = copy.deepcopy(cluster_info)
+      cluster_info_2.node_pool_name = f"{cluster_info.node_pool_name}-2"
 
       # Keyword arguments are generated dynamically at runtime (pylint does not
       # know this signature).
@@ -504,9 +492,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
       chain(
           selector,
-          jobset_config,
-          cluster_info,
-          cluster_info_2,
           create_node_pool,
           *startup.tasks,
           outputs_of_tpu_info,

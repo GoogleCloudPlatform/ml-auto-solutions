@@ -87,9 +87,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
-      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
-          task_id="build_node_pool_info_from_gcs_yaml"
-      )(
+      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
@@ -125,7 +123,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       chain(
-          node_pool_info,
           create_node_pool,
           wait_node_pool_available,
           rollback_node_pool,
