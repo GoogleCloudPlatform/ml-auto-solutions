@@ -31,9 +31,8 @@ from airflow.exceptions import AirflowFailException
 from airflow.sensors.base import PokeReturnValue
 from airflow.models import BaseOperator
 from airflow.models.xcom_arg import XComArg
-from airflow.utils.task_group import TaskGroup
-from google.cloud.monitoring_v3 import types
 from airflow.models.baseoperator import chain
+from google.cloud.monitoring_v3 import types
 from websocket import WebSocketConnectionClosedException
 import kubernetes
 
@@ -412,8 +411,18 @@ class Command:
     return Command.k8s_get_pods(jobset_name, namespace, output)
 
 
+class ReplicatedJobStatus(enum.Enum):
+  """Defines status of a replicated job."""
+
+  READY = "ready"
+  SUSPENDED = "suspended"
+  ACTIVE = "active"
+  FAILED = "failed"
+  SUCCEEDED = "succeeded"
+
+
 def get_replica_num(
-    replica_type: str, job_name: str, node_pool: node_pool_info
+    job_status: ReplicatedJobStatus, job_name: str, node_pool: node_pool_info
 ) -> int:
   """
   Get the number of a certain type of replicas from a running jobset.
@@ -422,12 +431,12 @@ def get_replica_num(
   the number of replicas in a certain status.
 
   Args:
-    replica_type: The type of replica being searched for.
+    job_status: The status of the replicated job being searched for.
     job_name: The name of the job replica which is run from the jobset.
     node_pool: The Info object containing the cluster information needed for
     the kubernetes API to connect to it.
   Returns:
-    The number of replicas of the specific type in the jobset.
+    The number of replicas of the specific status in the jobset.
   """
   api_client = gke.get_authenticated_client(
       node_pool.project_id,
@@ -447,7 +456,7 @@ def get_replica_num(
   try:
     replica_job_status = jobsets["items"][0]["status"]["replicatedJobsStatus"]
     name = replica_job_status[0]["name"]
-    replicas = replica_job_status[0][replica_type]
+    replicas = replica_job_status[0][job_status.value]
     logging.info("Found %s replicas", replicas)
 
   except (KeyError, IndexError, TypeError) as e:
@@ -520,7 +529,6 @@ def _generate_jobset_name(dag_id_prefix: str) -> str:
   return f"{dag_id_prefix}-{timestamp}"
 
 
-@task
 def build_jobset_from_gcs_yaml(
     gcs_path: str,
     dag_name: str,

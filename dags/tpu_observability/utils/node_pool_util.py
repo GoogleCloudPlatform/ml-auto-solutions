@@ -86,13 +86,12 @@ class Info:
   node_pool_selector: str = None
 
 
-@task
 def build_node_pool_info_from_gcs_yaml(
     gcs_path: str, dag_name: str, is_prod: bool = True, **overrides
 ) -> Info:
   """Builds a node_pool.Info instance by merging configurations.
 
-  This task merges values from the 'common' section of the provided dag_config,
+  This function merges values from the 'common' section of the provided dag_config,
   a DAG-specific section (given by dag_name), and any provided overrides.
   Only fields that exist in the node_pool.Info dataclass are included.
 
@@ -145,35 +144,6 @@ def build_node_pool_info_from_gcs_yaml(
       merged[k] = v
 
   return Info(**merged)
-
-
-@task
-def copy_node_pool_info_with_override(info: Info, **overrides) -> Info:
-  """Copies a node_pool.Info instance and applies overrides.
-
-  Args:
-      info: The base node_pool.Info instance to copy.
-      **overrides: Key-value pairs to override fields in the copied Info.
-
-  Returns:
-      A new node_pool.Info instance with overrides applied.
-  """
-  known = {f.name for f in dataclasses.fields(Info)}
-
-  unknown = [k for k in overrides if k not in known]
-  if unknown:
-    logging.warning(f"Ignoring unknown fields in overrides: {unknown}")
-
-  cfg = {k: v for k, v in overrides.items() if k in known and v is not None}
-  if not cfg:
-    return info  # Nothing to change.
-
-  # return dataclasses.replace(info, **cfg)
-  replaced_info = dataclasses.replace(info, **cfg)
-  logging.info(
-      f"Created a new node_pool.Info instance with overrides: {replaced_info}"
-  )
-  return replaced_info
 
 
 def _node_pool_exists(node_pool: Info) -> bool:
