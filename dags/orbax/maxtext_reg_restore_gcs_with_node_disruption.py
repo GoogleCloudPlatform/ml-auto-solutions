@@ -19,7 +19,7 @@ from dags.orbax.util import validation_util, test_config_util
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
 
-SCHEDULE = "0 18 * * *" if composer_env.is_prod_env() else None
+SCHEDULE = "45 17 * * *" if composer_env.is_prod_env() else None
 DAG_TEST_NAME = "maxtext_regular_restore_with_node_disruption"
 
 
@@ -42,7 +42,10 @@ with models.DAG(
         "TPU",
         "v5p-128",
     ],
-    description="DAG that verifies MaxText regular checkpointing restoring functionality from GCS bucket .",
+    description=(
+        "DAG that verifies MaxText regular checkpointing"
+        " restoring functionality from GCS bucket ."
+    ),
     doc_md="""
       # MaxText Regular Checkpointing Validation DAG
 
@@ -112,8 +115,12 @@ with models.DAG(
             run_name=run_name,
             slice_num=slice_num,
             out_folder=DAG_TEST_NAME,
-            enable_multi_tier_checkpointing=checkpointing.enable_multi_tier_checkpointing,
-            enable_emergency_checkpoint=checkpointing.enable_emergency_checkpoint,
+            enable_multi_tier_checkpointing=(
+                checkpointing.enable_multi_tier_checkpointing
+            ),
+            enable_emergency_checkpoint=(
+                checkpointing.enable_emergency_checkpoint
+            ),
         )
         gcs_location = generate_workload_checkpoints_location.override(
             task_id="gcs_bucket_checkpoints_location"
@@ -182,10 +189,14 @@ with models.DAG(
         )
 
         validate_bucket = validation_util.validate_gcs_checkpoint_files(
-            bucket_path=f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}",
+            bucket_path=(
+                f"{test_config_util.DEFAULT_BUCKET}/{DAG_TEST_NAME}/{run_name}"
+            ),
             steps_to_validate=gcs_steps_to_validate,
         )
 
+        # Airflow uses >> for task chaining, which is pointless for pylint.
+        # pylint: disable=pointless-statement
         (
             run_name
             >> gcs_location
@@ -197,3 +208,4 @@ with models.DAG(
             >> validate_log
             >> validate_bucket
         )
+        # pylint: enable=pointless-statement
