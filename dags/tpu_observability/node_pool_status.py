@@ -15,9 +15,9 @@
 """A DAG to validate the status of a GKE node pool through its lifecycle."""
 
 import datetime
+import copy
 
 from airflow import models
-from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -69,28 +69,12 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
   for machine in MachineConfigMap:
     config = machine.value
 
-    @task
-    def generate_problematic_node_pool_name(
-        node_pool_info: node_pool.Info,
-    ) -> str:
-      """Generates a problematic node pool name."""
-      return f"{node_pool_info.node_pool_name}-x"
-
-    @task
-    def generate_problematic_node_location(
-        node_pool_info: node_pool.Info,
-    ) -> str:
-      """Generates a problematic node location."""
-      return f"{node_pool_info.location}-c"
-
     # Keyword arguments are generated dynamically at runtime (pylint does not
     # know this signature).
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
-      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
-          task_id="build_node_pool_info_from_gcs_yaml"
-      )(
+      node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
@@ -98,10 +82,10 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           tpu_topology=config.tpu_topology,
       )
 
-      problematic_node_pool_info = node_pool.copy_node_pool_info_with_override(
-          info=node_pool_info,
-          node_pool_name=generate_problematic_node_pool_name(node_pool_info),
-          node_locations=generate_problematic_node_location(node_pool_info),
+      problematic_node_pool_info = copy.deepcopy(node_pool_info)
+      problematic_node_pool_info.location = f"{node_pool_info.location}-c"
+      problematic_node_pool_info.node_pool_name = (
+          f"{node_pool_info.node_pool_name}-x"
       )
 
       task_id = "create_node_pool"
@@ -191,8 +175,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       chain(
-          node_pool_info,
-          problematic_node_pool_info,
           create_node_pool,
           wait_for_provisioning,
           wait_for_running,

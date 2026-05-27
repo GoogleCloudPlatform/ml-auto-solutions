@@ -104,9 +104,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           privileged=True,
       )
 
-      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
-          task_id="build_node_pool_info_from_gcs_yaml"
-      )(
+      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
@@ -158,8 +156,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
       chain(
           selector,
-          jobset_config,
-          cluster_info,
           create_node_pool,
           *startup.tasks,
           target_pod,
