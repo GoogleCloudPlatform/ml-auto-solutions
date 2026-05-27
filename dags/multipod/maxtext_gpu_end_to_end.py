@@ -181,7 +181,7 @@ def run_maxtext_tests(dag: models.DAG):
       "grain-checkpoint-determinism": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
           "bash tests/end_to_end/test_checkpointing.sh runner gs://runner-maxtext-logs "
-          "gs://maxtext-dataset False c4-array_record dot_product",
+          "gs://maxtext-dataset c4-array_record dot_product",
           1,
       ),
       "checkpoint-compatibility": (
