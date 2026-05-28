@@ -118,7 +118,6 @@ with models.DAG(
       )
 
       chain(
-          node_pool_info,
           create_node_pool,
           wait_for_provisioning,
           wait_for_running,

@@ -21,7 +21,6 @@ from airflow.models.baseoperator import chain
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
 
-
 from airflow.decorators import task
 
 from dags import composer_env
@@ -76,7 +75,7 @@ def check_nodes_number(
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
 with models.DAG(  # pylint: disable=unexpected-keyword-arg
-    dag_id="jobset_ttr_drain_restart",
+    dag_id=DAG_ID,
     start_date=datetime.datetime(2025, 8, 10),
     schedule=SCHEDULE if composer_env.is_prod_env() else None,
     dagrun_timeout=DAGRUN_TIMEOUT,
@@ -125,36 +124,31 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
+      selector = jobset.generate_node_pool_selector(DAG_ID)
+
       jobset_config = jobset.build_jobset_from_gcs_yaml(
           gcs_path=GCS_JOBSET_CONFIG_PATH,
-          dag_name="jobset_ttr_drain_restart",
+          dag_name=DAG_ID,
+          node_pool_selector=selector,
       )
 
-      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml.override(
-          task_id="build_node_pool_info_from_gcs_yaml"
-      )(
+      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
-          dag_name="jobset_ttr_drain_restart",
+          dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
+          node_pool_selector=selector,
       )
 
       create_node_pool = node_pool.create.override(task_id="create_node_pool")(
           node_pool=cluster_info,
       )
 
-      start_workload = jobset.run_workload.override(task_id="start_workload")(
+      startup = jobset.create_jobset_startup_tasks(
           node_pool=cluster_info,
           jobset_config=jobset_config,
           workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
-
-      ensure_all_pods_running = jobset.wait_for_all_pods_running.override(
-          task_id="ensure_all_pods_running"
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
       )
 
       select_node = node_pool.draw_random_node.override(task_id="select_node")(
@@ -193,7 +187,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool=cluster_info,
           jobset_config=jobset_config,
       ).as_teardown(
-          setups=start_workload
+          setups=startup.jobset_start_time
       )
 
       cleanup_node_pool = node_pool.delete.override(
@@ -203,11 +197,9 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       chain(
-          jobset_config,
-          cluster_info,
+          selector,
           create_node_pool,
-          start_workload,
-          ensure_all_pods_running,
+          *startup.tasks,
           select_node,
           drained_node,
           check_nodes_number,
