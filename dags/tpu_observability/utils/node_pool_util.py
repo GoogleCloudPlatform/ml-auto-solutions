@@ -165,6 +165,7 @@ def _node_pool_exists(node_pool: Info) -> bool:
 def create(
     node_pool: Info,
     ignore_failure: bool = False,
+    **context: dict,
 ) -> None:
   """Creates a GKE node pool by the given node pool information.
 
@@ -201,9 +202,13 @@ def create(
 
   if node_pool.reservation:
     command += f" --reservation-affinity=specific --reservation={node_pool.reservation}"
+  else:
+    command += " --spot"
 
   if node_pool.node_pool_selector:
-    command += f" --node-labels={NODE_POOL_SELECTOR_KEY}={node_pool.node_pool_selector}"
+    arg = node_pool.node_pool_selector
+    selector = arg.resolve(context)
+    command += f" --node-labels={NODE_POOL_SELECTOR_KEY}={selector}"
 
   if ignore_failure:
     command += "2>&1 || true "
