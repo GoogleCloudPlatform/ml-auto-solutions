@@ -283,12 +283,13 @@ class JobSet:
   node_pool_selector: str
   privileged: bool = False
 
-  def generate_yaml(self, workload_script: Workload) -> str:
+  def generate_yaml(self, selector: str, workload_script: Workload) -> str:
     """Generates the final JobSet YAML content.
 
     Args:
         workload_script: A pre-formatted, JSON-escaped string from the Workload
           class.
+        selector: The node pool selector value.
 
     Returns:
         A string containing the complete JobSet YAML.
@@ -296,7 +297,7 @@ class JobSet:
     params = dataclasses.asdict(self)
     params["command"] = ["bash", "-c"]
     params["args"] = workload_script
-    params["node_pool_selector"] = self.node_pool_selector or ""
+    params["node_pool_selector"] = selector or ""
     params["privileged"] = "true" if self.privileged else "false"
     params["host_pid"] = "true" if self.privileged else "false"
 
@@ -568,22 +569,29 @@ def build_jobset_from_gcs_yaml(
 
 @task
 def run_workload(
-    node_pool: node_pool_info, jobset_config: JobSet, workload_type: Workload
+    node_pool: node_pool_info,
+    jobset_config: JobSet,
+    workload_type: Workload,
+    **context: dict,
 ) -> TimeUtil:
-  """
-  Applies the specified YAML file to the GKE cluster.
+  """Applies the specified YAML file to the GKE cluster.
 
   Args:
     node_pool: Configuration object with cluster details.
     jobset_config: The JobSet object containing YAML configuration.
     workload_type: The workload script to execute.
+
   Returns:
     The UTC time when the workload was started.
   """
   with tempfile.NamedTemporaryFile() as temp_config_file:
     env = os.environ.copy()
     env["KUBECONFIG"] = temp_config_file.name
-    yaml_config = jobset_config.generate_yaml(workload_script=workload_type)
+    arg = node_pool.node_pool_selector
+    selector = arg.resolve(context)
+    yaml_config = jobset_config.generate_yaml(
+        selector=selector, workload_script=workload_type
+    )
 
     cmd = " && ".join([
         Command.get_credentials_command(node_pool),
