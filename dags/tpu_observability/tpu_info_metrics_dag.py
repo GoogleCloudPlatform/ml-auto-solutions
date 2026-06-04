@@ -48,7 +48,6 @@ from dags.tpu_observability.utils.time_util import TimeUtil
 from dags.tpu_observability.utils.jobset_util import Workload
 from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
-
 DAG_ID = "tpu_info_metrics_verification"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
@@ -279,24 +278,21 @@ with models.DAG(
     config = machine.value
 
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
-      selector = jobset.generate_node_pool_selector(
-          "tpu_info_metrics_verification"
-      )
-
-      jobset_config = jobset.build_jobset_from_gcs_yaml(
-          gcs_path=GCS_JOBSET_CONFIG_PATH,
-          dag_name=DAG_ID,
-          node_pool_selector=selector,
-      )
-
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
-          node_pool_selector=selector,
       )
+
+      jobset_config = jobset.build_jobset_from_gcs_yaml(
+          gcs_path=GCS_JOBSET_CONFIG_PATH,
+          dag_name=DAG_ID,
+      )
+
+      selector = jobset.generate_node_pool_selector(DAG_ID)
+      jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
       cluster_info_2 = copy.deepcopy(cluster_info)
       cluster_info_2.node_pool_name = f"{cluster_info.node_pool_name}-2"
@@ -306,12 +302,14 @@ with models.DAG(
             task_id="node_pool_1",
         )(
             node_pool=cluster_info,
+            node_pool_selector=selector,
         )
 
         create_second_node_pool = node_pool.create.override(
             task_id="node_pool_2",
         )(
             node_pool=cluster_info_2,
+            node_pool_selector=selector,
         )
 
         _ = [create_first_node_pool, create_second_node_pool]
@@ -319,6 +317,8 @@ with models.DAG(
       startup = jobset.create_jobset_startup_tasks(
           node_pool=cluster_info,
           jobset_config=jobset_config,
+          jobset_name=jobset_name,
+          node_pool_selector=selector,
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
@@ -379,6 +379,7 @@ with models.DAG(
       )(
           node_pool=cluster_info,
           jobset_config=jobset_config,
+          jobset_name=jobset_name,
       ).as_teardown(
           setups=startup.jobset_start_time
       )
@@ -402,6 +403,7 @@ with models.DAG(
 
       chain(
           selector,
+          jobset_name,
           create_node_pool,
           *startup.tasks,
           all_verification_groups,

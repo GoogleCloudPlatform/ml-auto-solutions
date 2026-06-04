@@ -37,7 +37,6 @@ from dags.tpu_observability.configs.common import (
 )
 from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
-
 DAG_ID = "jobset_ttr_drain_restart"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
@@ -124,30 +123,32 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
     with TaskGroup(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}"
     ):
-      selector = jobset.generate_node_pool_selector(DAG_ID)
-
-      jobset_config = jobset.build_jobset_from_gcs_yaml(
-          gcs_path=GCS_JOBSET_CONFIG_PATH,
-          dag_name=DAG_ID,
-          node_pool_selector=selector,
-      )
-
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
-          node_pool_selector=selector,
       )
+
+      jobset_config = jobset.build_jobset_from_gcs_yaml(
+          gcs_path=GCS_JOBSET_CONFIG_PATH,
+          dag_name=DAG_ID,
+      )
+
+      selector = jobset.generate_node_pool_selector(DAG_ID)
+      jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
       create_node_pool = node_pool.create.override(task_id="create_node_pool")(
           node_pool=cluster_info,
+          node_pool_selector=selector,
       )
 
       startup = jobset.create_jobset_startup_tasks(
           node_pool=cluster_info,
           jobset_config=jobset_config,
+          jobset_name=jobset_name,
+          node_pool_selector=selector,
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
@@ -178,7 +179,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="wait_for_metric_upload"
       )(
           node_pool=cluster_info,
-          jobset_config=jobset_config,
+          jobset_name=jobset_name,
       )
 
       cleanup_workload = jobset.end_workload.override(
@@ -186,6 +187,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )(
           node_pool=cluster_info,
           jobset_config=jobset_config,
+          jobset_name=jobset_name,
       ).as_teardown(
           setups=startup.jobset_start_time
       )
@@ -198,6 +200,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
       chain(
           selector,
+          jobset_name,
           create_node_pool,
           *startup.tasks,
           select_node,
