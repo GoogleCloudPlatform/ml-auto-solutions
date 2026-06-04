@@ -35,7 +35,6 @@ from dags.tpu_observability.configs.common import (
 )
 from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
-
 DAG_ID = "tpu_sdk_monitoring_validation"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
@@ -126,66 +125,68 @@ with models.DAG(
   for machine in MachineConfigMap:
     config = machine.value
 
-  # Keyword arguments are generated dynamically at runtime (pylint does not
-  # know this signature).
-  with TaskGroup(  # pylint: disable=unexpected-keyword-arg
-      group_id=f"v{config.tpu_version.value}"
-  ):
-    selector = jobset.generate_node_pool_selector(
-        "tpu-sdk-monitoring-validation"
-    )
+    # Keyword arguments are generated dynamically at runtime (pylint does not
+    # know this signature).
+    with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+        group_id=f"v{config.tpu_version.value}"
+    ):
+      cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
+          gcs_path=GCS_CONFIG_PATH,
+          dag_name=DAG_ID,
+          is_prod=composer_env.is_prod_env(),
+          machine_type=config.machine_version.value,
+          tpu_topology=config.tpu_topology,
+      )
 
-    jobset_config = jobset.build_jobset_from_gcs_yaml(
-        gcs_path=GCS_JOBSET_CONFIG_PATH,
-        dag_name=DAG_ID,
-        node_pool_selector=selector,
-    )
+      jobset_config = jobset.build_jobset_from_gcs_yaml(
+          gcs_path=GCS_JOBSET_CONFIG_PATH,
+          dag_name=DAG_ID,
+      )
 
-    cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
-        gcs_path=GCS_CONFIG_PATH,
-        dag_name=DAG_ID,
-        is_prod=composer_env.is_prod_env(),
-        machine_type=config.machine_version.value,
-        tpu_topology=config.tpu_topology,
-        node_pool_selector=selector,
-    )
+      selector = jobset.generate_node_pool_selector(DAG_ID)
+      jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
-    create_node_pool = node_pool.create.override(task_id="create_node_pool")(
-        node_pool=cluster_info,
-    )
+      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
+          node_pool=cluster_info,
+          node_pool_selector=selector,
+      )
 
-    startup = jobset.create_jobset_startup_tasks(
-        node_pool=cluster_info,
-        jobset_config=jobset_config,
-        workload_type=Workload.JAX_TPU_BENCHMARK,
-    )
+      startup = jobset.create_jobset_startup_tasks(
+          node_pool=cluster_info,
+          jobset_config=jobset_config,
+          jobset_name=jobset_name,
+          node_pool_selector=selector,
+          workload_type=Workload.JAX_TPU_BENCHMARK,
+      )
 
-    sdk_validation = (
-        validate_monitoring_sdk.override(task_id="sdk_validation")
-        .partial(info=cluster_info)
-        .expand(pod_name=startup.running_pods)
-    )
+      sdk_validation = (
+          validate_monitoring_sdk.override(task_id="sdk_validation")
+          .partial(info=cluster_info)
+          .expand(pod_name=startup.running_pods)
+      )
 
-    cleanup_workload = jobset.end_workload.override(
-        task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
-    )(
-        node_pool=cluster_info,
-        jobset_config=jobset_config,
-    ).as_teardown(
-        setups=startup.jobset_start_time
-    )
+      cleanup_workload = jobset.end_workload.override(
+          task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
+      )(
+          node_pool=cluster_info,
+          jobset_config=jobset_config,
+          jobset_name=jobset_name,
+      ).as_teardown(
+          setups=startup.jobset_start_time
+      )
 
-    cleanup_node_pool = node_pool.delete.override(
-        task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-    )(node_pool=cluster_info).as_teardown(
-        setups=create_node_pool,
-    )
+      cleanup_node_pool = node_pool.delete.override(
+          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+      )(node_pool=cluster_info).as_teardown(
+          setups=create_node_pool,
+      )
 
-    chain(
-        selector,
-        create_node_pool,
-        *startup.tasks,
-        sdk_validation,
-        cleanup_workload,
-        cleanup_node_pool,
-    )
+      chain(
+          selector,
+          jobset_name,
+          create_node_pool,
+          *startup.tasks,
+          sdk_validation,
+          cleanup_workload,
+          cleanup_node_pool,
+      )

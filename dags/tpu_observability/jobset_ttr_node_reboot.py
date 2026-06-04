@@ -36,11 +36,9 @@ from dags.common.scheduling_helper.scheduling_helper import (
 )
 from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 
-
 DAG_ID = "jobset_ttr_node_reboot"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
-
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
@@ -95,37 +93,40 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         group_id=f"v{config.tpu_version.value}",
         timeout=timedelta(minutes=90),
     ):
-      selector = jobset.generate_node_pool_selector("jobset-ttr-node-reboot")
-
-      jobset_config = jobset.build_jobset_from_gcs_yaml(
-          gcs_path=GCS_JOBSET_CONFIG_PATH,
-          dag_name=DAG_ID,
-          node_pool_selector=selector,
-          privileged=True,
-      )
-
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
           dag_name=DAG_ID,
           is_prod=composer_env.is_prod_env(),
           machine_type=config.machine_version.value,
           tpu_topology=config.tpu_topology,
-          node_pool_selector=selector,
       )
+
+      jobset_config = jobset.build_jobset_from_gcs_yaml(
+          gcs_path=GCS_JOBSET_CONFIG_PATH,
+          dag_name=DAG_ID,
+          privileged=True,
+      )
+
+      selector = jobset.generate_node_pool_selector(DAG_ID)
+      jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
       create_node_pool = node_pool.create.override(task_id="create_node_pool")(
           node_pool=cluster_info,
+          node_pool_selector=selector,
       )
 
       startup = jobset.create_jobset_startup_tasks(
           node_pool=cluster_info,
           jobset_config=jobset_config,
+          jobset_name=jobset_name,
+          node_pool_selector=selector,
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
       target_pod = jobset.draw_random_pod(
           node_pool=cluster_info,
           jobset_config=jobset_config,
+          jobset_name=jobset_name,
       )
 
       reboot_node = jobset.operate_pod.override(task_id="reboot_node")(
@@ -139,12 +140,16 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="wait_for_jobset_ttr_to_be_found"
       )(
           node_pool=cluster_info,
-          jobset_config=jobset_config,
+          jobset_name=jobset_name,
       )
 
       cleanup_workload = jobset.end_workload.override(
           task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=cluster_info, jobset_config=jobset_config).as_teardown(
+      )(
+          node_pool=cluster_info,
+          jobset_config=jobset_config,
+          jobset_name=jobset_name,
+      ).as_teardown(
           setups=startup.jobset_start_time
       )
 
@@ -156,6 +161,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
       chain(
           selector,
+          jobset_name,
           create_node_pool,
           *startup.tasks,
           target_pod,
