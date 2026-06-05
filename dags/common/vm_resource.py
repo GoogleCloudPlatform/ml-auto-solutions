@@ -338,9 +338,10 @@ class DockerImage(enum.Enum):
       "gcr.io/cloud-tpu-multipod-dev/maxtext-orbax-custom:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
+  # Pinned to latest available image for torch/xla
   PYTORCH_NIGHTLY = (
       "us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/"
-      f"xla:nightly_3.10_tpuvm_{datetime.datetime.today().strftime('%Y%m%d')}"
+      "xla:nightly_3.10_tpuvm"
   )
   AXLEARN_CUSTOM = (
       # AXLearn's Docker/Artifact Registry bundler uses the run/workload name as

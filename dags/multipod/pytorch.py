@@ -39,8 +39,16 @@ with models.DAG(
 
   for num_slices, cluster in [(1, v4_8), (2, v4_8), (1, v4_16)]:
     ici_chips = 4 if cluster == v4_8 else 8
+
+    # TODO(b/519376514): Remove the installation of libraries once resolved.
+    #
+    # The original image included all essential libraries, but it
+    # was deleted from the Artifact Registry.
+    # Only an older version remains, which lacks these essential libraries.
+    install_extra_libs = "apt-get update && apt-get install -y libopenblas-dev"
     run_cmds = (
         (
+            f"{install_extra_libs} && "
             "python /pytorch/xla/test/spmd/test_sharding_strategies.py "
             f"--ici_fsdp_parallelism {ici_chips} "
             f"--dcn_data_parallelism {num_slices}"
@@ -61,6 +69,7 @@ with models.DAG(
           f"export CHKPT_PATH={metric_config.SshEnvVars.GCS_OUTPUT.value}",
           "pip install gcsfs",
           (
+              f"{install_extra_libs} && "
               "python /pytorch/xla/test/spmd/test_xla_distributed_checkpoint.py "
               "EndToEndCheckpointTest.test_multihost_checkpoint"
           ),
