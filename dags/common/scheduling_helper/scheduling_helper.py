@@ -46,6 +46,15 @@ TPU_INTERRUPTION_MOCK_CLUSTER = XpkClusterConfig(
     zone=Zone.US_CENTRAL1_B.value,
 )
 
+# Pathways cluster for MaxText Pathways/Elastic DAGs
+PW_MCJAX_CLUSTER = XpkClusterConfig(
+    name="pw-spot-v6e-16d",
+    device_version=TpuVersion.TRILLIUM,
+    core_count=16,
+    project="cienet-cmcs",
+    zone=Zone.US_CENTRAL1_B.value,
+)
+
 DagIdToTimeout: TypeAlias = dict[str, dt.timedelta]
 DefaultTimeout: dt.timedelta = dt.timedelta(minutes=30)
 REGISTERED_DAGS: dict[str, DagIdToTimeout] = {
@@ -81,6 +90,10 @@ REGISTERED_DAGS: dict[str, DagIdToTimeout] = {
         "validate_interruption_count_gke_other": DefaultTimeout,
         "validate_interruption_count_gke_migrate_on_hwsw_maintenance": DefaultTimeout,
         "validate_interruption_count_gke_eviction": DefaultTimeout,
+    },
+    PW_MCJAX_CLUSTER.name: {
+        "pw_mcjax_benchmark_recipe": DefaultTimeout,
+        "pw_mcjax_benchmark_recipe_elastic": DefaultTimeout,
     },
 }
 

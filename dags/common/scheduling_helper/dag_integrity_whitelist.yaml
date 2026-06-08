@@ -157,7 +157,6 @@ whitelisted_dags:
 - pathways_maxtext_v5e_configs_perf
 - project_bite_gpu_e2e
 - project_bite_tpu_e2e
-- pw_mcjax_benchmark_recipe
 - pytorch_multislice
 - pytorchxla-torchbench-gpu
 - pytorchxla-torchbench-release-gpu
