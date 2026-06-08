@@ -1,5 +1,7 @@
-from dataclasses import dataclass
+"""Common configurations and constants for TPU observability DAGs."""
+
 import enum
+from dataclasses import dataclass
 
 from dags.common.vm_resource import MachineVersion, TpuVersion
 

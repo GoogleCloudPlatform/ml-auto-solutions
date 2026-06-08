@@ -1,9 +1,8 @@
 """Utility for parsing the output of the 'tpu-info' command."""
 
-from dataclasses import dataclass
-from enum import auto
-from enum import IntEnum
 import re
+from dataclasses import dataclass
+from enum import IntEnum, auto
 
 from airflow.decorators import task
 
@@ -23,7 +22,8 @@ class Table:
     """Parses the raw_body string to populate the structured body attribute."""
 
     class TableLineIndex(IntEnum):
-      """Below is an example of the text returned by tpu-info, formatted as a table.
+      """Below is an example of the text returned by tpu-info, formatted as a
+      table.
 
       TPU Chips
       ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┓

@@ -28,12 +28,11 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from google.cloud import monitoring_v3
 
-from dags.tpu_observability.utils.time_util import TimeUtil
-from dags.tpu_observability.utils.gcp_util import list_time_series
 from dags.tpu_observability.utils import subprocess_util as subprocess
+from dags.tpu_observability.utils.gcp_util import list_time_series
+from dags.tpu_observability.utils.time_util import TimeUtil
 from xlml.apis import gcs
 from xlml.utils import composer
-
 
 NODE_POOL_SELECTOR_KEY = "tpu-observability/workload"
 """The label key for binding JobSet workloads to specific GKE node pools.
@@ -90,16 +89,17 @@ def build_node_pool_info_from_gcs_yaml(
 ) -> Info:
   """Builds a node_pool.Info instance by merging configurations.
 
-  This function merges values from the 'common' section of the provided dag_config,
-  a DAG-specific section (given by dag_name), and any provided overrides.
-  Only fields that exist in the node_pool.Info dataclass are included.
+  This function merges values from the 'common' section of the provided
+  dag_config, a DAG-specific section (given by dag_name), and any provided
+  overrides. Only fields that exist in the node_pool.Info dataclass are
+  included.
 
   Args:
       gcs_path: The GCS path to the DAG configuration YAML file.
       dag_name: The top-level key in the YAML representing the
         specific DAG's configuration (e.g., 'dag_gke_node_pool_label_update').
-      is_prod: Boolean indicating whether to load the 'prod' or 'dev' environment
-        from the YAML configuration.
+      is_prod: Boolean indicating whether to load the 'prod' or 'dev'
+        environment from the YAML configuration.
       **overrides: Additional key-value pairs to override any settings
         from the YAML.
 
@@ -156,6 +156,7 @@ def _node_pool_exists(node_pool: Info) -> bool:
   try:
     subprocess.run_exec(check_cmd)
     return True
+  # pylint: disable=broad-exception-caught
   except Exception:
     return False
 
@@ -201,7 +202,10 @@ def create(
   )
 
   if node_pool.reservation:
-    command += f" --reservation-affinity=specific --reservation={node_pool.reservation}"
+    command += (
+        " --reservation-affinity=specific "
+        f"--reservation={node_pool.reservation}"
+    )
   else:
     command += " --spot "
 
@@ -232,10 +236,13 @@ def create(
 def delete(node_pool: Info) -> None:
   """Deletes the GKE node pool using gcloud command."""
 
-  """Check if the node pool is valid."""
+  # Check if the node pool is valid.
   if not _node_pool_exists(node_pool):
     logging.info(
-        f"Node pool {node_pool.node_pool_name} already deleted or does not exist. Skipping."
+        (
+            f"Node pool {node_pool.node_pool_name} "
+            "already deleted or does not exist. Skipping."
+        )
     )
     return
 
@@ -883,7 +890,8 @@ def update(node_pool: Info, spec: NodePoolUpdateSpec) -> TimeUtil:
         if current_labels.get(key) == val:
           val += val
         updated_labels.append(f"{key}={val}")
-      flags.append(f"--{spec.target.value}={','.join(updated_labels)}")
+      updated_labels_str = ",".join(updated_labels)
+      flags.append(f"--{spec.target.value}={updated_labels_str}")
 
     case _:
       raise ValueError(f"Unsupported target: {spec.target}")
