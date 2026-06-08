@@ -22,11 +22,13 @@ import sys
 import re
 from typing import Tuple
 from absl import logging
+
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from airflow.hooks.subprocess import SubprocessHook
 from kubernetes import client as k8s_client
 from google.cloud import compute_v1
+
 from xlml.apis import metric_config
 from xlml.utils import gke, composer
 from dags.common.vm_resource import GpuVersion
@@ -547,3 +549,137 @@ def delete_node(
   except Exception as e:  # pylint: disable=broad-exception-caught
     logging.info(f"Error deleting node {node_name}: {e}", file=sys.stderr)
     sys.exit(1)
+
+
+# TODO(cienet): naming/description, interrupt <-> SIGILL?
+@task
+def interrupt_worker_pod(
+    workload_id: str, cluster_name: str, region: str, project_id: str
+):
+  """
+  Authenticates with the GKE cluster and sends SIGILL to worker pod 0-1.
+  """
+
+  namespace = "default"
+  target_worker_index = "0-1"
+
+  # TODO(cienet): use Kubernetes API instead of kubectl CLI + raw command
+  interrupt_command = [
+      "set -xue",
+      "export KUBECONFIG=/tmp/kubeconfig",
+      (
+          f"gcloud container clusters get-credentials {cluster_name} "
+          f"--region={region} --project={project_id}"
+      ),
+      (
+          f"POD_NAME=$(kubectl get pods -n {namespace} -o name | "
+          f"grep '{workload_id}-worker-{target_worker_index}-' | head -n 1)"
+      ),
+      ("if [ -z \"$POD_NAME\" ]; then echo 'No pod found'; exit 1; fi"),
+      (
+          f"kubectl exec $POD_NAME -n {namespace} -c pathways-worker "
+          f"-- sh -c 'kill -s SIGILL 1'"
+      ),
+  ]
+  hook = SubprocessHook()
+  result = hook.run_command(["bash", "-c", "; ".join(interrupt_command)])
+
+  if result.exit_code == 0:
+    logging.info(f"Kill command on workload_id {workload_id} succeeded.")
+  else:
+    logging.warning(
+        f"Kill command failed. Exit code: {result.exit_code}, "
+        f"Output: {result.output}"
+    )
+
+
+# TODO(cienet): refactor and handle in DAG, rather than a shared util
+@task.sensor(poke_interval=30, timeout=3600, mode="reschedule")
+def check_last_logs(
+    project_id: str,
+    region: str,
+    cluster_name: str,
+    workload_id: str,
+    expect_log_contains: str,
+) -> bool:
+  """
+  Checks if the last 45 seconds of a running pod's logs
+  contain a specific substring.
+  """
+  core_api = _get_core_api_client(project_id, region, cluster_name)
+  pods = _list_workload_pods(core_api, workload_id)
+
+  if not pods.items:
+    logging.info("No pods found for workload selector: %s.", workload_id)
+    return False
+
+  for pod in pods.items:
+    if pod.status.phase == "Failed":
+      # Don't keep retrying if the pod has failed
+      raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
+    elif pod.status.phase in ["Unknown"]:
+      raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
+
+  if all(pod.status.phase in ["Running"] for pod in pods.items):
+    # Pick the first running pod
+    pod = pods.items[0]
+    logs = core_api.read_namespaced_pod_log(
+        name=pod.metadata.name,
+        namespace=pod.metadata.namespace,
+        since_seconds=45,
+    )
+    # Split logs into lines and strip whitespace
+    log_lines = [line.strip() for line in logs.splitlines() if line.strip()]
+
+    if log_lines:
+      logging.info("Checking pod: %s", pod.metadata.name)
+      # logging.info("Tail logs being evaluated:\n%s", "\n".join(log_lines))
+      if any(expect_log_contains in line for line in log_lines):
+        logging.info("Target log pattern matched.")
+        return True
+
+  logging.info("Waiting for matching log pattern...")
+  return False
+
+
+# TODO(cienet): refactor and handle in DAG, rather than a shared util
+@task.sensor(poke_interval=10, timeout=3600, mode="reschedule")
+def check_logs_exist(
+    project_id: str,
+    region: str,
+    cluster_name: str,
+    workload_id: str,
+    expect_log_contains: str,
+    expected_count: int = 1,
+) -> bool:
+  """
+  Counts occurrences of a regex pattern in full pod logs and
+  verifies it meets the minimum count.
+  """
+  core_api = _get_core_api_client(project_id, region, cluster_name)
+  pods = _list_workload_pods(core_api, workload_id)
+
+  if not pods.items:
+    logging.info("No pods found for workload selector: %s.", workload_id)
+    return False
+
+  for pod in pods.items:
+    if pod.status.phase == "Failed":
+      # Don't keep retrying if the pod has failed
+      raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
+    elif pod.status.phase in ["Unknown"]:
+      raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
+
+  if all(pod.status.phase in ["Running"] for pod in pods.items):
+    # Pick the first running pod
+    pod = pods.items[0]
+    logs = core_api.read_namespaced_pod_log(
+        name=pod.metadata.name, namespace=pod.metadata.namespace
+    )
+    log_matches = re.findall(expect_log_contains, logs)
+    log_count = len(log_matches)
+    if log_count >= expected_count:
+      return True
+
+  logging.info("Waiting for matching log pattern...")
+  return False
