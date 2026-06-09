@@ -17,11 +17,11 @@ This script uses a factory pattern to dynamically generate an Airflow DAG for
 each metric verification strategy.
 """
 
+import copy
 import datetime
 import logging
 import os
 import tempfile
-import copy
 
 from airflow import models
 from airflow.decorators import task
@@ -31,22 +31,26 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
-
+from dags.common.scheduling_helper.scheduling_helper import (
+    SchedulingHelper,
+    get_dag_timeout,
+)
 from dags.tpu_observability.configs.common import (
-    MachineConfigMap,
     GCS_CONFIG_PATH,
     GCS_JOBSET_CONFIG_PATH,
+    MachineConfigMap,
 )
-from dags.tpu_observability.tpu_info_metric import ALL_METRIC_STRATEGIES
-from dags.tpu_observability.tpu_info_metric import BaseMetricStrategy
+from dags.tpu_observability.tpu_info_metric import (
+    ALL_METRIC_STRATEGIES,
+    BaseMetricStrategy,
+)
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils import tpu_info_util as tpu_info
+from dags.tpu_observability.utils.jobset_util import Workload
 from dags.tpu_observability.utils.node_pool_util import Info
 from dags.tpu_observability.utils.time_util import TimeUtil
-from dags.tpu_observability.utils.jobset_util import Workload
-from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
 DAG_ID = "tpu_info_metrics_verification"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
@@ -60,7 +64,8 @@ def compare_metric_values(
     metric_display_name: str,
     tolerance_percent: float,
 ):
-  """Compares two lists of metric values and checks if they are within a tolerance range."""
+  """Compares two lists of metric values and checks if they are within a
+  tolerance range."""
   if len(cmd_values) != len(monitoring_values):
     raise AirflowException(
         f"For pod {pod_name} ({metric_display_name}), data count mismatch. "
@@ -119,7 +124,8 @@ def get_tpu_info_metric_from_pod(
     jobset_config: jobset,
     metric_name: str,
 ) -> str:
-  """Executes the 'tpu-info' command in the specified pod and returns its output."""
+  """Executes the 'tpu-info' command in the specified pod and returns its
+  output."""
   with tempfile.TemporaryDirectory() as tmpdir:
     kube_dir = tmpdir + "/kubeconfig"
     env = os.environ.copy()

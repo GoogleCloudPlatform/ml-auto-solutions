@@ -23,16 +23,19 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
+from dags.common.scheduling_helper.scheduling_helper import (
+    SchedulingHelper,
+    get_dag_timeout,
+)
 from dags.tpu_observability.configs.common import (
-    MachineConfigMap,
     GCS_CONFIG_PATH,
     GCS_JOBSET_CONFIG_PATH,
+    MachineConfigMap,
 )
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.jobset_util import Workload
 from dags.tpu_observability.utils.time_util import TimeUtil
-from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 
 DAG_ID = "jobset_uptime_validation"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
@@ -149,8 +152,10 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="get_current_time"
       )()
 
-      ensure_no_jobset_uptime_data = jobset.ensure_no_jobset_uptime_data.override(
-          task_id="ensure_no_jobset_uptime_data"
+      ensure_no_jobset_uptime_data = (
+          jobset.ensure_no_jobset_uptime_data.override(
+              task_id="ensure_no_jobset_uptime_data"
+          )
       )(
           node_pool=cluster_info,
           jobset_name=jobset_name,

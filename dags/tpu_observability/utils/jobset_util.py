@@ -14,9 +14,8 @@
 
 """Utilities for managing JobSets in GKE clusters for TPU observability."""
 
-import enum
 import dataclasses
-from datetime import timedelta
+import enum
 import json
 import logging
 import os
@@ -24,26 +23,26 @@ import random
 import string
 import tempfile
 import textwrap
+from datetime import timedelta
 from typing import Final
 
+import kubernetes
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
-from airflow.sensors.base import PokeReturnValue
 from airflow.models import BaseOperator
-from airflow.models.xcom_arg import XComArg
 from airflow.models.baseoperator import chain
+from airflow.models.xcom_arg import XComArg
+from airflow.sensors.base import PokeReturnValue
 from google.cloud.monitoring_v3 import types
 from websocket import WebSocketConnectionClosedException
-import kubernetes
 
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils.gcp_util import list_time_series
-from dags.tpu_observability.utils.node_pool_util import Info as node_pool_info
 from dags.tpu_observability.utils.node_pool_util import NODE_POOL_SELECTOR_KEY
+from dags.tpu_observability.utils.node_pool_util import Info as node_pool_info
 from dags.tpu_observability.utils.time_util import TimeUtil
 from xlml.apis import gcs
-from xlml.utils import composer
-from xlml.utils import gke
+from xlml.utils import composer, gke
 
 
 @task
@@ -206,7 +205,8 @@ class PodOperationSpec:
   """Defines the specification for a pod operation, including type.
 
   This setup mirrors NodeOperationSpec but focuses entirely on container-level
-  infrastructure tasks (e.g., triggering host reboots via an active privileged pod).
+  infrastructure tasks (e.g., triggering host reboots via an active privileged
+  pod).
   """
 
   target: PodOperation
@@ -214,7 +214,7 @@ class PodOperationSpec:
   extra_flags: str = ""
 
   @staticmethod
-  def Reboot() -> "PodOperationSpec":
+  def reboot() -> "PodOperationSpec":
     """
     Defines a node reboot operation executed via a Kubernetes Pod.
 
@@ -803,7 +803,8 @@ def operate_pod(
     operation: PodOperationSpec,
     namespace: str = "default",
 ) -> str:
-  """Performs an operation through a specific pod based on the provided specification."""
+  """Performs an operation through a specific pod based on the provided
+  specification."""
   base_command = operation.command_template.format(
       pod_name=pod_name,
       namespace=namespace,
@@ -979,7 +980,8 @@ def create_jobset_startup_tasks(
     node_pool_selector: str = None,
     workload_type: str = Workload.JAX_TPU_BENCHMARK,
 ) -> JobSetStartupOutput:
-  """Provides a standardized sequence of tasks for JobSet startup and preparation.
+  """Provides a standardized sequence of tasks for JobSet startup and
+  preparation.
 
   This helper encapsulates and chains the three essential steps for a stable
   JobSet:

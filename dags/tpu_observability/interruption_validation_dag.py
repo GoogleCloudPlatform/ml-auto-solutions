@@ -10,14 +10,13 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
+from google.cloud import monitoring_v3
 
+from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import Project
 from dags.multipod.configs.common import Platform
 from dags.tpu_observability.utils import gcp_util, time_util
-from google.cloud import monitoring_v3
-from dags import composer_env
-
 
 _UNKNOWN_RESOURCE_NAME = 'Unknown'
 
@@ -49,8 +48,10 @@ class InterruptionReason(str, enum.Enum):
   def log_filter(self) -> str:
     """Returns the corresponding filter for the interruption reason.
 
-    These filters are in accordance with the definitions in this file from Google3:
-    //depot/google3/java/com/google/cloud/cluster/manager/compute/services/instancemanagerevent/InstanceEventNotificationAction.java
+    These filters are in accordance with the definitions in this file from
+    Google3:
+    //depot/google3/java/com/google/cloud/cluster/manager/compute/services/
+    instancemanagerevent/InstanceEventNotificationAction.java
     """
 
     filters = []
@@ -157,7 +158,8 @@ def fetch_interruption_metric_records(
       f'resource.labels.project_id = "{configs.project_id}" '
       f'metric.type = "{metric_type}" '
       f'resource.type = "{resource_type}" '
-      f'metric.labels.interruption_reason = "{configs.interruption_reason.metric_label()}" '
+      'metric.labels.interruption_reason = '
+      f'"{configs.interruption_reason.metric_label()}" '
   )
 
   # key: resource_name, value: EventRecord
@@ -432,7 +434,9 @@ def validate_interruption_count(
 
     if len(log_timestamps) != len(metric.record_timestamps):
       mismatch_nodes.append(
-          f'mismatch resource name: {resource_name}, metric_count: {len(metric.record_timestamps)}, log_count: {len(log_timestamps)}'
+          f'mismatch resource name: {resource_name}, '
+          f'metric_count: {len(metric.record_timestamps)}, '
+          f'log_count: {len(log_timestamps)}'
       )
 
   if mismatch_nodes:
@@ -527,13 +531,13 @@ def create_interruption_dag(
     for project in Project:
       match project:
         case Project.TPU_PROD_ENV_AUTOMATED | Project.CLOUD_TPU_INFERENCE_TEST:
-          # Production composer lacks permission for these projects; ignore them.
+          # Production composer lacks permission for these projects; ignore them
           continue
         case _:
           with TaskGroup(
               group_id=f'validation_for_{project.value}',
               tooltip=f'Validation pipeline for Project ID: {project.value}',
-          ) as group:
+          ):
             configs = Configs(
                 project_id=project.value,
                 platform=platform,

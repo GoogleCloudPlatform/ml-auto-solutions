@@ -14,8 +14,8 @@
 
 """A DAG to validate the status of a GKE node pool through its lifecycle."""
 
-import datetime
 import copy
+import datetime
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -24,11 +24,16 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
-from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
+from dags.common.scheduling_helper.scheduling_helper import (
+    SchedulingHelper,
+    get_dag_timeout,
+)
+from dags.tpu_observability.configs.common import (
+    GCS_CONFIG_PATH,
+    MachineConfigMap,
+)
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.node_pool_util import NodeOperationSpec
-from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
-
 
 DAG_ID = "gke_node_pool_status"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)

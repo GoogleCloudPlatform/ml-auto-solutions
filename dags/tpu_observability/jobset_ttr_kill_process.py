@@ -19,26 +19,29 @@ killing the main process inside a worker Pod.
 
 import datetime
 import logging
-import tempfile
 import os
+import tempfile
 
 from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
+from dags.common.scheduling_helper.scheduling_helper import (
+    SchedulingHelper,
+    get_dag_timeout,
+)
+from dags.tpu_observability.configs.common import (
+    GCS_CONFIG_PATH,
+    GCS_JOBSET_CONFIG_PATH,
+    MachineConfigMap,
+)
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
-from dags.tpu_observability.utils.jobset_util import JobSet, Workload
-from dags.tpu_observability.configs.common import (
-    MachineConfigMap,
-    GCS_CONFIG_PATH,
-    GCS_JOBSET_CONFIG_PATH,
-)
-from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
+from dags.tpu_observability.utils.jobset_util import Workload
 
 DAG_ID = "jobset_ttr_kill_process"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)

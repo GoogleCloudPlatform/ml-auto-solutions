@@ -17,25 +17,26 @@
 import datetime
 
 from airflow import models
-from airflow.models.baseoperator import chain
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.task_group import TaskGroup
-
 from airflow.decorators import task
+from airflow.models.baseoperator import chain
+from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
-from dags.tpu_observability.utils import jobset_util as jobset
-from dags.tpu_observability.utils import subprocess_util as subprocess
-from dags.tpu_observability.utils import node_pool_util as node_pool
-from dags.tpu_observability.utils.node_pool_util import Info
-from dags.tpu_observability.utils.node_pool_util import NodeOperationSpec
-from dags.tpu_observability.utils.jobset_util import Workload
+from dags.common.scheduling_helper.scheduling_helper import (
+    SchedulingHelper,
+    get_dag_timeout,
+)
 from dags.tpu_observability.configs.common import (
-    MachineConfigMap,
     GCS_CONFIG_PATH,
     GCS_JOBSET_CONFIG_PATH,
+    MachineConfigMap,
 )
-from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
+from dags.tpu_observability.utils import jobset_util as jobset
+from dags.tpu_observability.utils import node_pool_util as node_pool
+from dags.tpu_observability.utils import subprocess_util as subprocess
+from dags.tpu_observability.utils.jobset_util import Workload
+from dags.tpu_observability.utils.node_pool_util import Info, NodeOperationSpec
 
 DAG_ID = "jobset_ttr_drain_restart"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)

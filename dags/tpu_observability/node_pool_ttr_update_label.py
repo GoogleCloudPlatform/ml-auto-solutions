@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A DAG to validate GKE node pool Times To Recover(TTR) metrics by triggering a label update."""
+"""A DAG to validate GKE node pool Times To Recover(TTR) metrics by
+triggering a label update."""
 
 import datetime
 
@@ -22,10 +23,15 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
-from dags.tpu_observability.configs.common import MachineConfigMap, GCS_CONFIG_PATH
+from dags.common.scheduling_helper.scheduling_helper import (
+    SchedulingHelper,
+    get_dag_timeout,
+)
+from dags.tpu_observability.configs.common import (
+    GCS_CONFIG_PATH,
+    MachineConfigMap,
+)
 from dags.tpu_observability.utils import node_pool_util as node_pool
-from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
-
 
 DAG_ID = "node_pool_ttr_update_label"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
@@ -70,7 +76,7 @@ with models.DAG(
 ) as dag:
   for machine in MachineConfigMap:
     config = machine.value
-    LABELS_TO_UPDATE = {"test_key": "test_val"}
+    labels_to_update = {"test_key": "test_val"}
 
     with TaskGroup(group_id=f"v{config.tpu_version.value}"):
       node_pool_info = node_pool.build_node_pool_info_from_gcs_yaml(
@@ -99,7 +105,7 @@ with models.DAG(
       task_id = "update_node_pool_label"
       update_node_pool_label = node_pool.update.override(task_id=task_id)(
           node_pool=node_pool_info,
-          spec=node_pool.NodePoolUpdateSpec.Label(delta=LABELS_TO_UPDATE),
+          spec=node_pool.NodePoolUpdateSpec.Label(delta=labels_to_update),
       )
 
       task_id = "wait_for_recovered"
