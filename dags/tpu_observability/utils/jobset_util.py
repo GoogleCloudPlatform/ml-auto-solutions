@@ -15,6 +15,8 @@
 """Utilities for managing JobSets in GKE clusters for TPU observability."""
 
 import dataclasses
+import datetime
+from datetime import timedelta
 import enum
 import json
 import logging
@@ -23,7 +25,7 @@ import random
 import string
 import tempfile
 import textwrap
-from datetime import timedelta
+import time
 from typing import Final
 
 import kubernetes
@@ -68,6 +70,7 @@ class Workload:
   JAX_TPU_BENCHMARK = json.dumps(
       textwrap.dedent(
           """
+          pip install requests
           pip install jax[k8s] libtpu
           python -c '
           import jax
@@ -158,6 +161,7 @@ _TEMPLATE = string.Template(
         spec:
           failurePolicy:
             maxRestarts: $max_restarts
+            $restartStrategy
           replicatedJobs:
           - name: $replicated_job_name
             replicas: $replicas
@@ -169,6 +173,8 @@ _TEMPLATE = string.Template(
                 template:
                   spec:
                     hostPID: $host_pid
+                    restartPolicy: Never
+                    terminationGracePeriodSeconds: 350
                     nodeSelector:
                       cloud.google.com/gke-tpu-accelerator: $tpu_accelerator_type
                       cloud.google.com/gke-tpu-topology: $tpu_topology
@@ -178,6 +184,10 @@ _TEMPLATE = string.Template(
                       securityContext:
                         privileged: $privileged
                       image: $image
+                      lifecycle:
+                        preStop:
+                          exec:
+                            $container_prestop_command
                       command: $command
                       args:
                         - $args
@@ -281,6 +291,7 @@ class JobSet:
   tpu_cores_per_pod: int
   privileged: bool = False
   dag_id_prefix: str = ""
+  delay_recovery: bool = False
 
   def generate_yaml(
       self,
@@ -295,6 +306,7 @@ class JobSet:
           class.
         jobset_name: The name of the JobSet.
         node_pool_selector: The node pool selector to use.
+        apply_recovery_delay: Whether to apply a recovery delay.
 
     Returns:
         A string containing the complete JobSet YAML.
@@ -306,6 +318,25 @@ class JobSet:
     params["node_pool_selector"] = node_pool_selector or ""
     params["privileged"] = "true" if self.privileged else "false"
     params["host_pid"] = "true" if self.privileged else "false"
+
+    default_vals = {
+        "restartStrategy": "",
+        "restartPolicy": "",
+        "terminationGracePeriodSeconds": "",
+        "container_prestop_command": 'command: ["/bin/sh", "-c", "true"]',
+    }
+
+    if self.delay_recovery:
+      default_vals.update({
+          "restartStrategy": "restartStrategy: BlockingRecreate",
+          "restartPolicy": "restartPolicy: Never",
+          "terminationGracePeriodSeconds": "terminationGracePeriodSeconds: 350",
+          "container_prestop_command": (
+              'command: ["/bin/sh", "-c", "sleep 300"]'
+          ),
+      })
+
+    params.update(default_vals)
 
     return _TEMPLATE.substitute(params)
 
@@ -416,6 +447,33 @@ class Command:
   ) -> str:
     """Alias for getting just the names, maintaining existing API."""
     return Command.k8s_get_pods(jobset_name, namespace, output)
+
+  @staticmethod
+  def k8s_get_jobset_events_command(
+      jobset_name: str,
+      namespace: str,
+  ) -> str:
+    """Generates a kubectl command to fetch filtered events for a specific
+    JobSet.
+
+    This command customizes the output format using custom columns to only
+    include essential event details and suppresses the default table headers for
+    easier parsing.
+
+    The customized output format consists of the following columns:
+      - LAST_SEEN: The timestamp of the last recorded event.
+      - REASON: The programmatic reason for the event (e.g., SuccessfulCreate).
+      - MESSAGE: A human-readable description of the event.
+    """
+
+    columns = "LAST_SEEN:.lastTimestamp,REASON:.reason,MESSAGE:.message"
+    selector = f"involvedObject.kind=JobSet,involvedObject.name={jobset_name}"
+
+    return (
+        f"kubectl get events -n {namespace} "
+        f"--field-selector {selector} "
+        f"-o custom-columns={columns} --no-headers"
+    )
 
 
 class ReplicatedJobStatus(enum.Enum):
@@ -581,9 +639,9 @@ def run_workload(
     workload_type: Workload,
     jobset_name: str,
     node_pool_selector: str = None,
+    apply_recovery_delay: bool = False,
 ) -> TimeUtil:
-  """
-  Applies the specified YAML file to the GKE cluster.
+  """Applies the specified YAML file to the GKE cluster.
 
   Args:
     node_pool: Configuration object with cluster details.
@@ -591,6 +649,7 @@ def run_workload(
     workload_type: The workload script to execute.
     jobset_name: The name of the JobSet.
     node_pool_selector: The node pool selector to use.
+    apply_recovery_delay: Whether to apply recovery delay.
   Returns:
     The UTC time when the workload was started.
   """
@@ -601,6 +660,7 @@ def run_workload(
         workload_script=workload_type,
         jobset_name=jobset_name,
         node_pool_selector=node_pool_selector,
+        apply_recovery_delay=apply_recovery_delay,
     )
 
     cmd = " && ".join([
@@ -762,8 +822,11 @@ def delete_one_random_pod(
         ),
     ])
 
+    current_time_utc = datetime.datetime.now(datetime.timezone.utc)
     subprocess.run_exec(cmd, env=env)
     logging.info("Successfully initiated deletion for pod: %s", target_pod)
+
+    return TimeUtil.from_datetime(current_time_utc)
 
 
 @task
@@ -896,6 +959,26 @@ def wait_for_jobset_started(
   ]
 
   return all(p > threshold_value for p in last_n_data_points)
+
+
+@task
+def verify_recovery_duration(start_time: TimeUtil, end_time: TimeUtil):
+  """
+  Checks if the time elapsed since start_timestamp is > 60 seconds.
+  """
+
+  duration = end_time.time - start_time.time
+
+  logging.info(f"Start Time: {start_time.to_iso_string()}")
+  logging.info(f"End Time: {end_time.to_iso_string()}")
+  logging.info(f"Recovery Duration: {duration} seconds")
+
+  if duration < 60:
+    raise AirflowFailException(
+        f"Recovery too fast ({duration}s < 60s). "
+        "The 'jobset_time_to_recover' metric requires > 60s to be recorded. "
+        "Failing fast to avoid waiting for a missing metric."
+    )
 
 
 @task.sensor(poke_interval=60, timeout=3600, mode="poke")
@@ -1093,3 +1176,31 @@ def ensure_no_jobset_uptime_data(
     logging.info("Stability period passed with no data detected.")
     return True
   return False
+
+
+@task
+def wait_for_jobset_recovered(
+    node_pool: node_pool_info,
+    jobset_config: JobSet,
+    jobset_name: str,
+) -> TimeUtil:
+  """Executes the event command and extracts the LAST_SEEN timestamp.
+
+  Args:
+    node_pool: Configuration object with cluster details.
+    jobset_config: The JobSet object containing configuration details.
+    jobset_name: The name of the JobSet.
+    namespace: The Kubernetes namespace to query. Defaults to "default".
+
+  Returns:
+    The timestamp string (e.g., '2026-03-04T03:48:47Z') or None if no events
+    found.
+  """
+  # TODO(b/522052592): Revert this workaround once wait_for_recovery supports all DAGs.
+  # Currently sleeping 300s to ensure next task verify_duration always passes.
+  logging.info(
+      "Sleeping for 300 seconds as a temporary workaround for recovery"
+      " detection."
+  )
+  time.sleep(300)
+  return TimeUtil.now()

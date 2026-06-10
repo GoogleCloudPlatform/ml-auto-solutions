@@ -20,6 +20,7 @@ killing the main process inside a worker Pod.
 import datetime
 import logging
 import os
+import random
 import tempfile
 
 from airflow import models
@@ -42,6 +43,7 @@ from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils.jobset_util import Workload
+from dags.tpu_observability.utils.time_util import TimeUtil
 
 DAG_ID = "jobset_ttr_kill_process"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
@@ -49,7 +51,7 @@ SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 
 @task
-def kill_tpu_pod_workload(info: node_pool.Info, pod_name: str) -> None:
+def kill_tpu_pod_workload(info: node_pool.Info, running_pods: list) -> None:
   """
   Kills the python process on a single pod.
 
@@ -57,14 +59,20 @@ def kill_tpu_pod_workload(info: node_pool.Info, pod_name: str) -> None:
   python process inside the specified pod. It ignores errors if the pod
   has already been deleted to ensure pipeline continuity.
   """
+  target_pod = random.choice(running_pods)
+
   with tempfile.NamedTemporaryFile() as temp_config_file:
     env = os.environ.copy()
     env["KUBECONFIG"] = temp_config_file.name
 
     cmd = " && ".join([
         jobset.Command.get_credentials_command(info),
-        f"kubectl exec {pod_name} -n default -- pkill -9 -f python",
+        f"kubectl exec {target_pod} -n default -- pkill -9 -f python",
     ])
+
+    operation_start_time = TimeUtil.from_datetime(
+        datetime.datetime.now(datetime.timezone.utc)
+    )
 
     try:
       subprocess.run_exec(cmd, env=env)
@@ -72,6 +80,8 @@ def kill_tpu_pod_workload(info: node_pool.Info, pod_name: str) -> None:
       logging.info("Process was terminated with SIGKILL")
     except Exception as e:
       raise e
+
+  return operation_start_time
 
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
@@ -157,17 +167,34 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
-      kill_tasks = (
-          kill_tpu_pod_workload.override(task_id="kill_tpu_pod_workload")
-          .partial(info=cluster_info)
-          .expand(pod_name=startup.running_pods)
+      kill_tasks = kill_tpu_pod_workload.override(
+          task_id="kill_tpu_pod_workload"
+      )(
+          info=cluster_info,
+          running_pods=startup.running_pods,
+      )
+
+      wait_for_recovery = jobset.wait_for_jobset_recovered.override(
+          task_id="wait_for_recovery"
+      )(
+          node_pool=cluster_info,
+          jobset_config=jobset_config,
+          jobset_name=jobset_name,
+      )
+
+      verify_duration = jobset.verify_recovery_duration.override(
+          task_id="verify_recovery_duration"
+      )(
+          start_time=kill_tasks,
+          end_time=wait_for_recovery,
       )
 
       wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
-          task_id="wait_for_metric_upload"
+          task_id="wait_for_jobset_ttr_to_be_found",
       )(
           node_pool=cluster_info,
           jobset_name=jobset_name,
+          start_time=kill_tasks,
       )
 
       cleanup_workload = jobset.end_workload.override(
@@ -192,6 +219,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           create_node_pool,
           *startup.tasks,
           kill_tasks,
+          wait_for_recovery,
+          verify_duration,
           wait_for_metric_upload,
           cleanup_workload,
           cleanup_node_pool,

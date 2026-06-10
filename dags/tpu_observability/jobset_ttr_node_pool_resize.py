@@ -121,18 +121,36 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
-      node_pool_resize = node_pool.update.override(task_id="node_pool_resize")(
+      node_pool_resize_start_time = node_pool.update.override(
+          task_id="node_pool_resize"
+      )(
           node_pool=cluster_info,
           spec=node_pool.NodePoolUpdateSpec.DiskSize(
               delta=_DISK_SIZE_INCREMENT
           ),
       )
 
-      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
-          task_id="wait_for_jobset_ttr_to_be_found"
+      wait_for_recovery = jobset.wait_for_jobset_recovered.override(
+          task_id="wait_for_recovery"
       )(
           node_pool=cluster_info,
+          jobset_config=jobset_config,
           jobset_name=jobset_name,
+      )
+
+      verify_duration = jobset.verify_recovery_duration.override(
+          task_id="verify_recovery_duration"
+      )(
+          start_time=node_pool_resize_start_time,
+          end_time=wait_for_recovery,
+      )
+
+      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
+          task_id="wait_for_jobset_ttr_to_be_found",
+      )(
+          node_pool=cluster_info,
+          jobset_config=jobset_config,
+          start_time=node_pool_resize_start_time,
       )
 
       cleanup_workload = jobset.end_workload.override(
@@ -156,7 +174,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           jobset_name,
           create_node_pool,
           *startup.tasks,
-          node_pool_resize,
+          node_pool_resize_start_time,
           wait_for_metric_upload,
           cleanup_workload,
           cleanup_node_pool,

@@ -118,7 +118,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           workload_type=Workload.JAX_TPU_BENCHMARK,
       )
 
-      delete_random_pod = jobset.delete_one_random_pod.override(
+      deletion_start_time = jobset.delete_one_random_pod.override(
           task_id="delete_random_pod"
       )(
           node_pool=cluster_info,
@@ -126,11 +126,27 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           jobset_name=jobset_name,
       )
 
+      wait_for_recovery = jobset.wait_for_jobset_recovered.override(
+          task_id="wait_for_recovery"
+      )(
+          node_pool=cluster_info,
+          jobset_config=jobset_config,
+          jobset_name=jobset_name,
+      )
+
+      verify_duration = jobset.verify_recovery_duration.override(
+          task_id="verify_recovery_duration"
+      )(
+          start_time=deletion_start_time,
+          end_time=wait_for_recovery,
+      )
+
       wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
-          task_id="wait_for_jobset_ttr_to_be_found"
+          task_id="wait_for_jobset_ttr_to_be_found",
       )(
           node_pool=cluster_info,
           jobset_name=jobset_name,
+          start_time=deletion_start_time,
       )
 
       cleanup_workload = jobset.end_workload.override(
@@ -154,7 +170,9 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           jobset_name,
           create_node_pool,
           *startup.tasks,
-          delete_random_pod,
+          deletion_start_time,
+          wait_for_recovery,
+          verify_duration,
           wait_for_metric_upload,
           cleanup_workload,
           cleanup_node_pool,
