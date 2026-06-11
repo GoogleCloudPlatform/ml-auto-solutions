@@ -149,7 +149,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           task_id="wait_for_jobset_ttr_to_be_found",
       )(
           node_pool=cluster_info,
-          jobset_config=jobset_config,
+          jobset_name=jobset_name,
           start_time=node_pool_resize_start_time,
       )
 
@@ -175,6 +175,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           create_node_pool,
           *startup.tasks,
           node_pool_resize_start_time,
+          wait_for_recovery,
+          verify_duration,
           wait_for_metric_upload,
           cleanup_workload,
           cleanup_node_pool,

@@ -275,6 +275,11 @@ class JobSet:
       node-level fault injection (e.g., node reboots), where the pod must
       interact with the host OS via nsenter. Should remain False for all
       standard workloads. Defaults to False.
+    dag_id_prefix: The prefix assigned to the DAG ID for identification or
+      routing purposes. Defaults to "".
+    delay_recovery: A flag to enable a delayed recovery mechanism, which injects
+      a pre-stop sleep and modifies the restart policy/strategy to wait before
+      recreating pods. Defaults to False.
   """
 
   namespace: str
@@ -306,7 +311,6 @@ class JobSet:
           class.
         jobset_name: The name of the JobSet.
         node_pool_selector: The node pool selector to use.
-        apply_recovery_delay: Whether to apply a recovery delay.
 
     Returns:
         A string containing the complete JobSet YAML.
@@ -639,7 +643,6 @@ def run_workload(
     workload_type: Workload,
     jobset_name: str,
     node_pool_selector: str = None,
-    apply_recovery_delay: bool = False,
 ) -> TimeUtil:
   """Applies the specified YAML file to the GKE cluster.
 
@@ -649,7 +652,6 @@ def run_workload(
     workload_type: The workload script to execute.
     jobset_name: The name of the JobSet.
     node_pool_selector: The node pool selector to use.
-    apply_recovery_delay: Whether to apply recovery delay.
   Returns:
     The UTC time when the workload was started.
   """
@@ -660,7 +662,6 @@ def run_workload(
         workload_script=workload_type,
         jobset_name=jobset_name,
         node_pool_selector=node_pool_selector,
-        apply_recovery_delay=apply_recovery_delay,
     )
 
     cmd = " && ".join([
@@ -884,6 +885,7 @@ def operate_pod(
         (f"{base_command} {operation.extra_flags}").strip(),
     ]
 
+    current_time_utc = datetime.datetime.now(datetime.timezone.utc)
     try:
       subprocess.run_exec(" && ".join(commands), env=env)
     except WebSocketConnectionClosedException:
@@ -891,10 +893,10 @@ def operate_pod(
         logging.info(
             "Node reboot initiated: WebSocket connection closed as expected."
         )
-        return pod_name
+        return TimeUtil.from_datetime(current_time_utc)
       raise
 
-  return pod_name
+  return TimeUtil.from_datetime(current_time_utc)
 
 
 @task.sensor(poke_interval=30, timeout=900, mode="poke")
@@ -981,7 +983,7 @@ def verify_recovery_duration(start_time: TimeUtil, end_time: TimeUtil):
     )
 
 
-@task.sensor(poke_interval=60, timeout=3600, mode="poke")
+@task.sensor(poke_interval=60, timeout=3600, mode="poke", retries=0)
 def wait_for_jobset_ttr_to_be_found(
     node_pool: node_pool_info,
     jobset_name: str,
