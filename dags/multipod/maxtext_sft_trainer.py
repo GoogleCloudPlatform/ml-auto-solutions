@@ -53,10 +53,12 @@ with models.DAG(
         f'export HF_TOKEN={HF_TOKEN}',
         'export PRE_TRAINED_MODEL=llama2-7b',
         'export PRE_TRAINED_MODEL_TOKENIZER=meta-llama/Llama-2-7b-chat-hf',
-        'export PRE_TRAINED_MODEL_CKPT_PATH=gs://maxtext-model-checkpoints/llama2-7b-chat/scanned/0/items',
+        'export PRE_TRAINED_MODEL_CKPT_PATH='
+        'gs://maxtext-model-checkpoints/llama2-7b-chat/scanned/0/items',
         f'export BASE_OUTPUT_DIRECTORY={base_output_directory}',
         'export STEPS=1000',
         'export PROMPT="Suggest some famous landmarks in London."',
+        'pip install transformers==4.57.3',
         'bash tests/end_to_end/tpu/test_sft_trainer.sh',
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
@@ -69,4 +71,4 @@ with models.DAG(
     ).run()
     test.append(maxtext_v4_configs_test)
   for i in range(len(test) - 1):
-    test[i] >> test[i + 1]
+    _ = test[i] >> test[i + 1]
