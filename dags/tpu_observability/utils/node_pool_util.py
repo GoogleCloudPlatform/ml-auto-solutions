@@ -207,7 +207,7 @@ def create(
         f"--reservation={node_pool.reservation}"
     )
   else:
-    command += " --spot "
+    command += " --spot"
 
   if node_pool_selector:
     command += f" --node-labels={NODE_POOL_SELECTOR_KEY}={node_pool_selector}"
@@ -602,7 +602,10 @@ def rollback(node_pool: Info) -> None:
       f"--quiet"
   )
 
+  current_time_utc = datetime.datetime.now(datetime.timezone.utc)
   subprocess.run_exec(command)
+
+  return TimeUtil.from_datetime(current_time_utc)
 
 
 @task.sensor(poke_interval=30, timeout=1200, mode="poke")
