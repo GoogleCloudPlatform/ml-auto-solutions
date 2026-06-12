@@ -34,6 +34,7 @@ from dags.tpu_observability.configs.common import (
 )
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.node_pool_util import NodeOperationSpec
+from xlml.apis import gcs
 
 DAG_ID = "gke_node_pool_status"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
@@ -88,7 +89,13 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       )
 
       problematic_node_pool_info = copy.deepcopy(node_pool_info)
-      problematic_node_pool_info.location = f"{node_pool_info.location}-c"
+      yaml_config = gcs.load_yaml_from_gcs(GCS_CONFIG_PATH)
+      wrong_node_loc = (
+          yaml_config.get("dag", {})
+          .get(DAG_ID, {})
+          .get("wrong_node_location", "asia-east1-c")
+      )
+      problematic_node_pool_info.node_location = wrong_node_loc
       problematic_node_pool_info.node_pool_name = (
           f"{node_pool_info.node_pool_name}-x"
       )
