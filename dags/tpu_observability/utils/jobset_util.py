@@ -282,18 +282,18 @@ class JobSet:
       recreating pods. Defaults to False.
   """
 
-  namespace: str
-  max_restarts: int
-  replicated_job_name: str
-  replicas: int
-  backoff_limit: int
-  completions: int
-  parallelism: int
-  tpu_accelerator_type: str
-  tpu_topology: str
-  container_name: str
-  image: str
-  tpu_cores_per_pod: int
+  namespace: str = ""
+  max_restarts: int = -1
+  replicated_job_name: str = ""
+  replicas: int = -1
+  backoff_limit: int = -1
+  completions: int = -1
+  parallelism: int = -1
+  tpu_accelerator_type: str = ""
+  tpu_topology: str = ""
+  container_name: str = ""
+  image: str = ""
+  tpu_cores_per_pod: int = -1
   privileged: bool = False
   dag_id_prefix: str = ""
   delay_recovery: bool = False
