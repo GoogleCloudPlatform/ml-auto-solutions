@@ -54,13 +54,27 @@ def match_quarantine_patterns(
   return False
 
 
+def is_ci_environment() -> bool:
+  """Checks if running in a CI environment.
+
+  Identifies environments where framework-specific runtime dependencies do not
+  exist. For example, GitHub Actions lacks the actual Airflow environment and
+  its components (such as database context or cloud credentials), requiring code
+  to bypass these dependencies and use mocks instead.
+
+  Returns:
+    bool: True if in CI (GitHub Actions), False otherwise.
+  """
+  return os.getenv("GITHUB_ACTIONS", "false").lower() == "true"
+
+
 def safe_get_from_variable(key: str, default_var: str):
   """
-  Check whether the current runtime is GitHub Actions. Skip retrieving variables in GitHub Actions to avoid excessive log output.
+  Check whether the current runtime is GitHub Actions. Skip retrieving variables
+  in GitHub Actions to avoid excessive log output.
   """
   value = default_var
-  is_ci_env = os.getenv("GITHUB_ACTIONS", "false").lower() == "true"
-  if is_ci_env:
+  if is_ci_environment():
     logging.info("In GitHub Actions, skip getting variables")
   else:
     value = Variable.get(key, default_var=default_var)
@@ -68,8 +82,8 @@ def safe_get_from_variable(key: str, default_var: str):
 
 
 """
-The quarantine list is defined by a set of UNIX Shell Glob Patterns. 
-These patterns are used to match and quarantine tests. 
+The quarantine list is defined by a set of UNIX Shell Glob Patterns.
+These patterns are used to match and quarantine tests.
 
 The patterns are stored in the Airflow Variable named 'quarantine_patterns'.
 
@@ -90,9 +104,10 @@ class QuarantineTests:
     """
     Checks if a test is quarantined using both legacy and current methods.
 
-    The legacy method checks if `test_name` is present in `QuarantineTests.tests`.
-    The current method checks against a runtime quarantine list fetched from Airflow Variables
-    (key: 'quarantine_list') using `is_in_runtime_quarantine_list()`.
+    The legacy method checks if `test_name` is present in
+    `QuarantineTests.tests`. The current method checks against a runtime
+    quarantine list fetched from Airflow Variables (key: 'quarantine_list')
+    using `is_in_runtime_quarantine_list()`.
 
     The test is considered quarantined if it's found by either method.
     """
