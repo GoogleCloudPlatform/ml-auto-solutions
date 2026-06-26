@@ -53,6 +53,16 @@ with models.DAG(
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/train/{run_name}/checkpoints/4/items",
           },
       },
+      "gemma4-26b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
+          },
+          "training": {
+              "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4.sh",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/train/{run_name}/checkpoints/4/items",
+          },
+      },
   }
 
   for model, test_config in test_models.items():
