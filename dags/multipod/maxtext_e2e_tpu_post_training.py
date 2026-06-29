@@ -63,6 +63,10 @@ with models.DAG(
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_sft.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/sft/{run_name}/checkpoints/5/model_params",
               },
+              "multimodal_sft": {
+                  "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_multimodal_sft.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/multimodal_sft/{run_name}/checkpoints/5/model_params",
+              },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/rl/{run_name}/checkpoints/actor/5/model_params",
