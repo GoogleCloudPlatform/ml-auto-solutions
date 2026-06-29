@@ -43,12 +43,6 @@ jobs:
     - name: Install Python dependencies
       run: pip install -r .github/requirements.txt
 
-    - name: Authenticate with gcloud
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: ${{ secrets.GCS_SECRET }}
-        create_credentials_file: true
-
     - name: Run DAGs
       run: |
         scripts/dag-check.sh
