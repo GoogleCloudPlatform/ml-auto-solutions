@@ -403,7 +403,7 @@ def worker_pod_interruption(
 
 RECIPE_INSTANCE = recipe_cfg.Recipe.PW_MCJAX_BENCHMARK_RECIPE
 RECIPE_NAME = RECIPE_INSTANCE.value.lower()
-DAG_ID = f"{RECIPE_NAME}_elastic"
+DAG_ID = "pw_elastic_pause_resume"
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 with models.DAG(
@@ -531,17 +531,9 @@ replica_params.update({
         title="Number Slices",
         description="Number of slices",
     ),
-    "runner": ui_params.Param(
-        # TODO(cienet): Replace with an official or production-ready image
-        # TODO(cienet): Use an image tag instead of the full SHA hash
-        "gcr.io/cloud-tpu-multipod-dev/lidanny_rr_dag@sha256:08dfca25461e3f2fb736e7313a742e1ceea6123858c0aec5dfe43d0c51d14e38",
-        type="string",
-        title="Runner Image",
-        description="Runner image for the cluster",
-    ),
 })
 
-DAG_ID_RESIZE = f"{RECIPE_NAME}_elastic_{ELASTIC_TYPE[1]}"
+DAG_ID_RESIZE = "pw_elastic_replica_resize"
 SCHEDULE_RESIZE = SchedulingHelper.arrange_schedule_time(DAG_ID_RESIZE)
 
 with models.DAG(
