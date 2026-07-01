@@ -34,11 +34,17 @@ from dags.tpu_observability.configs.common import (
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.jobset_util import Workload
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
+
 
 DAG_ID = "jobset_ttr_node_pool_resize"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 _DISK_SIZE_INCREMENT = 100
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
@@ -108,76 +114,101 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
       jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
-      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
-          node_pool=cluster_info,
-          node_pool_selector=selector,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        create_node_pool = node_pool.create.override(
+            task_id="create_node_pool"
+        )(
+            node_pool=cluster_info,
+            node_pool_selector=selector,
+        )
 
-      startup = jobset.create_jobset_startup_tasks(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-          node_pool_selector=selector,
-          workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        startup = jobset.create_jobset_startup_tasks(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+            node_pool_selector=selector,
+            workload_type=Workload.JAX_TPU_BENCHMARK,
+        )
 
-      node_pool_resize_start_time = node_pool.update.override(
-          task_id="node_pool_resize"
-      )(
-          node_pool=cluster_info,
-          spec=node_pool.NodePoolUpdateSpec.DiskSize(
-              delta=_DISK_SIZE_INCREMENT
-          ),
-      )
+        node_pool_resize_start_time = node_pool.update.override(
+            task_id="node_pool_resize"
+        )(
+            node_pool=cluster_info,
+            spec=node_pool.NodePoolUpdateSpec.DiskSize(
+                delta=_DISK_SIZE_INCREMENT
+            ),
+        )
 
-      wait_for_recovery = jobset.wait_for_jobset_recovered.override(
-          task_id="wait_for_recovery"
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      )
+        wait_for_recovery = jobset.wait_for_jobset_recovered.override(
+            task_id="wait_for_recovery"
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        )
 
-      verify_duration = jobset.verify_recovery_duration.override(
-          task_id="verify_recovery_duration"
-      )(
-          start_time=node_pool_resize_start_time,
-          end_time=wait_for_recovery,
-      )
+        verify_duration = jobset.verify_recovery_duration.override(
+            task_id="verify_recovery_duration"
+        )(
+            start_time=node_pool_resize_start_time,
+            end_time=wait_for_recovery,
+        )
 
-      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
-          task_id="wait_for_jobset_ttr_to_be_found",
-      )(
-          node_pool=cluster_info,
-          jobset_name=jobset_name,
-          start_time=node_pool_resize_start_time,
-      )
+        wait_for_metric_upload = (
+            jobset.wait_for_jobset_ttr_to_be_found.override(
+                task_id="wait_for_jobset_ttr_to_be_found",
+            )(
+                node_pool=cluster_info,
+                jobset_name=jobset_name,
+                start_time=node_pool_resize_start_time,
+            )
+        )
 
-      cleanup_workload = jobset.end_workload.override(
-          task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      ).as_teardown(
-          setups=startup.jobset_start_time
-      )
+        chain(
+            *startup.tasks,
+            node_pool_resize_start_time,
+            wait_for_recovery,
+            verify_duration,
+            wait_for_metric_upload,
+        )
 
-      cleanup_node_pool = node_pool.delete.override(
-          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=cluster_info).as_teardown(
-          setups=create_node_pool,
-      )
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        cleanup_workload = jobset.end_workload.override(
+            task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        ).as_teardown(
+            setups=startup.jobset_start_time
+        )
+
+        cleanup_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=cluster_info).as_teardown(
+            setups=create_node_pool,
+        )
+
+        chain(
+            cleanup_workload,
+            cleanup_node_pool,
+        )
 
       chain(
           selector,
           jobset_name,
-          create_node_pool,
-          *startup.tasks,
-          node_pool_resize_start_time,
-          wait_for_recovery,
-          verify_duration,
-          wait_for_metric_upload,
-          cleanup_workload,
-          cleanup_node_pool,
+          pre_test,
+          test,
+          post_test,
       )

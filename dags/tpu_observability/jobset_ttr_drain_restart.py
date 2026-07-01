@@ -21,6 +21,11 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.task_group import TaskGroup
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
+
+
+from airflow.decorators import task
 
 from dags import composer_env
 from dags.common.scheduling_helper.scheduling_helper import (
@@ -41,6 +46,10 @@ from dags.tpu_observability.utils.node_pool_util import Info, NodeOperationSpec
 DAG_ID = "jobset_ttr_drain_restart"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 
 @task
@@ -140,75 +149,102 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       selector = jobset.generate_node_pool_selector(DAG_ID)
       jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
-      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
-          node_pool=cluster_info,
-          node_pool_selector=selector,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        create_node_pool = node_pool.create.override(
+            task_id="create_node_pool"
+        )(
+            node_pool=cluster_info,
+            node_pool_selector=selector,
+        )
 
-      startup = jobset.create_jobset_startup_tasks(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-          node_pool_selector=selector,
-          workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        startup = jobset.create_jobset_startup_tasks(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+            node_pool_selector=selector,
+            workload_type=Workload.JAX_TPU_BENCHMARK,
+        )
 
-      select_node = node_pool.draw_random_node.override(task_id="select_node")(
-          node_pool=cluster_info
-      )
+        select_node = node_pool.draw_random_node.override(
+            task_id="select_node"
+        )(node_pool=cluster_info)
 
-      drained_node = node_pool.operate_node.override(task_id="drained_node")(
-          node_pool=cluster_info,
-          operation=NodeOperationSpec.Drain(),
-          node_name=select_node,
-      )
+        drained_node = node_pool.operate_node.override(task_id="drained_node")(
+            node_pool=cluster_info,
+            operation=NodeOperationSpec.Drain(),
+            node_name=select_node,
+        )
 
-      check_nodes_number = check_nodes_number.override(
-          task_id="check_nodes_number"
-      )(
-          pool=cluster_info,
-          drained_node_number=1,
-      )
+        check_nodes_number_task = check_nodes_number.override(
+            task_id="check_nodes_number"
+        )(
+            pool=cluster_info,
+            drained_node_number=1,
+        )
 
-      uncordon_node = node_pool.operate_node.override(task_id="uncordon_node")(
-          node_pool=cluster_info,
-          operation=NodeOperationSpec.Uncordon(),
-          node_name=select_node,
-      )
+        uncordon_node = node_pool.operate_node.override(
+            task_id="uncordon_node"
+        )(
+            node_pool=cluster_info,
+            operation=NodeOperationSpec.Uncordon(),
+            node_name=select_node,
+        )
 
-      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
-          task_id="wait_for_metric_upload"
-      )(
-          node_pool=cluster_info,
-          jobset_name=jobset_name,
-      )
+        wait_for_metric_upload = (
+            jobset.wait_for_jobset_ttr_to_be_found.override(
+                task_id="wait_for_metric_upload"
+            )(
+                node_pool=cluster_info,
+                jobset_name=jobset_name,
+            )
+        )
 
-      cleanup_workload = jobset.end_workload.override(
-          task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      ).as_teardown(
-          setups=startup.jobset_start_time
-      )
+        chain(
+            *startup.tasks,
+            select_node,
+            drained_node,
+            check_nodes_number_task,
+            uncordon_node,
+            wait_for_metric_upload,
+        )
 
-      cleanup_node_pool = node_pool.delete.override(
-          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=cluster_info).as_teardown(
-          setups=create_node_pool,
-      )
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        cleanup_workload = jobset.end_workload.override(
+            task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        ).as_teardown(
+            setups=startup.jobset_start_time
+        )
+
+        cleanup_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=cluster_info).as_teardown(
+            setups=create_node_pool,
+        )
+
+        chain(
+            cleanup_workload,
+            cleanup_node_pool,
+        )
 
       chain(
           selector,
           jobset_name,
-          create_node_pool,
-          *startup.tasks,
-          select_node,
-          drained_node,
-          check_nodes_number,
-          uncordon_node,
-          wait_for_metric_upload,
-          cleanup_workload,
-          cleanup_node_pool,
+          pre_test,
+          test,
+          post_test,
       )
