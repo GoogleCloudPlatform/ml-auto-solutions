@@ -29,6 +29,7 @@ from dags.common.scheduling_helper.scheduling_helper import (
     SchedulingHelper,
     get_dag_timeout,
 )
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 from dags.tpu_observability.configs.common import (
     GCS_CONFIG_PATH,
     MachineConfigMap,
@@ -38,6 +39,10 @@ from dags.tpu_observability.utils import node_pool_util as node_pool
 DAG_ID = "gke_node_pool_label_update"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
@@ -88,43 +93,59 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           tpu_topology=config.tpu_topology,
       )
 
-      create_node_pool = node_pool.create.override(
-          task_id="create_node_pool",
-          owner=test_owner.YUNA_T,
-      )(
-          node_pool=node_pool_info,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        create_node_pool = node_pool.create.override(
+            task_id="create_node_pool",
+            owner=test_owner.YUNA_T,
+        )(
+            node_pool=node_pool_info,
+        )
 
-      wait_for_availability = node_pool.wait_for_availability.override(
-          task_id="wait_for_initial_availability"
-      )(node_pool=node_pool_info, availability=True)
+        wait_for_availability = node_pool.wait_for_availability.override(
+            task_id="wait_for_initial_availability"
+        )(node_pool=node_pool_info, availability=True)
 
-      update_node_pool_label = node_pool.update.override(
-          task_id="update_node_pool_label"
-      )(
-          node_pool=node_pool_info,
-          spec=node_pool.NodePoolUpdateSpec.Label(delta=labels_to_update),
-      )
+        chain(create_node_pool, wait_for_availability)
 
-      wait_for_unavailable = node_pool.wait_for_availability.override(
-          task_id="wait_for_unavailability_after_update"
-      )(node_pool=node_pool_info, availability=False)
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        update_node_pool_label = node_pool.update.override(
+            task_id="update_node_pool_label"
+        )(
+            node_pool=node_pool_info,
+            spec=node_pool.NodePoolUpdateSpec.Label(delta=labels_to_update),
+        )
 
-      wait_node_pool_recovered = node_pool.wait_for_availability.override(
-          task_id="wait_for_recovery"
-      )(node_pool=node_pool_info, availability=True)
+        wait_for_unavailable = node_pool.wait_for_availability.override(
+            task_id="wait_for_unavailability_after_update"
+        )(node_pool=node_pool_info, availability=False)
 
-      cleanup_node_pool = node_pool.delete.override(
-          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=node_pool_info).as_teardown(
-          setups=[create_node_pool],
-      )
+        wait_node_pool_recovered = node_pool.wait_for_availability.override(
+            task_id="wait_for_recovery"
+        )(node_pool=node_pool_info, availability=True)
+
+        chain(
+            update_node_pool_label,
+            wait_for_unavailable,
+            wait_node_pool_recovered,
+        )
+
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        cleanup_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=node_pool_info)
 
       chain(
-          create_node_pool,
-          wait_for_availability,
-          update_node_pool_label,
-          wait_for_unavailable,
-          wait_node_pool_recovered,
-          cleanup_node_pool,
+          pre_test,
+          test,
+          post_test,
       )

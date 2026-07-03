@@ -28,6 +28,7 @@ from dags.common.scheduling_helper.scheduling_helper import (
     SchedulingHelper,
     get_dag_timeout,
 )
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 from dags.tpu_observability.configs.common import (
     GCS_CONFIG_PATH,
     MachineConfigMap,
@@ -39,6 +40,10 @@ from xlml.apis import gcs
 DAG_ID = "gke_node_pool_status"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
@@ -100,107 +105,119 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           f"{node_pool_info.node_pool_name}-x"
       )
 
-      task_id = "create_node_pool"
-      create_node_pool = node_pool.create.override(
-          task_id=task_id,
-          owner=test_owner.YUNA_T,
-      )(
-          node_pool=node_pool_info,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        task_id = "create_node_pool"
+        create_node_pool = node_pool.create.override(
+            task_id=task_id,
+            owner=test_owner.YUNA_T,
+        )(
+            node_pool=node_pool_info,
+        )
 
-      task_id = "wait_for_provisioning"
-      wait_for_provisioning = node_pool.wait_for_status.override(
-          task_id=task_id
-      )(node_pool=node_pool_info, status=node_pool.Status.PROVISIONING)
+        # Intentionally create a node pool with problematic configurations
+        # to validate that it enters the ERROR state.
+        task_id = "create_problematic_node_pool_info"
+        create_problematic_node_pool_info = node_pool.create.override(
+            task_id=task_id,
+            owner=test_owner.YUNA_T,
+        )(
+            node_pool=problematic_node_pool_info,
+            # The failure is intentionally ignored because we want to validate
+            # that the status of the node pool (which fails to be created) is
+            # "ERROR".
+            ignore_failure=True,
+        )
 
-      task_id = "wait_for_running"
-      wait_for_running = node_pool.wait_for_status.override(task_id=task_id)(
-          node_pool=node_pool_info, status=node_pool.Status.RUNNING
-      )
+        task_id = "wait_for_provisioning"
+        wait_for_provisioning = node_pool.wait_for_status.override(
+            task_id=task_id
+        )(node_pool=node_pool_info, status=node_pool.Status.PROVISIONING)
 
-      task_id = "select_random_node"
-      select_random_node = node_pool.draw_random_node.override(task_id=task_id)(
-          node_pool=node_pool_info
-      )
+        task_id = "wait_for_running"
+        wait_for_running = node_pool.wait_for_status.override(task_id=task_id)(
+            node_pool=node_pool_info, status=node_pool.Status.RUNNING
+        )
 
-      task_id = "delete_node"
-      delete_node = node_pool.operate_node.override(task_id=task_id)(
-          node_pool=node_pool_info,
-          operation=NodeOperationSpec.Delete(),
-          node_name=select_random_node,
-      )
+        chain(create_node_pool, wait_for_provisioning, wait_for_running)
 
-      # TODO: add a check that the node count decreases after deletion.
-      # kubectl is not available here since this DAG has no workload or jobset.
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        task_id = "select_random_node"
+        select_random_node = node_pool.draw_random_node.override(
+            task_id=task_id
+        )(node_pool=node_pool_info)
 
-      task_id = "wait_for_repair"
-      wait_for_repair = node_pool.wait_for_status.override(task_id=task_id)(
-          node_pool=node_pool_info, status=node_pool.Status.RECONCILING
-      )
+        task_id = "delete_node"
+        delete_node = node_pool.operate_node.override(task_id=task_id)(
+            node_pool=node_pool_info,
+            operation=NodeOperationSpec.Delete(),
+            node_name=select_random_node,
+        )
 
-      task_id = "wait_for_recovered"
-      wait_for_recovered = node_pool.wait_for_status.override(task_id=task_id)(
-          node_pool=node_pool_info, status=node_pool.Status.RUNNING
-      )
+        task_id = "wait_for_repair"
+        wait_for_repair = node_pool.wait_for_status.override(task_id=task_id)(
+            node_pool=node_pool_info, status=node_pool.Status.RECONCILING
+        )
 
-      task_id = "delete_node_pool"
-      delete_node_pool = node_pool.delete.override(task_id=task_id)(
-          node_pool=node_pool_info
-      )
+        task_id = "wait_for_recovered"
+        wait_for_recovered = node_pool.wait_for_status.override(
+            task_id=task_id
+        )(node_pool=node_pool_info, status=node_pool.Status.RUNNING)
 
-      task_id = "wait_for_stopping"
-      wait_for_stopping = node_pool.wait_for_status.override(task_id=task_id)(
-          node_pool=node_pool_info, status=node_pool.Status.STOPPING
-      )
+        task_id = "delete_node_pool"
+        delete_node_pool = node_pool.delete.override(task_id=task_id)(
+            node_pool=node_pool_info
+        )
 
-      task_id = "cleanup_node_pool"
-      cleanup_node_pool = node_pool.delete.override(
-          task_id=task_id, trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=node_pool_info).as_teardown(
-          setups=create_node_pool,
-      )
+        task_id = "wait_for_stopping"
+        wait_for_stopping = node_pool.wait_for_status.override(task_id=task_id)(
+            node_pool=node_pool_info, status=node_pool.Status.STOPPING
+        )
 
-      # Intentionally create a node pool with problematic configurations
-      # to validate that it enters the ERROR state.
-      task_id = "create_problematic_node_pool_info"
-      create_problematic_node_pool_info = node_pool.create.override(
-          task_id=task_id,
-          owner=test_owner.YUNA_T,
-      )(
-          node_pool=problematic_node_pool_info,
-          # The failure is intentionally ignored because we want to validate
-          # that the status of the node pool (which fails to be created) is
-          # "ERROR".
-          ignore_failure=True,
-      )
+        task_id = "wait_for_error"
+        validate_problematic_node_pool_enter_error_state = (
+            node_pool.wait_for_status.override(task_id=task_id)(
+                node_pool=problematic_node_pool_info,
+                status=node_pool.Status.ERROR,
+            )
+        )
 
-      task_id = "wait_for_error"
-      wait_for_error = node_pool.wait_for_status.override(task_id=task_id)(
-          node_pool=problematic_node_pool_info, status=node_pool.Status.ERROR
-      )
+        chain(
+            select_random_node,
+            delete_node,
+            wait_for_repair,
+            wait_for_recovered,
+            delete_node_pool,
+            wait_for_stopping,
+        )
 
-      task_id = "cleanup_wrong_node_pool"
-      cleanup_wrong_node_pool = node_pool.delete.override(
-          task_id=task_id, trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=problematic_node_pool_info).as_teardown(
-          setups=create_problematic_node_pool_info,
-      )
+        chain(
+            create_problematic_node_pool_info,
+            validate_problematic_node_pool_enter_error_state,
+        )
+
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        task_id = "cleanup_node_pool"
+        cleanup_node_pool = node_pool.delete.override(
+            task_id=task_id, trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=node_pool_info)
+
+        task_id = "cleanup_wrong_node_pool"
+        cleanup_wrong_node_pool = node_pool.delete.override(
+            task_id=task_id, trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=problematic_node_pool_info)
 
       chain(
-          create_node_pool,
-          wait_for_provisioning,
-          wait_for_running,
-          select_random_node,
-          delete_node,
-          wait_for_repair,
-          wait_for_recovered,
-          delete_node_pool,
-          wait_for_stopping,
-          cleanup_node_pool,
-      )
-
-      chain(
-          create_problematic_node_pool_info,
-          wait_for_error,
-          cleanup_wrong_node_pool,
+          pre_test,
+          test,
+          post_test,
       )

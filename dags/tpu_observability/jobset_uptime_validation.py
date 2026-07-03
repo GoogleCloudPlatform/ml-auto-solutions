@@ -36,10 +36,17 @@ from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.jobset_util import Workload
 from dags.tpu_observability.utils.time_util import TimeUtil
+from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
+
 
 DAG_ID = "jobset_uptime_validation"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 
 @task
@@ -117,67 +124,88 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       selector = jobset.generate_node_pool_selector(DAG_ID)
       jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
-      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
-          node_pool=cluster_info,
-          node_pool_selector=selector,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        create_node_pool = node_pool.create.override(
+            task_id="create_node_pool"
+        )(
+            node_pool=cluster_info,
+            node_pool_selector=selector,
+        )
 
-      startup = jobset.create_jobset_startup_tasks(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-          node_pool_selector=selector,
-          workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        startup = jobset.create_jobset_startup_tasks(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+            node_pool_selector=selector,
+            workload_type=Workload.JAX_TPU_BENCHMARK,
+        )
 
-      wait_for_jobset_uptime_data = jobset.wait_for_jobset_uptime_data.override(
-          task_id="wait_for_jobset_uptime_data"
-      )(
-          node_pool=cluster_info,
-          jobset_name=jobset_name,
-          jobset_apply_time=startup.jobset_start_time,
-      )
+        wait_for_jobset_uptime_data = (
+            jobset.wait_for_jobset_uptime_data.override(
+                task_id="wait_for_jobset_uptime_data"
+            )(
+                node_pool=cluster_info,
+                jobset_name=jobset_name,
+                jobset_apply_time=startup.jobset_start_time,
+            )
+        )
 
-      clean_up_workload = jobset.end_workload.override(
-          task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      ).as_teardown(
-          setups=startup.jobset_start_time
-      )
+        clean_up_workload = jobset.end_workload.override(
+            task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        ).as_teardown(
+            setups=startup.jobset_start_time
+        )
 
-      jobset_clear_time = get_current_time.override(
-          task_id="get_current_time"
-      )()
+        jobset_clear_time = get_current_time.override(
+            task_id="get_current_time"
+        )()
 
-      ensure_no_jobset_uptime_data = (
-          jobset.ensure_no_jobset_uptime_data.override(
-              task_id="ensure_no_jobset_uptime_data"
-          )
-      )(
-          node_pool=cluster_info,
-          jobset_name=jobset_name,
-          jobset_clear_time=jobset_clear_time,
-          # Wait 5 minutes to confirm no data has been detected.
-          wait_time_seconds=300,
-      )
+        ensure_no_jobset_uptime_data = (
+            jobset.ensure_no_jobset_uptime_data.override(
+                task_id="ensure_no_jobset_uptime_data"
+            )
+        )(
+            node_pool=cluster_info,
+            jobset_name=jobset_name,
+            jobset_clear_time=jobset_clear_time,
+            # Wait 5 minutes to confirm no data has been detected.
+            wait_time_seconds=300,
+        )
 
-      cleanup_node_pool = node_pool.delete.override(
-          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=cluster_info).as_teardown(
-          setups=create_node_pool,
-      )
+        chain(
+            *startup.tasks,
+            wait_for_jobset_uptime_data,
+            clean_up_workload,
+            jobset_clear_time,
+            ensure_no_jobset_uptime_data,
+        )
+
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        cleanup_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=cluster_info).as_teardown(
+            setups=create_node_pool,
+        )
 
       chain(
           selector,
           jobset_name,
-          create_node_pool,
-          *startup.tasks,
-          wait_for_jobset_uptime_data,
-          clean_up_workload,
-          jobset_clear_time,
-          ensure_no_jobset_uptime_data,
-          cleanup_node_pool,
+          pre_test,
+          test,
+          post_test,
       )

@@ -27,6 +27,7 @@ from dags.common.scheduling_helper.scheduling_helper import (
     SchedulingHelper,
     get_dag_timeout,
 )
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 from dags.tpu_observability.configs.common import (
     GCS_CONFIG_PATH,
     MachineConfigMap,
@@ -36,6 +37,10 @@ from dags.tpu_observability.utils import node_pool_util as node_pool
 DAG_ID = "node_pool_ttr_update_label"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 with models.DAG(
     dag_id=DAG_ID,
@@ -87,50 +92,62 @@ with models.DAG(
           tpu_topology=config.tpu_topology,
       )
 
-      task_id = "create_node_pool"
-      create_node_pool = node_pool.create.override(task_id=task_id)(
-          node_pool=node_pool_info,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        task_id = "create_node_pool"
+        create_node_pool = node_pool.create.override(task_id=task_id)(
+            node_pool=node_pool_info,
+        )
 
-      task_id = "wait_for_provisioning"
-      wait_for_provisioning = node_pool.wait_for_status.override(
-          task_id=task_id
-      )(node_pool=node_pool_info, status=node_pool.Status.PROVISIONING)
+        task_id = "wait_for_provisioning"
+        wait_for_provisioning = node_pool.wait_for_status.override(
+            task_id=task_id
+        )(node_pool=node_pool_info, status=node_pool.Status.PROVISIONING)
 
-      task_id = "wait_for_running"
-      wait_for_running = node_pool.wait_for_status.override(task_id=task_id)(
-          node_pool=node_pool_info, status=node_pool.Status.RUNNING
-      )
+        task_id = "wait_for_running"
+        wait_for_running = node_pool.wait_for_status.override(task_id=task_id)(
+            node_pool=node_pool_info, status=node_pool.Status.RUNNING
+        )
 
-      task_id = "update_node_pool_label"
-      update_node_pool_label = node_pool.update.override(task_id=task_id)(
-          node_pool=node_pool_info,
-          spec=node_pool.NodePoolUpdateSpec.Label(delta=labels_to_update),
-      )
+        chain(create_node_pool, wait_for_provisioning, wait_for_running)
 
-      task_id = "wait_for_recovered"
-      wait_for_recovered = node_pool.wait_for_status.override(task_id=task_id)(
-          node_pool=node_pool_info, status=node_pool.Status.RUNNING
-      )
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        task_id = "update_node_pool_label"
+        update_node_pool_label = node_pool.update.override(task_id=task_id)(
+            node_pool=node_pool_info,
+            spec=node_pool.NodePoolUpdateSpec.Label(delta=labels_to_update),
+        )
 
-      task_id = "wait_for_ttr"
-      wait_for_ttr = node_pool.wait_for_ttr.override(task_id=task_id)(
-          node_pool=node_pool_info, operation_start_time=update_node_pool_label
-      )
+        task_id = "wait_for_recovered"
+        wait_for_recovered = node_pool.wait_for_status.override(
+            task_id=task_id
+        )(node_pool=node_pool_info, status=node_pool.Status.RUNNING)
 
-      task_id = "cleanup_node_pool"
-      cleanup_node_pool = node_pool.delete.override(
-          task_id=task_id, trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=node_pool_info).as_teardown(
-          setups=create_node_pool,
-      )
+        task_id = "wait_for_ttr"
+        wait_for_ttr = node_pool.wait_for_ttr.override(task_id=task_id)(
+            node_pool=node_pool_info,
+            operation_start_time=update_node_pool_label,
+        )
+
+        chain(update_node_pool_label, wait_for_recovered, wait_for_ttr)
+
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        task_id = "cleanup_node_pool"
+        cleanup_node_pool = node_pool.delete.override(
+            task_id=task_id, trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=node_pool_info)
 
       chain(
-          create_node_pool,
-          wait_for_provisioning,
-          wait_for_running,
-          update_node_pool_label,
-          wait_for_recovered,
-          wait_for_ttr,
-          cleanup_node_pool,
+          pre_test,
+          test,
+          post_test,
       )

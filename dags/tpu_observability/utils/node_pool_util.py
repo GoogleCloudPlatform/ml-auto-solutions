@@ -553,7 +553,7 @@ def _query_status_metric(node_pool: Info) -> Status:
   return Status.from_str(latest_status)
 
 
-@task.sensor(poke_interval=60, timeout=600, mode="poke")
+@task.sensor(poke_interval=60, timeout=600, mode="poke", retries=0)
 def wait_for_status(
     node_pool: Info,
     status: Status,
@@ -608,7 +608,7 @@ def rollback(node_pool: Info) -> None:
   return TimeUtil.from_datetime(current_time_utc)
 
 
-@task.sensor(poke_interval=30, timeout=1200, mode="poke")
+@task.sensor(poke_interval=30, timeout=1200, mode="poke", retries=0)
 def wait_for_availability(
     node_pool: Info,
     availability: bool,
@@ -684,7 +684,7 @@ def wait_for_availability(
   return availability == state
 
 
-@task.sensor(poke_interval=30, timeout=3600, mode="poke")
+@task.sensor(poke_interval=30, timeout=3600, mode="poke", retries=0)
 def wait_for_ttr(
     node_pool: Info,
     operation_start_time: TimeUtil,
