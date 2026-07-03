@@ -24,42 +24,11 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
+from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper
 from dags.maxtext_pathways.configs import parameters as ui_params
 from dags.maxtext_pathways.configs import recipe_config as recipe_cfg
+from dags.maxtext_pathways.configs.utils import get_dag_parameters, generate_install_dependencies_commands, generate_derived_parameters
 from xlml.utils import kpo, xpk, gke
-
-
-@task.python(multiple_outputs=True)
-def get_dag_parameters(**context) -> dict:
-  """Fetches and returns the DAG run's configuration parameters."""
-  dag_params = context.get("params", {})
-
-  return dag_params
-
-
-@task.python(multiple_outputs=True)
-def generate_derived_parameters(dag_params: dict) -> dict:
-  """Generates new parameters based on the initial DAG parameters."""
-  derived_params = {}
-
-  # Generate recipe workload_id.
-  name = generate_recipe_workload_id()
-  derived_params["workload_id"] = name
-
-  # Generate region by zone
-  derived_params["region"] = gke.zone_to_region(dag_params["zone"])
-
-  # Generate device_type.
-  device_type = (
-      dag_params["device_version"] + "-" + str(dag_params["core_count"])
-  )
-  derived_params["device_type"] = device_type
-
-  # Confirm whether to use customized_model_name.
-  if dag_params["selected_model_names"] == "customized_model_name":
-    derived_params["selected_model_names"] = dag_params["customized_model_name"]
-
-  return derived_params
 
 
 @task
@@ -89,50 +58,15 @@ def generate_commands(
   return commands
 
 
-def generate_install_dependencies_commands() -> str:
-  """Generate the shell commands to install dependencies in the Pod."""
-  # fmt: off
-  return " && ".join([
-      # Update apt package list
-      "sudo apt-get update",
-
-      # Install kubectl
-      "sudo apt-get install -y kubectl",
-
-      # Install GKE auth plugin for cluster authentication
-      "sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin -y",
-
-      # Install xpk
-      *xpk.get_xpk_setup_cmd("/root", xpk.MAIN_BRANCH),
-
-      # Install dependencies for maxtext
-      "pip install omegaconf",
-
-      # Prepare environment for further pip installs
-      "cd /deps",
-      "export USER=root",
-  ])
-  # fmt: on
-
-
-def generate_recipe_workload_id() -> tuple[str, str]:
-  """Generate a workload_id following the standard naming convention."""
-  time.localtime()
-  timestamp = time.strftime("%Y%m%d%H%M%S", time.localtime())
-  dag_id = RECIPE_NAME
-  name = f"{dag_id[:10]}-{timestamp[:10]}"
-  name = name[:40].replace("_", "-")
-
-  return name
-
-
 RECIPE_INSTANCE = recipe_cfg.Recipe.PW_MCJAX_BENCHMARK_RECIPE
 RECIPE_NAME = RECIPE_INSTANCE.value.lower()
+DAG_ID = RECIPE_NAME
+SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
 with models.DAG(
-    dag_id=RECIPE_NAME,
+    dag_id=DAG_ID,
     start_date=datetime.datetime(2025, 1, 1),
-    schedule_interval="0 21 * * *" if composer_env.is_prod_env() else None,
+    schedule_interval=SCHEDULE if composer_env.is_prod_env() else None,
     catchup=False,
     default_args={
         "retries": 0,
@@ -144,7 +78,7 @@ with models.DAG(
         "benchmark",
         "nightly",
         "TPU",
-        "v6e-64",
+        "v6e-16",
     ],
     description=f"A DAG to run a MaxText {RECIPE_NAME} on GKE.",
     params=ui_params.PARAMETERS,
@@ -179,7 +113,7 @@ with models.DAG(
 
   # Define task dependencies by instantiating and linking tasks.
   fetched_params = get_dag_parameters()
-  calculated_params = generate_derived_parameters(fetched_params)
+  calculated_params = generate_derived_parameters(fetched_params, DAG_ID)
   generated_cmds = generate_commands(
       fetched_params, calculated_params, RECIPE_INSTANCE
   )

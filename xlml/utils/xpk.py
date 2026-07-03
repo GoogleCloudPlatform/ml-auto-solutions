@@ -670,15 +670,42 @@ def check_logs_exist(
     elif pod.status.phase in ["Unknown"]:
       raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
 
-  if all(pod.status.phase in ["Running"] for pod in pods.items):
+  if all(pod.status.phase in ["Running", "Succeeded"] for pod in pods.items):
     # Pick the first running pod
     pod = pods.items[0]
     logs = core_api.read_namespaced_pod_log(
         name=pod.metadata.name, namespace=pod.metadata.namespace
     )
-    log_matches = re.findall(expect_log_contains, logs)
-    log_count = len(log_matches)
-    if log_count >= expected_count:
+
+    # Normalize input to a list if a single string is passed
+    if isinstance(expect_log_contains, str):
+      patterns = [expect_log_contains]
+    else:
+      patterns = expect_log_contains
+
+    all_patterns_found = True
+    for pattern in patterns:
+      log_matches = re.findall(re.escape(pattern), logs)
+      log_count = len(log_matches)
+      logging.info(f"Logs: '{pattern}' found {log_count} times, ")
+      if log_count < expected_count:
+        logging.info(
+            "Pattern '%s' found %d times, "
+            "which is less than expected_count (%d).",
+            pattern,
+            log_count,
+            expected_count,
+        )
+        all_patterns_found = False
+        break
+
+    if all_patterns_found:
+      unique_matches = sorted(list(set(log_matches)))
+      logging.info(
+          "All expected log patterns found successfully. "
+          "Recent matches include: %s",
+          unique_matches,
+      )
       return True
 
   logging.info("Waiting for matching log pattern...")

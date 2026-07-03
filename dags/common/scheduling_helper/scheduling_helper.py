@@ -95,6 +95,7 @@ REGISTERED_DAGS: dict[str, DagIdToTimeout] = {
         "pw_mcjax_benchmark_recipe": DefaultTimeout,
         "pw_elastic_pause_resume": DefaultTimeout,
         "pw_elastic_replica_resize": DefaultTimeout,
+        "pw_elastic_goodput": DefaultTimeout,
     },
 }
 
