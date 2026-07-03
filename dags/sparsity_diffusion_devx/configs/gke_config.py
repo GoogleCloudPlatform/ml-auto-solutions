@@ -14,13 +14,12 @@
 
 """Utilities to construct configs for solutionsteam_jax_bite DAG."""
 
-from dags.common import test_owner
+import datetime
+from typing import Iterable, Optional
+
+from dags.common.vm_resource import Project, XpkClusters
 from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
-from dags import gcs_bucket
-from dags.common.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion, Zone
-from typing import Iterable, Optional
-import datetime
 
 clusters = {
     # accelerator: cluster names
@@ -49,7 +48,9 @@ def get_gke_config(
     test_owner: str,
     cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
     num_slices: int = 1,
-    dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     tensorboard_summary_config: Optional[metric_config.SummaryConfig] = None,
@@ -87,43 +88,4 @@ def get_gke_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
-  )
-
-
-def get_gpu_gke_test_config(
-    time_out_in_min: int,
-    test_name: str,
-    run_model_cmds: str,
-    cluster: XpkClusterConfig,
-    test_owner: str,
-    docker_image: str,
-    num_slices: int = 1,
-) -> task.XpkTask:
-  job_gcp_config = gcp_config.GCPConfig(
-      project_name=cluster.project,
-      zone=cluster.zone,
-      dataset_name=metric_config.DatasetOption.XLML_DATASET,
-  )
-
-  job_test_config = test_config.GpuXpkTest(
-      test_config.Gpu(
-          machine_type=None,
-          image_family=None,
-          count=None,
-          accelerator_type=cluster.device_version.value,
-          runtime_version=None,
-      ),
-      test_name=test_name,
-      set_up_cmds=None,
-      run_model_cmds=run_model_cmds,
-      timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner,
-      cluster_name=cluster.name,
-      docker_image=docker_image,
-      num_slices=num_slices,
-  )
-
-  return task.XpkTask(
-      task_test_config=job_test_config,
-      task_gcp_config=job_gcp_config,
   )
