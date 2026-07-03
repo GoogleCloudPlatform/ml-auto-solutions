@@ -18,3 +18,4 @@ dacite
 virtualenv
 apache-airflow-providers-postgres
 dataclasses-json
+ml_goodput_measurement

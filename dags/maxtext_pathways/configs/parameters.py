@@ -46,7 +46,7 @@ PARAMETERS = {
         ),
     ),
     "cluster_name": Param(
-        "pw-v6e-32x4",
+        "pw-v6e-16x4",
         type="string",
         title="Cluster Name",
         description="GCP cluster name for training model.",
@@ -58,7 +58,7 @@ PARAMETERS = {
         description="GCP project ID for training model.",
     ),
     "zone": Param(
-        "us-central1-b",
+        "us-east4-b",
         type="string",
         title="Zone",
         description="Cluster zone.",
@@ -71,10 +71,10 @@ PARAMETERS = {
         enum=DEVICE_VERSION,
     ),
     "core_count": Param(
-        32,
+        16,
         type="integer",
         title="Core Count",
-        description='Device core count for the cluster. ex: v6e-"64"',
+        description='Device core count for the cluster. ex: v6e-"16"',
     ),
     "num_slices_list": Param(
         1,
