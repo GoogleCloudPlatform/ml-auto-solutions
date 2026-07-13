@@ -15,14 +15,14 @@
 """DAG definition for running MaxText Pathways Elastic benchmarks on GKE."""
 
 import datetime
-import time
-from absl import logging
 
+from absl import logging
 from airflow import models
 from airflow.decorators import task
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.models.baseoperator import chain
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
@@ -292,7 +292,7 @@ def worker_pod_interruption(
       )
 
       if previous_cycle_tail:
-        previous_cycle_tail >> wait_for_step
+        chain(previous_cycle_tail, wait_for_step)
       previous_cycle_tail = wait_for_slices_active
     return group
 
@@ -402,14 +402,14 @@ with models.DAG(
       cluster_name=fetched_params["cluster_name"],
   )
 
-  (
-      fetched_params
-      >> calculated_params
-      >> generated_cmds
-      >> start_recipe
-      >> interruption_task
-      >> wait_for_workload_complete
-      >> clean_up_recipe
+  chain(
+      fetched_params,
+      calculated_params,
+      generated_cmds,
+      start_recipe,
+      interruption_task,
+      wait_for_workload_complete,
+      clean_up_recipe,
   )
 
 replica_params = elastic_params.copy()
@@ -537,12 +537,12 @@ with models.DAG(
       cluster_name=fetched_params["cluster_name"],
   )
 
-  (
-      fetched_params
-      >> calculated_params
-      >> generated_cmds
-      >> start_recipe
-      >> interruption_task
-      >> wait_for_workload_complete
-      >> clean_up_recipe
+  chain(
+      fetched_params,
+      calculated_params,
+      generated_cmds,
+      start_recipe,
+      interruption_task,
+      wait_for_workload_complete,
+      clean_up_recipe,
   )

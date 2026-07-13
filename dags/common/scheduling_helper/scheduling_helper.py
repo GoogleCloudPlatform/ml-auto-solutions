@@ -18,8 +18,8 @@ import datetime as dt
 import enum
 from typing import TypeAlias
 
-from xlml.apis.xpk_cluster_config import XpkClusterConfig
 from dags.common.vm_resource import TpuVersion, Zone
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 
 
 class DayOfWeek(enum.Enum):

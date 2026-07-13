@@ -23,11 +23,12 @@ from airflow import models
 from airflow.models.param import Param
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
+from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
 
 # HF token retrieved from Airflow Variables for secure credential management
-HF_TOKEN = models.Variable.get("HF_TOKEN", None)
+HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
 def get_workload_name(model, mode, length=6):

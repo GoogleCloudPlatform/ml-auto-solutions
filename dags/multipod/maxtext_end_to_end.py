@@ -19,7 +19,7 @@ import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
-from dags.common.quarantined_tests import QuarantineTests
+from dags.common.quarantined_tests import QuarantineTests, safe_get_from_variable
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import gke_config
@@ -27,7 +27,7 @@ from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 7 * * *" if composer_env.is_prod_env() else None
-HF_TOKEN = models.Variable.get("HF_TOKEN", None)
+HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
 with models.DAG(

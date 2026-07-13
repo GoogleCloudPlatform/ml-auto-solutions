@@ -20,10 +20,11 @@ from airflow import models
 from airflow.models.param import Param
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
+from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import XpkClusters
 from dags.multipod.configs import gke_config
 
-HF_TOKEN = models.Variable.get("HF_TOKEN", None)
+HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 with models.DAG(
     dag_id="maxtext_e2e_tpu_pre_training",

@@ -19,8 +19,9 @@ import datetime
 import json
 import os
 from typing import Dict
+
+from dags.common.quarantined_tests import safe_get_from_variable
 from xlml.apis import gcp_config, metric_config, task, test_config
-from airflow.models import Variable
 from dags.common import test_owner
 from dags.multipod.configs import common
 from dags.common.vm_resource import MachineVersion, ImageFamily, ImageProject, GpuVersion, TpuVersion, Project, RuntimeVersion, Zone
@@ -29,7 +30,7 @@ from dags.common.vm_resource import MachineVersion, ImageFamily, ImageProject, G
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
-HF_TOKEN = Variable.get("HF_TOKEN", None)
+HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 VLLM_TPU_DOCKER_IMAGE = "gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest"
 VLLM_TPU_CONTAINER = "vllm-tpu-container"
 

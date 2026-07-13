@@ -19,6 +19,9 @@ set -e
 
 FOLDERS_TO_FORMAT=("dags" "xlml")
 
+echo "[code-style] Running Semgrep static analysis..."
+semgrep --config scripts/semgrep-rules.yaml --error
+
 for folder in "${FOLDERS_TO_FORMAT[@]}"
 do
   pyink "$folder" --pyink-indentation=2 --pyink-use-majority-quotes --line-length=80 --check --diff

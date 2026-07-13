@@ -1,0 +1,12 @@
+rules:
+  - id: block-native-variable-get
+    # blacklist
+    pattern-either:
+      - pattern: airflow.models.Variable.get(...)
+    message: "[code-style] native Variable.get() is prohibited. Please use safe_get_from_variable() instead."
+    languages: [python]
+    severity: ERROR
+    # whitelist
+    paths:
+      exclude:
+        - "dags/common/quarantined_tests.py"
