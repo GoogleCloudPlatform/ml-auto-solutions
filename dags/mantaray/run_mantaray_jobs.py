@@ -21,12 +21,12 @@ import yaml
 import os
 import dags.common.vm_resource as resource
 from airflow import models
-from airflow.models import Variable
 from airflow.utils.task_group import TaskGroup
 from airflow.decorators import task as task_decorators
 from airflow.decorators import task_group
 from airflow.hooks.subprocess import SubprocessHook
 from dags import composer_env
+from dags.common.quarantined_tests import safe_get_from_variable
 from dags.pytorch_xla.configs import pytorchxla_torchbench_config as config
 from dags.common import test_owner
 from dags.common.vm_resource import AcceleratorType, GpuVersion, TpuVersion, Region, Zone, Project, RuntimeVersion, V6E_GCE_NETWORK, V6E_GCE_SUBNETWORK
@@ -202,7 +202,7 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
     print("Test run rows:", test_run_rows)
     bigquery_metric.insert(test_run_rows)
 
-  HF_TOKEN_LLaMA3_8B = Variable.get("HF_TOKEN_LLaMA3_8B", None)
+  HF_TOKEN_LLaMA3_8B = safe_get_from_variable("HF_TOKEN_LLaMA3_8B", None)
 
   # commands for vllm nightly benchmarking
   def run_test_code_on_persistent_TPUVM(

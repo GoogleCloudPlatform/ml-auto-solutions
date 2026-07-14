@@ -19,10 +19,10 @@ import datetime
 import time
 from datetime import date
 from dags.common import test_owner
+from dags.common.quarantined_tests import safe_get_from_variable
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags import gcs_bucket
 from dags.solutions_team.configs.tensorflow import common
-from airflow.models import Variable
 from dags.common.vm_resource import TpuVersion, Project, RuntimeVersion
 
 
@@ -103,7 +103,7 @@ def get_tf_resnet_config(
   benchmark_id = f"{test_name}-v{tpu_version.value}-{tpu_cores}"
   # Add default_var to pass DAG check
   # TODO(ranran): replace Variable.get() to XCOM when it applies
-  tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
+  tpu_name = safe_get_from_variable(benchmark_id, None) if is_pod else "local"
   env_variable = common.export_env_variables(tpu_name, is_pod, is_pjrt)
   run_model_cmds = (
       "sudo chmod -R 777 /tmp/",
@@ -167,7 +167,7 @@ def get_tf_dlrm_config(
   # TODO(ranran): replace Variable.get() to XCOM when it applies
   test_name = "tf_dlrm_criteo"
   benchmark_id = f"{test_name}-v{tpu_version.value}-{tpu_cores}"
-  tpu_name = Variable.get(benchmark_id, default_var=None) if is_pod else "local"
+  tpu_name = safe_get_from_variable(benchmark_id, None) if is_pod else "local"
   is_v5p = tpu_version == TpuVersion.V5P
   env_variable = common.export_env_variables(
       tpu_name, is_pod, is_pjrt, is_v5p_sc=is_v5p
@@ -293,7 +293,7 @@ def get_tf_dlrm_config(
   model_dir = "/tmp"
 
   params_override["trainer"]["pipeline_sparse_and_dense_execution"] = "true"
-  tpu_id = Variable.get(benchmark_id, default_var=None)
+  tpu_id = safe_get_from_variable(benchmark_id, None)
   # TODO (ericlefort): Replace the model_dir with this line when the var is available
   # model_dir = metric_config.SshEnvVars.GCS_OUTPUT.value + f"/dlrm/v5p/{benchmark_id}"
   epoch = time.time()

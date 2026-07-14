@@ -1,23 +1,27 @@
+"""
+A DAG that periodically queries GKE cluster health
+and logs anomalies to a Google Sheet.
+"""
 # ================================================================
 # Step 0: Imports & Global Config
 # ================================================================
 import enum
 import json
 import logging
-from typing import List, Any, Dict
 from datetime import datetime, timezone
+from typing import Any, Dict, List
 
 import google
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.param import Param
-from airflow.models import Variable
 from airflow.operators.python import get_current_context
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 from google.api_core.exceptions import NotFound
 from google.cloud import bigquery, container_v1
 
 from dags.common import test_owner
+from dags.common.quarantined_tests import safe_get_from_variable
 
 # --- Airflow DAG Schedule ---
 SCHEDULED_TIME = "0 */4 * * *"  # Per 4 hours
@@ -28,7 +32,7 @@ DEFAULT_DATASET_ID = "amy_xlml_poc_prod"
 
 # --- Google Sheets Config ---
 GSPREAD_INSERT_ENABLED = True
-DEFAULT_GSPREAD_SHEET_ID = Variable.get("buganizer_sheet_id", default_var="")
+DEFAULT_GSPREAD_SHEET_ID = safe_get_from_variable("buganizer_sheet_id", "")
 GSPREAD_WORKSHEET_NAME = "unhealthy_clusters"
 
 
@@ -89,7 +93,8 @@ def insert_cluster_status_lists(
     #  Cannot query cluster info without location
     if not location:
       raise NotFound(
-          "The requested resource can not be found on the server without location."
+          "The requested resource can not be found on the server "
+          "without location."
       )
     info = get_cluster_status(credentials, project_name, location, cluster_name)
     cluster_status = info["status"]
@@ -160,7 +165,7 @@ def insert_cluster_status_lists(
             now_utc=now_utc,
         )
     )
-  except Exception as e:
+  except Exception as e:  # pylint: disable=broad-exception-caught
     logging.info(
         f"Error fetching details for {project_name}/{cluster_name}: {e}"
     )
@@ -203,8 +208,9 @@ def insert_gspread_rows(rows: List[List[str]], sheet_id: str):
         f"Inserting {len(rows)} rows into Google Sheet ID: {sheet_id}..."
     )
     if len(sheet_id) == 0:
-      raise Exception(
-          f"Sheet ID is empty. Please insert Sheet ID or set 'buganizer_sheet_id' in Variables"
+      raise Exception(  # pylint: disable=broad-exception-raised
+          "Sheet ID is empty. Please insert Sheet ID or "
+          "set 'buganizer_sheet_id' in Variables"
       )
     hook.append_values(
         spreadsheet_id=sheet_id,
@@ -214,7 +220,7 @@ def insert_gspread_rows(rows: List[List[str]], sheet_id: str):
         value_input_option="RAW",
     )
     logging.info(f"Successfully appended {len(rows)} rows to Google Sheet.")
-  except Exception as e:
+  except Exception as e:  # pylint: disable=broad-exception-caught
     logging.error(f"An error occurred while writing to Google Sheet: {e}")
 
 
@@ -337,26 +343,38 @@ params = {
     "source_bq_project_id": Param(
         type="string",
         title="Source BigQuery GCP Project ID",
-        description="The Source Google Cloud Project ID where the big query belong to",
+        description=(
+            "The Source Google Cloud Project ID "
+            "where the big query belong to"
+        ),
         default=DEFAULT_PROJECT_ID,
     ),
     "source_bq_dataset_id": Param(
         type="string",
         title="Source Big Query Dataset ID",
-        description="The Source BigQuery dataset ID where the data would be queried",
+        description=(
+            "The Source BigQuery dataset ID where the data would be queried"
+        ),
         default=DEFAULT_DATASET_ID,
     ),
     "target_gsheet_id": Param(
         type="string",
         title="Target Google Sheet ID",
-        description="The Target Google Sheet ID where the Buganizer issue information are stored",
+        description=(
+            "The Target Google Sheet ID where the Buganizer "
+            "issue information are stored"
+        ),
         default=DEFAULT_GSPREAD_SHEET_ID,
     ),
 }
 
 with DAG(
     dag_id="xlml_to_buganizer",
-    description="A DAG that periodically queries the status of GKE clusters to monitor their health, and writes the collected data as rows into the target Google Sheet.",
+    description=(
+        "A DAG that periodically queries the status of GKE clusters "
+        "to monitor their health, and writes the collected data as rows "
+        "into the target Google Sheet."
+    ),
     start_date=datetime(2025, 9, 3),
     schedule=SCHEDULED_TIME,
     catchup=False,

@@ -18,13 +18,14 @@ import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
+from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 10 am UTC (2 am PST)
 SCHEDULED_TIME = '0 10 * * *' if composer_env.is_prod_env() else None
-HF_TOKEN = models.Variable.get('HF_TOKEN', None)
+HF_TOKEN = safe_get_from_variable('HF_TOKEN', None)
 
 with models.DAG(
     dag_id='maxtext_sft_trainer',

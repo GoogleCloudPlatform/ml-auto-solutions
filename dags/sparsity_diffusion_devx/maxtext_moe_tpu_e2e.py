@@ -16,18 +16,24 @@
 
 
 import datetime
+
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
+
 from dags import composer_env
-from dags.common.quarantined_tests import QuarantineTests
 from dags.common import test_owner
-from dags.common.vm_resource import XpkClusters, DockerImage
+from dags.common.quarantined_tests import (
+    QuarantineTests,
+    safe_get_from_variable,
+)
+from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import gke_config
 from xlml.utils import name_format
 
 # Run once a day at 1 am UTC (5 pm PST)
 SCHEDULED_TIME = "30 1 * * *" if composer_env.is_prod_env() else None
-HF_TOKEN = models.Variable.get("HF_TOKEN", None)
+HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
 with models.DAG(
@@ -87,14 +93,16 @@ with models.DAG(
 
   unchained_tests = []
   for model, test_scripts_details in test_models_tpu.items():
-    for image in docker_image.keys():
+    for image, image_config in docker_image.items():
       training_tpu = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
           run_model_cmds=(
-              f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details['script_name']}.sh",
+              f"export HF_TOKEN={HF_TOKEN}; "
+              "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
+              f"bash tests/end_to_end/{test_scripts_details['script_name']}.sh"
           ),
-          docker_image=docker_image[image],
+          docker_image=image_config,
           test_owner=test_owner.SHUNING_J,
           cluster=test_scripts_details["cluster"],
       ).run_with_quarantine(quarantine_task_group)
@@ -102,7 +110,7 @@ with models.DAG(
 
   # stable_tpu >> nightly_tpu
   for i in range(len(unchained_tests) - 1):
-    unchained_tests[i] >> unchained_tests[i + 1]
+    chain(unchained_tests[i], unchained_tests[i + 1])
 
   # Chained tests
   multicluster_test_models = {
@@ -133,49 +141,51 @@ with models.DAG(
   }
 
   def convert_checkpoint_and_run_training(
-      test_group_id,
-      test_name_prefix,
-      image,
-      docker_image,
-      model,
-      test_scripts_details,
+      test_group_id_val,
+      test_name_prefix_str,
+      image_tag,
+      docker_image_config,
+      model_id,
+      test_scripts_details_list,
   ):
-    with TaskGroup(group_id=test_group_id, prefix_group_id=False) as group:
-      test_name = f"{test_name_prefix}_{image}_{model}"
+    with TaskGroup(group_id=test_group_id_val, prefix_group_id=False):
+      test_name = f"{test_name_prefix_str}_{image_tag}_{model_id}"
       shared_gcs_location = name_format.generate_gcs_folder_location.override(
-          task_id=f"{test_group_id}_generate_gcs_folder_location"
+          task_id=f"{test_group_id_val}_generate_gcs_folder_location"
       )(
           gcs_subfolder,
-          test_group_id,
+          test_group_id_val,
       )
       conversion_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
-          time_out_in_min=test_scripts_details[0]["time_out_in_min"],
+          time_out_in_min=test_scripts_details_list[0]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[0]['script_name']}.sh",
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/"
+              f"{test_scripts_details_list[0]['script_name']}.sh",
           ),
-          docker_image=docker_image,
+          docker_image=docker_image_config,
           test_owner=test_owner.SHUNING_J,
-          cluster=test_scripts_details[0]["cluster"],
+          cluster=test_scripts_details_list[0]["cluster"],
       ).run(gcs_location=shared_gcs_location)
-      training_tpu = gke_config.get_gke_config(
-          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
+      training_tpu_task = gke_config.get_gke_config(
+          time_out_in_min=test_scripts_details_list[1]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[1]['script_name']}.sh",
+              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/"
+              f"{test_scripts_details_list[1]['script_name']}.sh",
           ),
-          docker_image=docker_image,
+          docker_image=docker_image_config,
           test_owner=test_owner.SHUNING_J,
           cluster=test_scripts_details[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
-      return conversion_cpu, training_tpu
+      return conversion_cpu, training_tpu_task
 
   tests = []
   for model, test_scripts_details in multicluster_test_models.items():
     gcs_subfolder = (
         f"{test_owner.Team.JAX_MODELS_AND_PERFORMANCE.value}/maxtext"
     )
-    for image in docker_image.keys():
+    for image, image_config in docker_image.items():
       test_group_id = "chained_tests" + "_" + model + "_" + image
       if QuarantineTests.is_quarantined(test_group_id):
         with quarantine_task_group:
@@ -183,7 +193,7 @@ with models.DAG(
               test_group_id,
               test_name_prefix,
               image,
-              docker_image[image],
+              image_config,
               model,
               test_scripts_details,
           )
@@ -192,7 +202,7 @@ with models.DAG(
             test_group_id,
             test_name_prefix,
             image,
-            docker_image[image],
+            image_config,
             model,
             test_scripts_details,
         )
@@ -201,4 +211,4 @@ with models.DAG(
 
     # stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
     for i in range(len(tests) - 1):
-      tests[i] >> tests[i + 1]
+      chain(tests[i], tests[i + 1])
