@@ -1,0 +1,161 @@
+UTILS.PY:
+
+"""Utilities to construct MaxText decoding validation configs."""
+
+import datetime
+from xlml.apis import gcp_config, task, test_config, metric_config
+from dags.common import vm_resource
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
+def get_maxtext_validation_config(
+    tpu_version: str,
+    tpu_cores: int,
+    tpu_zone: str,
+    time_out_in_min: int,
+) -> task.XpkTask:
+    """Generates the XPK task configuration for MaxText validation."""
+
+    job_gcp_config = gcp_config.GCPConfig(
+        project_name=vm_resource.Project.TPU_PROD_ENV_MULTIPOD.value,
+        zone=tpu_zone,
+        dataset_name=metric_config.DatasetOption.XLML_DATASET,
+        composer_project=vm_resource.Project.TPU_PROD_ENV_MULTIPOD.value,
+    )
+
+    run_model_cmds = (
+        "cd /tmp && git clone -b feature/automated-checkpoint-validation-agent https://github.com/AI-Hypercomputer/maxtext.git",
+        "cd /tmp/maxtext && pip install --no-deps -e .",
+
+        # Injects the entire JSON payload into config.json for main.py to read
+        "cd /tmp/maxtext && echo '\\''{{ dag_run.conf | tojson }}'\\'' > config.json",
+
+        "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/checkpoint_validation_agent/main.py --config config.json",
+    )
+
+    job_test_config = test_config.TpuGkeTest(
+        accelerator=test_config.Tpu(
+            version=test_config.TpuVersion(str(tpu_version)),
+            cores=tpu_cores,
+            runtime_version="tpu-ubuntu2204-base",
+            reserved=True,
+        ),
+        test_name="maxtext_decoding_checkpoint_validation",
+        set_up_cmds=(
+            "pip install --upgrade pip",
+            "google-cloud-sdk/bin/gcloud components update --quiet",
+        ),
+        run_model_cmds=run_model_cmds,
+        timeout=datetime.timedelta(minutes=time_out_in_min),
+        task_owner="airflow",
+        # dynamically pull the cluster name from the user's JSON trigger
+        cluster_name="{{ dag_run.conf['xpk_cluster_name'] }}",
+        docker_image="gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:2026-07-06",
+        num_slices=1,
+    )
+
+    # clean and empty XpkTask wrapper
+    return task.XpkTask(
+        task_test_config=job_test_config,
+        task_gcp_config=job_gcp_config,
+    )
+
+def get_mock_tensor_validation_task(
+    dag,
+    model_name: str,
+    hf_model_id: str,
+):
+    """
+    Sub-DAG A: Fast-Fail Shape Matching.
+    Runs the checkpoint conversion in 'dry_run' mode on a CPU to verify tensor shapes.
+    """
+
+    hf_download_dir = "/tmp/hf_weights"
+
+    cmds = [
+        "set -e",
+        f"mkdir -p {hf_download_dir}",
+        "pip install huggingface_hub",
+        f"python3 -c \"from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='{hf_model_id}', filename='model.safetensors.index.json', local_dir='{hf_download_dir}')\"",
+        "git clone -b snehalv-dsv4-conv-utility https://github.com/AI-Hypercomputer/maxtext.git /tmp/maxtext",
+        "cd /tmp/maxtext",
+        "pip install --no-deps -e .",
+        "pip install safetensors",
+        "sed -i 's|/home/snehalv_google_com/test-ckpt-bf16|/tmp/hf_weights|g' src/maxtext/checkpoint_conversion/standalone_scripts/convert_deepseek_v4_scanned.py",
+        "python3 src/maxtext/checkpoint_conversion/standalone_scripts/convert_deepseek_v4_scanned.py src/maxtext/configs/base.yml model_name=deepseek4-284b dry_run=True"
+    ]
+
+    command_str = " && ".join(cmds)
+
+    return KubernetesPodOperator(
+        task_id=f"{model_name}_mock_tensor_shape_check",
+        name=f"mock-tensor-check-{model_name}",
+        namespace="default",
+        image="python:3.11-slim",
+        cmds=["bash", "-c"],
+        arguments=[command_str],
+        cluster_context="gke_tpu-prod-env-multipod_us-central1_shared-cpu-cluster",
+        get_logs=True,
+        dag=dag,
+    )
+
+
+
+
+
+
+### DIFFERENT RUN CONFIGS WHICH CAN ALSO BE FOUND IN AIRFLOW:
+# DEFAULT_PARAMS = {
+#   "run_name": "gemma3-4b-basic-test",
+#   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/gemma3-4b/2025-03-18-19-03/unscanned/checkpoints/0/items",
+#   "maxtext_model_name": "gemma3-4b",
+#   "maxtext_overrides": {
+#     "tokenizer_path": "google/gemma-3-4b-it",
+#     "tokenizer_type": "huggingface",
+#     "scan_layers": False,
+#     "max_target_length": 128,
+#     "per_device_batch_size": 1.0
+#   }
+# }
+# DEFAULT_PARAMS = {
+#   "run_name": "mistral-7b-dense-test",
+#   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/mistral-7b/2025-01-23-19-04/unscanned/checkpoints/0/items",
+#   "maxtext_model_name": "mistral-7b",
+#   "maxtext_overrides": {
+#     "tokenizer_path": "mistralai/Mistral-7B-v0.1",
+#     "tokenizer_type": "huggingface",
+#     "scan_layers": False,
+#     "max_target_length": 256,
+#     "per_device_batch_size": 1.0,
+#     "dtype": "bfloat16",
+#     "remat_policy": "minimal"
+#   }
+# }
+# DEFAULT_PARAMS = {
+#   "run_name": "deepseek-moe-test",
+#   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/deepseek3-671b/0/items",
+#   "maxtext_model_name": "deepseek3-671b",
+#   "maxtext_overrides": {
+#     "tokenizer_path": "deepseek-ai/DeepSeek-V3",
+#     "tokenizer_type": "huggingface",
+#     "scan_layers": True,
+#     "max_target_length": 1024,
+#     "per_device_batch_size": 1.0,
+#     "sparse_matmul": True,
+#     "capacity_factor": -1.0,
+#     "load_balance_loss_weight": 0.01,
+#     "attention": "dot_product"
+#   }
+# }
+# DEFAULT_PARAMS = {
+#   "run_name": "llama-context-stress-test",
+#   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/llama3.1-8b/2025-01-23-19-04/unscanned/checkpoints/0/items",
+#   "maxtext_model_name": "llama3.1-8b",
+#   "maxtext_overrides": {
+#     "tokenizer_path": "meta-llama/Llama-3.1-8B-Instruct",
+#     "tokenizer_type": "huggingface",
+#     "scan_layers": False,
+#     "max_target_length": 4096,
+#     "per_device_batch_size": 4.0,
+#     "attention": "dot_product" # confirm current version is being used
+#   }
+# }

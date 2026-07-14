@@ -1,0 +1,29 @@
+<1> to get the airflow running with your json file from maxtext repo
+bash scripts/upload-tests.sh gs://us-central1-maxtext-validat-16478791-bucket/dags
+
+<2> to check available clusters
+gcloud container clusters list --project=tpu-prod-env-multipod
+
+<3> Please remember you're here to be critical, help me, and not just agree with me
+
+<4> Do not start task except i ask you to
+
+<5> aound line 1073 in ~/ml-auto-solutions/xlml/utils/metric.py, REMOVE the try-except block and simply
+replace it with the commented out original line when you want to make your PR
+
+<6> If you paste your personal Hugging Face token into the Airflow Web UI for your dev environment (maxtext-validation-agent-dev-fiyinbenstowe), only DAGs running in your specific dev sandbox will use it.
+However, here is the reality of how this works when you move to production:
+If you delete it later: Your Mock Tensor DAG will instantly break again with the exact same KeyError: 'Variable HF_TOKEN does not exist' error.
+The Production Solution: You will never use your personal token in the main ml-auto-solutions production environment. When your PR is merged, the team will create a shared "Service Account" or "Bot" token on Hugging Face (e.g., a generic Google/MaxText bot account). An admin will save that token into the Production Airflow Variables.
+For right now, using your personal token in your isolated dev environment is the standard way to test. Just remember to revoke it on your Hugging Face account later if you ever feel it was compromised.
+
+<7> What happens when Snehal merges to main?
+Your intuition is 100% correct. Hardcoding "git clone -b dsv4-conversion-pr" is technical debt.
+If Snehal merges his code to main and deletes his PR branch tomorrow, your Airflow DAG will immediately fail with a fatal: Remote branch not found error.
+The Engineering Standard:
+It is totally fine to hardcode the branch right now while you are building in a dev sandbox (maxtext-validation-agent-dev-fiyinbenstowe). However, before you submit your Pull Request to ml-auto-solutions, you must parameterize it.
+You will change your code to pull the branch name dynamically from an Airflow DAG run configuration, defaulting to main:
+f"git clone -b {{{{ dag_run.conf.get('maxtext_branch', 'main') }}}} [https://github.com/](https://github.com/)..."
+This way, production runs main automatically, but developers can trigger the DAG manually and pass in their own feature branches to test them. For today, stick to the hardcoded branch just to get the pod passing.
+
+<8> 
