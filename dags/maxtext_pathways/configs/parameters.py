@@ -46,7 +46,7 @@ PARAMETERS = {
         ),
     ),
     "cluster_name": Param(
-        "pw-v6e-16x4",
+        "pw-spot-v6e-16",
         type="string",
         title="Cluster Name",
         description="GCP cluster name for training model.",
@@ -58,7 +58,7 @@ PARAMETERS = {
         description="GCP project ID for training model.",
     ),
     "zone": Param(
-        "us-east4-b",
+        "us-central1-b",
         type="string",
         title="Zone",
         description="Cluster zone.",
@@ -145,5 +145,12 @@ PARAMETERS = {
         type="integer",
         title="Max Restarts",
         description="Max restarts for the workload",
+    ),
+    "elastic_type": Param(
+        "None",
+        type="string",
+        title="Elastic Type",
+        description="Pause-resume/Replica-resize",
+        enum=["None", "Pause-resume", "Replica-resize"],
     ),
 }
