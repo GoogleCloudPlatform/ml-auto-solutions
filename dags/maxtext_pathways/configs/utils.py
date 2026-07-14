@@ -89,15 +89,16 @@ def generate_derived_parameters(dag_params: dict, dag_id: str) -> dict:
   if dag_params["selected_model_names"] == "customized_model_name":
     derived_params["selected_model_names"] = dag_params["customized_model_name"]
 
-  core_calc = dag_params["core_count"] // 4
-  if dag_params["elastic_type"] == "Pause-resume":
-    derived_params["elastic_min_slice_count"] = -1
-    derived_params["topology"] = f"tpuv6e:4x{core_calc}"
-    derived_params["num_elastic_slices"] = 1
-  else:
-    derived_params["elastic_min_slice_count"] = 1
-    derived_params["topology"] = ",".join([f"tpuv6e:4x{core_calc}"] * 2)
-    derived_params["num_elastic_slices"] = 2
+  if dag_params["elastic_type"] in ["Pause-resume", "Replica-resize"]:
+    core_calc = dag_params["core_count"] // 4
+    if dag_params["elastic_type"] == "Pause-resume":
+      derived_params["elastic_min_slice_count"] = -1
+      derived_params["topology"] = f"tpuv6e:4x{core_calc}"
+      derived_params["num_elastic_slices"] = 1
+    else:
+      derived_params["elastic_min_slice_count"] = 1
+      derived_params["topology"] = ",".join([f"tpuv6e:4x{core_calc}"] * 2)
+      derived_params["num_elastic_slices"] = 2
 
   return derived_params
 

@@ -41,24 +41,6 @@ elastic_params.update({
         title="Colocated Python Image",
         description="Colocated Python image for pathways.",
     ),
-    "server_image": ui_params.Param(
-        # Reference to:
-        # https://g3doc.corp.google.com/cloud/tpu/g3doc/fas/pathways-on-cloud/index.md?cl=head
-        "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/"
-        "server:20260521_RC00-jax_0.10.0",
-        type="string",
-        title="Server Image",
-        description="Server image for pathways.",
-    ),
-    "proxy_image": ui_params.Param(
-        # Reference to:
-        # https://g3doc.corp.google.com/cloud/tpu/g3doc/fas/pathways-on-cloud/index.md?cl=head
-        "us-docker.pkg.dev/cloud-tpu-v2-images/pathways/"
-        "proxy_server:20260521_RC00-jax_0.10.0",
-        type="string",
-        title="Proxy Image",
-        description="Proxy image for pathways.",
-    ),
     "elastic_type": ui_params.Param(
         ELASTIC_TYPE[0],
         type="string",
