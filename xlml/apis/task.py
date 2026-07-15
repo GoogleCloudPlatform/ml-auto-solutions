@@ -350,6 +350,7 @@ class XpkTask(BaseTask):
       mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
       max_restart: int = 0,
+      priority: str = "high",
   ) -> DAGNode:
     """Run a test job within a docker image.
 
@@ -371,6 +372,7 @@ class XpkTask(BaseTask):
           mtc_enabled,
           xpk_branch,
           max_restart,
+          priority=priority,
       )
       if not skip_post_process:
         _ = run_model >> self.post_process(gcs_path)
@@ -727,6 +729,7 @@ class XpkTask(BaseTask):
       mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
       max_restart: int = 0,
+      priority: str = "high",
   ) -> DAGNode:
     """Run the TPU/GPU test in `task_test_config` using xpk.
 
@@ -761,6 +764,7 @@ class XpkTask(BaseTask):
           mtc_enabled,
           xpk_branch,
           max_restart,
+          priority=priority,
       )
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
           timeout=int(self.task_test_config.timeout.total_seconds()),
@@ -798,6 +802,7 @@ class XpkTask(BaseTask):
       mtc_enabled: bool = False,
       xpk_branch: str = xpk.MAIN_BRANCH,
       max_restart: int = 0,
+      priority: str = "high",
   ) -> DAGNode:
     """Create the workload and wait for it to provision."""
     with TaskGroup(group_id="launch_workload") as group:
@@ -821,6 +826,7 @@ class XpkTask(BaseTask):
           mtc_enabled=mtc_enabled,
           xpk_branch=xpk_branch,
           max_restart=max_restart,
+          priority=priority,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
