@@ -70,7 +70,7 @@ with models.DAG(
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
           test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True)
+      ).run(skip_post_process=True, priority="very-high")
 
       training_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
           f"{test_config['training']['command']} {run_name}",
@@ -82,7 +82,7 @@ with models.DAG(
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_128_CLUSTER,
           test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True)
+      ).run(skip_post_process=True, priority="very-high")
 
       model_path = test_config["training"]["maxtext_ckpt_path"].format(
           run_name=run_name
@@ -97,6 +97,6 @@ with models.DAG(
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
           test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True)
+      ).run(skip_post_process=True, priority="very-high")
 
       convert_to_maxtext_task >> training_task >> convert_to_huggingface_task

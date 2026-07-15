@@ -94,7 +94,7 @@ with models.DAG(
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
           test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True)
+      ).run(skip_post_process=True, priority="very-high")
 
       for mode, mode_test_config in test_config["post_training"].items():
         with TaskGroup(group_id=f"{mode}-{model}") as model_group:
@@ -125,6 +125,7 @@ with models.DAG(
                 test_owner=test_owner.SURBHI_J,
             ).run_model(
                 use_pathways=True,
+                priority="very-high",
             )
 
           model_path = mode_test_config["maxtext_ckpt_path"].format(
@@ -140,7 +141,7 @@ with models.DAG(
               docker_image="{{ params.docker_image }}",
               cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
               test_owner=test_owner.SURBHI_J,
-          ).run(skip_post_process=True)
+          ).run(skip_post_process=True, priority="very-high")
 
           (
               convert_to_maxtext_task
