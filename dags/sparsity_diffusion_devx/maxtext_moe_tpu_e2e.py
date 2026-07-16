@@ -161,7 +161,7 @@ with models.DAG(
           test_name=test_name,
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/"
-              f"{test_scripts_details_list[0]['script_name']}.sh",
+              f"{test_scripts_details_list[0]['script_name']}.sh"
           ),
           docker_image=docker_image_config,
           test_owner=test_owner.SHUNING_J,
@@ -172,11 +172,11 @@ with models.DAG(
           test_name=test_name,
           run_model_cmds=(
               f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/"
-              f"{test_scripts_details_list[1]['script_name']}.sh",
+              f"{test_scripts_details_list[1]['script_name']}.sh"
           ),
           docker_image=docker_image_config,
           test_owner=test_owner.SHUNING_J,
-          cluster=test_scripts_details[1]["cluster"],
+          cluster=test_scripts_details_list[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu_task
 
