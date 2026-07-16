@@ -108,6 +108,9 @@ def get_mock_tensor_validation_task(
 #   "run_name": "gemma3-4b-basic-test",
 #   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/gemma3-4b/2025-03-18-19-03/unscanned/checkpoints/0/items",
 #   "maxtext_model_name": "gemma3-4b",
+#   "maxtext_branch": "feat/mock-tensor-validation",
+#   "maxtext_commit_hash": "",
+#   "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
 #   "maxtext_overrides": {
 #     "tokenizer_path": "google/gemma-3-4b-it",
 #     "tokenizer_type": "huggingface",
@@ -120,6 +123,9 @@ def get_mock_tensor_validation_task(
 #   "run_name": "mistral-7b-dense-test",
 #   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/mistral-7b/2025-01-23-19-04/unscanned/checkpoints/0/items",
 #   "maxtext_model_name": "mistral-7b",
+#   "maxtext_branch": "feat/mock-tensor-validation",
+#   "maxtext_commit_hash": "",
+#   "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
 #   "maxtext_overrides": {
 #     "tokenizer_path": "mistralai/Mistral-7B-v0.1",
 #     "tokenizer_type": "huggingface",
@@ -134,6 +140,9 @@ def get_mock_tensor_validation_task(
 #   "run_name": "deepseek-moe-test",
 #   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/deepseek3-671b/0/items",
 #   "maxtext_model_name": "deepseek3-671b",
+#   "maxtext_branch": "feat/mock-tensor-validation",
+#   "maxtext_commit_hash": "",
+#   "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
 #   "maxtext_overrides": {
 #     "tokenizer_path": "deepseek-ai/DeepSeek-V3",
 #     "tokenizer_type": "huggingface",
@@ -150,6 +159,9 @@ def get_mock_tensor_validation_task(
 #   "run_name": "llama-context-stress-test",
 #   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/llama3.1-8b/2025-01-23-19-04/unscanned/checkpoints/0/items",
 #   "maxtext_model_name": "llama3.1-8b",
+#   "maxtext_branch": "feat/mock-tensor-validation",
+#   "maxtext_commit_hash": "",
+#   "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
 #   "maxtext_overrides": {
 #     "tokenizer_path": "meta-llama/Llama-3.1-8B-Instruct",
 #     "tokenizer_type": "huggingface",
@@ -158,4 +170,44 @@ def get_mock_tensor_validation_task(
 #     "per_device_batch_size": 4.0,
 #     "attention": "dot_product" # confirm current version is being used
 #   }
+# }
+# DEFAULT_PARAMS = {
+#   "run_name": "qwen3-custom-test",
+#   "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
+#   "maxtext_model_name": "qwen3-8b",
+#   "maxtext_branch": "feat/mock-tensor-validation",
+#   "maxtext_commit_hash": "",
+#   "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
+#   "maxtext_overrides": {
+#     "tokenizer_path": "Qwen/Qwen3-8B-Instruct",
+#     "tokenizer_type": "huggingface",
+#     "scan_layers": False,
+#     "max_target_length": 2048,
+#     "per_device_batch_size": 8.0,
+#     "attention": "dot_product"
+#   }
+# }
+
+
+
+
+
+maxtext_validation_master_dag.py
+this was previously at the top. Saving it in case I need a cluster up and running
+# configuration for Gemma 3 4B on the v4-8 cluster
+# GEMMA_NIGHTLY_CONFIG = {
+#     "run_name": "nightly-gemma3-4b-validation",
+#     "xpk_cluster_name": "v4-8-maxtext", # running cluster
+#     "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/gemma3-4b/2025-03-18-19-03/unscanned/checkpoints/0/items",
+#     "maxtext_model_name": "gemma3-4b",
+#     "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
+#     "maxtext_branch": "feat/mock-tensor-validation",
+#     "maxtext_overrides": {
+#         "tokenizer_path": "",
+#         "hf_path": "google/gemma-3-4b-it",
+#         "tokenizer_type": "huggingface",
+#         "scan_layers": False,
+#         "max_target_length": 4096,
+#         "per_device_batch_size": 16.0
+#     }
 # }
