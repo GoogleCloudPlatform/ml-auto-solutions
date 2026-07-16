@@ -18,12 +18,12 @@ DAGs in parallel, waits for both to complete, then fires a GitHub
 repository_dispatch callback with the aggregated result.
 """
 import datetime
-import requests
 from airflow import models
 from airflow.models.param import Param
 from airflow.operators.python import PythonOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.trigger_rule import TriggerRule
+from xlml.utils.github import fire_github_callback, validate_git_trigger
 
 with models.DAG(
     dag_id="maxtext_e2e_tests",
@@ -79,35 +79,19 @@ with models.DAG(
       poke_interval=600,  # check every 10 minutes for child DAG completion
   )
 
-  def fire_github_callback(**context):
-    params = context["params"]
-    dag_run = context["dag_run"]
-
-    response = requests.post(
-        f"https://api.github.com/repos/{params['github_repo']}/dispatches",
-        headers={
-            "Authorization": f"Bearer {params['github_callback_token']}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-        json={
-            "event_type": "airflow-dag-complete",
-            "client_payload": {
-                "state": "success",
-                "dag_id": dag_run.dag_id,
-                "dag_run_id": dag_run.run_id,
-                "sha": params["maxtext_sha"],
-                "github_run_id": params["github_run_id"],
-            },
-        },
-        timeout=30,
-    )
-    response.raise_for_status()
-
   github_callback = PythonOperator(
       task_id="fire_github_callback",
       python_callable=fire_github_callback,
       trigger_rule=TriggerRule.ALL_SUCCESS,  # Only fire if all upstream tasks succeeded
   )
 
-  [trigger_pre_training, trigger_post_training] >> github_callback
+  validate_task = PythonOperator(
+      task_id="validate_trigger",
+      python_callable=validate_git_trigger,
+  )
+
+  (
+      validate_task
+      >> [trigger_pre_training, trigger_post_training]
+      >> github_callback
+  )
