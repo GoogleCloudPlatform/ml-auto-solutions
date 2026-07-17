@@ -67,27 +67,27 @@ with models.DAG(
       "deepseek32-671b": {
           "script_name": "tpu/deepseek/v3.2-671b/2_test_deepseek",
           "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
-          "time_out_in_min": 90,
+          "time_out_in_min": 180,
       },
       "deepseek3-671b": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek",
           "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
-          "time_out_in_min": 90,
+          "time_out_in_min": 180,
       },
       "deepseek3-671b-mtp": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek_mtp",
           "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
-          "time_out_in_min": 90,
+          "time_out_in_min": 180,
       },
       "deepseek2-16b": {
           "script_name": "tpu/deepseek/v2-16b/test_deepseek",
           "cluster": XpkClusters.TPU_V5P_8_CLUSTER_V2,
-          "time_out_in_min": 90,
+          "time_out_in_min": 180,
       },
       "gpt-oss-20b": {
           "script_name": "tpu/gpt_oss/20b/test_gpt_oss",
           "cluster": XpkClusters.TPU_V5P_8_CLUSTER_V2,
-          "time_out_in_min": 90,
+          "time_out_in_min": 180,
       },
   }
 
