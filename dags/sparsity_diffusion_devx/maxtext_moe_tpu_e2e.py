@@ -100,7 +100,7 @@ with models.DAG(
           run_model_cmds=(
               f"export HF_TOKEN={HF_TOKEN}; "
               "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
-              f"bash tests/end_to_end/{test_scripts_details['script_name']}.sh"
+              f"bash tests/end_to_end/{test_scripts_details['script_name']}.sh",
           ),
           docker_image=image_config,
           test_owner=test_owner.SHUNING_J,
