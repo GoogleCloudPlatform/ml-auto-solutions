@@ -134,11 +134,11 @@ PARAMETERS = {
         ),
     ),
     "priority": Param(
-        "medium",
+        "high",
         type="string",
         title="Priority",
         description="Priority for the workload",
-        enum=["very high", "high", "medium", "low"],
+        enum=["very-high", "high", "medium", "low"],
     ),
     "max_restarts": Param(
         1,

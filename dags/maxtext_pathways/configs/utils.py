@@ -23,10 +23,16 @@ from google.cloud import logging as gcp_logging
 from xlml.utils import gke, xpk
 
 
+# TODO(cienet): Replace this with an official one.
+COLOCATED_PYTHON_IMAGE = (
+    "gcr.io/tpu-prod-env-multipod/lidanny_maxtext-colocated-python:latest"
+)
+
+
 def generate_recipe_workload_id(dag_id: str) -> tuple[str, str]:
   """Generate a workload_id following the standard naming convention."""
   time.localtime()
-  timestamp = time.strftime("%Y%m%d%H%M%S", time.localtime())
+  timestamp = time.strftime("%m%d%H%M%S", time.localtime())
   name = f"{dag_id[:10]}-{timestamp[:10]}"
   name = name[:40].replace("_", "-")
 
