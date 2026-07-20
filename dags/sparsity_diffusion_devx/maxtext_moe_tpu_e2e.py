@@ -33,7 +33,8 @@ from xlml.utils import name_format
 
 # Run once a day at 1 am UTC (5 pm PST)
 SCHEDULED_TIME = "30 1 * * *" if composer_env.is_prod_env() else None
-HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+# Track access in b/536711415
+HF_TOKEN = safe_get_from_variable("HF_TOKEN_MOE", None)
 
 
 with models.DAG(
@@ -68,26 +69,31 @@ with models.DAG(
           "script_name": "tpu/deepseek/v3.2-671b/2_test_deepseek",
           "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
           "time_out_in_min": 180,
+          "owner": test_owner.SHUNING_J,
       },
       "deepseek3-671b": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek",
           "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
           "time_out_in_min": 180,
+          "owner": test_owner.SHUNING_J,
       },
       "deepseek3-671b-mtp": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek_mtp",
           "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
           "time_out_in_min": 180,
+          "owner": test_owner.SHUNING_J,
       },
       "deepseek2-16b": {
           "script_name": "tpu/deepseek/v2-16b/test_deepseek",
           "cluster": XpkClusters.TPU_V5P_8_CLUSTER_V2,
           "time_out_in_min": 180,
+          "owner": test_owner.SHUNING_J,
       },
       "gpt-oss-20b": {
           "script_name": "tpu/gpt_oss/20b/test_gpt_oss",
           "cluster": XpkClusters.TPU_V5P_8_CLUSTER_V2,
           "time_out_in_min": 180,
+          "owner": test_owner.SHUNING_J,
       },
   }
 
@@ -97,13 +103,15 @@ with models.DAG(
       training_tpu = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
-          run_model_cmds=(
-              f"export HF_TOKEN={HF_TOKEN}; "
-              "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
-              f"bash tests/end_to_end/{test_scripts_details['script_name']}.sh",
+          run_model_cmds=tuple(
+              [
+                  f"export HF_TOKEN={HF_TOKEN}; "
+                  "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
+                  f"bash tests/end_to_end/{test_scripts_details['script_name']}.sh"
+              ]
           ),
           docker_image=image_config,
-          test_owner=test_owner.SHUNING_J,
+          test_owner=test_scripts_details["owner"],
           cluster=test_scripts_details["cluster"],
       ).run_with_quarantine(quarantine_task_group)
       unchained_tests.append(training_tpu)
@@ -113,12 +121,14 @@ with models.DAG(
     chain(unchained_tests[i], unchained_tests[i + 1])
 
   # Chained tests
+  # assume same model chain has a single owner
   multicluster_test_models = {
       "mixtral-8x7b": [
           {
               "script_name": "tpu/mixtral/8x7b/1_test_mixtral",
               "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 240,
+              "owner": test_owner.SHUNING_J,
           },
           {
               "script_name": "tpu/mixtral/8x7b/2_test_mixtral",
@@ -131,6 +141,7 @@ with models.DAG(
               "script_name": "tpu/llama4/1_test_llama4",
               "cluster": XpkClusters.CPU_M1_MEGAMEM_96_CLUSTER,
               "time_out_in_min": 240,
+              "owner": test_owner.SHUNING_J,
           },
           {
               "script_name": "tpu/llama4/2_test_llama4",
@@ -159,23 +170,29 @@ with models.DAG(
       conversion_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
           time_out_in_min=test_scripts_details_list[0]["time_out_in_min"],
           test_name=test_name,
-          run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/"
-              f"{test_scripts_details_list[0]['script_name']}.sh",
+          run_model_cmds=tuple(
+              [
+                  f"export HF_TOKEN={HF_TOKEN}; "
+                  "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
+                  f"bash tests/end_to_end/{test_scripts_details_list[0]['script_name']}.sh"
+              ]
           ),
           docker_image=docker_image_config,
-          test_owner=test_owner.SHUNING_J,
+          test_owner=test_scripts_details_list[0]["owner"],
           cluster=test_scripts_details_list[0]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       training_tpu_task = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details_list[1]["time_out_in_min"],
           test_name=test_name,
-          run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/"
-              f"{test_scripts_details_list[1]['script_name']}.sh",
+          run_model_cmds=tuple(
+              [
+                  f"export HF_TOKEN={HF_TOKEN}; "
+                  "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
+                  f"bash tests/end_to_end/{test_scripts_details_list[1]['script_name']}.sh"
+              ]
           ),
           docker_image=docker_image_config,
-          test_owner=test_owner.SHUNING_J,
+          test_owner=test_scripts_details_list[0]["owner"],
           cluster=test_scripts_details_list[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu_task
