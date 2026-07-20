@@ -29,14 +29,20 @@ from dags.common import test_owner
 from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper
 from dags.maxtext_pathways.configs import parameters as ui_params
 from dags.maxtext_pathways.configs import recipe_config as recipe_cfg
-from dags.maxtext_pathways.configs.utils import get_dag_parameters, generate_install_dependencies_commands, generate_derived_parameters
+from dags.maxtext_pathways.configs.utils import (
+    get_dag_parameters,
+    generate_install_dependencies_commands,
+    generate_derived_parameters,
+    COLOCATED_PYTHON_IMAGE,
+)
 from xlml.utils import kpo, xpk
+
 
 ELASTIC_TYPE = ["Pause-resume", "Replica-resize"]
 elastic_params = ui_params.PARAMETERS.copy()
 elastic_params.update({
     "colocated_python_image": ui_params.Param(
-        "gcr.io/tpu-prod-env-multipod/lidanny_maxtext-colocated-python:latest",
+        COLOCATED_PYTHON_IMAGE,
         type="string",
         title="Colocated Python Image",
         description="Colocated Python image for pathways.",
@@ -266,11 +272,11 @@ def worker_pod_interruption(
       )
 
       # TODO(cienet): Refine the mechanism to chain tasks
-      _ = (
-          wait_for_step
-          >> trigger_interrupt
-          >> wait_for_elastic_attempt
-          >> wait_for_slices_active
+      chain(
+          wait_for_step,
+          trigger_interrupt,
+          wait_for_elastic_attempt,
+          wait_for_slices_active,
       )
 
       if previous_cycle_tail:
