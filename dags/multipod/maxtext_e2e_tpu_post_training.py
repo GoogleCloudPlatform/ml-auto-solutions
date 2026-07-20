@@ -66,7 +66,8 @@ with models.DAG(
               },
               "multimodal_sft": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_multimodal_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/multimodal_sft/{run_name}/checkpoints/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/multimodal/sft/{run_name}/checkpoints/4/items",
+                  "to_hf_flags": "true true",
               },
               "lora": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_lora.sh",
@@ -128,11 +129,13 @@ with models.DAG(
                 priority="very-high",
             )
 
+          to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
+
           model_path = mode_test_config["maxtext_ckpt_path"].format(
               run_name=run_name
           )
           convert_to_huggingface_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
-              f"{test_config['checkpoint_conversion']['to_huggingface']} {run_name} {model_path} false true",
+              f"{test_config['checkpoint_conversion']['to_huggingface']} {run_name} {model_path} {to_hf_flags}",
           )
           convert_to_huggingface_task = gke_config.get_gke_config(
               time_out_in_min=60,
