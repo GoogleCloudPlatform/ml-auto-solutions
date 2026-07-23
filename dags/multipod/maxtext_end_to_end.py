@@ -86,8 +86,12 @@ with models.DAG(
       "qwen3-30b": {
           "owner": test_owner.HENGTAO_G,
           "commands": [
-              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
-              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
+              "export RUN_ID=$(date +%Y-%m-%d-%H-%M-%S)",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_sft.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_rl.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh $RUN_ID",
           ],
       },
       "gpt3": {
