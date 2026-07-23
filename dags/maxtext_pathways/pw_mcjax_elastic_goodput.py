@@ -88,63 +88,6 @@ GOODPUT_LOG_LIST = [
 ]
 
 
-@task
-def check_workload_goodput(
-    workload_id: str,
-    project_id: str,
-) -> bool:
-  """
-  Query and log Goodput/Badput metrics for the MaxText XPK workload.
-  """
-  goodput_logger_name = f"goodput_{workload_id}"
-  os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-  goodput_calculator = goodput.GoodputCalculator(
-      job_name=workload_id,
-      logger_name=goodput_logger_name,
-      using_pathways=True,
-  )
-  (
-      current_goodput,
-      badput_breakdown,
-      last_step,
-  ) = goodput_calculator.get_job_goodput(include_badput_breakdown=True)
-  wasted_progress = badput_breakdown[
-      goodput.BadputType.WASTED_PROGRESS_FROM_DISRUPTION
-  ]
-  checkpoint_save = badput_breakdown[
-      goodput.BadputType.UNPRODUCTIVE_CHECKPOINT_SAVE_TIME
-  ]
-  checkpoint_restore = badput_breakdown[
-      goodput.BadputType.UNPRODUCTIVE_CHECKPOINT_RESTORE_TIME
-  ]
-  other_badput = badput_breakdown[goodput.BadputType.OTHER]
-
-  logging.info(f"Last step recorded: {last_step}")
-  logging.info(f"Goodput (%): {current_goodput:.2f}%")
-  logging.info(
-      "Badput due to TPU initialization (%): "
-      f"{badput_breakdown[goodput.BadputType.TPU_INITIALIZATION]:.2f}%"
-  )
-  logging.info(
-      "Badput due to training preparation: "
-      f"{badput_breakdown[goodput.BadputType.TRAINING_PREP]:.2f}%"
-  )
-  logging.info(
-      "Badput due to program startup: "
-      f"{badput_breakdown[goodput.BadputType.PROGRAM_STARTUP]:.2f}%"
-  )
-  logging.info(
-      "Badput due to data loading: "
-      f"{badput_breakdown[goodput.BadputType.DATA_LOADING_SYNC]:.2f}%"
-  )
-  logging.info(
-      f"Badput due to disruption and wasted progress: {wasted_progress:.2f}%"
-  )
-  logging.info(f"Badput due to checkpoint save: {checkpoint_save:.2f}%")
-  logging.info(f"Badput due to checkpoint restore: {checkpoint_restore:.2f}%")
-  logging.info(f"Badput due to Unknown/Other: {other_badput:.2f}%")
-
-
 @task.sensor(poke_interval=10, timeout=3600, mode="reschedule")
 def check_goodput_logname(
     project_id: str,
@@ -187,6 +130,43 @@ def check_goodput_logname(
   logging.info(f"Full Logs Text:\n{full_logs_text}")
 
   return True
+
+
+@task
+def check_workload_goodput(
+    workload_id: str,
+    project_id: str,
+) -> bool:
+  """
+  Query and log Goodput/Badput metrics for the MaxText XPK workload.
+  """
+  goodput_logger_name = f"goodput_{workload_id}"
+  os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
+  goodput_calculator = goodput.GoodputCalculator(
+      job_name=workload_id,
+      logger_name=goodput_logger_name,
+      using_pathways=True,
+  )
+  (
+      current_goodput,
+      badput_breakdown,
+      last_step,
+  ) = goodput_calculator.get_job_goodput(include_badput_breakdown=True)
+
+  logging.info(f"Last step recorded: {last_step}")
+  logging.info(f"Goodput (%): {current_goodput:.2f}%")
+  logging.info("\n--- Badput Breakdown ---")
+
+  for badput_type, percentage in badput_breakdown.items():
+    if badput_type == goodput.BadputType.CUSTOM_BADPUT_EVENTS:
+      logging.info(f"Badput due to {badput_type}:")
+      custom_events = percentage
+      if isinstance(custom_events, dict):
+        for event_name, event_percentage in custom_events.items():
+          logging.info(f"  - {event_name}: {event_percentage:.2f}%")
+    else:
+      # Access the name attribute of the enum member
+      logging.info(f"Badput due to {badput_type.name}: {percentage:.2f}%")
 
 
 @task
