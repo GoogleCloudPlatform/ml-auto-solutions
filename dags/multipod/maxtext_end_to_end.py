@@ -83,6 +83,13 @@ with models.DAG(
               "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
           ],
       },
+      "qwen3-30b": {
+          "owner": test_owner.HENGTAO_G,
+          "commands": [
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
+          ],
+      },
       "gpt3": {
           "owner": test_owner.MOHIT_K,
           "commands": ["bash tests/end_to_end/tpu/test_gpt3.sh"],
