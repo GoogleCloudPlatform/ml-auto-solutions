@@ -85,6 +85,7 @@ with models.DAG(
       },
       "qwen3-30b": {
           "owner": test_owner.HENGTAO_G,
+          "time_out_in_min": 300,
           "commands": [
               "export RUN_ID=$(date +%Y-%m-%d-%H-%M-%S)",
               "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh $RUN_ID",
@@ -109,7 +110,7 @@ with models.DAG(
         test_config["commands"]
     )
     stable_tpu = gke_config.get_gke_config(
-        time_out_in_min=60,
+        time_out_in_min=test_config.get("time_out_in_min", 60),
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
@@ -117,7 +118,7 @@ with models.DAG(
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
-        time_out_in_min=60,
+        time_out_in_min=test_config.get("time_out_in_min", 60),
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
