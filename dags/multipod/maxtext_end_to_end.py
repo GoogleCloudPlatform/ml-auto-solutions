@@ -76,6 +76,21 @@ with models.DAG(
               "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
           ],
       },
+      "qwen3-30b": {
+          "owner": test_owner.HENGTAO_G,
+          "time_out_in_min": 300,
+          "stable_cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "nightly_cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "commands": [
+              "git fetch origin && git checkout origin/yixuan-dev-dag",
+              "export RUN_ID=$(date +%Y-%m-%d-%H-%M-%S)",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_sft.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_rl.sh $RUN_ID",
+              "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh $RUN_ID",
+          ],
+      },
       "gpt3": {
           "owner": test_owner.MOHIT_K,
           "commands": ["bash tests/end_to_end/tpu/test_gpt3.sh"],
@@ -91,19 +106,19 @@ with models.DAG(
         test_config["commands"]
     )
     stable_tpu = gke_config.get_gke_config(
-        time_out_in_min=60,
+        time_out_in_min=test_config.get("time_out_in_min", 60),
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
-        cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
+        cluster=test_config.get("stable_cluster", XpkClusters.TPU_V5P_8_CLUSTER_V2),
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
-        time_out_in_min=60,
+        time_out_in_min=test_config.get("time_out_in_min", 60),
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-        cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+        cluster=test_config.get("nightly_cluster", XpkClusters.TPU_V5P_8_CLUSTER),
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     stable_tpu >> nightly_tpu
