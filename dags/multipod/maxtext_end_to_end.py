@@ -86,6 +86,8 @@ with models.DAG(
       "qwen3-30b": {
           "owner": test_owner.HENGTAO_G,
           "time_out_in_min": 300,
+          "stable_cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "nightly_cluster": XpkClusters.TPU_V5P_128_CLUSTER,
           "commands": [
               "git fetch origin && git checkout origin/yixuan-dev-dag",
               "export RUN_ID=$(date +%Y-%m-%d-%H-%M-%S)",
@@ -115,7 +117,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
-        cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
+        cluster=test_config.get("stable_cluster", XpkClusters.TPU_V5P_8_CLUSTER_V2),
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
@@ -123,7 +125,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-        cluster=XpkClusters.TPU_V5P_8_CLUSTER,
+        cluster=test_config.get("nightly_cluster", XpkClusters.TPU_V5P_8_CLUSTER),
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
     stable_tpu >> nightly_tpu
