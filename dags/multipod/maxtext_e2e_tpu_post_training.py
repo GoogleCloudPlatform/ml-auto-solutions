@@ -53,6 +53,7 @@ with models.DAG(
         ),
     },
 ) as dag:
+  # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
           "checkpoint_conversion": {
@@ -79,18 +80,55 @@ with models.DAG(
               },
           },
       },
+      "gemma4-26b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
+          },
+          "post_training": {
+              "sft": {
+                  "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_sft.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/sft/{run_name}/checkpoints/5/model_params",
+                  "to_hf_flags": "false false",
+              },
+              "rl": {
+                  "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_rl.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "to_hf_flags": "false false",
+              },
+          },
+      },
+      "llama3_1_70b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
+          },
+          "post_training": {
+              "sft": {
+                  "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_sft.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/sft/{run_name}/checkpoints/5/model_params",
+              },
+              "rl": {
+                  "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_rl.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/rl/{run_name}/checkpoints/actor/5/model_params",
+              },
+          },
+      },
   }
+  # pylint: enable=line-too-long
 
   for model, test_config in test_models.items():
     with TaskGroup(group_id=model) as model_group:
       run_name = "post-{{ ts_nodash }}"
 
-      convert_to_maxtext_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
-          f"{test_config['checkpoint_conversion']['to_maxtext']} {run_name}",
-      )
+      convert_to_maxtext_cmd = (
+          f"export HF_TOKEN={HF_TOKEN}",
+          'export HF_HOME="/dev/shm/hf_cache"',
+          'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
+      ) + (f"{test_config['checkpoint_conversion']['to_maxtext']} {run_name}",)
       convert_to_maxtext_task = gke_config.get_gke_config(
           time_out_in_min=60,
-          test_name=f"convert-to-maxtext",
+          test_name="convert-to-maxtext",
           run_model_cmds=convert_to_maxtext_cmd,
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
@@ -134,8 +172,13 @@ with models.DAG(
           model_path = mode_test_config["maxtext_ckpt_path"].format(
               run_name=run_name
           )
-          convert_to_huggingface_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
-              f"{test_config['checkpoint_conversion']['to_huggingface']} {run_name} {model_path} {to_hf_flags}",
+          convert_to_huggingface_cmd = (
+              f"export HF_TOKEN={HF_TOKEN}",
+              'export HF_HOME="/dev/shm/hf_cache"',
+              'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
+          ) + (
+              f"{test_config['checkpoint_conversion']['to_huggingface']} "
+              f"{run_name} {model_path} {to_hf_flags}",
           )
           convert_to_huggingface_task = gke_config.get_gke_config(
               time_out_in_min=60,
