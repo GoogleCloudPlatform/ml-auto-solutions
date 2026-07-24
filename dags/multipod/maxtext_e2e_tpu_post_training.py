@@ -114,6 +114,22 @@ with models.DAG(
               },
           },
       },
+      "qwen3-30b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
+          },
+          "post_training": {
+              "sft": {
+                  "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_sft.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/sft/{run_name}/checkpoints/5/model_params",
+              },
+              "rl": {
+                  "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_rl.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/rl/{run_name}/checkpoints/actor/4/items",
+              },
+          },
+      },
   }
   # pylint: enable=line-too-long
 
