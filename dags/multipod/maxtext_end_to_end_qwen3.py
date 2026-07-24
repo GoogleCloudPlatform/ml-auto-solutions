@@ -50,8 +50,8 @@ with models.DAG(
       "qwen3-30b": {
           "owner": test_owner.HENGTAO_G,
           "time_out_in_min": 300,
-          "stable_cluster": XpkClusters.TPU_V5P_128_CLUSTER,
-          "nightly_cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "stable_cluster": XpkClusters.TPU_V5P_8_CLUSTER_V2,
+          "nightly_cluster": XpkClusters.TPU_V5P_8_CLUSTER,
           "commands": [
               "git fetch origin && git checkout origin/yixuan-dev-dag",
               "export RUN_ID=$(date +%Y-%m-%d-%H-%M-%S)",
