@@ -43,6 +43,7 @@ with models.DAG(
         ),
     },
 ) as dag:
+  # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
           "checkpoint_conversion": {
@@ -54,15 +55,38 @@ with models.DAG(
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/train/{run_name}/checkpoints/4/items",
           },
       },
+      "gemma4-26b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
+          },
+          "training": {
+              "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4.sh",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/train/{run_name}/checkpoints/4/items",
+          },
+      },
+      "llama3_1-70b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
+          },
+          "training": {
+              "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b.sh",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/train/{run_name}/checkpoints/4/items",
+          },
+      },
   }
+  # pylint: enable=line-too-long
 
   for model, test_config in test_models.items():
     with TaskGroup(group_id=model) as model_group:
       run_name = "pre-{{ ts_nodash }}"
 
-      convert_to_maxtext_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
-          f"{test_config['checkpoint_conversion']['to_maxtext']} {run_name}",
-      )
+      convert_to_maxtext_cmd = (
+          f"export HF_TOKEN={HF_TOKEN}",
+          'export HF_HOME="/dev/shm/hf_cache"',
+          'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
+      ) + (f"{test_config['checkpoint_conversion']['to_maxtext']} {run_name}",)
       convert_to_maxtext_task = gke_config.get_gke_config(
           time_out_in_min=60,
           test_name="convert-to-maxtext",
@@ -87,8 +111,13 @@ with models.DAG(
       model_path = test_config["training"]["maxtext_ckpt_path"].format(
           run_name=run_name
       )
-      convert_to_huggingface_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
-          f"{test_config['checkpoint_conversion']['to_huggingface']} {run_name} {model_path}",
+      convert_to_huggingface_cmd = (
+          f"export HF_TOKEN={HF_TOKEN}",
+          'export HF_HOME="/dev/shm/hf_cache"',
+          'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
+      ) + (
+          f"{test_config['checkpoint_conversion']['to_huggingface']} "
+          f"{run_name} {model_path}",
       )
       convert_to_huggingface_task = gke_config.get_gke_config(
           time_out_in_min=60,
