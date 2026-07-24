@@ -36,10 +36,20 @@ def validate_git_trigger(**context):
     )
 
 
-def fire_github_callback(**context):
+def fire_github_callback(test_type: str | None = None, **context):
   """Fires a GitHub repository_dispatch callback with the DAG run result."""
   params = context["params"]
   dag_run = context["dag_run"]
+
+  client_payload = {
+      "state": "success",
+      "dag_id": dag_run.dag_id,
+      "dag_run_id": dag_run.run_id,
+      "sha": params["maxtext_sha"],
+      "github_run_id": params["github_run_id"],
+  }
+  if test_type:
+    client_payload["test_type"] = test_type
 
   response = requests.post(
       f"https://api.github.com/repos/{params['github_repo']}/dispatches",
@@ -50,13 +60,7 @@ def fire_github_callback(**context):
       },
       json={
           "event_type": "airflow-dag-complete",
-          "client_payload": {
-              "state": "success",
-              "dag_id": dag_run.dag_id,
-              "dag_run_id": dag_run.run_id,
-              "sha": params["maxtext_sha"],
-              "github_run_id": params["github_run_id"],
-          },
+          "client_payload": client_payload,
       },
       timeout=30,
   )

@@ -14,8 +14,8 @@
 
 """
 Parent DAG that triggers MaxText E2E TPU pre-training and post-training child
-DAGs in parallel, waits for both to complete, then fires a GitHub
-repository_dispatch callback with the aggregated result.
+DAGs in parallel, firing separate GitHub repository_dispatch callbacks for
+pre-training and post-training upon completion of each job.
 """
 import datetime
 from airflow import models
@@ -79,10 +79,18 @@ with models.DAG(
       poke_interval=600,  # check every 10 minutes for child DAG completion
   )
 
-  github_callback = PythonOperator(
-      task_id="fire_github_callback",
+  github_callback_pre_training = PythonOperator(
+      task_id="fire_github_callback_pre_training",
       python_callable=fire_github_callback,
-      trigger_rule=TriggerRule.ALL_SUCCESS,  # Only fire if all upstream tasks succeeded
+      op_kwargs={"test_type": "pre_training"},
+      trigger_rule=TriggerRule.ALL_SUCCESS,
+  )
+
+  github_callback_post_training = PythonOperator(
+      task_id="fire_github_callback_post_training",
+      python_callable=fire_github_callback,
+      op_kwargs={"test_type": "post_training"},
+      trigger_rule=TriggerRule.ALL_SUCCESS,
   )
 
   validate_task = PythonOperator(
@@ -90,8 +98,5 @@ with models.DAG(
       python_callable=validate_git_trigger,
   )
 
-  (
-      validate_task
-      >> [trigger_pre_training, trigger_post_training]
-      >> github_callback
-  )
+  (validate_task >> trigger_pre_training >> github_callback_pre_training)
+  (validate_task >> trigger_post_training >> github_callback_post_training)
