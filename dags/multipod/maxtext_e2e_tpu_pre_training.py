@@ -75,6 +75,16 @@ with models.DAG(
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/train/{run_name}/checkpoints/4/items",
           },
       },
+      "qwen3-30b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
+          },
+          "training": {
+              "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/train/{run_name}/checkpoints/4/items",
+          },
+      },
   }
   # pylint: enable=line-too-long
 
