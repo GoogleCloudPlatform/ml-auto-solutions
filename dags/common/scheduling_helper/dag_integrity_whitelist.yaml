@@ -178,4 +178,6 @@ whitelisted_dags:
 - trt_llm_mlperf_v41
 - trtllm_bench_inference
 - xlml_to_buganizer
-
+- maxtext_validation_master_dag 
+- dag_verify_checkpoint_shape # maxtext validation sub dag
+- dag_verify_mock_tensor # maxtext validation sub dag
