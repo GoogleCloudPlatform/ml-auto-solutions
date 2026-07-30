@@ -65,6 +65,12 @@ with models.DAG(
 
   # Unchained tests
   test_models_tpu = {
+      "deepseek4-284b": {
+          "script_name": "tpu/deepseek/v4-284b/2_test_deepseek",
+          "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
+          "time_out_in_min": 180,
+          "owner": test_owner.SNEHAL_V,
+      },
       "deepseek32-671b": {
           "script_name": "tpu/deepseek/v3.2-671b/2_test_deepseek",
           "cluster": XpkClusters.TPU_V5P_128_CLUSTER,
