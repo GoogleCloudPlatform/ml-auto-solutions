@@ -14,53 +14,70 @@
 
 """Utilities for GitHub API integration."""
 
+from typing import Any
 import requests
+
+from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
+from airflow.operators.python import get_current_context
 
 
-def validate_git_trigger(**context):
-  """Validates that the DAG run has required GitHub parameters.
+@task
+def validate_git_trigger(
+    repo: str | None = None,
+    token: str | None = None,
+    run_id: str | None = None,
+    commit_sha: str | None = None,
+) -> None:
+  """Validates that the DAG run was externally triggered with required params.
 
-  Prevents manual runs from the Airflow UI by ensuring github_run_id,
-  github_repo, and github_callback_token are present.
+  Enforces external trigger check and ensures required GitHub parameters exist.
+
+  Args:
+    repo: Target GitHub repository in owner/repo format.
+    token: GitHub PAT used to fire the repository_dispatch callback.
+    run_id: GitHub Actions run ID of the originating workflow.
+    commit_sha: Commit SHA being tested.
   """
-  params = context["params"]
-  run_id = params.get("github_run_id")
-  repo = params.get("github_repo")
-  token = params.get("github_callback_token")
+  context = get_current_context()
+  dag_run = context.get("dag_run")
 
-  if not run_id or not repo or not token:
+  if not dag_run or not dag_run.external_trigger:
     raise AirflowFailException(
-        "Missing required GitHub parameters (run_id, repo, token). "
         "This DAG should not be run manually from the Airflow UI."
     )
 
+  if not repo or not token or not run_id or not commit_sha:
+    raise AirflowFailException(
+        "Missing required GitHub parameters (repo, token, run_id, commit_sha)."
+    )
 
-def fire_github_callback(test_type: str | None = None, **context):
-  """Fires a GitHub repository_dispatch callback with the DAG run result."""
-  params = context["params"]
-  dag_run = context["dag_run"]
 
-  client_payload = {
-      "state": "success",
-      "dag_id": dag_run.dag_id,
-      "dag_run_id": dag_run.run_id,
-      "sha": params["maxtext_sha"],
-      "github_run_id": params["github_run_id"],
-  }
-  if test_type:
-    client_payload["test_type"] = test_type
+@task
+def trigger_github_repository_dispatch(
+    repo: str,
+    token: str,
+    event_type: str = "airflow-dag-complete",
+    client_payload: dict[str, Any] | None = None,
+) -> None:
+  """Fires a GitHub repository_dispatch event via the GitHub API."""
+  if not repo or not token:
+    raise AirflowFailException(
+        "Missing required GitHub parameters (repo, token) to fire callback."
+    )
+
+  payload = client_payload or {}
 
   response = requests.post(
-      f"https://api.github.com/repos/{params['github_repo']}/dispatches",
+      f"https://api.github.com/repos/{repo}/dispatches",
       headers={
-          "Authorization": f"Bearer {params['github_callback_token']}",
+          "Authorization": f"Bearer {token}",
           "Accept": "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
       },
       json={
-          "event_type": "airflow-dag-complete",
-          "client_payload": client_payload,
+          "event_type": event_type,
+          "client_payload": payload,
       },
       timeout=30,
   )
