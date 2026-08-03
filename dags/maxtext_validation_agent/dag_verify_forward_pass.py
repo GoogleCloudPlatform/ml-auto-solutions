@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAG to automate MaxText Checkpoint Structural Shape Validation."""
+"""DAG to automate MaxText Checkpoint Forward Pass Validation (Task C)."""
 
 # pylint: disable=line-too-long
 
@@ -23,7 +23,10 @@ from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
 
 
 DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-shape-test",
+    "run_name": "qwen3-custom-forward-pass-test",
+    "xpk_project": "tpu-prod-env-multipod",
+    "xpk_cluster_name": "v4-8-maxtext",
+    "xpk_zone": "us-central2-b",
     "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
     "maxtext_model_name": "qwen3-8b",
     "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
@@ -39,14 +42,15 @@ DEFAULT_PARAMS = {
         "max_target_length": 2048,
         "per_device_batch_size": 8.0,
         "attention": "dot_product",
+        "rope_interleave": False,
         "debug_tensors": True,
     },
 }
 
 with models.DAG(
-    dag_id="dag_verify_checkpoint_shape",
+    dag_id="dag_verify_forward_pass",
     schedule=None,
-    tags=["maxtext", "checkpoint", "validation"],
+    tags=["maxtext", "checkpoint", "forward_pass"],
     start_date=datetime.datetime(2026, 6, 26),
     catchup=False,
     params=DEFAULT_PARAMS,
@@ -56,16 +60,13 @@ with models.DAG(
     },
 ) as dag:
 
-  # Looks for keys in runtime conf first (from manual JSON or Master DAG),
-  # falls back to defaults if run is standalone.
+  # falls back to defaults if run standalone.
+  forward_pass_task = utils.get_forward_pass_validation_task(
+      tpu_version="4",
+      tpu_cores=8,
+      tpu_zone="us-central2-b",
+      time_out_in_min=45,
+  ).run(skip_post_process=True) #.run() but we're trying to bypass the big query upload
 
-  checkpoint_task = utils.get_checkpoint_shape_validation_task(
-      dag=dag,
-      model_name="{{ dag_run.conf.get('maxtext_model_name', params['maxtext_model_name']) }}",
-      checkpoint_gcs_path="{{ dag_run.conf.get('checkpoint_gcs_path', params['checkpoint_gcs_path']) }}",
-      scan_layers="{{ dag_run.conf.get('maxtext_overrides', params['maxtext_overrides']).get('scan_layers', False) | lower }}",
-  )
-
-  # Execute Task A
   check_task = utils.get_upstream_failure_validator_task(dag)
-  checkpoint_task >> check_task
+  forward_pass_task >> check_task

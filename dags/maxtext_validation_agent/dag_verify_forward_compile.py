@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAG to automate MaxText Checkpoint Structural Shape Validation."""
+"""DAG to automate MaxText Checkpoint Inspection (Task B)."""
 
 # pylint: disable=line-too-long
 
@@ -23,7 +23,7 @@ from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
 
 
 DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-shape-test",
+    "run_name": "qwen3-custom-inspection-test",
     "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
     "maxtext_model_name": "qwen3-8b",
     "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
@@ -44,9 +44,9 @@ DEFAULT_PARAMS = {
 }
 
 with models.DAG(
-    dag_id="dag_verify_checkpoint_shape",
+    dag_id="dag_verify_forward_compile",
     schedule=None,
-    tags=["maxtext", "checkpoint", "validation"],
+    tags=["maxtext", "checkpoint", "inspection"],
     start_date=datetime.datetime(2026, 6, 26),
     catchup=False,
     params=DEFAULT_PARAMS,
@@ -57,15 +57,11 @@ with models.DAG(
 ) as dag:
 
   # Looks for keys in runtime conf first (from manual JSON or Master DAG),
-  # falls back to defaults if run is standalone.
-
-  checkpoint_task = utils.get_checkpoint_shape_validation_task(
+  # falls back to defaults if run standalone.
+  forward_compile_task = utils.get_forward_compile_validation_task(
       dag=dag,
-      model_name="{{ dag_run.conf.get('maxtext_model_name', params['maxtext_model_name']) }}",
-      checkpoint_gcs_path="{{ dag_run.conf.get('checkpoint_gcs_path', params['checkpoint_gcs_path']) }}",
-      scan_layers="{{ dag_run.conf.get('maxtext_overrides', params['maxtext_overrides']).get('scan_layers', False) | lower }}",
   )
 
-  # Execute Task A
+  # Execute Task B
   check_task = utils.get_upstream_failure_validator_task(dag)
-  checkpoint_task >> check_task
+  forward_compile_task >> check_task
