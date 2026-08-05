@@ -20,31 +20,32 @@ import datetime
 from airflow import models
 from dags.maxtext_validation_agent.lib import utils
 from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
-
+from dags.common.vm_resource import XpkClusters, TpuVersion
 
 DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-forward-pass-test",
-    "xpk_project": "tpu-prod-env-multipod",
-    "xpk_cluster_name": "v4-8-maxtext",
-    "xpk_zone": "us-central2-b",
-    "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
-    "maxtext_model_name": "qwen3-8b",
-    "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
-    "maxtext_commit_hash": "",
-    "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
-    "hf_model_path": "Qwen/Qwen3-8B",
-    "hf_config_url": "",
-    "hf_ref_code_url": "",
-    "maxtext_overrides": {
-        "tokenizer_path": "Qwen/Qwen3-8B",
-        "tokenizer_type": "huggingface",
-        "scan_layers": False,
-        "max_target_length": 2048,
-        "per_device_batch_size": 8.0,
-        "attention": "dot_product",
-        "rope_interleave": False,
-        "debug_tensors": True,
+    "email": "",
+    "xpk_cluster_name": "",
+    "xpk_project": "",
+    "xpk_zone": "",
+    "checkpoint_gcs_path": "",
+    "forward_pass_maxtext_overrides": {
+        "attention": "",
+        "per_device_batch_size": "",
+        "scan_layers": "",
+        "tokenizer_path": "",
+        "tokenizer_type": "",
+        "weight_dtype": "",
     },
+    "hf_config_url": "",
+    "hf_model_path": "",
+    "hf_ref_code_url": "",
+    "hf_token": "",
+    "max_kl_div": "",
+    "maxtext_branch": "",
+    "maxtext_commit_hash": "",
+    "maxtext_model_name": "",
+    "report_gcs_dir": "",
+    "run_name": "",
 }
 
 with models.DAG(
@@ -59,14 +60,59 @@ with models.DAG(
         "on_failure_callback": trigger_agent_on_failure,
     },
 ) as dag:
+    cluster_name = DEFAULT_PARAMS.get("xpk_cluster_name", "v4-8-maxtext")
+    cluster_config = utils.get_cluster_config(cluster_name)
 
-  # falls back to defaults if run standalone.
-  forward_pass_task = utils.get_forward_pass_validation_task(
-      tpu_version="4",
-      tpu_cores=8,
-      tpu_zone="us-central2-b",
-      time_out_in_min=45,
-  ).run(skip_post_process=True) #.run() but we're trying to bypass the big query upload
+    def check_golden_logits_exist(**context):
+        dag_run = context.get("dag_run")
+        conf = dag_run.conf if dag_run and dag_run.conf else context.get("params", {})
+        overrides = conf.get("forward_pass_maxtext_overrides", {})
+        hf_model = conf.get("hf_model_path", overrides.get("hf_model_path", ""))
+        max_model = conf.get("maxtext_model_name", "")
+        bucket_name = "maxtext-validation-golden-logits"
+        blob_name = f"golden-logits/{hf_model}/{max_model}_golden_logits.jsonl"
 
-  check_task = utils.get_upstream_failure_validator_task(dag)
-  forward_pass_task >> check_task
+        from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+        hook = GCSHook()
+        if hook.exists(bucket_name=bucket_name, object_name=blob_name):
+            print(
+                f"Golden logits found at gs://{bucket_name}/{blob_name}. Skipping generation."
+            )
+            return "skip_golden_logits"
+        print(f"Golden logits missing at gs://{bucket_name}/{blob_name}. Generating...")
+        return "start_golden_logits"
+
+    from airflow.operators.python import BranchPythonOperator
+    from airflow.operators.empty import EmptyOperator
+
+    check_logits = BranchPythonOperator(
+        task_id="check_golden_logits_exist",
+        python_callable=check_golden_logits_exist,
+    )
+
+    skip_golden_logits = EmptyOperator(task_id="skip_golden_logits")
+
+    # A dummy task is needed because golden_logits_task is a dynamically named TaskGroup.
+    # The BranchPythonOperator must return a rigid, known task_id.
+    start_golden_logits = EmptyOperator(task_id="start_golden_logits")
+
+    golden_logits_task = utils.get_golden_logits_generation_task(
+        time_out_in_min=120,
+    ).run(skip_post_process=True)
+
+    # Added to join the branch execution without skipping downstream tasks
+    join_golden_logits = EmptyOperator(
+        task_id="join_golden_logits", trigger_rule="none_failed"
+    )
+
+    forward_pass_task = utils.get_forward_pass_validation_task(
+        cluster_config=cluster_config,
+        time_out_in_min=45,
+    ).run(skip_post_process=True)
+
+    check_task = utils.get_upstream_failure_validator_task(dag)
+
+    (check_logits >> start_golden_logits >> golden_logits_task >> join_golden_logits)
+    check_logits >> skip_golden_logits >> join_golden_logits
+    join_golden_logits >> forward_pass_task >> check_task

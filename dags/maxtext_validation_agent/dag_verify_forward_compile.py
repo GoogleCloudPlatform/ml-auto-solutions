@@ -23,24 +23,29 @@ from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
 
 
 DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-inspection-test",
-    "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
-    "maxtext_model_name": "qwen3-8b",
-    "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
-    "maxtext_commit_hash": "",
-    "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
-    "hf_model_path": "Qwen/Qwen3-8B",
-    "hf_config_url": "",
-    "hf_ref_code_url": "",
-    "maxtext_overrides": {
-        "tokenizer_path": "Qwen/Qwen3-8B",
-        "tokenizer_type": "huggingface",
-        "scan_layers": False,
-        "max_target_length": 2048,
-        "per_device_batch_size": 8.0,
-        "attention": "dot_product",
-        "debug_tensors": True,
+    "email": "",
+    "xpk_cluster_name": "",
+    "xpk_project": "",
+    "xpk_zone": "",
+    "checkpoint_gcs_path": "",
+    "forward_pass_maxtext_overrides": {
+        "attention": "",
+        "per_device_batch_size": "",
+        "scan_layers": "",
+        "tokenizer_path": "",
+        "tokenizer_type": "",
+        "weight_dtype": "",
     },
+    "hf_config_url": "",
+    "hf_model_path": "",
+    "hf_ref_code_url": "",
+    "hf_token": "",
+    "max_kl_div": "",
+    "maxtext_branch": "",
+    "maxtext_commit_hash": "",
+    "maxtext_model_name": "",
+    "report_gcs_dir": "",
+    "run_name": "",
 }
 
 with models.DAG(
@@ -55,13 +60,12 @@ with models.DAG(
         "on_failure_callback": trigger_agent_on_failure,
     },
 ) as dag:
+    # Looks for keys in runtime conf first (from manual JSON or Master DAG),
+    # falls back to defaults if run standalone.
+    forward_compile_task = utils.get_forward_compile_validation_task(
+        dag=dag,
+    )
 
-  # Looks for keys in runtime conf first (from manual JSON or Master DAG),
-  # falls back to defaults if run standalone.
-  forward_compile_task = utils.get_forward_compile_validation_task(
-      dag=dag,
-  )
-
-  # Execute Task B
-  check_task = utils.get_upstream_failure_validator_task(dag)
-  forward_compile_task >> check_task
+    # Execute Task B
+    check_task = utils.get_upstream_failure_validator_task(dag)
+    forward_compile_task >> check_task

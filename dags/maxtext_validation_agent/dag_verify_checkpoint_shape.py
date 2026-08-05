@@ -23,24 +23,27 @@ from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
 
 
 DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-shape-test",
-    "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
-    "maxtext_model_name": "qwen3-8b",
-    "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
-    "maxtext_commit_hash": "",
-    "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
-    "hf_model_path": "Qwen/Qwen3-8B",
+    "checkpoint_gcs_path": "",
     "hf_config_url": "",
+    "hf_model_path": "",
     "hf_ref_code_url": "",
-    "maxtext_overrides": {
-        "tokenizer_path": "Qwen/Qwen3-8B",
-        "tokenizer_type": "huggingface",
-        "scan_layers": False,
-        "max_target_length": 2048,
-        "per_device_batch_size": 8.0,
-        "attention": "dot_product",
-        "debug_tensors": True,
+    "hf_token": "",
+    "max_kl_div": "",
+    "maxtext_branch": "",
+    "maxtext_commit_hash": "",
+    "maxtext_model_name": "",
+    "forward_pass_maxtext_overrides": {
+        "attention": "",
+        "scan_layers": "",
+        "weight_dtype": "",
+        "tokenizer_path": "",
+        "tokenizer_type": "",
     },
+    "report_gcs_dir": "",
+    "run_name": "",
+    "xpk_cluster_name": "",
+    "xpk_project": "",
+    "xpk_zone": "",
 }
 
 with models.DAG(
@@ -55,17 +58,16 @@ with models.DAG(
         "on_failure_callback": trigger_agent_on_failure,
     },
 ) as dag:
+    # Looks for keys in runtime conf first (from manual JSON or Master DAG),
+    # falls back to defaults if run is standalone.
 
-  # Looks for keys in runtime conf first (from manual JSON or Master DAG),
-  # falls back to defaults if run is standalone.
+    checkpoint_task = utils.get_checkpoint_shape_validation_task(
+        dag=dag,
+        model_name="{{ dag_run.conf.get('maxtext_model_name', params['maxtext_model_name']) }}",
+        checkpoint_gcs_path="{{ dag_run.conf.get('checkpoint_gcs_path', params['checkpoint_gcs_path']) }}",
+        scan_layers="{{ dag_run.conf.get('forward_pass_maxtext_overrides', params['forward_pass_maxtext_overrides']).get('scan_layers', False) | lower }}",
+    )
 
-  checkpoint_task = utils.get_checkpoint_shape_validation_task(
-      dag=dag,
-      model_name="{{ dag_run.conf.get('maxtext_model_name', params['maxtext_model_name']) }}",
-      checkpoint_gcs_path="{{ dag_run.conf.get('checkpoint_gcs_path', params['checkpoint_gcs_path']) }}",
-      scan_layers="{{ dag_run.conf.get('maxtext_overrides', params['maxtext_overrides']).get('scan_layers', False) | lower }}",
-  )
-
-  # Execute Task A
-  check_task = utils.get_upstream_failure_validator_task(dag)
-  checkpoint_task >> check_task
+    # Execute Task A
+    check_task = utils.get_upstream_failure_validator_task(dag)
+    checkpoint_task >> check_task

@@ -1,3 +1,17 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """DAG to automate MaxText Checkpoint Decoding Validation (Sub-DAG D)."""
 
 # pylint: disable=line-too-long
@@ -6,34 +20,32 @@ import datetime
 from airflow import models
 from dags.maxtext_validation_agent.lib import utils
 from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
-
+from dags.common.vm_resource import XpkClusters, TpuVersion
 
 DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-decoding-test",
-    "xpk_project": "tpu-prod-env-multipod",
-    "xpk_cluster_name": "v4-8-maxtext",
-    "xpk_zone": "us-central2-b",
-    "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
-    "maxtext_model_name": "qwen3-8b",
-    "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
-    "maxtext_commit_hash": "",
-    "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
-    "hf_model_path": "Qwen/Qwen3-8B",
-    "hf_config_url": "",
-    "hf_ref_code_url": "",
-    "maxtext_overrides": {
-        "tokenizer_path": "Qwen/Qwen3-8B",
-        "tokenizer_type": "huggingface",
-        "scan_layers": False,
-        "max_target_length": 128,
-        "max_prefill_predict_length": 16,
-        "per_device_batch_size": 8.0,
-        "attention": "dot_product",
-        "rope_interleave": False,
-        "debug_tensors": True,
-        "prompt": "I love to ",
-        "autoregressive_decode_assert": "",
+    "email": "",
+    "xpk_cluster_name": "",
+    "xpk_project": "",
+    "xpk_zone": "",
+    "checkpoint_gcs_path": "",
+    "decode_maxtext_overrides": {
+        "attention": "",
+        "per_device_batch_size": "",
+        "scan_layers": "",
+        "tokenizer_path": "",
+        "tokenizer_type": "",
+        "weight_dtype": "",
     },
+    "hf_config_url": "",
+    "hf_model_path": "",
+    "hf_ref_code_url": "",
+    "hf_token": "",
+    "max_kl_div": "",
+    "maxtext_branch": "",
+    "maxtext_commit_hash": "",
+    "maxtext_model_name": "",
+    "report_gcs_dir": "",
+    "run_name": "",
 }
 
 with models.DAG(
@@ -48,15 +60,18 @@ with models.DAG(
         "on_failure_callback": trigger_agent_on_failure,
     },
 ) as dag:
+    cluster_param = DEFAULT_PARAMS.get("xpk_cluster_name", "v4-8-maxtext")
+    cluster_name = (
+        cluster_param.default
+        if hasattr(cluster_param, "default")
+        else str(cluster_param)
+    )
+    cluster_config = utils.get_cluster_config(cluster_name)
 
-  # Execute Sub-DAG D: End-to-End Decoding / Text Generation Verification
-  # Uses defaults if run standalone, or conf if triggered by Master DAG.
-  decoding_task = utils.get_decoding_validation_task(
-      tpu_version="4",
-      tpu_cores=8,
-      tpu_zone="us-central2-b",
-      time_out_in_min=45,
-  ).run(skip_post_process=True)
+    decoding_task = utils.get_decoding_validation_task(
+        cluster_config=cluster_config,
+        time_out_in_min=45,
+    ).run(skip_post_process=True)
 
-  check_task = utils.get_upstream_failure_validator_task(dag)
-  decoding_task >> check_task
+    check_task = utils.get_upstream_failure_validator_task(dag)
+    decoding_task >> check_task
