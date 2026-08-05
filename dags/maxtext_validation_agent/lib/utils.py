@@ -61,7 +61,7 @@ def trigger_agent_on_failure(context):
         "airflow_dag_id": dag_id,
         "airflow_run_id": airflow_run_id,
         "airflow_logical_date": logical_date.isoformat() if logical_date else "",
-        "run_name": run_name,
+        "run_name": f"{run_name}_{airflow_run_id}",
         "dag_conf": conf,
         "maxtext_branch": str(conf.get("maxtext_branch", "main")),
         "maxtext_commit_hash": str(conf.get("maxtext_commit_hash", "")),
@@ -126,8 +126,8 @@ def get_checkpoint_shape_validation_task(
       # Filter the raw dumps to only extract the dictionary keys mapping to tensor shapes.
       "grep '^key:' /tmp/ideal_raw.txt > /tmp/ideal_shapes.txt",
       "grep '^key:' /tmp/actual_raw.txt > /tmp/actual_shapes.txt",
-      # Execute the shape validator script to compare the two shape files.
       "python3 /tmp/maxtext/src/maxtext/experimental/agent/ckpt_validation_pipeline/checkpoint_shape_validator.py "
+      "--run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }}_{{ run_id }} "
       "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }}",
   ]
 
@@ -173,6 +173,7 @@ def get_forward_compile_validation_task(dag):
       (
           "python3 /tmp/maxtext/src/maxtext/experimental/agent/ckpt_validation_pipeline/forward_compile_validator.py "
           "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
+          "run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }}_{{ run_id }} "
           "load_parameters_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path', '')) }} "
           "model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name', '')) }} "
           "{% for k, v in dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})).items() %}"
@@ -228,7 +229,7 @@ def get_forward_pass_validation_task(
       # This catches errors and writes a standard JSON report to GCS.
       (
           "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/ckpt_validation_pipeline/forward_pass_validator.py "
-          "--run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }} "
+          "--run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }}_{{ run_id }} "
           "--maxtext_model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }} "
           "--checkpoint_gcs_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path')) }} "
           "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
@@ -302,7 +303,7 @@ def get_decoding_validation_task(
       (
           "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/ckpt_validation_pipeline/decode_validator.py "
           "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
-          "run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }} "
+          "run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }}_{{ run_id }} "
           "model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name', '')) }} "
           "load_parameters_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path', '')) }} "
           "{% for k, v in dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})).items() %}{{ k }}=\"{{ v }}\" {% endfor %}"
