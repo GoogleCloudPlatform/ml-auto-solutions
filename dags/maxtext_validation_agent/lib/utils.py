@@ -25,51 +25,71 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from kubernetes.client import models as k8s
 
 def trigger_agent_on_failure(context):
-    """Airflow on_failure_callback that writes failure context to GCS and triggers Cloud Run Job via Python SDK (roles/run.invoker compatible)."""
-    try:
-        from google.cloud import storage, run_v2
-        import json, time
-        
-        conf = {}
-        if context and context.get("dag_run") and getattr(context["dag_run"], "conf", None):
-            conf = context["dag_run"].conf or {}
+  """Publishes complete Airflow failure context and invokes the Cloud Run Job."""
+  import json
+  import logging
+  import time
 
-        error_msg = str(context.get("exception", "")) if context else ""
-        if len(error_msg) > 15000:
-            error_msg = "...[TRUNCATED TO PREVENT CLOUD RUN 32KB ENV LIMIT]...\n" + error_msg[-15000:]
+  from google.cloud import run_v2, storage
 
-        run_name = str(conf.get("run_name", "default_run"))
-        task_id = str(context["task_instance"].task_id) if (context and context.get("task_instance")) else "unknown_task"
-        dag_id = str(context["task_instance"].dag_id) if (context and context.get("task_instance")) else "unknown_dag"
+  logger = logging.getLogger(__name__)
+  task_instance = context.get("task_instance") if context else None
+  task_id = str(getattr(task_instance, "task_id", "unknown_task"))
+  # The guard task mirrors an upstream failure and must not spawn a second agent.
+  if task_id == "check_upstream_failures":
+    logger.info("Skipping duplicate remediation callback for guard task %s", task_id)
+    return
 
-        trigger_data = {
-            "airflow_error_message": error_msg,
-            "airflow_task_id": task_id,
-            "airflow_dag_id": dag_id,
-            "maxtext_branch": str(conf.get("maxtext_branch", "main")),
-            "maxtext_model_name": str(conf.get("maxtext_model_name", "deepseek4-284b")),
-            "hf_ref_code_url": str(conf.get("hf_ref_code_url", "")),
-            "hf_config_url": str(conf.get("hf_config_url", "")),
-            "run_name": run_name,
-            "alert_recipient": str(conf.get("email") or conf.get("alert_recipient", "")),
-        }
+  try:
+    dag_run = context.get("dag_run") if context else None
+    conf = dict(getattr(dag_run, "conf", None) or {})
+    dag_id = str(getattr(task_instance, "dag_id", "unknown_dag"))
+    airflow_run_id = str(getattr(dag_run, "run_id", "unknown_run"))
+    logical_date = getattr(dag_run, "logical_date", None)
+    run_name = str(conf.get("run_name", "default_run"))
+    remediation_key = f"{dag_id}:{airflow_run_id}:{task_id}"
 
-        # Step 1: Write trigger blob to GCS
-        storage_client = storage.Client()
-        bucket = storage_client.bucket("maxtext-validation-agent-reports")
-        blob_name = f"airflow_direct_failure_{run_name}_{task_id}_{int(time.time())}.json"
-        blob = bucket.blob(blob_name)
-        blob.upload_from_string(json.dumps(trigger_data, indent=2), content_type="application/json")
-        print(f"Successfully uploaded direct failure trigger blob to GCS: {blob_name}")
+    error_msg = str(context.get("exception", "")) if context else ""
+    if len(error_msg) > 15000:
+      error_msg = "...[TRUNCATED]...\n" + error_msg[-15000:]
 
-        # Step 2: Trigger Cloud Run Job without overrides (requires only roles/run.invoker!)
-        run_client = run_v2.JobsClient()
-        name = "projects/tpu-prod-env-multipod/locations/us-central1/jobs/maxtext-validation-job"
-        operation = run_client.run_job(name=name)
-        print(f"Successfully triggered Cloud Run Job (no-overrides mode). Operation: {operation.operation.name}")
-    except Exception as e:
-        print(f"Failed to trigger Cloud Run Job via Python SDK: {e}")
+    trigger_data = {
+        "schema_version": 2,
+        "remediation_key": remediation_key,
+        "airflow_error_message": error_msg,
+        "airflow_task_id": task_id,
+        "airflow_dag_id": dag_id,
+        "airflow_run_id": airflow_run_id,
+        "airflow_logical_date": logical_date.isoformat() if logical_date else "",
+        "run_name": run_name,
+        "dag_conf": conf,
+        "maxtext_branch": str(conf.get("maxtext_branch", "main")),
+        "maxtext_commit_hash": str(conf.get("maxtext_commit_hash", "")),
+        "maxtext_model_name": str(conf.get("maxtext_model_name", "unknown_model")),
+        "maxtext_overrides": conf.get("maxtext_overrides", {}),
+        "checkpoint_gcs_path": str(conf.get("checkpoint_gcs_path", "")),
+        "report_gcs_dir": str(conf.get("report_gcs_dir", "")),
+        "hf_model_path": str(conf.get("hf_model_path", "")),
+        "hf_ref_code_url": str(conf.get("hf_ref_code_url", "")),
+        "hf_config_url": str(conf.get("hf_config_url", "")),
+        "alert_recipient": str(conf.get("email") or conf.get("alert_recipient", "")),
+    }
 
+    bucket_name = conf.get("agent_trigger_bucket", "maxtext-validation-agent-reports")
+    blob_name = f"airflow_direct_failure_{int(time.time())}_{task_id}.json"
+    storage.Client().bucket(bucket_name).blob(blob_name).upload_from_string(
+        json.dumps(trigger_data, indent=2, default=str), content_type="application/json"
+    )
+    logger.info("Published remediation trigger gs://%s/%s", bucket_name, blob_name)
+
+    job_name = conf.get(
+        "overwatch_cloud_run_job",
+        "projects/tpu-prod-env-multipod/locations/us-central1/jobs/maxtext-validation-job",
+    )
+    operation = run_v2.JobsClient().run_job(name=job_name)
+    logger.info("Triggered Cloud Run Job operation %s", operation.operation.name)
+  except Exception:
+    logger.exception("Failed to publish or invoke Overwatch remediation")
 
 
 
@@ -338,4 +358,3 @@ def get_upstream_failure_validator_task(dag):
       trigger_rule="all_done",
       dag=dag,
   )
-
