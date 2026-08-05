@@ -24,57 +24,53 @@ from dags.common import vm_resource
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
 
+def trigger_agent_on_failure(context):
+    """Airflow on_failure_callback that writes failure context to GCS and triggers Cloud Run Job via Python SDK (roles/run.invoker compatible)."""
+    try:
+        from google.cloud import storage, run_v2
+        import json, time
+        
+        conf = {}
+        if context and context.get("dag_run") and getattr(context["dag_run"], "conf", None):
+            conf = context["dag_run"].conf or {}
 
-def get_maxtext_validation_config(
-    tpu_version: str,
-    tpu_cores: int,
-    tpu_zone: str,
-    time_out_in_min: int,
-) -> task.XpkTask:
-  """Generates the XPK task configuration for MaxText validation."""
+        error_msg = str(context.get("exception", "")) if context else ""
+        if len(error_msg) > 15000:
+            error_msg = "...[TRUNCATED TO PREVENT CLOUD RUN 32KB ENV LIMIT]...\n" + error_msg[-15000:]
 
-  job_gcp_config = gcp_config.GCPConfig(
-      project_name=vm_resource.Project.TPU_PROD_ENV_MULTIPOD.value,
-      zone=tpu_zone,
-      dataset_name=metric_config.DatasetOption.XLML_DATASET,
-      composer_project=vm_resource.Project.TPU_PROD_ENV_MULTIPOD.value,
-  )
+        run_name = str(conf.get("run_name", "default_run"))
+        task_id = str(context["task_instance"].task_id) if (context and context.get("task_instance")) else "unknown_task"
+        dag_id = str(context["task_instance"].dag_id) if (context and context.get("task_instance")) else "unknown_dag"
 
-  run_model_cmds = (
-      # clone the MaxText repository dynamically using Airflow Jinja templating.
-      "git clone https://github.com/AI-Hypercomputer/maxtext.git /tmp/maxtext",
-      # check out a specific commit_hash if provided (for reproducible testing of PRs),
-      # otherwise fallback to checking out the specified branch name, defaulting to 'main'.
-      "cd /tmp/maxtext && git checkout {{ dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main')) }}",
-      "cd /tmp/maxtext && pip install --no-deps -e .",
-      "cd /tmp/maxtext && echo '\\''{{ dag_run.conf | tojson }}'\\'' > config.json",
-      "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/checkpoint_validation_agent/main.py --config config.json",
-  )
+        trigger_data = {
+            "airflow_error_message": error_msg,
+            "airflow_task_id": task_id,
+            "airflow_dag_id": dag_id,
+            "maxtext_branch": str(conf.get("maxtext_branch", "main")),
+            "maxtext_model_name": str(conf.get("maxtext_model_name", "deepseek4-284b")),
+            "hf_ref_code_url": str(conf.get("hf_ref_code_url", "")),
+            "hf_config_url": str(conf.get("hf_config_url", "")),
+            "run_name": run_name,
+            "alert_recipient": str(conf.get("email") or conf.get("alert_recipient", "")),
+        }
 
-  job_test_config = test_config.TpuGkeTest(
-      accelerator=test_config.Tpu(
-          version=test_config.TpuVersion(str(tpu_version)),
-          cores=tpu_cores,
-          runtime_version="tpu-ubuntu2204-base",
-          reserved=True,
-      ),
-      test_name="maxtext_decoding_checkpoint_validation",
-      set_up_cmds=(
-          "pip install --upgrade pip",
-          "google-cloud-sdk/bin/gcloud components update --quiet",
-      ),
-      run_model_cmds=run_model_cmds,
-      timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner="airflow",
-      cluster_name="{{ dag_run.conf['xpk_cluster_name'] }}",
-      docker_image="gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:2026-07-06",
-      num_slices=1,
-  )
+        # Step 1: Write trigger blob to GCS
+        storage_client = storage.Client()
+        bucket = storage_client.bucket("maxtext-validation-agent-reports")
+        blob_name = f"airflow_direct_failure_{run_name}_{task_id}_{int(time.time())}.json"
+        blob = bucket.blob(blob_name)
+        blob.upload_from_string(json.dumps(trigger_data, indent=2), content_type="application/json")
+        print(f"Successfully uploaded direct failure trigger blob to GCS: {blob_name}")
 
-  return task.XpkTask(
-      task_test_config=job_test_config,
-      task_gcp_config=job_gcp_config,
-  )
+        # Step 2: Trigger Cloud Run Job without overrides (requires only roles/run.invoker!)
+        run_client = run_v2.JobsClient()
+        name = "projects/tpu-prod-env-multipod/locations/us-central1/jobs/maxtext-validation-job"
+        operation = run_client.run_job(name=name)
+        print(f"Successfully triggered Cloud Run Job (no-overrides mode). Operation: {operation.operation.name}")
+    except Exception as e:
+        print(f"Failed to trigger Cloud Run Job via Python SDK: {e}")
+
+
 
 
 def get_checkpoint_shape_validation_task(
@@ -98,20 +94,20 @@ def get_checkpoint_shape_validation_task(
       "git clone https://github.com/AI-Hypercomputer/maxtext.git /tmp/maxtext",
       # Check out a specific commit_hash if provided (for reproducible testing of PRs),
       # otherwise fallback to checking out the specified branch name, defaulting to 'main'.
-      "cd /tmp/maxtext && git checkout {{ dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main')) }}",
+      "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
       "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
       "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
       # Dump theoretical (ideal) MaxText parameter shapes into a text file.
-      "python3 -m maxtext.checkpoint_conversion.inspect_checkpoint maxtext "
+      "python3 /tmp/maxtext/src/maxtext/checkpoint_conversion/inspect_checkpoint.py maxtext "
       f"model_name={model_name} scan_layers={scan_layers} --output_file=/tmp/ideal_raw.txt",
       # Dump actual Orbax checkpoint parameter shapes from GCS into a text file.
-      "python3 -m maxtext.checkpoint_conversion.inspect_checkpoint orbax "
+      "python3 /tmp/maxtext/src/maxtext/checkpoint_conversion/inspect_checkpoint.py orbax "
       f"--path {checkpoint_gcs_path} --output_file=/tmp/actual_raw.txt",
       # Filter the raw dumps to only extract the dictionary keys mapping to tensor shapes.
       "grep '^key:' /tmp/ideal_raw.txt > /tmp/ideal_shapes.txt",
       "grep '^key:' /tmp/actual_raw.txt > /tmp/actual_shapes.txt",
       # Execute the shape validator script to compare the two shape files.
-      "python3 /tmp/maxtext/src/maxtext/experimental/agent/checkpoint_validation_agent/checkpoint_shape_validator.py "
+      "python3 /tmp/maxtext/src/maxtext/experimental/agent/ckpt_validation_pipeline/checkpoint_shape_validator.py "
       "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }}",
   ]
 
@@ -130,7 +126,7 @@ def get_checkpoint_shape_validation_task(
   )
 
 
-def get_mock_tensor_validation_task(dag, model_name, checkpoint_path):
+def get_forward_compile_validation_task(dag):
   """
   Sub-DAG B: Mock Tensor Dry Run.
   Verifies that the model can run a forward pass without crashing.
@@ -145,7 +141,7 @@ def get_mock_tensor_validation_task(dag, model_name, checkpoint_path):
       "git clone https://github.com/AI-Hypercomputer/maxtext.git /tmp/maxtext",
       # Check out a specific commit_hash if provided (for reproducible testing of PRs),
       # otherwise fallback to checking out the specified branch name, defaulting to 'main'.
-      "cd /tmp/maxtext && git checkout {{ dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main')) }}",
+      "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
       "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
       "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
       # Execute the mock tensor forward pass (dry run).
@@ -155,11 +151,12 @@ def get_mock_tensor_validation_task(dag, model_name, checkpoint_path):
       # This dynamically unpacks the 'maxtext_overrides' dictionary from the DAG runtime config
       # (or fallback params) into command-line arguments using Airflow Jinja templating.
       (
-          f"python3 /tmp/maxtext/src/maxtext/experimental/agent/checkpoint_validation_agent/mock_tensor_test.py "
-          f"{checkpoint_path} {model_name} "
+          "python3 /tmp/maxtext/src/maxtext/experimental/agent/ckpt_validation_pipeline/forward_compile_validator.py "
           "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
+          "load_parameters_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path', '')) }} "
+          "model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name', '')) }} "
           "{% for k, v in dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})).items() %}"
-          "{{ k }}={{ v }} "
+          "{{ k }}=\"{{ v }}\" "
           "{% endfor %}"
       ),
   ]
@@ -176,3 +173,169 @@ def get_mock_tensor_validation_task(dag, model_name, checkpoint_path):
       get_logs=True,
       dag=dag,
   )
+
+
+def get_forward_pass_validation_task(
+    tpu_version: str,
+    tpu_cores: int,
+    tpu_zone: str,
+    time_out_in_min: int,
+) -> task.XpkTask:
+  """
+  Sub-DAG C: Forward Pass Logits Verification.
+  Executes a forward pass on a TPU cluster using Snehal's logit checker script with sow.
+  This step ensures that the model is mathematically equivalent to its HuggingFace baseline.
+  """
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
+      zone="{{ dag_run.conf.get('xpk_zone', params.get('xpk_zone', '" + str(tpu_zone) + "')) }}",
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+      composer_project="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
+  )
+
+  run_model_cmds = (
+      "set -e",
+      "export HF_TOKEN={{ dag_run.conf.get('hf_token', params.get('hf_token', '')) }}",
+      # Clone the repository and checkout the targeted branch
+      "cd /tmp && git clone https://github.com/AI-Hypercomputer/maxtext.git",
+      "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
+      "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
+      "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
+      # Install necessary packages to run the HuggingFace baseline and Flax model
+      "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+      "pip install accelerate jsonlines huggingface_hub transformers numpy",
+      # Run our wrapper for Snehal's logit checker script.
+      # This catches errors and writes a standard JSON report to GCS.
+      (
+          "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/ckpt_validation_pipeline/forward_pass_validator.py "
+          "--run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }} "
+          "--maxtext_model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }} "
+          "--checkpoint_gcs_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path')) }} "
+          "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
+          "--run_hf_model=true "
+          "--max_kl_div={{ dag_run.conf.get('max_kl_div', params.get('max_kl_div', 0.02)) }} "
+          "--atol=1e-02 "
+          "--rtol=1e-02 "
+          "{% set overrides = dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})) %}"
+          "--hf_model_path={{ dag_run.conf.get('hf_model_path', params.get('hf_model_path', overrides.get('hf_model_path', ''))) }} "
+          "{% for k, v in overrides.items() %}"
+          "{% if k != 'hf_model_path' %}{{ k }}=\"{{ v }}\" {% endif %}"
+          "{% endfor %}"
+          "{% if 'remat_policy' not in overrides %}remat_policy=none {% endif %}"
+      ),
+  )
+
+  job_test_config = test_config.TpuGkeTest(
+      accelerator=test_config.Tpu(
+          version=test_config.TpuVersion(str(tpu_version)),
+          cores=tpu_cores,
+          runtime_version="tpu-ubuntu2204-base",
+          reserved=True,
+      ),
+      test_name="maxtext_forward_pass_validation",
+      set_up_cmds=(
+          "pip install --upgrade pip",
+          "google-cloud-sdk/bin/gcloud components update --quiet",
+      ),
+      run_model_cmds=run_model_cmds,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
+      task_owner="airflow",
+      cluster_name="{{ dag_run.conf.get('xpk_cluster_name', params.get('xpk_cluster_name', ti.xcom_pull(task_ids='find_available_cluster') or 'v4-8-maxtext')) }}",
+      docker_image="gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:2026-07-06",
+      num_slices=1,
+  )
+
+  return task.XpkTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
+
+def get_decoding_validation_task(
+    tpu_version: str,
+    tpu_cores: int,
+    tpu_zone: str,
+    time_out_in_min: int,
+) -> task.XpkTask:
+  """
+  Sub-DAG D: End-to-End Decoding / Text Generation Verification.
+  Generates the XPK task configuration to run decode_validator.py on a TPU cluster.
+  """
+
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
+      zone="{{ dag_run.conf.get('xpk_zone', params.get('xpk_zone', '" + str(tpu_zone) + "')) }}",
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+      composer_project="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
+  )
+
+  run_model_cmds = (
+      "set -e",
+      "export HF_TOKEN={{ dag_run.conf.get('hf_token', params.get('hf_token', '')) }}",
+      # clone the MaxText repository dynamically using Airflow Jinja templating.
+      "git clone https://github.com/AI-Hypercomputer/maxtext.git /tmp/maxtext",
+      # check out a specific commit_hash if provided (for reproducible testing of PRs),
+      # otherwise fallback to checking out the specified branch name, defaulting to 'main'.
+      "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
+      "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
+      "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
+      (
+          "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/ckpt_validation_pipeline/decode_validator.py "
+          "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
+          "run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }} "
+          "model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name', '')) }} "
+          "load_parameters_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path', '')) }} "
+          "{% for k, v in dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})).items() %}{{ k }}=\"{{ v }}\" {% endfor %}"
+      ),
+  )
+
+  job_test_config = test_config.TpuGkeTest(
+      accelerator=test_config.Tpu(
+          version=test_config.TpuVersion(str(tpu_version)),
+          cores=tpu_cores,
+          runtime_version="tpu-ubuntu2204-base",
+          reserved=True,
+      ),
+      test_name="maxtext_decoding_checkpoint_validation",
+      set_up_cmds=(
+          "pip install --upgrade pip",
+          "google-cloud-sdk/bin/gcloud components update --quiet",
+      ),
+      run_model_cmds=run_model_cmds,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
+      task_owner="airflow",
+      cluster_name="{{ dag_run.conf.get('xpk_cluster_name', params.get('xpk_cluster_name', 'v4-8-maxtext')) }}",
+      docker_image="gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:2026-07-06",
+      num_slices=1,
+  )
+
+  return task.XpkTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
+# Backward-compatibility alias for legacy imports
+get_maxtext_validation_config = get_decoding_validation_task
+
+
+def check_upstream_failures(**context):
+  """Guardrail task callable: raises AirflowFailException if any task in the DAG run failed."""
+  from airflow.exceptions import AirflowFailException
+  dag_run = context.get("dag_run")
+  if not dag_run:
+    return
+  for ti in dag_run.get_task_instances():
+    if ti.state in ("failed", "upstream_failed") and ti.task_id != "check_upstream_failures":
+      raise AirflowFailException(f"Task '{ti.task_id}' failed. Marking DAG as FAILED.")
+
+
+def get_upstream_failure_validator_task(dag):
+  """Returns a PythonOperator that runs with trigger_rule='all_done' to ensure DAG is marked failed if any upstream task failed."""
+  from airflow.operators.python import PythonOperator
+  return PythonOperator(
+      task_id="check_upstream_failures",
+      python_callable=check_upstream_failures,
+      trigger_rule="all_done",
+      dag=dag,
+  )
+

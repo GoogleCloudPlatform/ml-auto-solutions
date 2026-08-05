@@ -26,4 +26,21 @@ You will change your code to pull the branch name dynamically from an Airflow DA
 f"git clone -b {{{{ dag_run.conf.get('maxtext_branch', 'main') }}}} [https://github.com/](https://github.com/)..."
 This way, production runs main automatically, but developers can trigger the DAG manually and pass in their own feature branches to test them. For today, stick to the hardcoded branch just to get the pod passing.
 
-<8> 
+<8> rsync commands for mac:
+rsync -avz /Users/fiyinbenstowe/Desktop/project/ml-auto-solutions/ jfacevedo-v6e-8:~/ml-auto-solutions/
+rsync -avz /Users/fiyinbenstowe/Desktop/project/maxtext/ jfacevedo-v6e-8:~/maxtext/
+
+<9> rsync commands for cloudtop:
+rsync -avz ~/Desktop/Project/ml-auto-solutions/ jfacevedo-v6e-8:~/ml-auto-solutions/
+rsync -avz ~/Desktop/Project/maxtext/ jfacevedo-v6e-8:~/maxtext/
+
+<10> for maxtext linting:
+pyink --pyink-indentation=2 --line-length=122 src/maxtext/experimental/agent/ckpt_validation_pipeline
+pylint src/maxtext/experimental/agent/ckpt_validation_pipeline
+
+<11> In maxtext, change the recipient email from mine to specifc user's
+
+<12> To edit and retest the agent, run in maxtext directory on local terminal
+bash src/maxtext/experimental/agent/ckpt_validation_pipeline/agent_sidecar/deploy_to_cloud_run.sh
+
+<13>
