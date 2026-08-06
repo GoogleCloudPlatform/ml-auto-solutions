@@ -69,13 +69,14 @@ SHARON_Y = "Shuang-cnt"
 # MLCompass
 ORTI_B = "ortibazar"
 
-# Sparsity & Diffusion DevX
+# JAX Models and Performance
 RAN_R = "RissyRan"
 PARAM_B = "parambole"
 KUNJAN_P = "coolkp"
 MICHELLE_Y = "michelle-yooh"
 SHUNING_J = "shuningjin"
 ROHAN_B = "Rohan-Bierneni"
+SNEHAL_V = "snehalv2002"
 
 # Inference
 XIANG_S = "sixiang-google"
