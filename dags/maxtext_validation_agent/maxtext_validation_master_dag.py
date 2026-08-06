@@ -75,7 +75,7 @@ with models.DAG(
     catchup=False,
     params=DEFAULT_PARAMS,
     default_args={
-        "retries": 3,
+        "retries": 0,
         "retry_delay": datetime.timedelta(minutes=15),
     },
     render_template_as_native_obj=True,
