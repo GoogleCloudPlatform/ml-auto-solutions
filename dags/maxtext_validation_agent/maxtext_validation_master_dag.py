@@ -90,11 +90,20 @@ def monitor_agent_subdag(sub_dag_id, conf, **context):
         return related_runs
 
     max_runs = 5
+    logged_runs = set()
+    
     while True:
         related_runs = check_runs()
         if not related_runs:
             time.sleep(30)
             continue
+            
+        for r in related_runs:
+            if r.run_id not in logged_runs:
+                url = f"https://4bae0a6de8f94e92aa8ee3a6ffc8b278-dot-us-central1.composer.googleusercontent.com/dags/{sub_dag_id}/grid?dag_run_id={r.run_id}"
+                print(f"Tracking new run spawned for {sub_dag_id}: {r.run_id}")
+                print(f"View Run in Airflow UI: {url}")
+                logged_runs.add(r.run_id)
             
         successes = sum(1 for r in related_runs if r.state == "success")
         if successes > 0:
