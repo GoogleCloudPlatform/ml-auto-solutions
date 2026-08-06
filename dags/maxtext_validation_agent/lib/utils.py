@@ -49,6 +49,16 @@ def trigger_agent_on_failure(context):
     run_name = str(conf.get("run_name", "default_run"))
     remediation_key = f"{dag_id}:{airflow_run_id}:{task_id}"
 
+    # Prevent infinite agent retries by capping at 5 runs for this specific run_name.
+    from airflow.utils.session import create_session
+    from airflow.models import DagRun
+    with create_session() as session:
+        runs = session.query(DagRun).filter(DagRun.dag_id == dag_id).all()
+        related_runs = [r for r in runs if r.conf and r.conf.get("run_name", "").startswith(run_name)]
+        if len(related_runs) >= 5:
+            logger.info("Maximum agent retries reached (5). Skipping agent trigger.")
+            return
+
     error_msg = str(context.get("exception", "")) if context else ""
     if len(error_msg) > 15000:
       error_msg = "...[TRUNCATED]...\n" + error_msg[-15000:]
