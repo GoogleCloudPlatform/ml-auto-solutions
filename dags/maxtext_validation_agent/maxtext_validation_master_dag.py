@@ -18,7 +18,12 @@
 
 import datetime
 from airflow import models
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.operators.python import PythonOperator
+from airflow.api.common.trigger_dag import trigger_dag
+from airflow.models import DagRun
+from airflow.utils.session import provide_session
+import time
+import uuid
 
 # Default payload passed to all downstream Sub-DAGs unless overridden in the UI.
 # DEFAULT_PARAMS = {
@@ -67,6 +72,45 @@ DEFAULT_PARAMS = {
     },
 }
 
+def monitor_agent_subdag(sub_dag_id, conf, **context):
+    run_name = conf.get("run_name", "default_run")
+    base_run_id = f"manual__{uuid.uuid4().hex[:8]}"
+
+    print(f"Triggering initial run {base_run_id} for sub-DAG {sub_dag_id}")
+    trigger_dag(dag_id=sub_dag_id, run_id=base_run_id, conf=conf)
+
+    @provide_session
+    def check_runs(session=None):
+        runs = session.query(DagRun).filter(DagRun.dag_id == sub_dag_id).all()
+        related_runs = []
+        for r in runs:
+            # Check if this run belongs to our master DAG execution
+            if r.conf and r.conf.get("run_name", "").startswith(run_name):
+                related_runs.append(r)
+        return related_runs
+
+    max_runs = 5
+    while True:
+        related_runs = check_runs()
+        if not related_runs:
+            time.sleep(30)
+            continue
+            
+        successes = sum(1 for r in related_runs if r.state == "success")
+        if successes > 0:
+            print(f"Sub-DAG {sub_dag_id} succeeded! Total runs detected: {len(related_runs)}")
+            return True
+            
+        failures = sum(1 for r in related_runs if r.state == "failed")
+        running = sum(1 for r in related_runs if r.state == "running")
+        
+        # If we've hit the limit and no runs are currently running, fail the master DAG
+        if len(related_runs) >= max_runs and running == 0:
+            raise RuntimeError(f"Sub-DAG {sub_dag_id} failed {max_runs} times. Moving Master DAG to FAILED state.")
+            
+        print(f"Waiting for sub-DAG {sub_dag_id}... Active runs: {running}, Failures: {failures}/{max_runs}")
+        time.sleep(30)
+
 with models.DAG(
     dag_id="maxtext_validation_master_dag",
     schedule="0 0 * * *",  # Run nightly at midnight
@@ -81,38 +125,29 @@ with models.DAG(
     render_template_as_native_obj=True,
 ) as dag:
 
-  # trigger Sub-DAG A (checkpoint inspection using the checkpoint inspection tool)
-  trigger_checkpoint_shape_validation = TriggerDagRunOperator(
+  trigger_checkpoint_shape_validation = PythonOperator(
       task_id="trigger_checkpoint_shape_validation",
-      trigger_dag_id="dag_verify_checkpoint_shape",
-      conf="{{ params }}",  # passes master DAG's UI config down to Sub-DAG A
-      wait_for_completion=True,  # Halt pipeline immediately if mismatched
+      python_callable=monitor_agent_subdag,
+      op_kwargs={"sub_dag_id": "dag_verify_checkpoint_shape", "conf": "{{ params }}"},
   )
 
-  # trigger Sub-DAG B (mock tensor validation/ dry run)
-  trigger_mock_tensor_validation = TriggerDagRunOperator(
+  trigger_mock_tensor_validation = PythonOperator(
       task_id="trigger_mock_tensor_validation",
-      trigger_dag_id="dag_verify_forward_compile",
-      conf="{{ params }}",  # passes master DAG's UI config down to Sub-DAG B
-      wait_for_completion=True,
+      python_callable=monitor_agent_subdag,
+      op_kwargs={"sub_dag_id": "dag_verify_forward_compile", "conf": "{{ params }}"},
   )
 
-  # trigger Sub-DAG C (forward pass validation)
-  trigger_forward_pass_validation = TriggerDagRunOperator(
+  trigger_forward_pass_validation = PythonOperator(
       task_id="trigger_forward_pass_validation",
-      trigger_dag_id="dag_verify_forward_pass",
-      conf="{{ params }}",  # passes master DAG's UI config down to Sub-DAG C
-      wait_for_completion=True,
+      python_callable=monitor_agent_subdag,
+      op_kwargs={"sub_dag_id": "dag_verify_forward_pass", "conf": "{{ params }}"},
   )
 
-  # trigger Sub-DAG D (decoding validation)
-  trigger_decoding_validation = TriggerDagRunOperator(
+  trigger_decoding_validation = PythonOperator(
       task_id="trigger_decoding_validation",
-      trigger_dag_id="dag_verify_decoding",
-      conf="{{ params }}",  # passes master DAG's UI config down to Sub-DAG D
-      wait_for_completion=True,
+      python_callable=monitor_agent_subdag,
+      op_kwargs={"sub_dag_id": "dag_verify_decoding", "conf": "{{ params }}"},
   )
 
   # execution order: Shape Validation (A) -> Mock Tensor (B) -> Forward Pass (C) -> Decoding (D)
-  # pylint: disable=pointless-statement
   trigger_checkpoint_shape_validation >> trigger_mock_tensor_validation >> trigger_forward_pass_validation >> trigger_decoding_validation
