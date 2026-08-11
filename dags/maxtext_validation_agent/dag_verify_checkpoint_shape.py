@@ -23,24 +23,27 @@ from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
 
 
 DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-shape-test",
-    "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
-    "maxtext_model_name": "qwen3-8b",
-    "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
-    "maxtext_commit_hash": "",
-    "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
-    "hf_model_path": "Qwen/Qwen3-8B",
+    "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-0.6b/2025-10-27/scanned/0/items",
     "hf_config_url": "",
+    "hf_model_path": "Qwen/Qwen3-0.6B",
     "hf_ref_code_url": "",
-    "maxtext_overrides": {
-        "tokenizer_path": "Qwen/Qwen3-8B",
-        "tokenizer_type": "huggingface",
-        "scan_layers": False,
-        "max_target_length": 2048,
-        "per_device_batch_size": 8.0,
+    "hf_token": "",
+    "max_kl_div": "0.02",
+    "maxtext_branch": "test-pipeline-ckpt-validation",
+    "maxtext_commit_hash": "",
+    "maxtext_model_name": "qwen3-0.6b",
+    "forward_pass_maxtext_overrides": {
         "attention": "dot_product",
-        "debug_tensors": True,
+        "scan_layers": True,
+        "weight_dtype": "float32",
+        "tokenizer_path": "Qwen/Qwen3-0.6B",
+        "tokenizer_type": "huggingface"
     },
+    "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
+    "run_name": "qwen3-tiny-fp32-test",
+    "xpk_cluster_name": "v5p-128-bodaborg-europe-west4-b",
+    "xpk_project": "cloud-tpu-multipod-dev",
+    "xpk_zone": "europe-west4-b"
 }
 
 with models.DAG(
@@ -63,7 +66,7 @@ with models.DAG(
       dag=dag,
       model_name="{{ dag_run.conf.get('maxtext_model_name', params['maxtext_model_name']) }}",
       checkpoint_gcs_path="{{ dag_run.conf.get('checkpoint_gcs_path', params['checkpoint_gcs_path']) }}",
-      scan_layers="{{ dag_run.conf.get('maxtext_overrides', params['maxtext_overrides']).get('scan_layers', False) | lower }}",
+      scan_layers="{{ dag_run.conf.get('forward_pass_maxtext_overrides', params['forward_pass_maxtext_overrides']).get('scan_layers', False) | lower }}",
   )
 
   # Execute Task A

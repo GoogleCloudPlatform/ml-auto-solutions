@@ -22,26 +22,7 @@ from dags.maxtext_validation_agent.lib import utils
 from dags.maxtext_validation_agent.lib.utils import trigger_agent_on_failure
 
 
-DEFAULT_PARAMS = {
-    "run_name": "qwen3-custom-inspection-test",
-    "checkpoint_gcs_path": "gs://maxtext-model-checkpoints/qwen3-8b/unscanned/0/items",
-    "maxtext_model_name": "qwen3-8b",
-    "maxtext_branch": "{{ dag_run.conf.get('maxtext_branch', 'main') }}",
-    "maxtext_commit_hash": "",
-    "report_gcs_dir": "gs://maxtext-validation-agent-reports/",
-    "hf_model_path": "Qwen/Qwen3-8B",
-    "hf_config_url": "",
-    "hf_ref_code_url": "",
-    "maxtext_overrides": {
-        "tokenizer_path": "Qwen/Qwen3-8B",
-        "tokenizer_type": "huggingface",
-        "scan_layers": False,
-        "max_target_length": 2048,
-        "per_device_batch_size": 8.0,
-        "attention": "dot_product",
-        "debug_tensors": True,
-    },
-}
+DEFAULT_PARAMS = {}
 
 with models.DAG(
     dag_id="dag_verify_forward_compile",

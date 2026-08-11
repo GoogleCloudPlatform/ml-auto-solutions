@@ -76,7 +76,8 @@ def trigger_agent_on_failure(context):
         "maxtext_branch": str(conf.get("maxtext_branch", "main")),
         "maxtext_commit_hash": str(conf.get("maxtext_commit_hash", "")),
         "maxtext_model_name": str(conf.get("maxtext_model_name", "unknown_model")),
-        "maxtext_overrides": conf.get("maxtext_overrides", {}),
+        "forward_pass_maxtext_overrides": conf.get("forward_pass_maxtext_overrides", {}),
+        "decode_maxtext_overrides": conf.get("decode_maxtext_overrides", {}),
         "checkpoint_gcs_path": str(conf.get("checkpoint_gcs_path", "")),
         "report_gcs_dir": str(conf.get("report_gcs_dir", "")),
         "hf_model_path": str(conf.get("hf_model_path", "")),
@@ -186,7 +187,7 @@ def get_forward_compile_validation_task(dag):
           "run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }}_{{ run_id }} "
           "load_parameters_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path', '')) }} "
           "model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name', '')) }} "
-          "{% for k, v in dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})).items() %}"
+          "{% for k, v in dag_run.conf.get('forward_pass_maxtext_overrides', params.get('forward_pass_maxtext_overrides', {})).items() %}"
           "{{ k }}=\"{{ v }}\" "
           "{% endfor %}"
       ),
@@ -206,22 +207,25 @@ def get_forward_compile_validation_task(dag):
   )
 
 
-def get_forward_pass_validation_task(
-    tpu_version: str,
-    tpu_cores: int,
+
+
+
+
+def get_golden_logits_generation_task(
+    tpu_project: str,
     tpu_zone: str,
-    time_out_in_min: int,
+    time_out_in_min: int = 120,
 ) -> task.XpkTask:
   """
-  Sub-DAG C: Forward Pass Logits Verification.
-  Executes a forward pass on a TPU cluster using Snehal's logit checker script with sow.
-  This step ensures that the model is mathematically equivalent to its HuggingFace baseline.
+  Sub-DAG Pre-step: Compute Golden Logits on High-RAM CPU.
+  Downloads HuggingFace weights to a mega-memory CPU node, generates reference logits,
+  uploads them to GCS, and deletes the cache since it's an ephemeral pod.
   """
   job_gcp_config = gcp_config.GCPConfig(
-      project_name="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
-      zone="{{ dag_run.conf.get('xpk_zone', params.get('xpk_zone', '" + str(tpu_zone) + "')) }}",
+      project_name=tpu_project,
+      zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
-      composer_project="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
+      composer_project=tpu_project,
   )
 
   run_model_cmds = (
@@ -232,22 +236,79 @@ def get_forward_pass_validation_task(
       "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
       "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
       "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
-      # Install necessary packages to run the HuggingFace baseline and Flax model
+      # Install PyTorch and HF stuff here, where we have 1.4TB of RAM!
       "pip install torch --index-url https://download.pytorch.org/whl/cpu",
-      "pip install accelerate jsonlines huggingface_hub transformers numpy",
+      "pip install accelerate jsonlines huggingface_hub transformers numpy sentencepiece bs4",
+      (
+          "cd /tmp/maxtext && python3 -m tests.assets.logits_generation.generate_hf_golden_logits "
+          "--model-id={{ dag_run.conf.get('hf_model_path', params.get('hf_model_path', dag_run.conf.get('forward_pass_maxtext_overrides', params.get('forward_pass_maxtext_overrides', {})).get('hf_model_path', ''))) }} "
+          "--prompts="I love to;Today is a;What is the" "
+          "--output-path={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }}_golden_logits.jsonl "
+          "--gcs-bucket=maxtext-validation-golden-logits"
+      ),
+  )
+
+  job_test_config = test_config.CpuGkeTest(
+      test_name="maxtext_golden_logits_generation",
+      set_up_cmds=(
+          "pip install --upgrade pip",
+          "google-cloud-sdk/bin/gcloud components update --quiet",
+      ),
+      run_model_cmds=run_model_cmds,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
+      task_owner="airflow",
+      cluster_name="m1-megamem-96-shared",
+      docker_image="gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:2026-07-06",
+      num_slices=1,
+  )
+
+  return task.XpkTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+  )
+
+def get_forward_pass_validation_task(
+    tpu_version: str,
+    tpu_cores: int,
+    tpu_zone: str,
+    tpu_project: str,
+    time_out_in_min: int,
+) -> task.XpkTask:
+  """
+  Sub-DAG C: Forward Pass Logits Verification.
+  Executes a forward pass on a TPU cluster using Snehal's logit checker script with sow.
+  This step ensures that the model is mathematically equivalent to its HuggingFace baseline.
+  """
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=tpu_project,
+      zone=tpu_zone,
+      dataset_name=metric_config.DatasetOption.XLML_DATASET,
+      composer_project=tpu_project,
+  )
+
+  run_model_cmds = (
+      "set -e",
+      "export HF_TOKEN={{ dag_run.conf.get('hf_token', params.get('hf_token', '')) }}",
+      # Clone the repository and checkout the targeted branch
+      "cd /tmp && git clone https://github.com/AI-Hypercomputer/maxtext.git",
+      "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
+      "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
+      "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
       # Run our wrapper for Snehal's logit checker script.
       # This catches errors and writes a standard JSON report to GCS.
+      # It pulls the pre-computed PyTorch golden logits from GCS to completely avoid downloading
+      # HuggingFace weights or PyTorch onto the TPU memory directly.
       (
           "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/ckpt_validation_pipeline/forward_pass_validator.py "
           "--run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }}_{{ run_id }} "
           "--maxtext_model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }} "
           "--checkpoint_gcs_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path')) }} "
           "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
-          "--run_hf_model=true "
+          "--golden_logits_path=gs://maxtext-validation-golden-logits/{{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }}_golden_logits.jsonl "
           "--max_kl_div={{ dag_run.conf.get('max_kl_div', params.get('max_kl_div', 0.02)) }} "
           "--atol=1e-02 "
           "--rtol=1e-02 "
-          "{% set overrides = dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})) %}"
+          "{% set overrides = dag_run.conf.get('forward_pass_maxtext_overrides', params.get('forward_pass_maxtext_overrides', {})) %}"
           "--hf_model_path={{ dag_run.conf.get('hf_model_path', params.get('hf_model_path', overrides.get('hf_model_path', ''))) }} "
           "{% for k, v in overrides.items() %}"
           "{% if k != 'hf_model_path' %}{{ k }}=\"{{ v }}\" {% endif %}"
@@ -286,6 +347,7 @@ def get_decoding_validation_task(
     tpu_version: str,
     tpu_cores: int,
     tpu_zone: str,
+    tpu_project: str,
     time_out_in_min: int,
 ) -> task.XpkTask:
   """
@@ -294,10 +356,10 @@ def get_decoding_validation_task(
   """
 
   job_gcp_config = gcp_config.GCPConfig(
-      project_name="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
-      zone="{{ dag_run.conf.get('xpk_zone', params.get('xpk_zone', '" + str(tpu_zone) + "')) }}",
+      project_name=tpu_project,
+      zone=tpu_zone,
       dataset_name=metric_config.DatasetOption.XLML_DATASET,
-      composer_project="{{ dag_run.conf.get('xpk_project', params.get('xpk_project', 'tpu-prod-env-multipod')) }}",
+      composer_project=tpu_project,
   )
 
   run_model_cmds = (
@@ -316,7 +378,7 @@ def get_decoding_validation_task(
           "run_name={{ dag_run.conf.get('run_name', params.get('run_name', 'default_run')) }}_{{ run_id }} "
           "model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name', '')) }} "
           "load_parameters_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path', '')) }} "
-          "{% for k, v in dag_run.conf.get('maxtext_overrides', params.get('maxtext_overrides', {})).items() %}{{ k }}=\"{{ v }}\" {% endfor %}"
+          "{% for k, v in dag_run.conf.get('decode_maxtext_overrides', params.get('decode_maxtext_overrides', {})).items() %}{{ k }}=\"{{ v }}\" {% endfor %}"
       ),
   )
 
