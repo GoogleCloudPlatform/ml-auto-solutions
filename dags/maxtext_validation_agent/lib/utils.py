@@ -242,7 +242,7 @@ def get_golden_logits_generation_task(
       (
           "cd /tmp/maxtext && python3 -m tests.assets.logits_generation.generate_hf_golden_logits "
           "--model-id={{ dag_run.conf.get('hf_model_path', params.get('hf_model_path', dag_run.conf.get('forward_pass_maxtext_overrides', params.get('forward_pass_maxtext_overrides', {})).get('hf_model_path', ''))) }} "
-          "--prompts="I love to;Today is a;What is the" "
+          "--prompts=\"{{ dag_run.conf.get('prompts', params.get('prompts', 'I love to;Today is a;What is the')) }}\" "
           "--output-path={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }}_golden_logits.jsonl "
           "--gcs-bucket=maxtext-validation-golden-logits"
       ),
