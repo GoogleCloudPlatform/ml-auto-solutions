@@ -44,7 +44,7 @@ LOGGING_URL_FORMAT = (
     + "resource.labels.project_id%3D%22{project}%22%0A"
     + "resource.labels.location%3D%22{region}%22%0A"
     + "resource.labels.cluster_name%3D%22{cluster}%22%0A"
-    + "resource.labels.namespace_name%3D%22default%22%0A"
+    + "resource.labels.namespace_name%3D%22{namespace}%22%0A"
     + "labels.k8s-pod%2Fjobset_sigs_k8s_io%2F"
     + "jobset-name%3D%22{workload_id}%22%20severity%3E%3DDEFAULT;"
     + "storageScope=project;duration=P7D?e=13803378&"
@@ -115,6 +115,7 @@ def run_workload(
     max_restart: int = 0,
     # to avoid workload preemption by manual tests.
     priority: str = "high",
+    namespace: str = "default",
 ):
   """Run workload through xpk tool."""
 
@@ -154,6 +155,9 @@ def run_workload(
         f" --priority={priority}"
         f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
     )
+
+    if namespace and namespace != "default":
+      workload_create_cmd += f" --namespace={namespace}"
 
     if ramdisk_directory and not use_pathways:
       workload_create_cmd += f" --ramdisk-directory={ramdisk_directory}"
@@ -209,13 +213,17 @@ def _get_core_api_client(
 
 
 def _list_workload_pods(
-    core_api: k8s_client.CoreV1Api, workload_id: str
+    core_api: k8s_client.CoreV1Api,
+    workload_id: str,
+    namespace: str = "default",
 ) -> k8s_client.V1PodList:
   """List all pods for the given workload."""
-  logging.info(f"Getting pods for workload_id: {workload_id}")
+  logging.info(
+      f"Getting pods for workload_id: {workload_id} in namespace: {namespace}"
+  )
   pods = core_api.list_namespaced_pod(
       label_selector=f"jobset.sigs.k8s.io/jobset-name={workload_id}",
-      namespace="default",
+      namespace=namespace,
   )
   return pods
 
@@ -235,13 +243,17 @@ def _get_batch_api_client(
 
 
 def _get_workload_job(
-    batch_api: k8s_client.BatchV1Api, workload_id: str
+    batch_api: k8s_client.BatchV1Api,
+    workload_id: str,
+    namespace: str = "default",
 ) -> k8s_client.V1Job:
   """Get the job for a given workload."""
-  logging.info(f"Getting job for workload_id: {workload_id}")
+  logging.info(
+      f"Getting job for workload_id: {workload_id} in namespace: {namespace}"
+  )
   jobs = batch_api.list_namespaced_job(
       label_selector=f"jobset.sigs.k8s.io/jobset-name={workload_id}",
-      namespace="default",
+      namespace=namespace,
   )
   if len(jobs.items) == 0:
     logging.info(f"Getting job for workload_id: {workload_id}")
@@ -293,11 +305,15 @@ def _log_workload_pod_statuses(workload_id: str, pods) -> None:
 
 @task.sensor(poke_interval=60, timeout=600, mode="reschedule")
 def wait_for_workload_start(
-    workload_id: str, project_id: str, region: str, cluster_name: str
+    workload_id: str,
+    project_id: str,
+    region: str,
+    cluster_name: str,
+    namespace: str = "default",
 ) -> bool:
   """Check if the workload has started."""
   core_api = _get_core_api_client(project_id, region, cluster_name)
-  pods = _list_workload_pods(core_api, workload_id)
+  pods = _list_workload_pods(core_api, workload_id, namespace=namespace)
 
   _log_workload_pod_statuses(workload_id, pods)
   print(f"Found {len(pods.items)} pods for workload {workload_id}")
@@ -306,11 +322,15 @@ def wait_for_workload_start(
 
 @task.sensor(poke_interval=60, timeout=600, mode="reschedule")
 def wait_for_workload_completion(
-    workload_id: str, project_id: str, region: str, cluster_name: str
+    workload_id: str,
+    project_id: str,
+    region: str,
+    cluster_name: str,
+    namespace: str = "default",
 ) -> bool:
   """Check the workload status."""
   core_api = _get_core_api_client(project_id, region, cluster_name)
-  pods = _list_workload_pods(core_api, workload_id)
+  pods = _list_workload_pods(core_api, workload_id, namespace=namespace)
 
   _log_workload_pod_statuses(workload_id, pods)
 
@@ -320,7 +340,7 @@ def wait_for_workload_completion(
     # Pathways jobs delete all pods on failure so we must also check if the job
     # is complete
     batch_api = _get_batch_api_client(project_id, region, cluster_name)
-    job = _get_workload_job(batch_api, workload_id)
+    job = _get_workload_job(batch_api, workload_id, namespace=namespace)
     if job is None:
       logging.info(
           f"No pods or jobs were found for workload selector: {workload_id}"
@@ -367,6 +387,7 @@ def wait_for_workload_completion(
         project=project_id,
         region=region,
         cluster=cluster_name,
+        namespace=namespace,
         workload_id=workload_id,
     )
     logging.info(f"Link to logs: {url}")
@@ -382,6 +403,7 @@ def clean_up_workload(
     zone: str,
     cluster_name: str,
     xpk_branch: str = MAIN_BRANCH,
+    namespace: str = "default",
 ) -> bool:
   """Delete workload."""
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -391,6 +413,8 @@ def clean_up_workload(
         f" --cluster={cluster_name} --workload={workload_id}"
         f" --project={project_id} --zone={zone}"
     )
+    if namespace and namespace != "default":
+      workload_delete_cmd += f" --namespace={namespace}"
 
     cmds = get_xpk_setup_cmd(tmpdir, xpk_branch)
     cmds.append(workload_delete_cmd)
@@ -411,13 +435,14 @@ def wait_for_workload_reach_step(
     cluster_name: str,
     workload_id: str,
     expect_reach_to_step: str,
+    namespace: str = "default",
 ) -> bool:
   """
   Watch any given training pod, check the given step is already reach before
   deleting a node
   """
   core_api = _get_core_api_client(project_id, region, cluster_name)
-  pods = _list_workload_pods(core_api, workload_id)
+  pods = _list_workload_pods(core_api, workload_id, namespace=namespace)
 
   if not pods.items:
     logging.info("No pods found for workload selector: %s.", workload_id)
@@ -471,10 +496,11 @@ def _find_target_pod_node(
     cluster_name: str,
     workload_id: str,
     last_node: bool = False,
+    namespace: str = "default",
 ) -> str:
   """find the node name for the workload."""
   core_api = _get_core_api_client(project_id, region, cluster_name)
-  pods = _list_workload_pods(core_api, workload_id)
+  pods = _list_workload_pods(core_api, workload_id, namespace=namespace)
   pod_node_pairs = []
   pattern = re.compile(r".*slice-job-(\d+)-(\d+)-\w+")
 
@@ -515,6 +541,7 @@ def delete_node(
     project: str,
     dry_run: bool = False,
     last_node: bool = False,
+    namespace: str = "default",
 ) -> None:
   """Delete node."""
   delete_info = _find_target_pod_node(
@@ -523,6 +550,7 @@ def delete_node(
       cluster_name,
       workload_id,
       last_node,
+      namespace=namespace,
   )
   node_name = delete_info["node"]
   # Delete the specified compute instance.
@@ -554,13 +582,16 @@ def delete_node(
 # TODO(cienet): naming/description, interrupt <-> SIGILL?
 @task
 def interrupt_worker_pod(
-    workload_id: str, cluster_name: str, region: str, project_id: str
+    workload_id: str,
+    cluster_name: str,
+    region: str,
+    project_id: str,
+    namespace: str = "default",
 ):
   """
   Authenticates with the GKE cluster and sends SIGILL to worker pod 0-1.
   """
 
-  namespace = "default"
   target_worker_index = "0-1"
 
   # TODO(cienet): use Kubernetes API instead of kubectl CLI + raw command
@@ -601,13 +632,14 @@ def check_last_logs(
     cluster_name: str,
     workload_id: str,
     expect_log_contains: str,
+    namespace: str = "default",
 ) -> bool:
   """
   Checks if the last 45 seconds of a running pod's logs
   contain a specific substring.
   """
   core_api = _get_core_api_client(project_id, region, cluster_name)
-  pods = _list_workload_pods(core_api, workload_id)
+  pods = _list_workload_pods(core_api, workload_id, namespace=namespace)
 
   if not pods.items:
     logging.info("No pods found for workload selector: %s.", workload_id)
@@ -651,13 +683,14 @@ def check_logs_exist(
     workload_id: str,
     expect_log_contains: str,
     expected_count: int = 1,
+    namespace: str = "default",
 ) -> bool:
   """
   Counts occurrences of a regex pattern in full pod logs and
   verifies it meets the minimum count.
   """
   core_api = _get_core_api_client(project_id, region, cluster_name)
-  pods = _list_workload_pods(core_api, workload_id)
+  pods = _list_workload_pods(core_api, workload_id, namespace=namespace)
 
   if not pods.items:
     logging.info("No pods found for workload selector: %s.", workload_id)

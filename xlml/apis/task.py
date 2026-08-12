@@ -512,6 +512,7 @@ class XpkTask(BaseTask):
           workload_id=workload_id,
           dry_run=False,
           last_node=last_node,
+          namespace=self.task_test_config.namespace,
       )
 
       wait_for_workload_completion = xpk.wait_for_workload_completion.override(
@@ -521,6 +522,7 @@ class XpkTask(BaseTask):
           project_id=self.task_gcp_config.project_name,
           region=gke.zone_to_region(self.task_gcp_config.zone),
           cluster_name=self.task_test_config.cluster_name,
+          namespace=self.task_test_config.namespace,
       )
 
       clean_up_workload = xpk.clean_up_workload(
@@ -529,6 +531,7 @@ class XpkTask(BaseTask):
           zone=self.task_gcp_config.zone,
           cluster_name=self.task_test_config.cluster_name,
           xpk_branch=xpk_branch,
+          namespace=self.task_test_config.namespace,
       ).as_teardown(setups=dummy_op_for_teardown, on_failure_fail_dagrun=True)
 
       _ = (
@@ -576,6 +579,7 @@ class XpkTask(BaseTask):
           mtc_enabled=mtc_enabled,
           xpk_branch=xpk_branch,
           max_restart=max_restart,
+          namespace=self.task_test_config.namespace,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
@@ -584,6 +588,7 @@ class XpkTask(BaseTask):
           project_id=self.task_gcp_config.project_name,
           region=gke.zone_to_region(self.task_gcp_config.zone),
           cluster_name=self.task_test_config.cluster_name,
+          namespace=self.task_test_config.namespace,
       )
       wait_for_workload_to_reach_step = (
           xpk.wait_for_workload_reach_step.override(
@@ -594,6 +599,7 @@ class XpkTask(BaseTask):
               region=gke.zone_to_region(self.task_gcp_config.zone),
               cluster_name=self.task_test_config.cluster_name,
               expect_reach_to_step=str(expect_reach_to_step),
+              namespace=self.task_test_config.namespace,
           )
       )
 
@@ -700,7 +706,8 @@ class XpkTask(BaseTask):
         )
         self.task_metric_config.profile.file_location = profile_file_location
         run_model, gcs_path = self.run_model(
-            use_pathways=use_pathways, xpk_branch=xpk_branch
+            use_pathways=use_pathways,
+            xpk_branch=xpk_branch,
         )
         _ = (
             run_name
@@ -710,7 +717,8 @@ class XpkTask(BaseTask):
         )
       else:
         run_model, gcs_path = self.run_model(
-            use_pathways=use_pathways, xpk_branch=xpk_branch
+            use_pathways=use_pathways,
+            xpk_branch=xpk_branch,
         )
         _ = (
             run_name
@@ -773,6 +781,7 @@ class XpkTask(BaseTask):
           project_id=self.task_gcp_config.project_name,
           region=gke.zone_to_region(self.task_gcp_config.zone),
           cluster_name=self.task_test_config.cluster_name,
+          namespace=self.task_test_config.namespace,
       )
 
       clean_up_workload = xpk.clean_up_workload(
@@ -781,6 +790,7 @@ class XpkTask(BaseTask):
           zone=self.task_gcp_config.zone,
           cluster_name=self.task_test_config.cluster_name,
           xpk_branch=xpk_branch,
+          namespace=self.task_test_config.namespace,
       ).as_teardown(setups=dummy_op_for_teardown, on_failure_fail_dagrun=True)
 
       _ = (
@@ -827,6 +837,7 @@ class XpkTask(BaseTask):
           xpk_branch=xpk_branch,
           max_restart=max_restart,
           priority=priority,
+          namespace=self.task_test_config.namespace,
       )
       wait_for_workload_start = xpk.wait_for_workload_start.override(
           timeout=self.workload_provision_timeout.total_seconds()
@@ -835,6 +846,7 @@ class XpkTask(BaseTask):
           project_id=self.task_gcp_config.project_name,
           region=gke.zone_to_region(self.task_gcp_config.zone),
           cluster_name=self.task_test_config.cluster_name,
+          namespace=self.task_test_config.namespace,
       )
       _ = run_workload >> wait_for_workload_start
       return group
