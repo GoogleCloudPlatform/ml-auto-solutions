@@ -178,7 +178,7 @@ with models.DAG(
           test_name="convert-to-maxtext",
           run_model_cmds=convert_to_maxtext_cmd,
           docker_image="{{ params.docker_image }}",
-          cluster=XpkClusters.TPU_V5P_128_CLUSTER,
+          cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
           test_owner=test_owner.SURBHI_J,
       ).run(skip_post_process=True, priority="very-high")
 
@@ -232,7 +232,7 @@ with models.DAG(
               test_name="convert-to-huggingface",
               run_model_cmds=convert_to_huggingface_cmd,
               docker_image="{{ params.docker_image }}",
-              cluster=XpkClusters.TPU_V5P_128_CLUSTER,
+              cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
               test_owner=test_owner.SURBHI_J,
           ).run(skip_post_process=True, priority="very-high")
 
