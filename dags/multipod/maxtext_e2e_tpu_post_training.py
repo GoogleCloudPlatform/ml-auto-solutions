@@ -126,7 +126,38 @@ with models.DAG(
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_rl.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/rl/{run_name}/checkpoints/actor/4/items",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/rl/{run_name}/checkpoints/actor/5/model_params",
+              },
+          },
+      },
+      "qwen3-vl-2b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_hf.sh",
+          },
+          "post_training": {
+              "multimodal_sft": {
+                  "command": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_multimodal_sft.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-vl-2b/multimodal/sft/{run_name}/checkpoints/4/items",
+                  "to_hf_flags": "true false",
+              },
+          },
+      },
+      "gpt-oss-20b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
+          },
+          "post_training": {
+              "sft": {
+                  "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_sft.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/sft/{run_name}/checkpoints/5/model_params",
+                  "to_hf_flags": "true",
+              },
+              "rl": {
+                  "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_rl.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "to_hf_flags": "true",
               },
           },
       },
@@ -199,7 +230,7 @@ with models.DAG(
               f"{run_name} {model_path} {to_hf_flags}",
           )
           convert_to_huggingface_task = gke_config.get_gke_config(
-              time_out_in_min=60,
+              time_out_in_min=90,
               test_name="convert-to-huggingface",
               run_model_cmds=convert_to_huggingface_cmd,
               docker_image="{{ params.docker_image }}",

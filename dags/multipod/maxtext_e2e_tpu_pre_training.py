@@ -84,6 +84,18 @@ with models.DAG(
               "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/train/{run_name}/checkpoints/4/items",
           },
+          "to_hf_flags": "false true",
+      },
+      "gpt-oss-20b": {
+          "checkpoint_conversion": {
+              "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
+              "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
+          },
+          "training": {
+              "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss.sh",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/train/{run_name}/checkpoints/4/items",
+          },
+          "to_hf_flags": "true",
       },
   }
   # pylint: enable=line-too-long
@@ -121,16 +133,18 @@ with models.DAG(
       model_path = test_config["training"]["maxtext_ckpt_path"].format(
           run_name=run_name
       )
+      to_hf_flags = test_config.get("to_hf_flags", "")
+
       convert_to_huggingface_cmd = (
           f"export HF_TOKEN={HF_TOKEN}",
           'export HF_HOME="/dev/shm/hf_cache"',
           'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
       ) + (
           f"{test_config['checkpoint_conversion']['to_huggingface']} "
-          f"{run_name} {model_path}",
+          f"{run_name} {model_path} {to_hf_flags}",
       )
       convert_to_huggingface_task = gke_config.get_gke_config(
-          time_out_in_min=60,
+          time_out_in_min=90,
           test_name="convert-to-huggingface",
           run_model_cmds=convert_to_huggingface_cmd,
           docker_image="{{ params.docker_image }}",
