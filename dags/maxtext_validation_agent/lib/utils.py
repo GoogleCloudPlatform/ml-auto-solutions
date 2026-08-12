@@ -231,6 +231,9 @@ def get_golden_logits_generation_task(
   run_model_cmds = (
       "set -e",
       "export HF_TOKEN={{ dag_run.conf.get('hf_token', params.get('hf_token', '')) }}",
+      "export HF_MODEL=\"{{ dag_run.conf.get('hf_model_path', params.get('hf_model_path', dag_run.conf.get('forward_pass_maxtext_overrides', params.get('forward_pass_maxtext_overrides', {})).get('hf_model_path', ''))) }}\"",
+      "export MAXTEXT_MODEL=\"{{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }}\"",
+      "if gcloud storage ls \"gs://maxtext-validation-golden-logits/golden-logits/${HF_MODEL}/${MAXTEXT_MODEL}_golden_logits.jsonl\" >/dev/null 2>&1; then echo 'Golden logits already exist. Skipping generation!'; exit 0; fi",
       # Clone the repository and checkout the targeted branch
       "cd /tmp && git clone https://github.com/AI-Hypercomputer/maxtext.git",
       "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
@@ -241,14 +244,18 @@ def get_golden_logits_generation_task(
       "pip install accelerate jsonlines huggingface_hub transformers numpy sentencepiece bs4",
       (
           "cd /tmp/maxtext && python3 -m tests.assets.logits_generation.generate_hf_golden_logits "
-          "--model-id={{ dag_run.conf.get('hf_model_path', params.get('hf_model_path', dag_run.conf.get('forward_pass_maxtext_overrides', params.get('forward_pass_maxtext_overrides', {})).get('hf_model_path', ''))) }} "
+          "--model-id=\"${HF_MODEL}\" "
           "--prompts=\"{{ dag_run.conf.get('prompts', params.get('prompts', 'I love to;Today is a;What is the')) }}\" "
-          "--output-path={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }}_golden_logits.jsonl "
+          "--output-path=\"${MAXTEXT_MODEL}_golden_logits.jsonl\" "
           "--gcs-bucket=maxtext-validation-golden-logits"
       ),
   )
 
   job_test_config = test_config.CpuGkeTest(
+      accelerator=test_config.Cpu(
+          device_type=vm_resource.CpuVersion.M1_MEGAMEM,
+          machine_count=1,
+      ),
       test_name="maxtext_golden_logits_generation",
       set_up_cmds=(
           "pip install --upgrade pip",
@@ -294,6 +301,13 @@ def get_forward_pass_validation_task(
       "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
       "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
       "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
+      "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+      # Download the golden logits locally
+      (
+          "gcloud storage cp gs://maxtext-validation-golden-logits/golden-logits/"
+          "{{ dag_run.conf.get('hf_model_path', params.get('hf_model_path', dag_run.conf.get('forward_pass_maxtext_overrides', params.get('forward_pass_maxtext_overrides', {})).get('hf_model_path', ''))) }}/"
+          "{{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }}_golden_logits.jsonl /tmp/golden_logits.jsonl"
+      ),
       # Run our wrapper for Snehal's logit checker script.
       # This catches errors and writes a standard JSON report to GCS.
       # It pulls the pre-computed PyTorch golden logits from GCS to completely avoid downloading
@@ -304,7 +318,7 @@ def get_forward_pass_validation_task(
           "--maxtext_model_name={{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }} "
           "--checkpoint_gcs_path={{ dag_run.conf.get('checkpoint_gcs_path', params.get('checkpoint_gcs_path')) }} "
           "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
-          "--golden_logits_path=gs://maxtext-validation-golden-logits/{{ dag_run.conf.get('maxtext_model_name', params.get('maxtext_model_name')) }}_golden_logits.jsonl "
+          "--golden_logits_path=/tmp/golden_logits.jsonl "
           "--max_kl_div={{ dag_run.conf.get('max_kl_div', params.get('max_kl_div', 0.02)) }} "
           "--atol=1e-02 "
           "--rtol=1e-02 "
@@ -314,6 +328,7 @@ def get_forward_pass_validation_task(
           "{% if k != 'hf_model_path' %}{{ k }}=\"{{ v }}\" {% endif %}"
           "{% endfor %}"
           "{% if 'remat_policy' not in overrides %}remat_policy=none {% endif %}"
+          "per_device_batch_size=1.0 "
       ),
   )
 
@@ -372,6 +387,7 @@ def get_decoding_validation_task(
       "cd /tmp/maxtext && git checkout {{ var.value.get('OVERRIDE_BRANCH_' ~ (dag_run.conf.get('run_name', params.get('run_name', 'default_run'))), dag_run.conf.get('maxtext_commit_hash', params.get('maxtext_commit_hash')) or dag_run.conf.get('maxtext_branch', params.get('maxtext_branch', 'main'))) }}",
       "cd /tmp/maxtext && pip install --no-cache-dir --no-deps -e .",
       "export PYTHONPATH=/tmp/maxtext/src:$PYTHONPATH",
+      "pip install torch --index-url https://download.pytorch.org/whl/cpu",
       (
           "cd /tmp/maxtext && python3 src/maxtext/experimental/agent/ckpt_validation_pipeline/decode_validator.py "
           "--report_gcs_dir={{ dag_run.conf.get('report_gcs_dir', params.get('report_gcs_dir', '')) }} "
