@@ -35,7 +35,7 @@ from dags.common.vm_resource import GpuVersion
 
 # NOTE: This version needs to be pinned to ensure compatibility when using
 # xpk.py for workload creation.
-MAIN_BRANCH = "v0.17.3"
+MAIN_BRANCH = "v1.16.0"
 
 # Duration = past 7 days
 LOGGING_URL_FORMAT = (
