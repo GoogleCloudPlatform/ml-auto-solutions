@@ -147,7 +147,7 @@ with models.DAG(
           test_name="convert-to-maxtext",
           run_model_cmds=convert_to_maxtext_cmd,
           docker_image="{{ params.docker_image }}",
-          cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
+          cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
           test_owner=test_owner.SURBHI_J,
       ).run(skip_post_process=True, priority="very-high")
 
@@ -173,7 +173,9 @@ with models.DAG(
             training_task = gke_config.get_gke_config(
                 time_out_in_min=60,
                 num_slices=1,
-                cluster=XpkClusters.TPU_V5P_128_CLUSTER,
+                cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(
+                    core_count=128
+                ),
                 test_name=get_workload_name(model, mode),
                 run_model_cmds=training_cmd,
                 docker_image="{{ params.docker_image }}",
@@ -201,7 +203,7 @@ with models.DAG(
               test_name="convert-to-huggingface",
               run_model_cmds=convert_to_huggingface_cmd,
               docker_image="{{ params.docker_image }}",
-              cluster=XpkClusters.TPU_V5P_8_CLUSTER_V2,
+              cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
               test_owner=test_owner.SURBHI_J,
           ).run(skip_post_process=True, priority="very-high")
 
