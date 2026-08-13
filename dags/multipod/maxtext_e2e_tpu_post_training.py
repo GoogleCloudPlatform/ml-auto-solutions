@@ -179,7 +179,11 @@ with models.DAG(
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
           test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True, priority="very-high")
+      ).run(
+          skip_post_process=True,
+          priority="very-high",
+          namespace="automation-testing",
+      )
 
       for mode, mode_test_config in test_config["post_training"].items():
         with TaskGroup(group_id=f"{mode}-{model}") as model_group:
@@ -216,6 +220,7 @@ with models.DAG(
               use_pathways=True,
               skip_post_process=True,
               priority="very-high",
+              namespace="automation-testing",
           )
 
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
@@ -238,7 +243,11 @@ with models.DAG(
               docker_image="{{ params.docker_image }}",
               cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
               test_owner=test_owner.SURBHI_J,
-          ).run(skip_post_process=True, priority="very-high")
+          ).run(
+              skip_post_process=True,
+              priority="very-high",
+              namespace="automation-testing",
+          )
 
           (
               convert_to_maxtext_task

@@ -266,7 +266,6 @@ class CpuGkeTest(TestConfig[Cpu]):
   run_model_cmds: Iterable[str]
   startup_time_out_in_sec: int = attrs.field(default=300, kw_only=True)
   num_slices: int = attrs.field(default=1, kw_only=True)
-  namespace: str = attrs.field(default='default', kw_only=True)
 
   @property
   def benchmark_id(self) -> str:
@@ -302,7 +301,6 @@ class TpuGkeTest(TestConfig[Tpu]):
   run_model_cmds: Iterable[str]
   startup_time_out_in_sec: int = attrs.field(default=300, kw_only=True)
   num_slices: int = attrs.field(default=1, kw_only=True)
-  namespace: str = attrs.field(default='default', kw_only=True)
 
   @property
   def benchmark_id(self) -> str:
@@ -345,7 +343,6 @@ class GpuXpkTest(TestConfig[Gpu]):
     run_model_cmds: List of commands to run the model under test.
     startup_time_out_in_sec: Timeout to start up the pod.
     num_slices: Number of GPU slices.
-    namespace: Kubernetes namespace of the cluster.
   """
 
   test_name: str
@@ -355,7 +352,6 @@ class GpuXpkTest(TestConfig[Gpu]):
   run_model_cmds: Iterable[str]
   startup_time_out_in_sec: int = attrs.field(default=300, kw_only=True)
   num_slices: int = attrs.field(default=1, kw_only=True)
-  namespace: str = attrs.field(default='default', kw_only=True)
 
   @property
   def benchmark_id(self) -> str:
