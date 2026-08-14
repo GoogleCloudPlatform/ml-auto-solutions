@@ -16,9 +16,7 @@
 A DAG to run MaxText E2E TPU Post-Training tests.
 """
 import datetime
-import hashlib
 
-from click import command
 from airflow import models
 from airflow.models.param import Param
 from airflow.utils.task_group import TaskGroup
@@ -29,11 +27,6 @@ from dags.multipod.configs import gke_config
 
 # HF token retrieved from Airflow Variables for secure credential management
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
-
-
-def get_workload_name(model, mode, length=6):
-  hex_code = f"{mode}-{hashlib.sha256(model.encode()).hexdigest()}"
-  return hex_code[:length]
 
 
 with models.DAG(
@@ -194,27 +187,27 @@ with models.DAG(
               "export ENABLE_PATHWAYS_PERSISTENCE='1'",
           ]
 
-          with TaskGroup(group_id=f"train-{mode}-{model}") as model_group:
-            command = mode_test_config["command"]
-            training_cmd = (
-                " && ".join(
-                    environment_variables + [f"{command} {run_name} true"]
-                ),
-            )
-            training_task = gke_config.get_gke_config(
-                time_out_in_min=60,
-                num_slices=1,
-                cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(
-                    core_count=128
-                ),
-                test_name=get_workload_name(model, mode),
-                run_model_cmds=training_cmd,
-                docker_image="{{ params.docker_image }}",
-                test_owner=test_owner.SURBHI_J,
-            ).run_model(
-                use_pathways=True,
-                priority="very-high",
-            )
+          command = mode_test_config["command"]
+          training_cmd = (
+              " && ".join(
+                  environment_variables + [f"{command} {run_name} true"]
+              ),
+          )
+          training_task = gke_config.get_gke_config(
+              time_out_in_min=60,
+              num_slices=1,
+              cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(
+                  core_count=128
+              ),
+              test_name=f"train-{mode}-{model}",
+              run_model_cmds=training_cmd,
+              docker_image="{{ params.docker_image }}",
+              test_owner=test_owner.SURBHI_J,
+          ).run(
+              use_pathways=True,
+              skip_post_process=True,
+              priority="very-high",
+          )
 
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
 

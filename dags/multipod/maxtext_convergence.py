@@ -84,10 +84,11 @@ with models.DAG(
 
   sequential_tests = []
   for test_name, run_command in convergence_tests.items():
-    # The grain dataset takes longer to run, so we give it a longer timeout. The other tests are expected to complete within 5 hours.
+    # The grain dataset takes longer to run, so we give it a longer timeout.
+    # The other tests are expected to complete within 5 hours.
     timeout_in_min = 360 if test_name == "maxtext-convergence-grain" else 300
 
-    test_task = gke_config.get_gke_config(
+    test_task = gke_config.get_gke_config_with_name_gen_and_quarantine(
         cluster=XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
         time_out_in_min=timeout_in_min,
         test_name=test_name,
@@ -96,7 +97,7 @@ with models.DAG(
         test_owner=test_owner.MATT_D,
         base_output_directory=base_output_directory,
         metric_aggregation_strategy=metric_config.AggregationStrategy.LAST,
-    ).run_with_run_name_generation()
+    ).run()
     if test_name not in parallel_test_names:
       sequential_tests.append(test_task)
 

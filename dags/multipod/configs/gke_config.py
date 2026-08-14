@@ -14,13 +14,13 @@
 
 """Utilities to construct configs for maxtext DAG on GKE."""
 
-from dags.common import test_owner
+import datetime
+from typing import Any, Iterable
+
+from dags import gcs_bucket
+from dags.common.vm_resource import Project, XpkClusters
 from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.xpk_cluster_config import XpkClusterConfig
-from dags import gcs_bucket
-from dags.common.vm_resource import TpuVersion, Project, XpkClusters, GpuVersion, CpuVersion
-from typing import Iterable
-import datetime
 
 
 def get_gke_config(
@@ -31,7 +31,9 @@ def get_gke_config(
     run_model_cmds: Iterable[str],
     cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
     num_slices: int = 1,
-    dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     base_output_directory: str = None,
@@ -82,6 +84,140 @@ def get_gke_config(
   )
 
 
+def get_gke_config_with_interrupt(
+    time_out_in_min: int,
+    test_name: str,
+    docker_image: str,
+    test_owner: str,
+    run_model_cmds: Iterable[str],
+    expect_reach_to_step: int,
+    cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+    num_slices: int = 1,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
+    dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    base_output_directory: str = None,
+    metric_aggregation_strategy: metric_config.AggregationStrategy = None,
+    user_specified_job_metric_config: metric_config.MetricConfig = None,
+    last_node: bool = False,
+    check_file_exists: bool = False,
+) -> task.XpkNodeInterruptionTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=cluster.project,
+      zone=cluster.zone,
+      dataset_name=dataset_name,
+      dataset_project=dataset_project,
+      composer_project=composer_project,
+  )
+
+  job_test_config = test_config.TpuGkeTest(
+      test_config.Tpu(
+          version=cluster.device_version,
+          cores=cluster.core_count,
+      ),
+      test_name=test_name,
+      run_model_cmds=run_model_cmds,
+      set_up_cmds=None,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
+      task_owner=test_owner,
+      num_slices=num_slices,
+      cluster_name=cluster.name,
+      docker_image=docker_image,
+      namespace=cluster.namespace,
+  )
+  job_metric_config = user_specified_job_metric_config
+  if job_metric_config is None:
+    job_metric_config = (
+        metric_config.MetricConfig(
+            tensorboard_summary=metric_config.SummaryConfig(
+                file_location=base_output_directory,
+                aggregation_strategy=metric_aggregation_strategy,
+                use_regex_file_location=True,
+            ),
+        )
+        if base_output_directory and metric_aggregation_strategy
+        else None
+    )
+
+  return task.XpkNodeInterruptionTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+      task_metric_config=job_metric_config,
+      expect_reach_to_step=expect_reach_to_step,
+      last_node=last_node,
+      check_file_exists=check_file_exists,
+  )
+
+
+def get_gke_config_with_name_gen_and_quarantine(
+    time_out_in_min: int,
+    test_name: str,
+    docker_image: str,
+    test_owner: str,
+    run_model_cmds: Iterable[str],
+    cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
+    num_slices: int = 1,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
+    dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    base_output_directory: str = None,
+    metric_aggregation_strategy: metric_config.AggregationStrategy = None,
+    user_specified_job_metric_config: metric_config.MetricConfig = None,
+    quarantine_task_group: Any = None,
+    run_name_env: str = "M_RUN_NAME",
+    nested_run_name_in_tb_file_location: bool = True,
+) -> task.XpkNameGenAndQuarantineTask:
+  job_gcp_config = gcp_config.GCPConfig(
+      project_name=cluster.project,
+      zone=cluster.zone,
+      dataset_name=dataset_name,
+      dataset_project=dataset_project,
+      composer_project=composer_project,
+  )
+
+  job_test_config = test_config.TpuGkeTest(
+      test_config.Tpu(
+          version=cluster.device_version,
+          cores=cluster.core_count,
+      ),
+      test_name=test_name,
+      run_model_cmds=run_model_cmds,
+      set_up_cmds=None,
+      timeout=datetime.timedelta(minutes=time_out_in_min),
+      task_owner=test_owner,
+      num_slices=num_slices,
+      cluster_name=cluster.name,
+      docker_image=docker_image,
+      namespace=cluster.namespace,
+  )
+  job_metric_config = user_specified_job_metric_config
+  if job_metric_config is None:
+    job_metric_config = (
+        metric_config.MetricConfig(
+            tensorboard_summary=metric_config.SummaryConfig(
+                file_location=base_output_directory,
+                aggregation_strategy=metric_aggregation_strategy,
+                use_regex_file_location=True,
+            ),
+        )
+        if base_output_directory and metric_aggregation_strategy
+        else None
+    )
+
+  return task.XpkNameGenAndQuarantineTask(
+      task_test_config=job_test_config,
+      task_gcp_config=job_gcp_config,
+      task_metric_config=job_metric_config,
+      quarantine_task_group=quarantine_task_group,
+      run_name_env=run_name_env,
+      nested_run_name_in_tb_file_location=nested_run_name_in_tb_file_location,
+  )
+
+
 def get_gke_maxtext_nightly_config(
     time_out_in_min: int,
     test_name: str,
@@ -89,7 +225,9 @@ def get_gke_maxtext_nightly_config(
     test_owner: str,
     cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
     num_slices: int = 1,
-    dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ) -> task.XpkTask:
@@ -107,18 +245,25 @@ def get_gke_maxtext_nightly_config(
   base_output_directory = (
       f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext/nightly/automated/{current_date}"
   )
-  run_name = f"{num_slices}slice-V{cluster.device_version.value}_{cluster.core_count}-maxtext-nightly-{current_datetime}"
+  run_name = (
+      f"{num_slices}slice-V{cluster.device_version.value}_{cluster.core_count}"
+      f"-maxtext-nightly-{current_datetime}"
+  )
 
   run_model_cmds = (
       "bash src/dependencies/scripts/preflight.sh PLATFORM=GKE",
       (
           "JAX_PLATFORM_NAME=TPU XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/'"
           " ENABLE_PJRT_COMPATIBILITY=true"
-          f" python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml run_name={run_name}"
-          f" base_output_directory={base_output_directory}"
+          " python3 -m maxtext.trainers.pre_train.train"
+          " src/maxtext/configs/base.yml"
+          f" run_name={run_name} base_output_directory={base_output_directory}"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
-          " model_name=llama3-8b per_device_batch_size=12 reuse_example_batch=1 metrics_file='metrics.txt'"
-          " steps=50 enable_checkpointing=false profiler=xplane upload_all_profiler_results=true skip_first_n_steps_for_profiler=10 profiler_steps=10 gcs_metrics=true"
+          " model_name=llama3-8b per_device_batch_size=12 reuse_example_batch=1"
+          " metrics_file='metrics.txt' steps=50 enable_checkpointing=false"
+          " profiler=xplane upload_all_profiler_results=true"
+          " skip_first_n_steps_for_profiler=10 profiler_steps=10"
+          " gcs_metrics=true"
       ),
   )
 
@@ -189,7 +334,9 @@ def get_gke_gpt3_6b_nightly_config(
     test_owner: str,
     cluster: XpkClusterConfig = XpkClusters.TPU_V4_8_MAXTEXT_CLUSTER,
     num_slices: int = 1,
-    dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ) -> task.XpkTask:
@@ -207,18 +354,26 @@ def get_gke_gpt3_6b_nightly_config(
   base_output_directory = (
       f"{gcs_bucket.BASE_OUTPUT_DIR}/maxtext/nightly/automated/{current_date}"
   )
-  run_name = f"{num_slices}slice-V{cluster.device_version.value}_{cluster.core_count}-gpt3-6b-nightly-{current_datetime}"
+  run_name = (
+      f"{num_slices}slice-V{cluster.device_version.value}_{cluster.core_count}"
+      f"-gpt3-6b-nightly-{current_datetime}"
+  )
 
   run_model_cmds = (
       "bash src/dependencies/scripts/preflight.sh PLATFORM=GKE",
       (
           "JAX_PLATFORM_NAME=TPU XLA_FLAGS='--xla_dump_to=/tmp/xla_dump/'"
           " ENABLE_PJRT_COMPATIBILITY=true"
-          f" python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml run_name={run_name} model_name=gpt3-6b"
+          " python3 -m maxtext.trainers.pre_train.train"
+          " src/maxtext/configs/base.yml"
+          f" run_name={run_name} model_name=gpt3-6b"
           f" base_output_directory={base_output_directory}"
           " dataset_path=gs://max-datasets-rogue dataset_type=synthetic"
-          " per_device_batch_size=12 reuse_example_batch=1 global_parameter_scale=1 metrics_file='metrics.txt'"
-          " steps=50 enable_checkpointing=false profiler=xplane upload_all_profiler_results=true skip_first_n_steps_for_profiler=10 profiler_steps=10 gcs_metrics=true"
+          " per_device_batch_size=12 reuse_example_batch=1"
+          " global_parameter_scale=1 metrics_file='metrics.txt' steps=50"
+          " enable_checkpointing=false profiler=xplane"
+          " upload_all_profiler_results=true skip_first_n_steps_for_profiler=10"
+          " profiler_steps=10 gcs_metrics=true"
       ),
   )
 
@@ -252,7 +407,9 @@ def get_maxtext_cpu_end_to_end_gke_config(
     cluster: XpkClusterConfig = XpkClusters.CPU_N2_STANDARD_64_CLUSTER,
     machine_count: int = 1,
     num_slices: int = 1,
-    dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
     dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     base_output_directory: str = None,
