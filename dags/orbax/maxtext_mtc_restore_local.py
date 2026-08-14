@@ -121,7 +121,7 @@ with models.DAG(
             task_id="generate_start_time"
         )()
 
-        maxtext_chkpt_run_test = gke_config.get_gke_config(
+        maxtext_chkpt_run_test = gke_config.get_gke_config_with_interrupt(
             num_slices=slice_num,
             cluster=test_config.cluster,
             time_out_in_min=60,
@@ -129,11 +129,11 @@ with models.DAG(
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.DEPP_L,
-        ).run_with_node_interruption(
+            expect_reach_to_step=step_to_interrupt,
+        ).run(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
             skip_post_process=True,
-            expect_reach_to_step=step_to_interrupt,
             max_restart=15,
         )
 

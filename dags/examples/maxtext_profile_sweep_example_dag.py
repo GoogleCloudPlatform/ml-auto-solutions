@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-An example DAG to extract profile metrics from pretraining mixtral-8x7b model on v6-256.
-Profile extraction can be seamlessly integrated with maxtext_sweep_gke_config + run_with_name_gen_and_quarantine.
+"""An example DAG to extract profile metrics.
+
+Pretraining mixtral-8x7b model on v6-256.
+Profile extraction can be seamlessly integrated with
+maxtext_sweep_gke_config + (to_name_gen_and_quarantine_task + run).
 """
 
 import datetime
 from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
-from dags.common.vm_resource import XpkClusters, DockerImage, Project
-from dags.multipod.configs import maxtext_sweep_gke_config
+from dags.common.vm_resource import XpkClusters, Project
+from dags.multipod.configs import maxtext_sweep_gke_config as sweep_config
 from xlml.apis import metric_config
 
 SCHEDULED_TIME = None
@@ -35,7 +37,9 @@ def dict_to_arg(param_dict):
 
 
 docker_image = {
-    "stable": "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable_stack:2025-05-20",
+    "stable": (
+        "gcr.io/tpu-prod-env-multipod/" "maxtext_jax_stable_stack:2025-05-20"
+    ),
 }
 
 # https://github.com/AI-Hypercomputer/maxtext/blob/main/benchmarks/maxtext_trillium_model_configs.py
@@ -45,9 +49,14 @@ test_models_tpu = {
         "cluster": XpkClusters.TPU_V6E_256_MLPERF_CLUSTER,
         "train_command": [
             f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
-            "python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
-            # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
-            "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
+            "python3 -m maxtext.trainers.pre_train.train "
+            "src/maxtext/configs/base.yml "
+            "base_output_directory=${BASE_OUTPUT_PATH} "
+            "model_name=mixtral-8x7b "
+            # add profiler config: ensure steps >
+            # skip_first_n_steps_for_profiler + profiler_steps
+            "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 "
+            "profiler_steps=3 "
             + dict_to_arg({
                 "per_device_batch_size": 12,
                 "ici_fsdp_parallelism": -1,
@@ -81,9 +90,14 @@ test_models_tpu = {
         "base_output_directory": "gs://runner-maxtext-logs",
         "train_command": [
             f"export BASE_OUTPUT_PATH={BASE_OUTPUT_PATH} && "
-            "python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml base_output_directory=${BASE_OUTPUT_PATH} model_name=mixtral-8x7b "
-            # add profiler config: ensure steps > skip_first_n_steps_for_profiler + profiler_steps
-            "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 profiler_steps=3 "
+            "python3 -m maxtext.trainers.pre_train.train "
+            "src/maxtext/configs/base.yml "
+            "base_output_directory=${BASE_OUTPUT_PATH} "
+            "model_name=mixtral-8x7b "
+            # add profiler config: ensure steps >
+            # skip_first_n_steps_for_profiler + profiler_steps
+            "steps=10 profiler=xplane skip_first_n_steps_for_profiler=5 "
+            "profiler_steps=3 "
             + dict_to_arg({
                 "per_device_batch_size": 12,
                 "ici_fsdp_parallelism": -1,
@@ -120,12 +134,12 @@ with models.DAG(
   )
 
   for run_name, test_scripts_details in test_models_tpu.items():
-    for image in docker_image.keys():
+    for image, img_val in docker_image.items():
       # sweep num_slices and other training params
       # generate run_name and tensorboard/profile location for extraction
       num_slices = [1]
       sweep_params = {}
-      maxtext_sweep_gke_test = maxtext_sweep_gke_config.get_maxtext_sweep_gke_config(
+      maxtext_sweep_gke_test = sweep_config.get_maxtext_sweep_gke_config(
           test_owner=test_owner.SHUNING_J,
           dataset_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
           composer_project=Project.CLOUD_ML_AUTO_SOLUTIONS.value,
@@ -134,12 +148,13 @@ with models.DAG(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           base_output_directory=BASE_OUTPUT_PATH,
           num_slices=num_slices,
-          docker_image=docker_image[image],
+          docker_image=img_val,
           run_name_prefix=f"maxtext_{image}_{run_name}",
           base_run_model_cmds=test_scripts_details["train_command"],
           sweep_params=sweep_params,
           enable_profile_config=True,  # add flag to enable profile extraction
+          quarantine_task_group=quarantine_task_group,
       )
 
       for test in maxtext_sweep_gke_test:
-        test.run_with_name_gen_and_quarantine(quarantine_task_group)
+        test.run()

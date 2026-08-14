@@ -21,7 +21,7 @@ Used upon library upgrades.
 import datetime
 from airflow import models
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 
 # Set concurrency to number of workers otherwise tasks may time out
@@ -54,7 +54,11 @@ with models.DAG(
     for model_size in models:
       run_cmds = [
           "pip show aqtp",
-          f"bash src/maxtext/configs/tpu/{tpu}/{model_size}.sh EXECUTABLE=train.py OUTPUT_PATH={base_output_directory} PLATFORM=gke",
+          (
+              f"bash src/maxtext/configs/tpu/{tpu}/{model_size}.sh "
+              f"EXECUTABLE=train.py OUTPUT_PATH={base_output_directory} "
+              "PLATFORM=gke"
+          ),
       ]
 
       tests.extend(
@@ -98,4 +102,4 @@ with models.DAG(
 
   # Run jobs
   for test in tests:
-    test.run_with_run_name_generation()
+    test.run()

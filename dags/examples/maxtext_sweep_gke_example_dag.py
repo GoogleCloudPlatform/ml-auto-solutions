@@ -21,7 +21,7 @@ on 1xv4-128.
 import datetime
 from airflow import models
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, Project, XpkClusters, DockerImage
+from dags.common.vm_resource import XpkClusters, DockerImage
 from dags.multipod.configs import maxtext_sweep_gke_config
 
 # Set concurrency to number of workers otherwise tasks may time out
@@ -37,7 +37,13 @@ with models.DAG(
   # MaxText set up and run commands
   base_output_directory = "gs://maxtext-experiments-multipod"
   base_run_model_cmds = [
-      f"python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml base_output_directory={base_output_directory} dataset_path=gs://max-datasets-rogue enable_checkpointing=false global_parameter_scale=16 steps=10",
+      (
+          "python3 -m maxtext.trainers.pre_train.train "
+          "src/maxtext/configs/base.yml "
+          f"base_output_directory={base_output_directory} "
+          "dataset_path=gs://max-datasets-rogue enable_checkpointing=false "
+          "global_parameter_scale=16 steps=10"
+      ),
   ]
 
   # Get list of MaxText GKE XPK jobs
@@ -57,4 +63,4 @@ with models.DAG(
 
   # Run jobs
   for test in maxtext_sweep_gke_test:
-    test.run_with_run_name_generation()
+    test.run()
