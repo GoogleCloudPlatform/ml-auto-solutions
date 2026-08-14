@@ -16,6 +16,7 @@
 A DAG to run MaxText E2E TPU Post-Training tests.
 """
 import datetime
+import hashlib
 
 from airflow import models
 from airflow.models.param import Param
@@ -27,6 +28,11 @@ from dags.multipod.configs import gke_config
 
 # HF token retrieved from Airflow Variables for secure credential management
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+
+
+def get_workload_name(model, mode, length=6):
+  hex_code = f"{mode}-{hashlib.sha256(model.encode()).hexdigest()}"
+  return hex_code[:length]
 
 
 with models.DAG(
@@ -144,7 +150,7 @@ with models.DAG(
           },
       },
       "gpt-oss-20b": {
-          "core_count": 8,
+          "core_count": 32,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
@@ -210,7 +216,7 @@ with models.DAG(
               cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(
                   core_count=training_core_count
               ),
-              test_name=f"train-{mode}-{model}",
+              test_name=get_workload_name(model, mode),
               run_model_cmds=training_cmd,
               docker_image="{{ params.docker_image }}",
               test_owner=test_owner.SURBHI_J,
