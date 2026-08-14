@@ -57,7 +57,7 @@ with models.DAG(
           },
       },
       "gemma4-26b": {
-          "core_count": 16,
+          "core_count": 32,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
@@ -79,7 +79,7 @@ with models.DAG(
           },
       },
       "qwen3-30b": {
-          "core_count": 16,
+          "core_count": 32,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
