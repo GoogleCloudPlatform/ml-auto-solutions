@@ -88,7 +88,7 @@ with models.DAG(
               "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/train/{run_name}/checkpoints/4/items",
           },
-          "to_hf_flags": "false true",
+          "to_hf_flags": "true",
       },
       "gpt-oss-20b": {
           "core_count": 8,
@@ -100,7 +100,6 @@ with models.DAG(
               "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/train/{run_name}/checkpoints/4/items",
           },
-          "to_hf_flags": "true",
       },
   }
   # pylint: enable=line-too-long

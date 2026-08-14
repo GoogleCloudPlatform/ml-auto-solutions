@@ -120,10 +120,12 @@ with models.DAG(
               "sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_sft.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/sft/{run_name}/checkpoints/5/model_params",
+                  "to_hf_flags": "true",
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "to_hf_flags": "true",
               },
           },
       },
