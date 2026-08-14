@@ -46,6 +46,7 @@ with models.DAG(
   # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
+          "core_count": 16,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
@@ -56,6 +57,7 @@ with models.DAG(
           },
       },
       "gemma4-26b": {
+          "core_count": 16,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
@@ -66,6 +68,7 @@ with models.DAG(
           },
       },
       "llama3_1-70b": {
+          "core_count": 128,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
@@ -76,6 +79,7 @@ with models.DAG(
           },
       },
       "qwen3-30b": {
+          "core_count": 16,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
@@ -87,6 +91,7 @@ with models.DAG(
           "to_hf_flags": "false true",
       },
       "gpt-oss-20b": {
+          "core_count": 8,
           "checkpoint_conversion": {
               "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
               "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
@@ -121,12 +126,15 @@ with models.DAG(
       training_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
           f"{test_config['training']['command']} {run_name}",
       )
+      training_core_count = test_config.get("core_count", 8)
       training_task = gke_config.get_gke_config(
           time_out_in_min=60,
           test_name="training",
           run_model_cmds=training_cmd,
           docker_image="{{ params.docker_image }}",
-          cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(core_count=128),
+          cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(
+              core_count=training_core_count
+          ),
           test_owner=test_owner.SURBHI_J,
       ).run(skip_post_process=True, priority="very-high")
 
