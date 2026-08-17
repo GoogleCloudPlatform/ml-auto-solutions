@@ -13,12 +13,19 @@
 # limitations under the License.
 
 """
-A DAG to run MaxText E2E TPU Pre-Training tests.
+MaxText E2E TPU Pre-Training Tests DAG (Stage 2).
+
+Executes end-to-end MaxText pre-training test workloads on Cloud TPU:
+- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion via ExternalTaskSensor.
+- Runs pre-training on dedicated TPU v5p topologies configured per model architecture.
+- Converts trained checkpoints back to Hugging Face format to verify weight fidelity.
 """
 import datetime
-import hashlib
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.models.param import Param
+from airflow.sensors.external_task import ExternalTaskSensor
+from airflow.utils.session import provide_session
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
 from dags.common.quarantined_tests import safe_get_from_variable
@@ -28,9 +35,15 @@ from dags.multipod.configs import gke_config
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
-def get_workload_name(model, length=6):
-  hex_code = f"pre-{hashlib.sha256(model.encode()).hexdigest()}"
-  return hex_code[:length]
+class ExternalTaskSensorWithBypass(ExternalTaskSensor):
+  """ExternalTaskSensor that passes immediately if wait_for_conversion param is False."""
+
+  @provide_session
+  def poke(self, context, session=None):
+    if not context.get("params", {}).get("wait_for_conversion", True):
+      self.log.info("Bypassing conversion sensor: wait_for_conversion is False")
+      return True
+    return super().poke(context, session=session)
 
 
 with models.DAG(
@@ -48,86 +61,72 @@ with models.DAG(
             type="string",
             description="Docker image URI for the candidate to test",
         ),
+        "run_name": Param(
+            default="",
+            type="string",
+            description="Shared run name for checkpoints (e.g. conv-20260813T123008)",
+        ),
+        "wait_for_conversion": Param(
+            default=True,
+            type="boolean",
+            description=(
+                "Whether to wait for Stage 1 conversion DAG via sensor. Set"
+                " False when running standalone with pre-existing checkpoints."
+            ),
+        ),
     },
 ) as dag:
   # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
-          "core_count": 16,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
-          },
+          "core_count": 8,
           "training": {
               "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/train/{run_name}/checkpoints/1/items",
           },
+          "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
       },
       "gemma4-26b": {
           "core_count": 32,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
-          },
           "training": {
               "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/train/{run_name}/checkpoints/1/items",
           },
+          "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
       },
       "llama3_1-70b": {
           "core_count": 128,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
-          },
           "training": {
               "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/train/{run_name}/checkpoints/1/items",
           },
+          "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
       },
       "qwen3-30b": {
           "core_count": 32,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
-          },
           "training": {
               "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/train/{run_name}/checkpoints/1/items",
           },
+          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
           "to_hf_flags": "true",
       },
       "gpt-oss-20b": {
           "core_count": 32,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
-          },
           "training": {
               "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/train/{run_name}/checkpoints/1/items",
           },
+          "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
       },
   }
   # pylint: enable=line-too-long
 
   for model, test_config in test_models.items():
     with TaskGroup(group_id=model) as model_group:
-      run_name = "pre-{{ ts_nodash }}"
-
-      convert_to_maxtext_cmd = (
-          f"export HF_TOKEN={HF_TOKEN}",
-          'export HF_HOME="/dev/shm/hf_cache"',
-          'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
-      ) + (f"{test_config['checkpoint_conversion']['to_maxtext']} {run_name}",)
-      convert_to_maxtext_task = gke_config.get_gke_config(
-          time_out_in_min=60,
-          test_name="convert-to-maxtext",
-          run_model_cmds=convert_to_maxtext_cmd,
-          docker_image="{{ params.docker_image }}",
-          cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
-          test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True, priority="very-high")
+      run_name = (
+          "{{ params.run_name if params.run_name else 'pre-' ~ ts_nodash }}"
+      )
 
       training_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
           f"{test_config['training']['command']} {run_name}",
@@ -135,7 +134,7 @@ with models.DAG(
       training_core_count = test_config.get("core_count", 8)
       training_task = gke_config.get_gke_config(
           time_out_in_min=60,
-          test_name=get_workload_name(model),
+          test_name="pre",
           run_model_cmds=training_cmd,
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(
@@ -154,16 +153,31 @@ with models.DAG(
           'export HF_HOME="/dev/shm/hf_cache"',
           'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
       ) + (
-          f"{test_config['checkpoint_conversion']['to_huggingface']} "
+          f"{test_config['to_huggingface']} "
           f"{run_name} {model_path} {to_hf_flags}",
       )
       convert_to_huggingface_task = gke_config.get_gke_config(
           time_out_in_min=90,
-          test_name="convert-to-huggingface",
+          test_name="to-hf",
           run_model_cmds=convert_to_huggingface_cmd,
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
           test_owner=test_owner.SURBHI_J,
       ).run(skip_post_process=True, priority="very-high")
 
-      convert_to_maxtext_task >> training_task >> convert_to_huggingface_task
+      wait_for_conversion = ExternalTaskSensorWithBypass(
+          task_id="wait_for_conversion",
+          external_dag_id="maxtext_e2e_tpu_checkpoint_conversion",
+          external_task_group_id=model,
+          mode="reschedule",
+          poke_interval=60,
+          timeout=10800,
+          allowed_states=["success"],
+          failed_states=["failed", "upstream_failed"],
+      )
+
+      chain(
+          wait_for_conversion,
+          training_task,
+          convert_to_huggingface_task,
+      )

@@ -13,9 +13,15 @@
 # limitations under the License.
 
 """
-Parent DAG that triggers MaxText E2E TPU pre-training and post-training child
-DAGs in parallel, firing separate GitHub repository_dispatch callbacks for
-pre-training and post-training upon completion of each job.
+MaxText E2E Tests Orchestrator DAG.
+
+Coordinates the multi-stage MaxText end-to-end testing pipeline for GitHub CI:
+1. Stage 1 (maxtext_e2e_tpu_checkpoint_conversion):
+   Converts Hugging Face checkpoints to MaxText format on TPU v5p-8.
+2. Stage 2 (maxtext_e2e_tpu_pre_training & maxtext_e2e_tpu_post_training):
+   Triggers pre-training and post-training test suites once checkpoints are ready.
+3. Callbacks & Reporting:
+   Fires GitHub repository_dispatch events upon stage completion for automated CI.
 """
 import datetime
 
@@ -37,6 +43,7 @@ with models.DAG(
         "e2e",
         "pre-training",
         "post-training",
+        "checkpoint-conversion",
     ],
     start_date=datetime.datetime(2026, 6, 10),
     catchup=False,
@@ -72,14 +79,32 @@ with models.DAG(
       commit_sha="{{ params.commit_sha }}",
   )
 
+  shared_run_name = "e2e-{{ params.github_run_id }}"
+
+  trigger_checkpoint_conversion = TriggerDagRunOperator(
+      task_id="trigger_checkpoint_conversion",
+      trigger_dag_id="maxtext_e2e_tpu_checkpoint_conversion",
+      execution_date="{{ logical_date }}",
+      conf={
+          "docker_image": (
+              "gcr.io/tpu-prod-env-multipod/maxtext_post_training_"
+              "{{ params.build_mode }}:{{ params.github_run_id }}"
+          ),
+          "run_name": shared_run_name,
+      },
+      wait_for_completion=False,
+  )
+
   trigger_pre_training = TriggerDagRunOperator(
       task_id="trigger_tpu_pre_training",
       trigger_dag_id="maxtext_e2e_tpu_pre_training",
+      execution_date="{{ logical_date }}",
       conf={
           "docker_image": (
               "gcr.io/tpu-prod-env-multipod/maxtext_jax_"
               "{{ params.build_mode }}:{{ params.github_run_id }}"
-          )
+          ),
+          "run_name": shared_run_name,
       },
       wait_for_completion=True,
       poke_interval=600,  # check every 10 minutes for child DAG completion
@@ -88,11 +113,13 @@ with models.DAG(
   trigger_post_training = TriggerDagRunOperator(
       task_id="trigger_tpu_post_training",
       trigger_dag_id="maxtext_e2e_tpu_post_training",
+      execution_date="{{ logical_date }}",
       conf={
           "docker_image": (
               "gcr.io/tpu-prod-env-multipod/maxtext_post_training_"
               "{{ params.build_mode }}:{{ params.github_run_id }}"
-          )
+          ),
+          "run_name": shared_run_name,
       },
       wait_for_completion=True,
       poke_interval=600,  # check every 10 minutes for child DAG completion
@@ -130,6 +157,10 @@ with models.DAG(
       },
   )
 
+  chain(
+      validate_task,
+      trigger_checkpoint_conversion,
+  )
   chain(
       validate_task,
       trigger_pre_training,

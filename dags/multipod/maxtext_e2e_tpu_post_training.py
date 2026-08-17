@@ -13,13 +13,20 @@
 # limitations under the License.
 
 """
-A DAG to run MaxText E2E TPU Post-Training tests.
+MaxText E2E TPU Post-Training Tests DAG (Stage 2).
+
+Executes end-to-end MaxText post-training workflows (SFT, Multimodal SFT, LoRA, RL) on Cloud TPU:
+- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion via ExternalTaskSensor.
+- Executes post-training scripts with Pathways runtime persistence on TPU slices.
+- Converts post-trained checkpoints back to Hugging Face format to verify weight fidelity.
 """
 import datetime
-import hashlib
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.models.param import Param
+from airflow.sensors.external_task import ExternalTaskSensor
+from airflow.utils.session import provide_session
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
 from dags.common.quarantined_tests import safe_get_from_variable
@@ -30,9 +37,15 @@ from dags.multipod.configs import gke_config
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
-def get_workload_name(model, mode, length=6):
-  hex_code = f"{mode}-{hashlib.sha256(model.encode()).hexdigest()}"
-  return hex_code[:length]
+class ExternalTaskSensorWithBypass(ExternalTaskSensor):
+  """ExternalTaskSensor that passes immediately if wait_for_conversion param is False."""
+
+  @provide_session
+  def poke(self, context, session=None):
+    if not context.get("params", {}).get("wait_for_conversion", True):
+      self.log.info("Bypassing conversion sensor: wait_for_conversion is False")
+      return True
+    return super().poke(context, session=session)
 
 
 with models.DAG(
@@ -50,16 +63,26 @@ with models.DAG(
             type="string",
             description="Docker image URI for the candidate to test",
         ),
+        "run_name": Param(
+            default="",
+            type="string",
+            description="Shared run name for checkpoints (defaults to post-{{ ts_nodash }})",
+        ),
+        "wait_for_conversion": Param(
+            default=True,
+            type="boolean",
+            description=(
+                "Whether to wait for Stage 1 conversion DAG via sensor. Set"
+                " False when running standalone with pre-existing checkpoints."
+            ),
+        ),
     },
 ) as dag:
   # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
           "core_count": 8,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
-          },
+          "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_sft.sh",
@@ -82,10 +105,7 @@ with models.DAG(
       },
       "gemma4-26b": {
           "core_count": 32,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
-          },
+          "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_sft.sh",
@@ -99,12 +119,9 @@ with models.DAG(
               },
           },
       },
-      "llama3_1_70b": {
+      "llama3_1-70b": {
           "core_count": 128,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
-          },
+          "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_sft.sh",
@@ -118,10 +135,7 @@ with models.DAG(
       },
       "qwen3-30b": {
           "core_count": 32,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
-          },
+          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_sft.sh",
@@ -137,10 +151,7 @@ with models.DAG(
       },
       "qwen3-vl-2b": {
           "core_count": 8,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_hf.sh",
-          },
+          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_hf.sh",
           "post_training": {
               "multimodal_sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_multimodal_sft.sh",
@@ -151,10 +162,7 @@ with models.DAG(
       },
       "gpt-oss-20b": {
           "core_count": 32,
-          "checkpoint_conversion": {
-              "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
-              "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
-          },
+          "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_sft.sh",
@@ -173,24 +181,23 @@ with models.DAG(
 
   for model, test_config in test_models.items():
     with TaskGroup(group_id=model) as model_group:
-      run_name = "post-{{ ts_nodash }}"
+      run_name = (
+          "{{ params.run_name if params.run_name else 'post-' ~ ts_nodash }}"
+      )
 
-      convert_to_maxtext_cmd = (
-          f"export HF_TOKEN={HF_TOKEN}",
-          'export HF_HOME="/dev/shm/hf_cache"',
-          'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
-      ) + (f"{test_config['checkpoint_conversion']['to_maxtext']} {run_name}",)
-      convert_to_maxtext_task = gke_config.get_gke_config(
-          time_out_in_min=60,
-          test_name="convert-to-maxtext",
-          run_model_cmds=convert_to_maxtext_cmd,
-          docker_image="{{ params.docker_image }}",
-          cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
-          test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True, priority="very-high")
+      wait_for_conversion = ExternalTaskSensorWithBypass(
+          task_id="wait_for_conversion",
+          external_dag_id="maxtext_e2e_tpu_checkpoint_conversion",
+          external_task_group_id=model,
+          mode="reschedule",
+          poke_interval=60,
+          timeout=10800,
+          allowed_states=["success"],
+          failed_states=["failed", "upstream_failed"],
+      )
 
       for mode, mode_test_config in test_config["post_training"].items():
-        with TaskGroup(group_id=f"{mode}-{model}") as model_group:
+        with TaskGroup(group_id=f"{mode}-{model}") as mode_group:
           environment_variables = [
               f"export HF_TOKEN={HF_TOKEN}",
               "export TPU_MIN_LOG_LEVEL=0",
@@ -210,13 +217,14 @@ with models.DAG(
           training_core_count = mode_test_config.get(
               "core_count", test_config.get("core_count", 8)
           )
+          mode_short_name = "multim" if mode == "multimodal_sft" else mode
           training_task = gke_config.get_gke_config(
               time_out_in_min=60,
               num_slices=1,
               cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER.override(
                   core_count=training_core_count
               ),
-              test_name=get_workload_name(model, mode),
+              test_name=mode_short_name,
               run_model_cmds=training_cmd,
               docker_image="{{ params.docker_image }}",
               test_owner=test_owner.SURBHI_J,
@@ -236,20 +244,20 @@ with models.DAG(
               'export HF_HOME="/dev/shm/hf_cache"',
               'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
           ) + (
-              f"{test_config['checkpoint_conversion']['to_huggingface']} "
+              f"{test_config['to_huggingface']} "
               f"{run_name} {model_path} {to_hf_flags}",
           )
           convert_to_huggingface_task = gke_config.get_gke_config(
               time_out_in_min=90,
-              test_name="convert-to-huggingface",
+              test_name="to-hf",
               run_model_cmds=convert_to_huggingface_cmd,
               docker_image="{{ params.docker_image }}",
               cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
               test_owner=test_owner.SURBHI_J,
           ).run(skip_post_process=True, priority="very-high")
 
-          (
-              convert_to_maxtext_task
-              >> training_task
-              >> convert_to_huggingface_task
+          chain(
+              wait_for_conversion,
+              training_task,
+              convert_to_huggingface_task,
           )
