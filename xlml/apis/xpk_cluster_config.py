@@ -28,7 +28,6 @@ class XpkClusterConfig:
     core_count: Core count of the cluster
     project: Project of the cluster
     zone: Zone of the cluster
-    namespace: Kubernetes namespace of the cluster
   """
 
   name: str
@@ -36,18 +35,14 @@ class XpkClusterConfig:
   core_count: int
   project: str
   zone: str
-  namespace: str = 'default'
 
   def override(
       self,
       *,
       core_count: Optional[int] = None,
-      namespace: Optional[str] = None,
   ) -> 'XpkClusterConfig':
     """Returns a copy of this cluster config with specified fields overridden."""
     changes = {}
     if core_count is not None:
       changes['core_count'] = core_count
-    if namespace is not None:
-      changes['namespace'] = namespace
     return dataclasses.replace(self, **changes)

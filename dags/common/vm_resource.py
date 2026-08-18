@@ -278,7 +278,6 @@ class XpkClusters:
       core_count=8,
       project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
       zone=Zone.EUROPE_WEST4_B.value,
-      namespace="automation-testing",
   )
   TPU_V5E_256_CLUSTER = XpkClusterConfig(
       name="v5e-256-bodaborg-europe-west4",
