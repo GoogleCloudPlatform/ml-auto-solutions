@@ -63,20 +63,20 @@ with models.DAG(
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/sft/{run_name}/checkpoints/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/sft/{run_name}/checkpoints/2/model_params",
               },
               "multimodal_sft": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_multimodal_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/multimodal/sft/{run_name}/checkpoints/4/items",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/multimodal/sft/{run_name}/checkpoints/1/items",
                   "to_hf_flags": "true true",
               },
               "lora": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_lora.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/lora/{run_name}/checkpoints/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/lora/{run_name}/checkpoints/2/model_params",
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_rl.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/rl/{run_name}/checkpoints/actor/2/model_params",
               },
           },
       },
@@ -89,12 +89,12 @@ with models.DAG(
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/sft/{run_name}/checkpoints/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/sft/{run_name}/checkpoints/2/model_params",
                   "to_hf_flags": "false false",
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_rl.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/rl/{run_name}/checkpoints/actor/2/model_params",
                   "to_hf_flags": "false false",
               },
           },
@@ -108,11 +108,11 @@ with models.DAG(
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/sft/{run_name}/checkpoints/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/sft/{run_name}/checkpoints/2/model_params",
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_rl.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/rl/{run_name}/checkpoints/actor/2/model_params",
               },
           },
       },
@@ -125,12 +125,12 @@ with models.DAG(
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/sft/{run_name}/checkpoints/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/sft/{run_name}/checkpoints/2/model_params",
                   "to_hf_flags": "true",
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_rl.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/rl/{run_name}/checkpoints/actor/2/model_params",
                   "to_hf_flags": "true",
               },
           },
@@ -144,7 +144,7 @@ with models.DAG(
           "post_training": {
               "multimodal_sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_multimodal_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-vl-2b/multimodal/sft/{run_name}/checkpoints/4/items",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-vl-2b/multimodal/sft/{run_name}/checkpoints/1/items",
                   "to_hf_flags": "true false",
               },
           },
@@ -158,12 +158,12 @@ with models.DAG(
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_sft.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/sft/{run_name}/checkpoints/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/sft/{run_name}/checkpoints/2/model_params",
                   "to_hf_flags": "true",
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_rl.sh",
-                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/rl/{run_name}/checkpoints/actor/5/model_params",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/rl/{run_name}/checkpoints/actor/2/model_params",
                   "to_hf_flags": "true",
               },
           },

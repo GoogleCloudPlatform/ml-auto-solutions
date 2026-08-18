@@ -60,7 +60,7 @@ with models.DAG(
           },
           "training": {
               "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3.sh",
-              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/train/{run_name}/checkpoints/4/items",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/train/{run_name}/checkpoints/1/items",
           },
       },
       "gemma4-26b": {
@@ -71,7 +71,7 @@ with models.DAG(
           },
           "training": {
               "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4.sh",
-              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/train/{run_name}/checkpoints/4/items",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/train/{run_name}/checkpoints/1/items",
           },
       },
       "llama3_1-70b": {
@@ -82,7 +82,7 @@ with models.DAG(
           },
           "training": {
               "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b.sh",
-              "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/train/{run_name}/checkpoints/4/items",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/train/{run_name}/checkpoints/1/items",
           },
       },
       "qwen3-30b": {
@@ -93,7 +93,7 @@ with models.DAG(
           },
           "training": {
               "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh",
-              "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/train/{run_name}/checkpoints/4/items",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/train/{run_name}/checkpoints/1/items",
           },
           "to_hf_flags": "true",
       },
@@ -105,7 +105,7 @@ with models.DAG(
           },
           "training": {
               "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss.sh",
-              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/train/{run_name}/checkpoints/4/items",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/gpt-oss-20b/train/{run_name}/checkpoints/1/items",
           },
       },
   }
