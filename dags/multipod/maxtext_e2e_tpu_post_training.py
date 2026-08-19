@@ -100,6 +100,7 @@ with models.DAG(
               "rl": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/rl/{run_name}/checkpoints/actor/2/model_params",
+                  "core_count": 32,
               },
           },
       },
@@ -126,10 +127,12 @@ with models.DAG(
               "sft": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_sft.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/sft/{run_name}/checkpoints/2/model_params",
+                  "to_hf_flags": "false true",
               },
               "rl": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/rl/{run_name}/checkpoints/actor/2/model_params",
+                  "to_hf_flags": "false true",
               },
           },
       },
