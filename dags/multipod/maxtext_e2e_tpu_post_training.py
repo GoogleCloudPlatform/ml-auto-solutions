@@ -132,7 +132,7 @@ with models.DAG(
               "rl": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/rl/{run_name}/checkpoints/actor/2/model_params",
-                  "to_hf_flags": "false false",
+                  "to_hf_flags": "false true",
               },
           },
       },
