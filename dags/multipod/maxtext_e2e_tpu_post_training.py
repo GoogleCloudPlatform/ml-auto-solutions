@@ -60,7 +60,6 @@ with models.DAG(
     catchup=False,
     params={
         "docker_image": Param(
-            default="gcr.io/tpu-prod-env-multipod/maxtext_post_training_stable:latest",
             type="string",
             description="Docker image URI for the candidate to test",
         ),
