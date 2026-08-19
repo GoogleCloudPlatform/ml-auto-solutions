@@ -101,6 +101,7 @@ with models.DAG(
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/rl/{run_name}/checkpoints/actor/2/model_params",
                   "core_count": 32,
+                  "to_hf_flags": "false false",
               },
           },
       },
