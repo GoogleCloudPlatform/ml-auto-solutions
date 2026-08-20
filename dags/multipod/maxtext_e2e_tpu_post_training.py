@@ -206,6 +206,8 @@ with models.DAG(
               f"export HF_TOKEN={HF_TOKEN}",
               "export TPU_MIN_LOG_LEVEL=0",
               "export TF_CPP_MIN_LOG_LEVEL=0",
+              "export GRPC_KEEPALIVE_TIME_MS=60000",
+              "export GRPC_KEEPALIVE_TIMEOUT_MS=120000",
               "export TPU_STDERR_LOG_LEVEL=0",
               "export JAX_PLATFORMS=proxy,cpu",
               "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000",
