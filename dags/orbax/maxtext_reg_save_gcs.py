@@ -13,7 +13,7 @@ from airflow import models
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.orbax.util import validation_util, test_config_util
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
@@ -116,10 +116,8 @@ with models.DAG(
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.JACKY_F,
-        ).run(
             xpk_branch=MAIN_BRANCH,
-            skip_post_process=True,
-        )
+        ).run(skip_post_process=True)
 
         steps_to_validate = test_config.generate_step_to_validate(
             is_local=False

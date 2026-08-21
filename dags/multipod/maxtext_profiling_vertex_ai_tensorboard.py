@@ -20,8 +20,9 @@ from airflow import models
 from dags import gcs_bucket
 from dags.common import test_owner
 from dags.common.vm_resource import DockerImage, XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.multipod.configs.common import SetupMode
+from xlml.apis import metric_config
 
 SCHEDULED_TIME = None
 
@@ -67,7 +68,8 @@ with models.DAG(
                 f"-{accelerator}-{current_datetime}"
             ),
             (
-                "python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml"
+                "python3 -m maxtext.trainers.pre_train.train"
+                " src/maxtext/configs/base.yml"
                 f" run_name=$RUN_NAME base_output_directory"
                 f"={base_output_directory} dataset_path={dataset_path}"
                 f" profiler=xplane steps=10"
@@ -89,4 +91,7 @@ with models.DAG(
             run_model_cmds=profiling_in_vertex_ai_tb_cmds,
             docker_image=image.value,
             test_owner=test_owner.SURBHI_J,
-        ).run(use_vertex_tensorboard=True)
+            user_specified_job_metric_config=metric_config.MetricConfig(
+                use_vertex_tensorboard=True
+            ),
+        ).run()

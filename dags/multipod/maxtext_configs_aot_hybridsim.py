@@ -27,7 +27,7 @@ from dags import composer_env
 from dags.common.quarantined_tests import QuarantineTests
 from dags.common import test_owner
 from dags.common.vm_resource import TpuVersion, DockerImage, XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 
 
 # Run once a day at 1 pm UTC (5 am PST / 6 am PDT)

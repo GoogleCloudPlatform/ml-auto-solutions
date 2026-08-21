@@ -20,7 +20,7 @@ from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from xlml.apis import metric_config
 
 # Run once a day at 6 am UTC (10 pm PST)

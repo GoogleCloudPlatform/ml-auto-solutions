@@ -17,12 +17,13 @@
 
 import datetime
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common.quarantined_tests import QuarantineTests, safe_get_from_variable
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -106,7 +107,7 @@ with models.DAG(
         cluster=XpkClusters.TPU_V5P_8_CLUSTER,
         test_owner=test_config["owner"],
     ).run_with_quarantine(quarantine_task_group)
-    stable_tpu >> nightly_tpu
+    chain(stable_tpu, nightly_tpu)
 
   multicluster_test_models = {
       "llama2-70b": [
@@ -136,59 +137,63 @@ with models.DAG(
   }
 
   def convert_checkpoint_and_run_training(
-      test_group_id,
-      test_name_prefix,
-      type,
-      docker_image,
-      model,
-      test_scripts_details,
+      grp_id,
+      prefix,
+      image_type,
+      img_val,
+      model_name,
+      scripts_details,
   ):
-    with TaskGroup(group_id=test_group_id, prefix_group_id=True) as group:
-      test_name = f"{test_name_prefix}-{type}-{model}"
+    with TaskGroup(group_id=grp_id, prefix_group_id=True):
+      test_name = f"{prefix}-{image_type}-{model_name}"
       shared_gcs_location = name_format.generate_gcs_folder_location.override(
-          task_id=f"{test_group_id}_generate_gcs_folder_location"
+          task_id=f"{grp_id}_generate_gcs_folder_location"
       )(
           gcs_subfolder,
-          test_group_id,
+          grp_id,
       )
+      script_name_cpu = scripts_details[0]["script_name"]
       conversion_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
-          time_out_in_min=test_scripts_details[0]["time_out_in_min"],
+          time_out_in_min=scripts_details[0]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[0]['script_name']}.sh",
+              "export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash"
+              f" tests/end_to_end/{script_name_cpu}.sh",
           ),
-          docker_image=docker_image,
+          docker_image=img_val,
           test_owner=test_owner.ANISHA_M,
-          cluster=test_scripts_details[0]["cluster"],
+          cluster=scripts_details[0]["cluster"],
       ).run(gcs_location=shared_gcs_location)
+      script_name_tpu = scripts_details[1]["script_name"]
       training_tpu = gke_config.get_gke_config(
-          time_out_in_min=test_scripts_details[1]["time_out_in_min"],
+          time_out_in_min=scripts_details[1]["time_out_in_min"],
           test_name=test_name,
           run_model_cmds=(
-              f"export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash tests/end_to_end/{test_scripts_details[1]['script_name']}.sh",
+              "export BASE_OUTPUT_PATH=$GCS_OUTPUT; bash"
+              f" tests/end_to_end/{script_name_tpu}.sh",
           ),
-          docker_image=docker_image,
+          docker_image=img_val,
           test_owner=test_owner.ANISHA_M,
-          cluster=test_scripts_details[1]["cluster"],
+          cluster=scripts_details[1]["cluster"],
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu
 
-  docker_image = {
+  docker_images = {
       "stable": DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
       "nightly": DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
   }
-  tests = []
   for model, test_scripts_details in multicluster_test_models.items():
     gcs_subfolder = f"{test_owner.Team.MULTIPOD.value}/maxtext"
-    for type in docker_image.keys():
-      test_group_id = "chained_tests" + "_" + model + "_" + type
+    tests = []
+    for mode_type, image in docker_images.items():
+      test_group_id = f"chained_tests_{model}_{mode_type}"
       if QuarantineTests.is_quarantined(test_group_id):
         with quarantine_task_group:
           mode_cpu, mode_tpu = convert_checkpoint_and_run_training(
               test_group_id,
               test_name_prefix,
-              type,
-              docker_image[type],
+              mode_type,
+              image,
               model,
               test_scripts_details,
           )
@@ -196,8 +201,8 @@ with models.DAG(
         mode_cpu, mode_tpu = convert_checkpoint_and_run_training(
             test_group_id,
             test_name_prefix,
-            type,
-            docker_image[type],
+            mode_type,
+            image,
             model,
             test_scripts_details,
         )
@@ -205,5 +210,5 @@ with models.DAG(
       tests.append(mode_tpu)
 
     # stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
-    for i in range(len(tests) - 1):
-      tests[i] >> tests[i + 1]
+    if tests:
+      chain(*tests)

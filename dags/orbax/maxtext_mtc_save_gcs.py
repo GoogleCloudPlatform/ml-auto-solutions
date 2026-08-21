@@ -12,7 +12,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.orbax.util import checkpoint_util
 from dags.orbax.util import test_config_util
 from dags.orbax.util import validation_util
@@ -122,12 +122,10 @@ with models.DAG(
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.CAMILO_Q,
-        ).run(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
-            skip_post_process=True,
             max_restart=15,
-        )
+        ).run(skip_post_process=True)
 
         steps_to_validate = test_config.generate_step_to_validate(is_local=True)
 

@@ -19,13 +19,14 @@ import datetime
 import tempfile
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters, DockerImage, Project
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from xlml.utils import gke
 
 # Run once a day at 4 am UTC (8 pm PST)
@@ -122,22 +123,24 @@ def scale_down_a3_cluster():
     assert result.exit_code == 0, f"Command failed with code {result.exit_code}"
 
 
-def run_maxtext_tests(dag: models.DAG):
+def run_maxtext_tests(task_dag: models.DAG):
   test_name_prefix = "maxtext"
 
   timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
   train_base = (
       "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-      "python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml "
-      "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
-      "steps=2 enable_checkpointing=false attention=dot_product"
+      "python3 -m maxtext.trainers.pre_train.train"
+      " src/maxtext/configs/base.yml"
+      " base_output_directory=gs://runner-maxtext-logs"
+      " dataset_path=gs://maxtext-dataset steps=2 enable_checkpointing=false"
+      " attention=dot_product"
   )
   decode_base = (
       "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
       "python3 -m MaxText.decode src/maxtext/configs/base.yml "
-      "base_output_directory=gs://runner-maxtext-logs dataset_path=gs://maxtext-dataset "
-      "steps=2 enable_checkpointing=false attention=dot_product "
-      "max_target_length=128 per_device_batch_size=1"
+      "base_output_directory=gs://runner-maxtext-logs"
+      " dataset_path=gs://maxtext-dataset steps=2 enable_checkpointing=false"
+      " attention=dot_product max_target_length=128 per_device_batch_size=1"
   )
   test_models_gpu = {
       "train-c4-data": (f"{train_base} run_name=runner-{timestamp}-0", 1),
@@ -146,11 +149,13 @@ def run_maxtext_tests(dag: models.DAG):
           1,
       ),
       "train-flash": (
-          f"{train_base} run_name=runner-{timestamp}-2 attention=cudnn_flash_te",
+          f"{train_base} run_name=runner-{timestamp}-2"
+          " attention=cudnn_flash_te",
           1,
       ),
       "train-quarter-batch-size": (
-          f"{train_base} run_name=runner-{timestamp}-3 per_device_batch_size=0.25 ici_tensor_parallelism=4",
+          f"{train_base} run_name=runner-{timestamp}-3"
+          " per_device_batch_size=0.25 ici_tensor_parallelism=4",
           1,
       ),
       "train-int8": (
@@ -163,25 +168,29 @@ def run_maxtext_tests(dag: models.DAG):
       ),
       "decode": (f"{decode_base} run_name=runner-{timestamp}-4", 1),
       "decode-quarter-batch-size": (
-          f"{decode_base} run_name=runner-{timestamp}-5 per_device_batch_size=.25 ici_tensor_parallelism=4",
+          f"{decode_base} run_name=runner-{timestamp}-5"
+          " per_device_batch_size=.25 ici_tensor_parallelism=4",
           1,
       ),
       "generate-param-only-checkpoint": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-          f"bash tests/end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-8 "
-          "-o gs://runner-maxtext-logs -d gs://maxtext-dataset -i 4 -a dot_product",
+          "bash tests/end_to_end/test_generate_param_only_checkpoint.sh"
+          f" -r runner-{timestamp}-8 -o gs://runner-maxtext-logs"
+          " -d gs://maxtext-dataset -i 4 -a dot_product",
           1,
       ),
       "generate-param-only-checkpoint-int8": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-          f"bash tests/end_to_end/test_generate_param_only_checkpoint.sh -r runner-{timestamp}-9 "
-          "-o gs://runner-maxtext-logs -d gs://maxtext-dataset -i 4 -q int8 -a dot_product",
+          "bash tests/end_to_end/test_generate_param_only_checkpoint.sh"
+          f" -r runner-{timestamp}-9 -o gs://runner-maxtext-logs"
+          " -d gs://maxtext-dataset -i 4 -q int8 -a dot_product",
           1,
       ),
       "grain-checkpoint-determinism": (
           "XLA_PYTHON_CLIENT_MEM_FRACTION=0.65 TF_FORCE_GPU_ALLOW_GROWTH=true "
-          "bash tests/end_to_end/test_checkpointing.sh runner gs://runner-maxtext-logs "
-          "gs://maxtext-dataset c4-array_record dot_product",
+          "bash tests/end_to_end/test_checkpointing.sh runner"
+          " gs://runner-maxtext-logs gs://maxtext-dataset c4-array_record"
+          " dot_product",
           1,
       ),
       "checkpoint-compatibility": (
@@ -202,7 +211,7 @@ def run_maxtext_tests(dag: models.DAG):
   }
 
   quarantine_task_group = TaskGroup(
-      group_id="Quarantine", dag=dag, prefix_group_id=False
+      group_id="Quarantine", dag=task_dag, prefix_group_id=False
   )
 
   for model, (test_script, nnodes) in test_models_gpu.items():
@@ -224,7 +233,7 @@ def run_maxtext_tests(dag: models.DAG):
         docker_image=DockerImage.MAXTEXT_GPU_JAX_STABLE.value,
         test_owner=test_owner.DORA_H,
     ).run_with_quarantine(quarantine_task_group)
-    stable_a3_gpu >> stable_a3plus_gpu
+    chain(stable_a3_gpu, stable_a3plus_gpu)
 
 
 with models.DAG(
@@ -255,4 +264,4 @@ with models.DAG(
   with TaskGroup(group_id="scale_down", dag=dag) as scale_down:
     scale_down_a3_cluster()
 
-  scale_up >> run_tests >> scale_down
+  chain(scale_up, run_tests, scale_down)

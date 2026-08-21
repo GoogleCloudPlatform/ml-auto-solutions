@@ -128,10 +128,14 @@ def get_maxtext_sweep_gke_config(
           file_location=base_output_directory,
       )
 
-    xpk_task = task.XpkNameGenAndQuarantineTask(
+    runner_config = task.XpkRunnerConfig(
         task_test_config=job_test_config,
         task_gcp_config=job_gcp_config,
         task_metric_config=job_metric_config,
+    )
+
+    xpk_task = task.XpkNameGenAndQuarantineTask(
+        runner_config=runner_config,
         quarantine_task_group=quarantine_task_group,
     )
     xpk_task_list.append(xpk_task)

@@ -17,11 +17,12 @@ A DAG to run MXLA MaxText tests.
 """
 import datetime
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters, Project
-from dags.multipod.configs import gke_config
+from dags.common.vm_resource import DockerImage, XpkClusters
+from dags.multipod.configs import xpk_gke_config as gke_config
 
 # Run once a day at 5 pm UTC (1 am PST)
 SCHEDULED_TIME = "0 17 * * *" if composer_env.is_prod_env() else None
@@ -122,17 +123,17 @@ with models.DAG(
   ).run_with_quarantine(quarantine_task_group)
 
   # Define dependencies for v5p tests to run sequentially
-  (
-      maxtext_nightly_1slice_v5p_8
-      >> maxtext_nightly_2slice_v5p_8
-      >> maxtext_nightly_4slice_v5p_8
-      >> maxtext_nightly_8slice_v5p_8
+  chain(
+      maxtext_nightly_1slice_v5p_8,
+      maxtext_nightly_2slice_v5p_8,
+      maxtext_nightly_4slice_v5p_8,
+      maxtext_nightly_8slice_v5p_8,
   )
 
   # Define dependencies for v6e tests to run sequentially
-  (
-      maxtext_nightly_1slice_v6e_8
-      >> maxtext_nightly_2slice_v6e_8
-      >> maxtext_nightly_4slice_v6e_8
-      >> maxtext_nightly_8slice_v6e_8
+  chain(
+      maxtext_nightly_1slice_v6e_8,
+      maxtext_nightly_2slice_v6e_8,
+      maxtext_nightly_4slice_v6e_8,
+      maxtext_nightly_8slice_v6e_8,
   )

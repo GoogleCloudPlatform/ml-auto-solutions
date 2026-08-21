@@ -19,8 +19,8 @@ import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage, XpkClusters
-from dags.multipod.configs import gke_config
+from dags.common.vm_resource import DockerImage, XpkClusters
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.multipod.configs.common import SetupMode  # Run once a day at 10 am UTC (2 am PST)
 
 SCHEDULED_TIME = "0 3 * * *" if composer_env.is_prod_env() else None
@@ -72,4 +72,6 @@ with models.DAG(
             run_model_cmds=command,
             docker_image=image.value,
             test_owner=test_owner.ABHINAV_S,
-        ).run(ramdisk_directory="local", mtc_enabled=True)
+            ramdisk_directory="local",
+            mtc_enabled=True,
+        ).run()

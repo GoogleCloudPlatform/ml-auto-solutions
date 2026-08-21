@@ -20,7 +20,7 @@ from airflow import models
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
 from dags.common.vm_resource import DockerImage, XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 
 # Run once a day at 9 am UTC (1 am PST)
 # Pause test on GKE

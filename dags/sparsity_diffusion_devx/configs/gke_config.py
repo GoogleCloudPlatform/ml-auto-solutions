@@ -84,8 +84,12 @@ def get_gke_config(
         tensorboard_summary=tensorboard_summary_config,
     )
 
-  return task.XpkTask(
+  runner_config = task.XpkRunnerConfig(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
+  )
+
+  return task.XpkTask(
+      runner_config=runner_config,
   )
