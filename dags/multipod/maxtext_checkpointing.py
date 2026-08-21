@@ -20,7 +20,7 @@ from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
 from dags.common.vm_resource import DockerImage, XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 10 am UTC (2 am PST)
@@ -70,16 +70,20 @@ with models.DAG(
           test_owner=test_owner.SURBHI_J,
       ).run()
 
-    # Checkpoint resharding test - trains a model with a specific sharding strategy and saves a checkpoint.
-    # Then train again by restoring this checkpoint using a different sharding strategy.
-    # Finally, asserts that the learning metrics are consistent, ensuring that checkpoints can be successfully loaded across different sharding strategies.
+    # Checkpoint resharding test - trains a model with a specific sharding
+    # strategy and saves a checkpoint. Then train again by restoring this
+    # checkpoint using a different sharding strategy. Finally, asserts that the
+    # learning metrics are consistent, ensuring that checkpoints can be
+    # successfully loaded across different sharding strategies.
     gke_config.get_gke_config(
         num_slices=2,
         cluster=XpkClusters.TPU_V5P_8_CLUSTER,
         time_out_in_min=60,
         test_name=f"maxtext-checkpoint-resharding-{mode.value}",
         run_model_cmds=(
-            f"bash tests/end_to_end/tpu/test_checkpoint_resharding.sh checkpoint-resharding-{mode.value} {base_output_directory} {dataset_path}",
+            "bash tests/end_to_end/tpu/test_checkpoint_resharding.sh"
+            f" checkpoint-resharding-{mode.value} {base_output_directory}"
+            f" {dataset_path}",
         ),
         docker_image=image.value,
         test_owner=test_owner.SURBHI_J,

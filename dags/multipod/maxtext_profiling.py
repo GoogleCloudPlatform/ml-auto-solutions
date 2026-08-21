@@ -19,8 +19,8 @@ import datetime
 from airflow import models
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage
-from dags.multipod.configs import gke_config
+from dags.common.vm_resource import DockerImage
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 6 am UTC (10 pm PST)
@@ -52,10 +52,12 @@ with models.DAG(
   for mode, image in docker_images:
     profiling_cmds = (
         f"export RUN_NAME=profiling_{mode.value}_$(date +%Y-%m-%d-%H-%M-%S)",
-        "python3 -m maxtext.trainers.pre_train.train src/maxtext/configs/base.yml"
+        "python3 -m maxtext.trainers.pre_train.train"
+        " src/maxtext/configs/base.yml"
         f" run_name=$RUN_NAME base_output_directory={base_output_directory}"
         f" dataset_path={dataset_path} profiler=xplane steps=20",
-        f"gcloud storage cp --recursive {base_output_directory}/$RUN_NAME/tensorboard .",
+        "gcloud storage cp --recursive"
+        f" {base_output_directory}/$RUN_NAME/tensorboard .",
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
         time_out_in_min=60,

@@ -21,7 +21,7 @@ from airflow.utils.task_group import TaskGroup
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import DockerImage, XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 
 # Run once a day at 5 am UTC (9 pm PST / 10 pm PDT)
 SCHEDULED_TIME = "45 4 * * *" if composer_env.is_prod_env() else None
@@ -47,8 +47,11 @@ with models.DAG(
       group_id="Quarantine", dag=dag, prefix_group_id=False
   )
 
-  # GPU AoT tests
-  cmd = "bash src/maxtext/configs/gpu/a3/llama_2_7b/8vm.sh EXECUTABLE=train_compile M_COMPILE_TOPOLOGY=a3 M_COMPILE_TOPOLOGY_NUM_SLICES=8"
+  cmd = (
+      "bash src/maxtext/configs/gpu/a3/llama_2_7b/8vm.sh"
+      " EXECUTABLE=train_compile M_COMPILE_TOPOLOGY=a3"
+      " M_COMPILE_TOPOLOGY_NUM_SLICES=8"
+  )
   stable_a3_gpu = gke_config.get_maxtext_end_to_end_gpu_gke_test_config(
       time_out_in_min=300,
       test_name="maxtext-aot-a3-stable",

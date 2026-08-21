@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dags.common.vm_resource import TpuVersion, Zone, DockerImage
-from dags.multipod.configs import gke_config
-from xlml.apis.xpk_cluster_config import XpkClusterConfig
-from xlml.apis import task
+"""Utilities to construct configs for PyTorch DAG on GKE."""
+
 from typing import List
+from dags.common.vm_resource import DockerImage
+from dags.multipod.configs import xpk_gke_config as gke_config
+from xlml.apis import task
+from xlml.apis.xpk_cluster_config import XpkClusterConfig
 
 
 def get_nightly_pytorch_config(

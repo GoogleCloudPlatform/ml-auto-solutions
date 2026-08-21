@@ -10,7 +10,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.orbax.util import checkpoint_util, test_config_util, validation_util
 from xlml.utils.gke import zone_to_region
 
@@ -127,12 +127,10 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.DEPP_L,
             expect_reach_to_step=step_to_interrupt,
-        ).run(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
-            skip_post_process=True,
             max_restart=15,
-        )
+        ).run(skip_post_process=True)
 
         end_time = validation_util.generate_timestamp.override(
             task_id="generate_end_time"

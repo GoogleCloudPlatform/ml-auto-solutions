@@ -28,7 +28,7 @@ from dags.common.quarantined_tests import (
     safe_get_from_variable,
 )
 from dags.common.vm_resource import DockerImage, XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from xlml.utils import name_format
 
 # Run once a day at 1 am UTC (5 pm PST)
@@ -106,16 +106,15 @@ with models.DAG(
   unchained_tests = []
   for model, test_scripts_details in test_models_tpu.items():
     for image, image_config in docker_image.items():
+      script_name = test_scripts_details["script_name"]
+      run_cmd = (
+          f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
+          f"bash tests/end_to_end/{script_name}.sh"
+      )
       training_tpu = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
-          run_model_cmds=tuple(
-              [
-                  f"export HF_TOKEN={HF_TOKEN}; "
-                  "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
-                  f"bash tests/end_to_end/{test_scripts_details['script_name']}.sh"
-              ]
-          ),
+          run_model_cmds=(run_cmd,),
           docker_image=image_config,
           test_owner=test_scripts_details["owner"],
           cluster=test_scripts_details["cluster"],
@@ -173,30 +172,28 @@ with models.DAG(
           gcs_subfolder,
           test_group_id_val,
       )
+      script_name_cpu = test_scripts_details_list[0]["script_name"]
+      cmd_cpu = (
+          f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
+          f"bash tests/end_to_end/{script_name_cpu}.sh"
+      )
       conversion_cpu = gke_config.get_maxtext_cpu_end_to_end_gke_config(
           time_out_in_min=test_scripts_details_list[0]["time_out_in_min"],
           test_name=test_name,
-          run_model_cmds=tuple(
-              [
-                  f"export HF_TOKEN={HF_TOKEN}; "
-                  "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
-                  f"bash tests/end_to_end/{test_scripts_details_list[0]['script_name']}.sh"
-              ]
-          ),
+          run_model_cmds=(cmd_cpu,),
           docker_image=docker_image_config,
           test_owner=test_scripts_details_list[0]["owner"],
           cluster=test_scripts_details_list[0]["cluster"],
       ).run(gcs_location=shared_gcs_location)
+      script_name_tpu = test_scripts_details_list[1]["script_name"]
+      cmd_tpu = (
+          f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
+          f"bash tests/end_to_end/{script_name_tpu}.sh"
+      )
       training_tpu_task = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details_list[1]["time_out_in_min"],
           test_name=test_name,
-          run_model_cmds=tuple(
-              [
-                  f"export HF_TOKEN={HF_TOKEN}; "
-                  "export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
-                  f"bash tests/end_to_end/{test_scripts_details_list[1]['script_name']}.sh"
-              ]
-          ),
+          run_model_cmds=(cmd_tpu,),
           docker_image=docker_image_config,
           test_owner=test_scripts_details_list[0]["owner"],
           cluster=test_scripts_details_list[1]["cluster"],

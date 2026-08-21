@@ -15,7 +15,7 @@
 """Utilities to construct configs for JAX tests for GCE."""
 
 from dags.common import test_owner
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.common.vm_resource import XpkClusterConfig
 
 

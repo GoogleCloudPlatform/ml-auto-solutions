@@ -14,7 +14,7 @@ from airflow.decorators import task
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.orbax.util import validation_util, test_config_util
 from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
@@ -140,11 +140,11 @@ with models.DAG(
             test_owner=test_owner.SHARON_Y,
             expect_reach_to_step=step_to_interrupt,
             check_file_exists=True,
+            xpk_branch=MAIN_BRANCH,
+            max_restart=15,
         ).run(
             gcs_location=gcs_location,
-            xpk_branch=MAIN_BRANCH,
             skip_post_process=True,
-            max_restart=15,
         )
 
         end_time = validation_util.generate_timestamp.override(

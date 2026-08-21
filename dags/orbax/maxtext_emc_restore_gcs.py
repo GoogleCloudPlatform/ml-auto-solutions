@@ -11,7 +11,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 from dags.orbax.util import checkpoint_util
 from dags.orbax.util import test_config_util
 from dags.orbax.util import validation_util
@@ -130,12 +130,10 @@ with models.DAG(
             test_owner=test_owner.DEPP_L,
             expect_reach_to_step=step_to_interrupt,
             last_node=True,
-        ).run(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
-            skip_post_process=True,
             max_restart=15,
-        )
+        ).run(skip_post_process=True)
 
         end_time = validation_util.generate_timestamp.override(
             task_id="generate_end_time"

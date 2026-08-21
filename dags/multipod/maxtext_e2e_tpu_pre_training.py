@@ -30,7 +30,7 @@ from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
 from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import XpkClusters
-from dags.multipod.configs import gke_config
+from dags.multipod.configs import xpk_gke_config as gke_config
 
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
@@ -141,7 +141,8 @@ with models.DAG(
               core_count=training_core_count
           ),
           test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True, priority="very-high")
+          priority="very-high",
+      ).run(skip_post_process=True)
 
       model_path = test_config["training"]["maxtext_ckpt_path"].format(
           run_name=run_name
@@ -163,7 +164,8 @@ with models.DAG(
           docker_image="{{ params.docker_image }}",
           cluster=XpkClusters.TPU_V5P_MLPERF_CLUSTER,
           test_owner=test_owner.SURBHI_J,
-      ).run(skip_post_process=True, priority="very-high")
+          priority="very-high",
+      ).run(skip_post_process=True)
 
       wait_for_conversion = ExternalTaskSensorWithBypass(
           task_id="wait_for_conversion",

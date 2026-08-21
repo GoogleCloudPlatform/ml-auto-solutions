@@ -1,8 +1,23 @@
-from xlml.apis import gcp_config, metric_config, task, test_config
-from dags import gcs_bucket
-from dags.common import test_owner
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Utilities to construct configs for framework microbenchmarks."""
+
 import datetime
+from dags.common import test_owner as test_owners
 import dags.common.vm_resource as resource
+from xlml.apis import gcp_config, metric_config, task, test_config
 
 
 def get_microbenchmark_config(
@@ -14,8 +29,9 @@ def get_microbenchmark_config(
     project: resource.Project,
     network: str = "default",
     subnetwork: str = "default",
-    extraFlags: str = "",
+    extra_flags: str = "",
 ):
+  del extra_flags
   job_gcp_config = gcp_config.GCPConfig(
       project_name=project.value,
       zone=tpu_zone.value,
@@ -45,7 +61,10 @@ def get_microbenchmark_config(
   # Run the benchmark tests.
   run_model_cmds += (
       " rm -rf accelerator-microbenchmarks ",
-      "git clone https://github.com/AI-Hypercomputer/accelerator-microbenchmarks.git  ",
+      (
+          "git clone https://github.com/AI-Hypercomputer/"
+          "accelerator-microbenchmarks.git "
+      ),
       "cd accelerator-microbenchmarks ",
       "pip install -r requirements.txt ",
       # Run the benchmark script
@@ -54,9 +73,10 @@ def get_microbenchmark_config(
 
   # Check if the metrics report exists, and if so, upload it to GCS
   run_model_cmds += (
-      f"if [ -f {metrics_report} ]; then "
-      f"gcloud storage cp {metrics_report} {metric_config.SshEnvVars.GCS_OUTPUT.value}; "
-      "fi",
+      (
+          f"if [ -f {metrics_report} ]; then gcloud storage cp {metrics_report}"
+          f" {metric_config.SshEnvVars.GCS_OUTPUT.value}; fi"
+      ),
   )
 
   job_test_config = test_config.TpuVmTest(
@@ -72,7 +92,7 @@ def get_microbenchmark_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.QINY_Y,
+      task_owner=test_owners.QINY_Y,
   )
 
   job_metric_config = metric_config.MetricConfig(
@@ -94,7 +114,9 @@ def get_microbenchmark_xpk_config(
     test_owner: str,
     cluster: resource.XpkClusterConfig,
     num_slices: int = 1,
-    dataset_name: metric_config.DatasetOption = metric_config.DatasetOption.XLML_DATASET,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
     dataset_project: str = resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     composer_project: str = resource.Project.CLOUD_ML_AUTO_SOLUTIONS.value,
 ) -> task.XpkTask:
@@ -128,9 +150,10 @@ def get_microbenchmark_xpk_config(
 
   # Check if the metrics report exists, and if so, upload it to GCS
   run_model_cmds += (
-      f"if [ -f {metrics_report} ]; then "
-      f"gcloud storage cp {metrics_report} {metric_config.SshEnvVars.GCS_OUTPUT.value} ; "
-      "fi ",
+      (
+          f"if [ -f {metrics_report} ]; then gcloud storage cp {metrics_report}"
+          f" {metric_config.SshEnvVars.GCS_OUTPUT.value} ; fi "
+      ),
   )
 
   job_test_config = test_config.TpuGkeTest(
@@ -151,8 +174,11 @@ def get_microbenchmark_xpk_config(
       json_lines=metric_config.JSONLinesConfig("metrics_report.jsonl"),
       use_runtime_generated_gcs_folder=True,
   )
-  return task.XpkTask(
+  runner_config = task.XpkRunnerConfig(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
+  )
+  return task.XpkTask(
+      runner_config=runner_config,
   )
