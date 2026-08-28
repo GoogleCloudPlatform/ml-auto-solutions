@@ -128,7 +128,18 @@ with models.DAG(
           "{{ params.run_name if params.run_name else 'pre-' ~ ts_nodash }}"
       )
 
-      training_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
+      model_path = test_config["training"]["maxtext_ckpt_path"].format(
+          run_name=run_name
+      )
+      base_output_dir = model_path.split("/checkpoints/")[0]
+      cleanup_cmd = (
+          f"if gsutil ls {base_output_dir} >/dev/null 2>&1; then "
+          f'echo "Retry detected (directory exists). Cleaning up..."; '
+          f"gsutil -m rm -rf {base_output_dir} || true; "
+          f"fi"
+      )
+
+      training_cmd = (f"export HF_TOKEN={HF_TOKEN}", cleanup_cmd) + (
           f"{test_config['training']['command']} {run_name}",
       )
       training_core_count = test_config.get("core_count", 8)
@@ -142,11 +153,9 @@ with models.DAG(
           ),
           test_owner=test_owner.SURBHI_J,
           priority="very-high",
+          max_restart=2,
       ).run(skip_post_process=True)
 
-      model_path = test_config["training"]["maxtext_ckpt_path"].format(
-          run_name=run_name
-      )
       to_hf_flags = test_config.get("to_hf_flags", "")
 
       convert_to_huggingface_cmd = (

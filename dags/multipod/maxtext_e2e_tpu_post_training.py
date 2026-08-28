@@ -202,6 +202,17 @@ with models.DAG(
 
       for mode, mode_test_config in test_config["post_training"].items():
         with TaskGroup(group_id=f"{mode}-{model}") as mode_group:
+          model_path = mode_test_config["maxtext_ckpt_path"].format(
+              run_name=run_name
+          )
+          base_output_dir = model_path.split("/checkpoints/")[0]
+          cleanup_cmd = (
+              f"if gsutil ls {base_output_dir} >/dev/null 2>&1; then "
+              f"echo 'Retry detected (directory exists). Cleaning up previous checkpoints...'; "
+              f"gsutil -m rm -rf {base_output_dir} || true; "
+              f"fi"
+          )
+
           environment_variables = [
               f"export HF_TOKEN={HF_TOKEN}",
               "export TPU_MIN_LOG_LEVEL=0",
@@ -212,6 +223,7 @@ with models.DAG(
               "export JAX_PLATFORMS=proxy,cpu",
               "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000",
               "export ENABLE_PATHWAYS_PERSISTENCE='1'",
+              cleanup_cmd,
           ]
 
           command = mode_test_config["command"]
@@ -236,13 +248,11 @@ with models.DAG(
               test_owner=test_owner.SURBHI_J,
               use_pathways=True,
               priority="very-high",
+              max_restart=2,
           ).run(skip_post_process=True)
 
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
 
-          model_path = mode_test_config["maxtext_ckpt_path"].format(
-              run_name=run_name
-          )
           convert_to_huggingface_cmd = (
               f"export HF_TOKEN={HF_TOKEN}",
               'export HF_HOME="/dev/shm/hf_cache"',
