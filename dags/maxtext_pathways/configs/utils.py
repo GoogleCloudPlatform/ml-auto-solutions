@@ -50,7 +50,7 @@ def generate_install_dependencies_commands() -> str:
       "sudo apt-get install -y kubectl",
 
       # Install GKE auth plugin for cluster authentication
-      "sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin -y",
+      "sudo apt-get install google-cloud-cli-gke-gcloud-auth-plugin -y",
 
       # Install xpk
       *xpk.get_xpk_setup_cmd("/root", xpk.MAIN_BRANCH),
