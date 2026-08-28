@@ -31,8 +31,8 @@ from dags.common.vm_resource import DockerImage, XpkClusters
 from dags.multipod.configs import xpk_gke_config as gke_config
 from xlml.utils import name_format
 
-# Run once a day at 1 am UTC (5 pm PST)
-SCHEDULED_TIME = "30 1 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 3 am UTC (7 pm PST)
+SCHEDULED_TIME = "30 3 * * *" if composer_env.is_prod_env() else None
 # Track access in b/536711415
 HF_TOKEN = safe_get_from_variable("HF_TOKEN_MOE", None)
 
