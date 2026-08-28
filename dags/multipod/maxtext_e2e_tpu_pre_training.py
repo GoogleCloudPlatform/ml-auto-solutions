@@ -69,8 +69,7 @@ with models.DAG(
             default="",
             type="string",
             description=(
-                "Shared run name for checkpoints "
-                "(e.g. conv-20260813T123008)"
+                "Shared run name for checkpoints " "(e.g. conv-20260813T123008)"
             ),
         ),
         "wait_for_conversion": Param(
