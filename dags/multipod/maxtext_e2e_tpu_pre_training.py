@@ -16,9 +16,12 @@
 MaxText E2E TPU Pre-Training Tests DAG (Stage 2).
 
 Executes end-to-end MaxText pre-training test workloads on Cloud TPU:
-- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion via ExternalTaskSensor.
-- Runs pre-training on dedicated TPU v5p topologies configured per model architecture.
-- Converts trained checkpoints back to Hugging Face format to verify weight fidelity.
+- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion
+  via ExternalTaskSensor.
+- Runs pre-training on dedicated TPU v5p topologies configured per
+  model architecture.
+- Converts trained checkpoints back to Hugging Face format
+  to verify weight fidelity.
 """
 import datetime
 from airflow import models
@@ -36,7 +39,8 @@ HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
 class ExternalTaskSensorWithBypass(ExternalTaskSensor):
-  """ExternalTaskSensor that passes immediately if wait_for_conversion param is False."""
+  """ExternalTaskSensor that passes immediately if
+  wait_for_conversion param is False."""
 
   @provide_session
   def poke(self, context, session=None):
@@ -64,7 +68,9 @@ with models.DAG(
         "run_name": Param(
             default="",
             type="string",
-            description="Shared run name for checkpoints (e.g. conv-20260813T123008)",
+            description=(
+                "Shared run name for checkpoints " "(e.g. conv-20260813T123008)"
+            ),
         ),
         "wait_for_conversion": Param(
             default=True,
@@ -128,7 +134,20 @@ with models.DAG(
           "{{ params.run_name if params.run_name else 'pre-' ~ ts_nodash }}"
       )
 
-      training_cmd = (f"export HF_TOKEN={HF_TOKEN}",) + (
+      model_path = test_config["training"]["maxtext_ckpt_path"].format(
+          run_name=run_name
+      )
+      base_output_dir = model_path.split("/checkpoints/", maxsplit=1)[0]
+      cleanup_cmd = (
+          f"if gsutil ls {base_output_dir} >/dev/null 2>&1; then "
+          f'echo "Retry detected (directory exists). Cleaning up..."; '
+          f"gsutil -m rm -rf {base_output_dir} || true; "
+          f"fi"
+      )
+
+      training_cmd = (
+          f"export HF_TOKEN={HF_TOKEN}",
+          cleanup_cmd,
           f"{test_config['training']['command']} {run_name}",
       )
       training_core_count = test_config.get("core_count", 8)
@@ -142,11 +161,9 @@ with models.DAG(
           ),
           test_owner=test_owner.SURBHI_J,
           priority="very-high",
+          max_restart=3,
       ).run(skip_post_process=True)
 
-      model_path = test_config["training"]["maxtext_ckpt_path"].format(
-          run_name=run_name
-      )
       to_hf_flags = test_config.get("to_hf_flags", "")
 
       convert_to_huggingface_cmd = (
