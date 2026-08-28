@@ -257,7 +257,7 @@ with models.DAG(
               test_owner=test_owner.SURBHI_J,
               use_pathways=True,
               priority="very-high",
-              max_restart=2,
+              max_restart=3,
           ).run(skip_post_process=True)
 
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")

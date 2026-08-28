@@ -159,7 +159,7 @@ with models.DAG(
           ),
           test_owner=test_owner.SURBHI_J,
           priority="very-high",
-          max_restart=2,
+          max_restart=3,
       ).run(skip_post_process=True)
 
       to_hf_flags = test_config.get("to_hf_flags", "")
