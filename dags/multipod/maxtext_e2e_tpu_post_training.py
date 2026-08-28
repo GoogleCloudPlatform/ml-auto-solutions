@@ -15,10 +15,14 @@
 """
 MaxText E2E TPU Post-Training Tests DAG (Stage 2).
 
-Executes end-to-end MaxText post-training workflows (SFT, Multimodal SFT, LoRA, RL) on Cloud TPU:
-- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion via ExternalTaskSensor.
-- Executes post-training scripts with Pathways runtime persistence on TPU slices.
-- Converts post-trained checkpoints back to Hugging Face format to verify weight fidelity.
+Executes end-to-end MaxText post-training workflows
+(SFT, Multimodal SFT, LoRA, RL) on Cloud TPU:
+- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion
+  via ExternalTaskSensor.
+- Executes post-training scripts with Pathways runtime persistence
+  on TPU slices.
+- Converts post-trained checkpoints back to Hugging Face format
+  to verify weight fidelity.
 """
 import datetime
 
@@ -38,7 +42,8 @@ HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
 class ExternalTaskSensorWithBypass(ExternalTaskSensor):
-  """ExternalTaskSensor that passes immediately if wait_for_conversion param is False."""
+  """ExternalTaskSensor that passes immediately if
+  wait_for_conversion param is False."""
 
   @provide_session
   def poke(self, context, session=None):
@@ -66,7 +71,10 @@ with models.DAG(
         "run_name": Param(
             default="",
             type="string",
-            description="Shared run name for checkpoints (defaults to post-{{ ts_nodash }})",
+            description=(
+                "Shared run name for checkpoints "
+                "(defaults to post-{{ ts_nodash }})"
+            ),
         ),
         "wait_for_conversion": Param(
             default=True,
@@ -205,10 +213,11 @@ with models.DAG(
           model_path = mode_test_config["maxtext_ckpt_path"].format(
               run_name=run_name
           )
-          base_output_dir = model_path.split("/checkpoints/")[0]
+          base_output_dir = model_path.split("/checkpoints/", maxsplit=1)[0]
           cleanup_cmd = (
               f"if gsutil ls {base_output_dir} >/dev/null 2>&1; then "
-              f"echo 'Retry detected (directory exists). Cleaning up previous checkpoints...'; "
+              f"echo 'Retry detected. "
+              f"Cleaning up previous checkpoints...'; "
               f"gsutil -m rm -rf {base_output_dir} || true; "
               f"fi"
           )
