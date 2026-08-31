@@ -148,7 +148,7 @@ def generate_axlearn_cli_command(
       # Setups for the AXLearn CLI.
       "export PYTHONPATH=$PYTHONPATH:/root",
       "axlearn gcp config activate",
-      "apt-get install -y kubectl google-cloud-sdk-gke-gcloud-auth-plugin",
+      "apt-get install -y kubectl google-cloud-cli-gke-gcloud-auth-plugin",
       f"gcloud container clusters get-credentials {cluster_name} \
             --region {gke.zone_to_region(zone)} --project {project_id}",
 
