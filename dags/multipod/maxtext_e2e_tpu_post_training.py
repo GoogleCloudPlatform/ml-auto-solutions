@@ -216,8 +216,7 @@ with models.DAG(
           base_output_dir = model_path.split("/checkpoints/", maxsplit=1)[0]
           cleanup_cmd = (
               f"if gsutil ls {base_output_dir} >/dev/null 2>&1; then "
-              f"echo 'Retry detected. "
-              f"Cleaning up previous checkpoints...'; "
+              f'echo "Retry detected (directory exists). Cleaning up..."; '
               f"gsutil -m rm -rf {base_output_dir} || true; "
               f"fi"
           )
