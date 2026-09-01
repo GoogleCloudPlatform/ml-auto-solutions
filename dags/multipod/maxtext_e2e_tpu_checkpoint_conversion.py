@@ -89,7 +89,7 @@ with models.DAG(
       to_maxtext_cmd = config["to_maxtext"]
       convert_to_maxtext_cmd = (
           f"export HF_TOKEN={HF_TOKEN}",
-          'export HF_HOME="/dev/shm/hf_cache"',
+          'export HF_HOME="/mnt/shm/hf_cache"',
           'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
           f"{to_maxtext_cmd} {run_name}",
       )
@@ -103,4 +103,5 @@ with models.DAG(
           test_owner=test_owner.JACKY_F,
           priority="very-high",
           use_gcluster=True,
+          mounts="/dev/shm;/mnt/shm;rw",
       ).run(skip_post_process=True)
