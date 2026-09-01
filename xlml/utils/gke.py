@@ -156,6 +156,25 @@ def get_workload_jobset(
     return None
 
 
+def print_pod_logs(core_api: kubernetes.client.CoreV1Api, pod: kubernetes.client.V1Pod) -> None:
+  """Prints logs for all containers in a pod."""
+  try:
+    for container in pod.spec.containers:
+      try:
+        logs = core_api.read_namespaced_pod_log(
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container=container.name,
+        )
+        logging.info(f"--- Logs for pod {pod.metadata.name}, container {container.name} ---")
+        for line in logs.split("\n"):
+          logging.info(line)
+      except Exception as e:
+        logging.info(f"Failed to fetch logs for {pod.metadata.name}:{container.name}: {e}")
+  except Exception as e:
+    logging.info(f"Failed to process pod containers: {e}")
+
+
 def log_workload_pod_statuses(
     workload_id: str, pods: kubernetes.client.V1PodList
 ) -> None:
@@ -216,6 +235,7 @@ def wait_for_workload_start(
       logging.info(f"Pod {pod.metadata.name} is in phase {pod.status.phase}")
       return False
     if pod.status.phase == "Failed":
+      print_pod_logs(core_api, pod)
       url = LOGGING_URL_FORMAT.format(
           project=project_id,
           region=region,
@@ -304,6 +324,7 @@ def wait_for_workload_completion(
       logging.info(f"Pod {pod.metadata.name} is in phase {pod.status.phase}")
       return False
     if pod.status.phase == "Failed":
+      print_pod_logs(core_api, pod)
       url = LOGGING_URL_FORMAT.format(
           project=project_id,
           region=region,
