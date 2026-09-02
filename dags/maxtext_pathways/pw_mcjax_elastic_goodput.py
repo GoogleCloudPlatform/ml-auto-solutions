@@ -83,7 +83,7 @@ GOODPUT_LOG_LIST = [
     "Cumulative goodput monitoring process started for job: {workload_id}",
     "Started Goodput upload to Tensorboard & GCM in the background!",
     "Sent Goodput metrics to GCM Monitoring.",
-    "Final goodput query and upload for job: {workload_id}",
+    "Performing final goodput query and upload for job: {workload_id}",
     "Flushed final metrics and safe exited from Goodput monitoring.",
 ]
 
@@ -431,6 +431,7 @@ def create_elastic_goodput_dag(
     check_goodput_logs = check_gcp_logs_exist.override(
         task_id="check_goodput_logs",
         timeout=180,
+        trigger_rule=TriggerRule.ALL_DONE,
     )(
         project_id=fetched_params["project"],
         location=calculated_params["region"],
