@@ -134,7 +134,7 @@ with models.DAG(
           },
       },
       "llama3_1-70b": {
-          "core_count": 128,
+          "core_count": 64,
           "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
           "post_training": {
               "sft": {
@@ -251,7 +251,7 @@ with models.DAG(
           training_task = gke_config.get_gke_config(
               time_out_in_min=60,
               num_slices=1,
-              cluster=GkeClusters.TPU_V5P_MLPERF_CLUSTER.override(
+              cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
                   core_count=training_core_count
               ),
               test_name=mode_short_name,
@@ -259,7 +259,7 @@ with models.DAG(
               docker_image="{{ params.docker_image }}",
               test_owner=test_owner.SURBHI_J,
               use_pathways=True,
-              priority="very-high",
+              priority="medium",
               max_restart=3,
               use_gcluster=True,
           ).run(skip_post_process=True)
@@ -277,9 +277,9 @@ with models.DAG(
               test_name="to-hf",
               run_model_cmds=convert_to_huggingface_cmd,
               docker_image="{{ params.docker_image }}",
-              cluster=GkeClusters.TPU_V5P_MLPERF_CLUSTER,
+              cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
               test_owner=test_owner.SURBHI_J,
-              priority="very-high",
+              priority="medium",
               use_gcluster=True,
               mounts="/dev/shm;/mnt/shm;rw",
           ).run(skip_post_process=True)

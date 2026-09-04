@@ -68,6 +68,7 @@ class Project(enum.Enum):
   CLOUD_TPU_MULTIPOD_DEV = "cloud-tpu-multipod-dev"
   SUPERCOMPUTER_TESTING = "supercomputer-testing"
   CLOUD_TPU_INFERENCE_TEST = "cloud-tpu-inference-test"
+  CLOUD_TPU_SHARED_CAPACITY = "cloud-tpu-shared-capacity"
   TPU_PROD_ENV_LARGE_ADHOC = "tpu-prod-env-large-adhoc"
   TPU_PROD_ENV_ONE_VM = "tpu-prod-env-one-vm"
   TPU_PROD_ENV_LARGE_CONT = "tpu-prod-env-large-cont"
@@ -271,6 +272,15 @@ class GkeClusters:
       core_count=128,
       project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
       zone=Zone.EUROPE_WEST4_B.value,
+  )
+  TPU_V5P_BODABORG_NAP_CLUSTER = GkeClusterConfig(
+      name="bodaborg-v5p-nap",
+      device_version=TpuVersion.V5P,
+      core_count=8,
+      project=Project.CLOUD_TPU_SHARED_CAPACITY.value,
+      zone=Region.EUROPE_WEST4.value,
+      namespace="default",
+      queue="default",
   )
   TPU_V5P_MLPERF_CLUSTER = GkeClusterConfig(
       name="mlperf-v5p",

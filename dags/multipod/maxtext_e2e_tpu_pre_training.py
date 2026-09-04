@@ -160,11 +160,11 @@ with models.DAG(
           test_name="pre",
           run_model_cmds=training_cmd,
           docker_image="{{ params.docker_image }}",
-          cluster=GkeClusters.TPU_V5P_MLPERF_CLUSTER.override(
+          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
               core_count=training_core_count
           ),
           test_owner=test_owner.SURBHI_J,
-          priority="very-high",
+          priority="medium",
           max_restart=3,
           use_gcluster=True,
       ).run(skip_post_process=True)
@@ -183,9 +183,9 @@ with models.DAG(
           test_name="to-hf",
           run_model_cmds=convert_to_huggingface_cmd,
           docker_image="{{ params.docker_image }}",
-          cluster=GkeClusters.TPU_V5P_MLPERF_CLUSTER,
+          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
           test_owner=test_owner.SURBHI_J,
-          priority="very-high",
+          priority="medium",
           use_gcluster=True,
           mounts="/dev/shm;/mnt/shm;rw",
       ).run(skip_post_process=True)

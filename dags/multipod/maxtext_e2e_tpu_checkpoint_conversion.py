@@ -99,9 +99,9 @@ with models.DAG(
           test_name="to-mt",
           run_model_cmds=convert_to_maxtext_cmd,
           docker_image="{{ params.docker_image }}",
-          cluster=GkeClusters.TPU_V5P_MLPERF_CLUSTER,
+          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
           test_owner=test_owner.JACKY_F,
-          priority="very-high",
+          priority="medium",
           use_gcluster=True,
           mounts="/dev/shm;/mnt/shm;rw",
       ).run(skip_post_process=True)

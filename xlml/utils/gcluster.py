@@ -162,6 +162,8 @@ def run_workload(
         **os.environ,
         "KUBECONFIG": os.path.join(tmpdir, "gcluster_kube.conf"),
     }
+    env.pop("KUBERNETES_SERVICE_HOST", None)
+    env.pop("KUBERNETES_SERVICE_PORT", None)
 
     gcluster_bin = _setup_gcluster(tmpdir, gcluster_version, env)
     slice_keyword = (
@@ -189,7 +191,7 @@ def run_workload(
 
     if queue:
       submit_cmd.append(f"--queue={queue}")
-    if namespace and namespace != "default":
+    if namespace:
       submit_cmd.append(f"--gke-namespace={namespace}")
     if use_pathways:
       submit_cmd.append("--pathways")
@@ -238,6 +240,8 @@ def clean_up_workload(
         **os.environ,
         "KUBECONFIG": os.path.join(tmpdir, "gcluster_kube.conf"),
     }
+    env.pop("KUBERNETES_SERVICE_HOST", None)
+    env.pop("KUBERNETES_SERVICE_PORT", None)
 
     gcluster_bin = _setup_gcluster(tmpdir, gcluster_version, env)
 
@@ -261,7 +265,7 @@ def clean_up_workload(
         f"--project={project_id}",
         "--skip-prereqs",
     ]
-    if namespace and namespace != "default":
+    if namespace:
       cancel_cmd.append(f"--gke-namespace={namespace}")
 
     _run_command(cancel_cmd, env)
