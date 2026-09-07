@@ -372,6 +372,10 @@ def wait_for_workload_completion(
               f"{container_status.state.terminated.exit_code}. Logs: {url}"
           )
 
+  # Fetch logs for successful pods before returning
+  for pod in pods.items:
+    print_pod_logs(core_api, pod)
+
   logging.info("All pod(s) phase are succeeded.")
   return True
 
