@@ -261,7 +261,6 @@ with models.DAG(
               use_pathways=True,
               priority="medium",
               max_restart=3,
-              restart_on_exit_codes=[137, 143],
               use_gcluster=True,
           ).run(skip_post_process=True)
 
