@@ -67,25 +67,33 @@ with models.DAG(
   test_models_tpu = {
       "deepseek4-284b": {
           "script_name": "tpu/deepseek/v4-284b/2_test_deepseek",
-          "cluster": GkeClusters.TPU_V5P_128_CLUSTER,
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128,
+          ),
           "time_out_in_min": 180,
           "owner": test_owner.SNEHAL_V,
       },
       "deepseek32-671b": {
           "script_name": "tpu/deepseek/v3.2-671b/2_test_deepseek",
-          "cluster": GkeClusters.TPU_V5P_128_CLUSTER,
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128,
+          ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
       },
       "deepseek3-671b": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek",
-          "cluster": GkeClusters.TPU_V5P_128_CLUSTER,
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128,
+          ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
       },
       "deepseek3-671b-mtp": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek_mtp",
-          "cluster": GkeClusters.TPU_V5P_128_CLUSTER,
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128,
+          ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
       },
