@@ -376,11 +376,11 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_NIGHTLY = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_jax_nightly:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/maxtext_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_TPU_JAX_STABLE = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_jax_stable:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/maxtext_jax_stable:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXDIFFUSION_TPU_JAX_STABLE_STACK = (
@@ -396,11 +396,11 @@ class DockerImage(enum.Enum):
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_JAX_STABLE = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_stable:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/maxtext_gpu_jax_stable:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_JAX_NIGHTLY = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_gpu_jax_nightly:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/maxtext_gpu_jax_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   CLOUD_HYBRIDSIM_NIGHTLY = (
