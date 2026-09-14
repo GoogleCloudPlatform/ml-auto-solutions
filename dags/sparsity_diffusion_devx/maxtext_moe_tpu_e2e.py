@@ -72,6 +72,8 @@ with models.DAG(
           ),
           "time_out_in_min": 180,
           "owner": test_owner.SNEHAL_V,
+          "use_gcluster": True,
+          "priority": "medium",
       },
       "deepseek32-671b": {
           "script_name": "tpu/deepseek/v3.2-671b/2_test_deepseek",
@@ -80,6 +82,8 @@ with models.DAG(
           ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
+          "use_gcluster": True,
+          "priority": "medium",
       },
       "deepseek3-671b": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek",
@@ -88,6 +92,8 @@ with models.DAG(
           ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
+          "use_gcluster": True,
+          "priority": "medium",
       },
       "deepseek3-671b-mtp": {
           "script_name": "tpu/deepseek/v3-671b/2_test_deepseek_mtp",
@@ -96,18 +102,26 @@ with models.DAG(
           ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
+          "use_gcluster": True,
+          "priority": "medium",
       },
       "deepseek2-16b": {
           "script_name": "tpu/deepseek/v2-16b/test_deepseek",
-          "cluster": GkeClusters.TPU_V5P_8_CLUSTER_V2,
+          "cluster": GkeClusters.TPU_V5P_8_CLUSTER_V2.override(
+              queue="multislice-queue",
+          ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
+          "use_gcluster": True,
       },
       "gpt-oss-20b": {
           "script_name": "tpu/gpt_oss/20b/test_gpt_oss",
-          "cluster": GkeClusters.TPU_V5P_8_CLUSTER_V2,
+          "cluster": GkeClusters.TPU_V5P_8_CLUSTER_V2.override(
+              queue="multislice-queue",
+          ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
+          "use_gcluster": True,
       },
   }
 
@@ -119,6 +133,8 @@ with models.DAG(
           f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
           f"bash tests/end_to_end/{script_name}.sh"
       )
+      use_gcluster = test_scripts_details.get("use_gcluster", False)
+      priority = test_scripts_details.get("priority", "medium")
       training_tpu = gke_config.get_gke_config(
           time_out_in_min=test_scripts_details["time_out_in_min"],
           test_name=f"{test_name_prefix}_{image}_{model}",
@@ -126,6 +142,8 @@ with models.DAG(
           docker_image=image_config,
           test_owner=test_scripts_details["owner"],
           cluster=test_scripts_details["cluster"],
+          use_gcluster=use_gcluster,
+          priority=priority,
       ).run_with_quarantine(quarantine_task_group)
       unchained_tests.append(training_tpu)
 
