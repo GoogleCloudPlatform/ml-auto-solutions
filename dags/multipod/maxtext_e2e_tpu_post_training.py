@@ -36,6 +36,7 @@ from dags.common import test_owner
 from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
+from dags.multipod.util.validation_util import validate_semantic_inference_output, generate_timestamp
 
 # HF token retrieved from Airflow Variables for secure credential management
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
@@ -248,6 +249,10 @@ with models.DAG(
               "core_count", test_config.get("core_count", 8)
           )
           mode_short_name = "multim" if mode == "multimodal_sft" else mode
+          start_time = generate_timestamp.override(
+              task_id="generate_start_time"
+          )()
+
           training_task = gke_config.get_gke_config(
               time_out_in_min=60,
               num_slices=1,
@@ -263,6 +268,8 @@ with models.DAG(
               max_restart=3,
               use_gcluster=True,
           ).run(skip_post_process=True)
+
+          end_time = generate_timestamp.override(task_id="generate_end_time")()
 
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
           to_hf_script = test_config["to_huggingface"]
@@ -284,8 +291,24 @@ with models.DAG(
               mounts="/dev/shm;/mnt/shm;rw",
           ).run(skip_post_process=True)
 
+          validation_task = validate_semantic_inference_output.override(
+              task_id="validate_inference"
+          )(
+              project_id=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.project,
+              location=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.zone,
+              cluster_name=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.name,
+              namespace=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.namespace,
+              pod_pattern=f"{mode_short_name}-v5p-.*",
+              container_name="workload-container",
+              start_time=start_time,
+              end_time=end_time,
+          )
+
           chain(
               wait_for_conversion,
+              start_time,
               training_task,
+              end_time,
+              validation_task,
               convert_to_huggingface_task,
           )
