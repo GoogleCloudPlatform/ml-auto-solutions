@@ -20,6 +20,7 @@ from unittest import mock
 from airflow.exceptions import AirflowFailException
 from dags.common.vm_resource import GpuVersion
 import kubernetes
+import urllib3
 from xlml.utils import gcluster, gke
 
 
@@ -568,7 +569,11 @@ class GclusterTest(unittest.TestCase):
     mock_list_pods.return_value = mock_pod_list
 
     mock_core_api = mock.MagicMock()
-    mock_core_api.read_namespaced_pod_log.return_value = "Error traceback"
+    # `_preload_content=False` returns a raw urllib3 response that yields
+    # `bytes` lines.
+    mock_log_response = mock.MagicMock()
+    mock_log_response.__iter__.return_value = iter([b"Error traceback\n"])
+    mock_core_api.read_namespaced_pod_log.return_value = mock_log_response
     mock_get_client.return_value = mock_core_api
 
     with self.assertRaises(AirflowFailException):
@@ -921,6 +926,94 @@ class GclusterTest(unittest.TestCase):
         label_selector="jobset.sigs.k8s.io/jobset-name=test-workload",
         namespace="test-ns",
     )
+
+  def test_gke_print_pod_logs_all_containers(self):
+    """Streams and decodes logs of every container of the pod."""
+    mock_core_api = mock.MagicMock()
+    responses = []
+    for _ in range(2):
+      response = mock.MagicMock()
+      response.__iter__.return_value = iter([b"line 1\n", b"line 2\n"])
+      responses.append(response)
+    mock_core_api.read_namespaced_pod_log.side_effect = responses
+
+    mock_pod = mock.MagicMock()
+    mock_pod.metadata.name = "test-workload-0"
+    mock_pod.metadata.namespace = "test-ns"
+    main_container = mock.MagicMock()
+    main_container.name = "main"
+    sidecar_container = mock.MagicMock()
+    sidecar_container.name = "sidecar"
+    mock_pod.spec.containers = [main_container, sidecar_container]
+
+    with self.assertLogs(level="INFO") as logs:
+      gke.print_pod_logs(mock_core_api, mock_pod)
+
+    self.assertEqual(mock_core_api.read_namespaced_pod_log.call_count, 2)
+    mock_core_api.read_namespaced_pod_log.assert_any_call(
+        name="test-workload-0",
+        namespace="test-ns",
+        container="main",
+        _preload_content=False,
+    )
+    mock_core_api.read_namespaced_pod_log.assert_any_call(
+        name="test-workload-0",
+        namespace="test-ns",
+        container="sidecar",
+        _preload_content=False,
+    )
+    for response in responses:
+      response.release_conn.assert_called_once()
+    self.assertIn("line 1", "\n".join(logs.output))
+
+  def test_gke_print_pod_logs_without_container_spec(self):
+    """Skips log fetching when the pod has no container spec."""
+    mock_core_api = mock.MagicMock()
+    mock_pod = mock.MagicMock()
+    mock_pod.metadata.name = "test-workload-0"
+    mock_pod.spec = None
+
+    with self.assertLogs(level="WARNING"):
+      gke.print_pod_logs(mock_core_api, mock_pod)
+
+    mock_core_api.read_namespaced_pod_log.assert_not_called()
+
+  def test_gke_print_container_logs_api_exception(self):
+    """Logs a warning instead of raising when the log API call fails."""
+    mock_core_api = mock.MagicMock()
+    mock_core_api.read_namespaced_pod_log.side_effect = (
+        kubernetes.client.exceptions.ApiException(status=404)
+    )
+
+    with self.assertLogs(level="WARNING") as logs:
+      gke.print_container_logs(
+          mock_core_api,
+          namespace="test-ns",
+          pod_name="test-workload-0",
+          container_name="main",
+      )
+
+    self.assertIn("Could not retrieve logs", "\n".join(logs.output))
+
+  def test_gke_print_container_logs_interrupted_stream(self):
+    """Releases the connection when the log stream breaks midway."""
+    mock_core_api = mock.MagicMock()
+    mock_response = mock.MagicMock()
+    mock_response.__iter__.side_effect = urllib3.exceptions.ProtocolError(
+        "connection broken"
+    )
+    mock_core_api.read_namespaced_pod_log.return_value = mock_response
+
+    with self.assertLogs(level="WARNING") as logs:
+      gke.print_container_logs(
+          mock_core_api,
+          namespace="test-ns",
+          pod_name="test-workload-0",
+          container_name="main",
+      )
+
+    self.assertIn("was interrupted", "\n".join(logs.output))
+    mock_response.release_conn.assert_called_once()
 
 
 if __name__ == "__main__":

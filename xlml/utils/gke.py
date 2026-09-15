@@ -15,6 +15,7 @@ import google.auth
 import google.auth.transport.requests
 from google.cloud import container_v1
 import kubernetes
+import urllib3
 
 from xlml.apis import gcp_config, test_config
 from xlml.utils import composer
@@ -156,38 +157,74 @@ def get_workload_jobset(
     return None
 
 
-def print_pod_logs(
-    core_api: kubernetes.client.CoreV1Api, pod: kubernetes.client.V1Pod
+def print_container_logs(
+    core_api: kubernetes.client.CoreV1Api,
+    namespace: str,
+    pod_name: str,
+    container_name: str,
 ) -> None:
-  """Prints logs for all containers in a pod."""
+  """Prints the full logs of a single container."""
   try:
-    for container in pod.spec.containers:
-      try:
-        response = core_api.read_namespaced_pod_log(
-            name=pod.metadata.name,
-            namespace=pod.metadata.namespace,
-            container=container.name,
-            tail_lines=10000,
-            _preload_content=False,
-        )
-        logging.info(
-            "--- Logs for pod %s, container %s ---",
-            pod.metadata.name,
-            container.name,
-        )
-        for line in response:
-          if isinstance(line, bytes):
-            line = line.decode("utf-8", "replace")
-          logging.info(line.rstrip("\n"))
-      except Exception as e:
-        logging.info(
-            "Failed to fetch logs for %s:%s: %s",
-            pod.metadata.name,
-            container.name,
-            e,
-        )
-  except Exception as e:
-    logging.info("Failed to process pod containers: %s", e)
+    # `tail_lines` is intentionally omitted so that the whole log is returned.
+    # `_preload_content=False` streams the logs instead of buffering the whole
+    # response in memory. It returns the raw `urllib3.HTTPResponse`, which
+    # yields one `bytes` line per iteration, hence the decoding below.
+    response = core_api.read_namespaced_pod_log(
+        name=pod_name,
+        namespace=namespace,
+        container=container_name,
+        _preload_content=False,
+    )
+  except (
+      kubernetes.client.exceptions.ApiException,
+      # The Kubernetes client only converts SSL errors into `ApiException`, so
+      # connection errors surface as raw urllib3 errors.
+      urllib3.exceptions.HTTPError,
+  ) as e:
+    logging.warning(
+        "Could not retrieve logs for pod %s, container %s: %s",
+        pod_name,
+        container_name,
+        e,
+    )
+    return
+
+  logging.info(
+      "--- Logs for pod %s, container %s ---", pod_name, container_name
+  )
+  try:
+    for line in response:
+      logging.info(line.decode("utf-8", "replace").rstrip("\n"))
+  except urllib3.exceptions.HTTPError as e:
+    logging.warning(
+        "Log stream of pod %s, container %s was interrupted: %s",
+        pod_name,
+        container_name,
+        e,
+    )
+  finally:
+    # The connection is not returned to the pool automatically when the
+    # response is streamed.
+    response.release_conn()
+
+
+def print_pod_logs(
+    core_api: kubernetes.client.CoreV1Api,
+    pod: kubernetes.client.V1Pod,
+) -> None:
+  """Prints the full logs of all containers in a pod."""
+  containers = pod.spec.containers if pod.spec else None
+  if not containers:
+    logging.warning("No containers found for pod %s.", pod.metadata.name)
+    return
+
+  for container in containers:
+    print_container_logs(
+        core_api,
+        namespace=pod.metadata.namespace,
+        pod_name=pod.metadata.name,
+        container_name=container.name,
+    )
 
 
 def log_workload_pod_statuses(
@@ -360,25 +397,14 @@ def wait_for_workload_completion(
             and container_status.state.terminated
             and container_status.state.terminated.exit_code != 0
         ):
-          try:
-            container_name = (
-                container_status.name or pod.spec.containers[0].name
-            )
-            response = core_api.read_namespaced_pod_log(
-                name=pod.metadata.name,
-                namespace=namespace,
-                container=container_name,
-                tail_lines=10000,
-                _preload_content=False,
-            )
-            for line in response:
-              if isinstance(line, bytes):
-                line = line.decode("utf-8", "replace")
-              logging.info(line.rstrip("\n"))
-          except kubernetes.client.exceptions.ApiException as e:
-            logging.warning(
-                "Could not retrieve pod logs for %s: %s", pod.metadata.name, e
-            )
+          print_container_logs(
+              core_api,
+              namespace=namespace,
+              pod_name=pod.metadata.name,
+              container_name=(
+                  container_status.name or pod.spec.containers[0].name
+              ),
+          )
           url = LOGGING_URL_FORMAT.format(
               project=project_id,
               region=region,
