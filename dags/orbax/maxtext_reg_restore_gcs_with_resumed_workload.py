@@ -128,6 +128,7 @@ with models.DAG(
             test_owner=test_owner.SHARON_Y,
             xpk_branch=MAIN_BRANCH,
             max_restart=15,
+            priority="medium",
         ).run(skip_post_process=True)
 
         test_config.steps = 100
@@ -154,6 +155,7 @@ with models.DAG(
             test_owner=test_owner.SHARON_Y,
             xpk_branch=MAIN_BRANCH,
             max_restart=15,
+            priority="medium",
         ).run(skip_post_process=True)
 
         end_time = validation_util.generate_timestamp.override(

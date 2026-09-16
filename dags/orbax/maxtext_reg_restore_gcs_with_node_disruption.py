@@ -142,6 +142,7 @@ with models.DAG(
             check_file_exists=True,
             xpk_branch=MAIN_BRANCH,
             max_restart=15,
+            priority="medium",
         ).run(
             gcs_location=gcs_location,
             skip_post_process=True,

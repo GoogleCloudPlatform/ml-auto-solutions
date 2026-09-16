@@ -158,6 +158,7 @@ with models.DAG(
             test_owner=test_owner.DEPP_L,
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
+            priority="medium",
         ).run(skip_post_process=True)
 
         wait_delete_first_cpc = checkpoint_util.wait_for_cpc_deletion.override(
@@ -187,6 +188,7 @@ with models.DAG(
             test_owner=test_owner.DEPP_L,
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
+            priority="medium",
         ).run(skip_post_process=True)
 
         end_time = validation_util.generate_timestamp.override(
