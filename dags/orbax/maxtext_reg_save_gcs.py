@@ -117,6 +117,7 @@ with models.DAG(
             docker_image=image.value,
             test_owner=test_owner.JACKY_F,
             xpk_branch=MAIN_BRANCH,
+            priority="medium",
         ).run(skip_post_process=True)
 
         steps_to_validate = test_config.generate_step_to_validate(

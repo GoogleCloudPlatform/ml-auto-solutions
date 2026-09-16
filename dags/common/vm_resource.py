@@ -267,10 +267,10 @@ class GkeClusters:
       zone=Zone.EUROPE_WEST4_B.value,
   )
   TPU_V5P_128_CLUSTER = GkeClusterConfig(
-      name="v5p-128-bodaborg-europe-west4-b",
+      name="bodaborg-v5p-nap",
       device_version=TpuVersion.V5P,
       core_count=128,
-      project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
+      project=Project.CLOUD_TPU_SHARED_CAPACITY.value,
       zone=Zone.EUROPE_WEST4_B.value,
   )
   TPU_V5P_BODABORG_NAP_CLUSTER = GkeClusterConfig(

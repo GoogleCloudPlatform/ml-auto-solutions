@@ -130,6 +130,7 @@ with models.DAG(
             ramdisk_directory=test_config_util.DEFAULT_RAM_DISK,
             mtc_enabled=True,
             max_restart=15,
+            priority="medium",
         ).run(skip_post_process=True)
 
         end_time = validation_util.generate_timestamp.override(

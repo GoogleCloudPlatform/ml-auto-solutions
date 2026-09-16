@@ -98,6 +98,7 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
         cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
         test_owner=test_config["owner"],
+        priority="medium",
     ).run_with_quarantine(quarantine_task_group)
     nightly_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
@@ -106,6 +107,7 @@ with models.DAG(
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         cluster=GkeClusters.TPU_V5P_8_CLUSTER,
         test_owner=test_config["owner"],
+        priority="medium",
     ).run_with_quarantine(quarantine_task_group)
     chain(stable_tpu, nightly_tpu)
 
@@ -175,6 +177,7 @@ with models.DAG(
           docker_image=img_val,
           test_owner=test_owner.ANISHA_M,
           cluster=scripts_details[1]["cluster"],
+          priority="medium",
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu
 
