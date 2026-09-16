@@ -77,6 +77,9 @@ with models.DAG(
       "gpt-oss-20b": {
           "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
       },
+      "qwen3_5-35b": {
+          "to_maxtext": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_mt.sh",
+      },
   }
   # pylint: enable=line-too-long
 

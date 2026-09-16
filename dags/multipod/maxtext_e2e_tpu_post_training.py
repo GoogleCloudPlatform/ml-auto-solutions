@@ -192,6 +192,17 @@ with models.DAG(
               },
           },
       },
+      "qwen3_5-35b": {
+          "core_count": 64,
+          "to_huggingface": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_hf.sh",
+          "post_training": {
+              "rl": {
+                  "command": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_rl.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3.5-35b-a3b/rl/{run_name}/checkpoints/actor/2/model_params",
+                  "to_hf_flags": "true",
+              },
+          },
+      },
   }
   # pylint: enable=line-too-long
 
