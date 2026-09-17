@@ -35,6 +35,20 @@ from xlml.utils.github import (
     validate_git_trigger,
 )
 
+# Images for the candidate build under test. Unlike the daily builds in
+# `DockerImage`, these are published by the MaxText build workflow and tagged
+# with the GitHub run ID, so the build mode and tag are only known at run time.
+PRE_TRAINING_DOCKER_IMAGE = (
+    "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
+    "maxtext_jax_"
+    "{{ params.build_mode }}:{{ params.github_run_id }}"
+)
+POST_TRAINING_DOCKER_IMAGE = (
+    "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
+    "maxtext_post_training_"
+    "{{ params.build_mode }}:{{ params.github_run_id }}"
+)
+
 with models.DAG(
     dag_id="maxtext_e2e_tests",
     schedule=None,
@@ -87,10 +101,7 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__checkpoint_conversion",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": (
-              "gcr.io/tpu-prod-env-multipod/maxtext_post_training_"
-              "{{ params.build_mode }}:{{ params.github_run_id }}"
-          ),
+          "docker_image": POST_TRAINING_DOCKER_IMAGE,
           "run_name": shared_run_name,
       },
       wait_for_completion=False,
@@ -102,10 +113,7 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__pre_training",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": (
-              "gcr.io/tpu-prod-env-multipod/maxtext_jax_"
-              "{{ params.build_mode }}:{{ params.github_run_id }}"
-          ),
+          "docker_image": PRE_TRAINING_DOCKER_IMAGE,
           "run_name": shared_run_name,
       },
       wait_for_completion=True,
@@ -118,10 +126,7 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__post_training",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": (
-              "gcr.io/tpu-prod-env-multipod/maxtext_post_training_"
-              "{{ params.build_mode }}:{{ params.github_run_id }}"
-          ),
+          "docker_image": POST_TRAINING_DOCKER_IMAGE,
           "run_name": shared_run_name,
       },
       wait_for_completion=True,
