@@ -412,10 +412,12 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-one-vm/microbenchmarks_runner:latest"
   )
   MAXTEXT_POST_TRAINING_STABLE = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_post_training_stable:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
+      "maxtext_post_training_stable:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_POST_TRAINING_NIGHTLY = (
-      "gcr.io/tpu-prod-env-multipod/maxtext_post_training_nightly:"
+      "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
+      "maxtext_post_training_nightly:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
