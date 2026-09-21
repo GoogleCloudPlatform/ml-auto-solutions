@@ -26,6 +26,7 @@ from dags.common.scheduling_helper.scheduling_helper import (
     SchedulingHelper,
     get_dag_timeout,
 )
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 from dags.tpu_observability.configs.common import (
     GCS_CONFIG_PATH,
     GCS_JOBSET_CONFIG_PATH,
@@ -34,14 +35,6 @@ from dags.tpu_observability.configs.common import (
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.jobset_util import Workload
-from dags.tpu_observability.configs.common import (
-    MachineConfigMap,
-    GCS_CONFIG_PATH,
-    GCS_JOBSET_CONFIG_PATH,
-)
-from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
-from dags.common.task_group_with_timeout import TaskGroupWithTimeout
-
 
 DAG_ID = "jobset_rollback_ttr"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
@@ -189,15 +182,11 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             node_pool=cluster_info,
             jobset_config=jobset_config,
             jobset_name=jobset_name,
-        ).as_teardown(
-            setups=startup.jobset_start_time
         )
 
         cleanup_node_pool = node_pool.delete.override(
             task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-        )(node_pool=cluster_info).as_teardown(
-            setups=create_node_pool,
-        )
+        )(node_pool=cluster_info)
 
         chain(
             cleanup_workload,
