@@ -35,6 +35,13 @@ whitelisted_dags:
 - airflow_to_bq_export
 - axlearn_reg_save
 - clean_up
+# TODO(b/563221051): remove this entry together with
+# dags/infra/delete_stranded_pathways_pods.py.
+# The DAG works around a cluster garbage collector that is too slow to delete
+# a finished Pathways workload's worker pods, leaving them holding v5p chips.
+# It is whitelisted rather than registered because it consumes no cluster
+# capacity and has to run alongside the training DAGs.
+- delete_stranded_pathways_pods
 - framework_microbenchmark
 - gcluster_example_dag
 - gke_example_dag
