@@ -455,8 +455,6 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
           node_pool=cluster_info,
           jobset_config=jobset_config,
           jobset_name=jobset_name,
-      ).as_teardown(
-          setups=startup.jobset_start_time
       )
 
       # Keyword arguments are generated dynamically at runtime (pylint does not
@@ -468,17 +466,13 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
             task_id="cleanup_node_pool_1",
             trigger_rule=TriggerRule.ALL_DONE,
             retries=2,
-        )(node_pool=cluster_info).as_teardown(
-            setups=create_node_pool,
-        )
+        )(node_pool=cluster_info)
 
         cleanup_second_node_pool = node_pool.delete.override(
             task_id="cleanup_node_pool_2",
             trigger_rule=TriggerRule.ALL_DONE,
             retries=2,
-        )(node_pool=cluster_info_2).as_teardown(
-            setups=create_node_pool,
-        )
+        )(node_pool=cluster_info_2)
 
       chain(
           verify_table_amount_task,
