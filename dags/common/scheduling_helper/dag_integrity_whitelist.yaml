@@ -169,6 +169,7 @@ whitelisted_dags:
 - pytorchxla-r2-8-tpu
 - pytorchxla2-torchbench-gpu
 - pytorchxla2-torchbench-tpu
+- reclaim_stranded_pathways_pods
 - solutionsteam_vllm_benchmark_gpu
 - solutionsteam_vllm_benchmark_tpu
 - tensorrt_llm_inference

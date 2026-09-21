@@ -146,7 +146,7 @@ def get_workload_jobset(
   """Get the Kubernetes JobSet CRD object for a given workload."""
   try:
     return custom_api.get_namespaced_custom_object(
-        group="jobset.sigs.k8s.io",
+        group="jobset.x-k8s.io",
         version="v1alpha2",
         namespace=namespace,
         plural="jobsets",
@@ -249,7 +249,8 @@ def log_workload_pod_statuses(
           )
         case state if state.terminated:
           t = state.terminated
-          logging.error(
+          log = logging.info if t.exit_code == 0 else logging.error
+          log(
               f"  Container '{container_status.name}' TERMINATED. "
               f"Reason: {t.reason}. Exit Code: {t.exit_code}"
           )

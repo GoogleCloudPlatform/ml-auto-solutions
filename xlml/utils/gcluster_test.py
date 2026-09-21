@@ -842,6 +842,56 @@ class GclusterTest(unittest.TestCase):
     mock_get_custom.assert_called_once()
     self.assertFalse(completed)
 
+  def test_gke_get_workload_jobset_uses_crd_api_group(self):
+    """Reads the CRD group `jobset.x-k8s.io`, not the label prefix."""
+    mock_custom_api = mock.MagicMock()
+
+    gke.get_workload_jobset(mock_custom_api, "test-workload")
+
+    mock_custom_api.get_namespaced_custom_object.assert_called_once_with(
+        group="jobset.x-k8s.io",
+        version="v1alpha2",
+        namespace="default",
+        plural="jobsets",
+        name="test-workload",
+    )
+
+  def test_gke_log_workload_pod_statuses_clean_exit_is_not_an_error(self):
+    """A container that exited 0 is logged at INFO, a failure at ERROR."""
+
+    def container(name, exit_code):
+      status = mock.MagicMock()
+      status.name = name
+      status.state.waiting = None
+      status.state.terminated.reason = "Completed"
+      status.state.terminated.exit_code = exit_code
+      return status
+
+    pod = mock.MagicMock()
+    pod.metadata.name = "test-workload-pathways-head-0-0-abcde"
+    pod.status.phase = "Succeeded"
+    pod.status.container_statuses = [
+        container("workload-container", 0),
+        container("pathways-worker", 1),
+    ]
+    pods = mock.MagicMock(items=[pod])
+
+    with self.assertLogs(level="INFO") as logs:
+      gke.log_workload_pod_statuses("test-workload", pods)
+
+    records = {
+        r.levelname
+        for r in logs.records
+        if "workload-container' TERMINATED" in r.getMessage()
+    }
+    self.assertEqual(records, {"INFO"})
+    records = {
+        r.levelname
+        for r in logs.records
+        if "pathways-worker' TERMINATED" in r.getMessage()
+    }
+    self.assertEqual(records, {"ERROR"})
+
   @mock.patch("xlml.utils.gke.get_authenticated_client")
   @mock.patch("kubernetes.client.CustomObjectsApi")
   @mock.patch("kubernetes.client.BatchV1Api")
