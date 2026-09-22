@@ -93,6 +93,7 @@ def check_goodput_logname(
 def check_workload_goodput(
     workload_id: str,
     project_id: str,
+    using_pathways: bool = True,
 ) -> bool:
   """
   Query and log Goodput/Badput metrics for the MaxText XPK workload.
@@ -102,7 +103,7 @@ def check_workload_goodput(
   goodput_calculator = goodput.GoodputCalculator(
       job_name=workload_id,
       logger_name=goodput_logger_name,
-      using_pathways=True,
+      using_pathways=using_pathways,
   )
   (
       current_goodput,
