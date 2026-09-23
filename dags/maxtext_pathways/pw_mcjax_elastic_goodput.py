@@ -26,13 +26,13 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
+from dags.common.goodput_utils import check_workload_goodput
 from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper
 from dags.maxtext_pathways.configs import parameters as ui_params
 from dags.maxtext_pathways.configs import recipe_config as recipe_cfg
 from dags.maxtext_pathways.configs.goodput_utils import (
     GOODPUT_LOG_LIST,
     check_goodput_logname,
-    check_workload_goodput,
     phase1_validate,
     phase2_validate,
     phase3_validate,
@@ -414,6 +414,7 @@ def create_elastic_goodput_dag(
     )(
         workload_id=calculated_params["workload_id"],
         project_id=fetched_params["project"],
+        using_pathways=True,
     )
 
     clean_up_recipe = xpk.clean_up_workload.override(

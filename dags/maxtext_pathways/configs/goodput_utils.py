@@ -18,10 +18,9 @@
 
 # TODO(cienet): import grouping
 
-import os
 import ast
 from absl import logging
-from ml_goodput_measurement import goodput, goodput_elastic
+from ml_goodput_measurement import goodput_elastic
 
 from airflow.decorators import task
 from airflow.sensors.base import PokeReturnValue
@@ -87,43 +86,6 @@ def check_goodput_logname(
   logging.info(f"Full Logs Text:\n{full_logs_text}")
 
   return True
-
-
-@task
-def check_workload_goodput(
-    workload_id: str,
-    project_id: str,
-) -> bool:
-  """
-  Query and log Goodput/Badput metrics for the MaxText XPK workload.
-  """
-  goodput_logger_name = f"goodput_{workload_id}"
-  os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-  goodput_calculator = goodput.GoodputCalculator(
-      job_name=workload_id,
-      logger_name=goodput_logger_name,
-      using_pathways=True,
-  )
-  (
-      current_goodput,
-      badput_breakdown,
-      last_step,
-  ) = goodput_calculator.get_job_goodput(include_badput_breakdown=True)
-
-  logging.info(f"Last step recorded: {last_step}")
-  logging.info(f"Goodput (%): {current_goodput:.2f}%")
-  logging.info("\n--- Badput Breakdown ---")
-
-  for badput_type, percentage in badput_breakdown.items():
-    if badput_type == goodput.BadputType.CUSTOM_BADPUT_EVENTS:
-      logging.info(f"Badput due to {badput_type}:")
-      custom_events = percentage
-      if isinstance(custom_events, dict):
-        for event_name, event_percentage in custom_events.items():
-          logging.info(f"  - {event_name}: {event_percentage:.2f}%")
-    else:
-      # Access the name attribute of the enum member
-      logging.info(f"Badput due to {badput_type.name}: {percentage:.2f}%")
 
 
 @task.sensor(poke_interval=30, timeout=3600, mode="poke")
