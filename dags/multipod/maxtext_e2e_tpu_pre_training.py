@@ -23,13 +23,16 @@ Executes end-to-end MaxText pre-training test workloads on Cloud TPU:
   to verify weight fidelity.
 """
 import datetime
+
 from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.models.param import Param
 from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.utils.session import provide_session
 from airflow.utils.task_group import TaskGroup
+
 from dags.common import test_owner
+from dags.common.goodput_utils import check_workload_goodput
 from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
@@ -136,6 +139,7 @@ with models.DAG(
       run_name = (
           "{{ params.run_name if params.run_name else 'pre-' ~ ts_nodash }}"
       )
+      goodput_job_name = f"{model}-pre-{run_name}"
 
       model_path = test_config["training"]["maxtext_ckpt_path"].format(
           run_name=run_name
@@ -151,24 +155,33 @@ with models.DAG(
       training_script = test_config["training"]["command"]
       training_cmd = (
           f"export HF_TOKEN={HF_TOKEN}",
+          "export M_ENABLE_GOODPUT_RECORDING=true",
+          f"export M_GOODPUT_JOB_NAME={goodput_job_name}",
           cleanup_cmd,
           f"{training_script} {run_name}",
       )
       training_core_count = test_config.get("core_count", 8)
+      training_cluster = GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+          core_count=training_core_count
+      )
       training_task = gke_config.get_gke_config(
           time_out_in_min=60,
           test_name="pre",
           run_model_cmds=training_cmd,
           docker_image="{{ params.docker_image }}",
-          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
-              core_count=training_core_count
-          ),
+          cluster=training_cluster,
           test_owner=test_owner.SURBHI_J,
           priority="medium",
           max_restart=3,
           restart_on_exit_codes=[137, 143],
           use_gcluster=True,
       ).run(skip_post_process=True)
+
+      check_goodput_task = check_workload_goodput(
+          workload_id=goodput_job_name,
+          project_id=training_cluster.project,
+          using_pathways=False,
+      )
 
       to_hf_flags = test_config.get("to_hf_flags", "")
       to_hf_script = test_config["to_huggingface"]
@@ -205,5 +218,5 @@ with models.DAG(
       chain(
           wait_for_conversion,
           training_task,
-          convert_to_huggingface_task,
+          [check_goodput_task, convert_to_huggingface_task],
       )
