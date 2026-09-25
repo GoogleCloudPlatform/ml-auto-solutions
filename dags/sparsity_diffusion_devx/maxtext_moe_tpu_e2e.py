@@ -129,9 +129,19 @@ with models.DAG(
   for model, test_scripts_details in test_models_tpu.items():
     for image, image_config in docker_image.items():
       script_name = test_scripts_details["script_name"]
+      if model == "gpt-oss-20b":
+        script_cmd = (
+            "sed -i"
+            " 's|gs://runner-maxtext-logs/${MODEL_NAME}|${BASE_OUTPUT_PATH}|g'"
+            " tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss*.sh && bash"
+            " tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh run &&"
+            f" bash tests/end_to_end/{script_name}.sh run"
+        )
+      else:
+        script_cmd = f"bash tests/end_to_end/{script_name}.sh"
       run_cmd = (
           f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
-          f"bash tests/end_to_end/{script_name}.sh"
+          f"{script_cmd}"
       )
       use_gcluster = test_scripts_details.get("use_gcluster", False)
       priority = test_scripts_details.get("priority", "medium")
