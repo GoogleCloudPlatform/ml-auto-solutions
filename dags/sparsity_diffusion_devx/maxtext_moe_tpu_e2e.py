@@ -31,8 +31,8 @@ from dags.common.vm_resource import DockerImage, GkeClusters
 from dags.multipod.configs import gke_config
 from xlml.utils import name_format
 
-# Run once a day at 3 am UTC (7 pm PST)
-SCHEDULED_TIME = "30 3 * * *" if composer_env.is_prod_env() else None
+# Run once a day at 11:30 am UTC (3:30 am PST)
+SCHEDULED_TIME = "30 11 * * *" if composer_env.is_prod_env() else None
 # Track access in b/536711415
 HF_TOKEN = safe_get_from_variable("HF_TOKEN_MOE", None)
 
@@ -53,6 +53,7 @@ with models.DAG(
     ],
     start_date=datetime.datetime(2024, 11, 14),
     catchup=False,
+    default_args={"retries": 3},
 ) as dag:
   test_name_prefix = "maxtext"
   quarantine_task_group = TaskGroup(
@@ -223,15 +224,16 @@ with models.DAG(
           docker_image=docker_image_config,
           test_owner=test_scripts_details_list[0]["owner"],
           cluster=test_scripts_details_list[1]["cluster"],
+          max_restart=3,
       ).run(gcs_location=shared_gcs_location)
       return conversion_cpu, training_tpu_task
 
-  tests = []
   for model, test_scripts_details in multicluster_test_models.items():
     gcs_subfolder = (
         f"{test_owner.Team.JAX_MODELS_AND_PERFORMANCE.value}/maxtext"
     )
     for image, image_config in docker_image.items():
+      tests = []
       test_group_id = "chained_tests" + "_" + model + "_" + image
       if QuarantineTests.is_quarantined(test_group_id):
         with quarantine_task_group:
@@ -255,6 +257,6 @@ with models.DAG(
       tests.append(mode_cpu)
       tests.append(mode_tpu)
 
-    # stable_cpu >> stable_tpu >> nightly_cpu >> nightly_tpu
-    for i in range(len(tests) - 1):
-      chain(tests[i], tests[i + 1])
+      # mode_cpu >> mode_tpu
+      for i in range(len(tests) - 1):
+        chain(tests[i], tests[i + 1])
