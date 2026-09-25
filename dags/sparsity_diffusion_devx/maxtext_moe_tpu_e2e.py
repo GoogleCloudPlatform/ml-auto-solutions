@@ -145,6 +145,7 @@ with models.DAG(
           cluster=test_scripts_details["cluster"],
           use_gcluster=use_gcluster,
           priority=priority,
+          max_restart=3,
       ).run_with_quarantine(quarantine_task_group)
       unchained_tests.append(training_tpu)
 
