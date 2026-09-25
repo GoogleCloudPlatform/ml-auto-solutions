@@ -107,21 +107,19 @@ with models.DAG(
       },
       "deepseek2-16b": {
           "script_name": "tpu/deepseek/v2-16b/test_deepseek",
-          "cluster": GkeClusters.TPU_V5P_8_CLUSTER_V2.override(
-              queue="multislice-queue",
-          ),
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
           "use_gcluster": True,
+          "priority": "medium",
       },
       "gpt-oss-20b": {
           "script_name": "tpu/gpt_oss/20b/test_gpt_oss",
-          "cluster": GkeClusters.TPU_V5P_8_CLUSTER_V2.override(
-              queue="multislice-queue",
-          ),
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
           "use_gcluster": True,
+          "priority": "medium",
       },
   }
 
