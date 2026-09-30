@@ -20,7 +20,6 @@ from absl import logging
 from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
@@ -305,14 +304,12 @@ with models.DAG(
       cluster_name=fetched_params["cluster_name"],
   )
 
-  clean_up_recipe = xpk.clean_up_workload.override(
-      task_id="clean_up_recipe", trigger_rule=TriggerRule.ALL_DONE
-  )(
+  clean_up_recipe = xpk.clean_up_workload.override(task_id="clean_up_recipe")(
       workload_id=calculated_params["workload_id"],
       project_id=fetched_params["project"],
       zone=fetched_params["zone"],
       cluster_name=fetched_params["cluster_name"],
-  )
+  ).as_teardown()
 
   chain(
       fetched_params,
@@ -439,14 +436,12 @@ with models.DAG(
       cluster_name=fetched_params["cluster_name"],
   )
 
-  clean_up_recipe = xpk.clean_up_workload.override(
-      task_id="clean_up_recipe", trigger_rule=TriggerRule.ALL_DONE
-  )(
+  clean_up_recipe = xpk.clean_up_workload.override(task_id="clean_up_recipe")(
       workload_id=calculated_params["workload_id"],
       project_id=fetched_params["project"],
       zone=fetched_params["zone"],
       cluster_name=fetched_params["cluster_name"],
-  )
+  ).as_teardown()
 
   chain(
       fetched_params,

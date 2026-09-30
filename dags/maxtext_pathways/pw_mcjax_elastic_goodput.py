@@ -22,7 +22,6 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.taskmixin import DAGNode
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
 from dags.common import test_owner
@@ -383,7 +382,6 @@ def create_elastic_goodput_dag(
     wait_for_workload_complete = gke.wait_for_workload_completion.override(
         task_id="wait_for_workload_complete",
         timeout=3600,
-        trigger_rule=TriggerRule.ALL_DONE,
     )(
         workload_id=calculated_params["workload_id"],
         project_id=fetched_params["project"],
@@ -417,14 +415,12 @@ def create_elastic_goodput_dag(
         using_pathways=True,
     )
 
-    clean_up_recipe = xpk.clean_up_workload.override(
-        task_id="clean_up_recipe", trigger_rule=TriggerRule.ALL_DONE
-    )(
+    clean_up_recipe = xpk.clean_up_workload.override(task_id="clean_up_recipe")(
         workload_id=calculated_params["workload_id"],
         project_id=fetched_params["project"],
         zone=fetched_params["zone"],
         cluster_name=fetched_params["cluster_name"],
-    )
+    ).as_teardown()
 
     chain(
         fetched_params,
