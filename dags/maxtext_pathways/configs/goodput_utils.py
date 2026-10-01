@@ -16,23 +16,21 @@
 
 # TODO(cienet): circle back for the whole file
 
-# TODO(cienet): import grouping
-
 import ast
-from absl import logging
-from ml_goodput_measurement import goodput_elastic
 
+from absl import logging
 from airflow.decorators import task
-from airflow.sensors.base import PokeReturnValue
 from airflow.models.taskmixin import DAGNode
-from airflow.utils.task_group import TaskGroup
 from airflow.models.baseoperator import chain
+from airflow.sensors.base import PokeReturnValue
+from airflow.utils.task_group import TaskGroup
 from google.cloud import logging as gcp_logging
 from google.cloud.monitoring_v3 import types
+from ml_goodput_measurement import goodput_elastic
+
 # TODO(cienet): promote them as shared utility
-from dags.tpu_observability.utils.time_util import TimeUtil
 from dags.tpu_observability.utils.gcp_util import list_time_series
-from google.cloud import logging as gcp_logging
+from dags.tpu_observability.utils.time_util import TimeUtil
 
 GOODPUT_LOG_LIST = [
     "Cumulative goodput monitoring process started for job: {workload_id}",
