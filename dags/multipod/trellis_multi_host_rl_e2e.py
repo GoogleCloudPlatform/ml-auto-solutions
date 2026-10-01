@@ -52,6 +52,9 @@ DEFAULT_CLUSTER_ZONE = "europe-west4"
 DEFAULT_CLUSTER_NAME = "bodaborg-v5p-nap"
 DEFAULT_K8S_NAMESPACE = "default"
 DEFAULT_GCS_SCRATCH = "gs://cloud-tpu-tunix-eu"
+DEFAULT_MAXTEXT_CKPT = (
+    "gs://niting-storage-europe-west4/qwen3.5-35b-a3b/scanned/0/items"
+)
 DEFAULT_IMAGE_REPO = (
     "europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/trellis/trellis-base"
 )
@@ -80,6 +83,7 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
   )
   gcs_run_dir = f"{gcs_scratch}/trellis_ci_runs/{job_prefix}"
   trajectory_log_dir = f"{gcs_run_dir}/trajectories"
+  maxtext_output_dir = f"{gcs_run_dir}/maxtext"
 
   return {
       "dag_run_id": dag_run_id,
@@ -103,6 +107,12 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
       "rollout_replicas": int(_get("rollout_replicas", 2)),
       "rollout_tpu_slice": str(_get("rollout_tpu_slice", "tpuv5:2x2x2")),
       "trainer_tpu_slice": str(_get("trainer_tpu_slice", "tpuv5:2x2x2")),
+      "maxtext_ckpt": str(
+          _get("maxtext_ckpt", DEFAULT_MAXTEXT_CKPT) or DEFAULT_MAXTEXT_CKPT
+      ),
+      "maxtext_output_dir": str(
+          _get("maxtext_output_dir", maxtext_output_dir) or maxtext_output_dir
+      ),
       "verify_weights": bool(_get("verify_weights", True)),
       "wait_timeout_secs": int(_get("wait_timeout_secs", 5400)),
       "cluster_project": str(_get("cluster_project", DEFAULT_CLUSTER_PROJECT)),
@@ -168,6 +178,8 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
       "GCS_SCRATCH_LOCATION": cfg["gcs_scratch_location"],
       "GCS_RUN_DIR": cfg["gcs_run_dir"],
       "TRAJECTORY_LOG_DIR": cfg["trajectory_log_dir"],
+      "MAXTEXT_CKPT": cfg["maxtext_ckpt"],
+      "MAXTEXT_OUTPUT_DIR": cfg["maxtext_output_dir"],
       "LOG_OUTPUT_DIR": log_dir,
       "MAX_STEPS": str(cfg["max_steps"]),
       "ROLLOUT_REPLICAS": str(cfg["rollout_replicas"]),
@@ -360,6 +372,13 @@ with models.DAG(
             default="tpuv5:2x2x2",
             type="string",
             description="TPU slice topology for Pathways MaxText trainer",
+        ),
+        "maxtext_ckpt": Param(
+            default=DEFAULT_MAXTEXT_CKPT,
+            type="string",
+            description=(
+                "GCS URI of pre-converted MaxText scanned Orbax checkpoint"
+            ),
         ),
         "verify_weights": Param(
             default=True,
