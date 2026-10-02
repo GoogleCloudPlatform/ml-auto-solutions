@@ -38,13 +38,13 @@ from airflow.sensors.base import PokeReturnValue
 from google.cloud.monitoring_v3 import types
 from websocket import WebSocketConnectionClosedException
 
-from dags.tpu_observability.utils import subprocess_util as subprocess
 from dags.tpu_observability.utils.gcp_util import list_time_series
 from dags.tpu_observability.utils.node_pool_util import NODE_POOL_SELECTOR_KEY
 from dags.tpu_observability.utils.node_pool_util import Info as node_pool_info
 from dags.tpu_observability.utils.time_util import TimeUtil
 from xlml.apis import gcs
 from xlml.utils import composer, gke
+from xlml.utils import subprocess_utils as subprocess
 
 
 @task
