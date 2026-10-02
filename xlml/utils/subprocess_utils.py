@@ -26,8 +26,6 @@ Therefore, we are using Python's native `subprocess.run()` instead, which allows
 us to capture the full STDOUT and STDERR streams.
 """
 
-# TODO(cienet): deprecate `dags/tpu_observability/utils/subprocess_util.py`
-
 import logging
 import subprocess
 
