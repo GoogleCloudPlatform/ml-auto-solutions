@@ -14,24 +14,24 @@
 
 """Common funcitons and tasks for MaxText Pathways DAGs"""
 
-# TODO(cienet): import grouping
-
-from itertools import chain
+from datetime import datetime, timezone
+import json
 import os
 import re
-import time
-import json
 import tempfile
-from datetime import datetime, timezone
+import time
 
 from absl import logging
 from airflow.decorators import task
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models.taskmixin import DAGNode
-from airflow.utils.task_group import TaskGroup
-from airflow.exceptions import AirflowFailException, AirflowException
+from airflow.models.baseoperator import chain
 from airflow.operators.python import get_current_context
+from airflow.utils.task_group import TaskGroup
 from google.cloud import logging as gcp_logging
-from xlml.utils import xpk, gke, subprocess_utils
+
+from xlml.utils import gke, subprocess_utils, xpk
+
 
 # TODO(cienet): Replace this with an official one.
 COLOCATED_PYTHON_IMAGE = (
