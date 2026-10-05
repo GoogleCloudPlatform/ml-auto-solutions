@@ -36,6 +36,6 @@ def get_jax_distributed_initialize_config(
       run_model_cmds=run_model_cmds,
       num_slices=num_slices,
       docker_image=docker_image,
-      test_owner=test_owner.AKANKSHA_G,
+      test_owner=test_owner.MATT_D,
       time_out_in_min=time_out_in_min,
   )
