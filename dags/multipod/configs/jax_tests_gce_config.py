@@ -60,7 +60,7 @@ def get_jax_distributed_initialize_config(
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
       timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner.AKANKSHA_G,
+      task_owner=test_owner.MATT_D,
       num_slices=num_slices,
   )
 
