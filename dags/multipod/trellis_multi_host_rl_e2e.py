@@ -15,22 +15,25 @@
 """Trellis Multi-Host Distributed RL E2E Tests DAG.
 
 Coordinates the multi-host Trellis end-to-end RL testing pipeline for GitHub CI
-on Cloud TPU (`bodaborg-v5p-nap` in `europe-west4`) using the regional candidate
-image `europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/trellis/trellis-base:<sha>`:
+on Cloud TPU (`bodaborg-v5p-nap` in `europe-west4`) using the candidate image
+`europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/trellis/trellis-base:<sha>`:
   1. Validates the external GitHub Actions trigger via `validate_git_trigger`.
   2. Launches and verifies the 3 disaggregated Kubernetes JobSets on GKE:
      - Orchestrator JobSet (`jobset.cpu.yaml`, CPU controller on :20000)
      - Trainer JobSet (`jobset.pathways.yaml`, MaxText on Pathways tpuv5:2x2x2)
      - Rollout JobSets (`jobset.tpu.yaml`, vLLM TPU inference replicas)
   3. Cleans up all GKE JobSets with `TriggerRule.ALL_DONE`.
-  4. Fires a GitHub `repository_dispatch` (`airflow-trellis-multi-host-rl-callback`)
-     event via `xlml.utils.github.trigger_github_repository_dispatch` with
+  4. Fires a GitHub `repository_dispatch`
+     (`airflow-trellis-multi-host-rl-callback`) event via
+     `xlml.utils.github.trigger_github_repository_dispatch` with
      `TriggerRule.ALL_DONE` to gate `:latest` / `:lkg` promotion and the
      `deps/lkg-update` PR in `promote_or_alert_multi_host_rl.yml`.
 """
 
+import base64
 import datetime
 import json
+import logging
 import os
 import subprocess
 import tempfile
@@ -58,6 +61,21 @@ DEFAULT_MAXTEXT_CKPT = (
 DEFAULT_IMAGE_REPO = (
     "europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/trellis/trellis-base"
 )
+GITHUB_PAT_TRELLIS_CI = safe_get_from_variable("GITHUB_PAT_TRELLIS_CI", "")
+
+
+def _build_git_env(github_token: str) -> dict[str, str]:
+  """Builds an env dict with GitHub HTTPS header auth if token is set."""
+  env = os.environ.copy()
+  env["GIT_TERMINAL_PROMPT"] = "0"
+  if github_token:
+    basic_auth = base64.b64encode(
+        f"x-access-token:{github_token}".encode("utf-8")
+    ).decode("ascii")
+    env["GIT_CONFIG_COUNT"] = "1"
+    env["GIT_CONFIG_KEY_0"] = "http.https://github.com/.extraheader"
+    env["GIT_CONFIG_VALUE_0"] = f"AUTHORIZATION: basic {basic_auth}"
+  return env
 
 
 @task
@@ -68,7 +86,8 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
   params = context.get("params", {})
 
   def _get(key: str, default: Any) -> Any:
-    return conf.get(key, params.get(key, default))
+    val = conf.get(key, params.get(key, default))
+    return default if val in (None, "") else val
 
   dag_run_id = dag_run.run_id if dag_run else "manual-run"
   commit_sha = str(_get("commit_sha", "HEAD"))
@@ -88,19 +107,16 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
   return {
       "dag_run_id": dag_run_id,
       "github_repo": str(_get("github_repo", "google/trellis")),
-      "github_run_id": str(_get("github_run_id", "")),
-      "github_token": str(
-          _get(
-              "github_token",
-              safe_get_from_variable("GITHUB_PAT_TRELLIS_CI", ""),
-          )
-      ),
+      "github_run_id": str(_get("github_run_id", dag_run_id)),
+      "github_token": str(_get("github_token", GITHUB_PAT_TRELLIS_CI)),
       "branch_ref": str(_get("branch_ref", "main")),
       "commit_sha": commit_sha,
       "image_uri": str(
           _get("image_uri", f"{DEFAULT_IMAGE_REPO}:{commit_sha}")
       ),
-      "deployment_id": str(_get("deployment_id", "")),
+      "deployment_id": str(
+          conf.get("deployment_id", params.get("deployment_id", ""))
+      ),
       "is_lkg_sweep": bool(_get("is_lkg_sweep", True)),
       "candidate_lkg_pins": dict(_get("candidate_lkg_pins", {})),
       "max_steps": int(_get("max_steps", 10)),
@@ -128,11 +144,12 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
 
 @task
 def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
-  """Clones google/trellis, executes tests/multi_host/run_multi_host_gsm8k_e2e.sh, and returns verification summary."""
+  """Clones google/trellis, runs the multi-host E2E script, and verifies."""
   work_dir = tempfile.mkdtemp(prefix=f"{cfg['job_prefix']}_")
   log_dir = os.path.join(work_dir, "logs")
   os.makedirs(log_dir, exist_ok=True)
 
+  env = _build_git_env(cfg.get("github_token", ""))
   repo_url = f"https://github.com/{cfg['github_repo']}.git"
   subprocess.run(
       [
@@ -145,6 +162,7 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
           repo_url,
           work_dir,
       ],
+      env=env,
       check=True,
   )
   if cfg["commit_sha"] and cfg["commit_sha"] != "HEAD":
@@ -159,14 +177,14 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
             "origin",
             cfg["commit_sha"],
         ],
+        env=env,
         check=False,
     )
     subprocess.run(
         ["git", "-C", work_dir, "checkout", cfg["commit_sha"]],
+        env=env,
         check=False,
     )
-
-  env = os.environ.copy()
   env.update({
       "CLUSTER_PROJECT": cfg["cluster_project"],
       "CLUSTER_ZONE": cfg["cluster_zone"],
@@ -252,7 +270,14 @@ def fire_github_callback(
     verification_summary: dict[str, Any] | None = None,
     **context: Any,
 ) -> None:
-  """Dispatches `airflow-trellis-multi-host-rl-callback` via xlml.utils.github."""
+  """Dispatches airflow-trellis-multi-host-rl-callback to GitHub."""
+  if not cfg.get("github_token"):
+    logging.warning(
+        "Skipping GitHub callback: no github_token configured for run %s.",
+        cfg.get("dag_run_id"),
+    )
+    return
+
   dag_run = context["dag_run"]
   task_instances = dag_run.get_task_instances() if dag_run else []
   failed = any(
@@ -263,7 +288,8 @@ def fire_github_callback(
 
   webserver_base = safe_get_from_variable("COMPOSER_WEBSERVER_BASE_URL", "")
   log_url = (
-      f"{webserver_base}/dags/trellis_multi_host_rl_e2e/grid?dag_run_id={cfg['dag_run_id']}"
+      f"{webserver_base}/dags/trellis_multi_host_rl_e2e/grid"
+      f"?dag_run_id={cfg['dag_run_id']}"
       if webserver_base
       else ""
   )
@@ -312,15 +338,16 @@ with models.DAG(
             description="GitHub repository in owner/repo format",
         ),
         "github_run_id": Param(
-            default="",
+            default="manual",
             type="string",
             description="GitHub Actions run ID of the originating workflow",
         ),
         "github_token": Param(
-            default="",
+            default=GITHUB_PAT_TRELLIS_CI,
             type="string",
             description=(
-                "GitHub PAT used to fire the repository_dispatch callback"
+                "GitHub PAT used to clone google/trellis and fire the"
+                " repository_dispatch callback"
             ),
         ),
         "branch_ref": Param(
@@ -390,7 +417,7 @@ with models.DAG(
   validate_task = validate_git_trigger(
       repo="{{ params.github_repo }}",
       token="{{ params.github_token }}",
-      run_id="{{ params.github_run_id }}",
+      run_id="{{ params.github_run_id or run_id }}",
       commit_sha="{{ params.commit_sha }}",
   )
   run_cfg = prepare_run_config()
