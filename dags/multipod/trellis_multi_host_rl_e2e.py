@@ -35,6 +35,7 @@ import datetime
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 from typing import Any
@@ -45,10 +46,8 @@ from airflow.models.baseoperator import chain
 from airflow.models.param import Param
 from airflow.utils.trigger_rule import TriggerRule
 from dags.common.quarantined_tests import safe_get_from_variable
-from xlml.utils.github import (
-    trigger_github_repository_dispatch,
-    validate_git_trigger,
-)
+from xlml.utils.github import trigger_github_repository_dispatch
+from xlml.utils.github import validate_git_trigger
 
 DEFAULT_CLUSTER_PROJECT = "cloud-tpu-shared-capacity"
 DEFAULT_CLUSTER_ZONE = "europe-west4"
@@ -117,9 +116,9 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
       ),
       "is_lkg_sweep": bool(_get("is_lkg_sweep", True)),
       "candidate_lkg_pins": dict(_get("candidate_lkg_pins", {})),
-      "max_steps": int(_get("max_steps", 10)),
-      "rollout_replicas": int(_get("rollout_replicas", 2)),
-      "rollout_tpu_slice": str(_get("rollout_tpu_slice", "tpuv5:2x2x2")),
+      "max_steps": int(_get("max_steps", 2)),
+      "rollout_replicas": int(_get("rollout_replicas", 1)),
+      "rollout_tpu_slice": str(_get("rollout_tpu_slice", "tpuv5:2x2x1")),
       "trainer_tpu_slice": str(_get("trainer_tpu_slice", "tpuv5:2x2x2")),
       "maxtext_ckpt": str(
           _get("maxtext_ckpt", DEFAULT_MAXTEXT_CKPT) or DEFAULT_MAXTEXT_CKPT
@@ -128,7 +127,7 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
           _get("maxtext_output_dir", maxtext_output_dir) or maxtext_output_dir
       ),
       "verify_weights": bool(_get("verify_weights", True)),
-      "wait_timeout_secs": int(_get("wait_timeout_secs", 5400)),
+      "wait_timeout_secs": int(_get("wait_timeout_secs", 1800)),
       "cluster_project": str(_get("cluster_project", DEFAULT_CLUSTER_PROJECT)),
       "cluster_zone": str(_get("cluster_zone", DEFAULT_CLUSTER_ZONE)),
       "cluster_name": str(_get("cluster_name", DEFAULT_CLUSTER_NAME)),
@@ -234,6 +233,11 @@ def cleanup_rl_jobsets(cfg: dict[str, Any]) -> None:
   cluster_zone = cfg["cluster_zone"]
   cluster_project = cfg["cluster_project"]
   job_prefix = cfg["job_prefix"]
+  location_flag = (
+      f"--zone={cluster_zone}"
+      if re.search(r"-[a-z]$", cluster_zone)
+      else f"--region={cluster_zone}"
+  )
   subprocess.run(
       [
           "gcloud",
@@ -241,7 +245,7 @@ def cleanup_rl_jobsets(cfg: dict[str, Any]) -> None:
           "clusters",
           "get-credentials",
           cfg["cluster_name"],
-          f"--zone={cluster_zone}",
+          location_flag,
           f"--project={cluster_project}",
       ],
       check=False,
@@ -289,12 +293,12 @@ def fire_github_callback(
 
   webserver_base = safe_get_from_variable("COMPOSER_WEBSERVER_BASE_URL", "")
   dag_run_id = cfg["dag_run_id"]
-  log_url = (
-      f"{webserver_base}/dags/trellis_multi_host_rl_e2e/grid"
-      f"?dag_run_id={dag_run_id}"
-      if webserver_base
-      else ""
-  )
+  log_url = ""
+  if webserver_base:
+    log_url = (
+        f"{webserver_base}/dags/trellis_multi_host_rl_e2e/grid"
+        f"?dag_run_id={dag_run_id}"
+    )
 
   trigger_github_repository_dispatch.function(
       repo=cfg["github_repo"],
@@ -383,17 +387,17 @@ with models.DAG(
             description="Candidate upstream commit pins built into image_uri",
         ),
         "max_steps": Param(
-            default=10,
+            default=2,
             type="integer",
             description="Number of distributed GRPO training steps to run",
         ),
         "rollout_replicas": Param(
-            default=2,
+            default=1,
             type="integer",
             description="Number of vLLM TPU rollout JobSet slices",
         ),
         "rollout_tpu_slice": Param(
-            default="tpuv5:2x2x2",
+            default="tpuv5:2x2x1",
             type="string",
             description="TPU slice topology per rollout replica",
         ),
