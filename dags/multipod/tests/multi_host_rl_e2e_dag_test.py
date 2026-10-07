@@ -41,6 +41,10 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
     self.assertIn("_build_git_env", source)
     self.assertIn("http.https://github.com/.extraheader", source)
     self.assertIn("GITHUB_PAT_TRELLIS_CI", source)
+    self.assertLess(
+        source.index('"clone"'),
+        source.index("os.makedirs(log_dir, exist_ok=True)"),
+    )
 
   def test_build_git_env_injects_auth_header_without_token_in_url(self):
     source = self.trellis_dag.read_text(encoding="utf-8")

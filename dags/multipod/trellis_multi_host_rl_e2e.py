@@ -146,8 +146,6 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
   job_prefix = cfg["job_prefix"]
   github_repo = cfg["github_repo"]
   work_dir = tempfile.mkdtemp(prefix=f"{job_prefix}_")
-  log_dir = os.path.join(work_dir, "logs")
-  os.makedirs(log_dir, exist_ok=True)
 
   env = _build_git_env(cfg.get("github_token", ""))
   repo_url = f"https://github.com/{github_repo}.git"
@@ -185,6 +183,9 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
         env=env,
         check=False,
     )
+
+  log_dir = os.path.join(work_dir, "logs")
+  os.makedirs(log_dir, exist_ok=True)
   env.update({
       "CLUSTER_PROJECT": cfg["cluster_project"],
       "CLUSTER_ZONE": cfg["cluster_zone"],
