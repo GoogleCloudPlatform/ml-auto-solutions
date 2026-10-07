@@ -111,9 +111,7 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
       "github_token": str(_get("github_token", GITHUB_PAT_TRELLIS_CI)),
       "branch_ref": str(_get("branch_ref", "main")),
       "commit_sha": commit_sha,
-      "image_uri": str(
-          _get("image_uri", f"{DEFAULT_IMAGE_REPO}:{commit_sha}")
-      ),
+      "image_uri": str(_get("image_uri", f"{DEFAULT_IMAGE_REPO}:{commit_sha}")),
       "deployment_id": str(
           conf.get("deployment_id", params.get("deployment_id", ""))
       ),
@@ -145,12 +143,14 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
 @task
 def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
   """Clones google/trellis, runs the multi-host E2E script, and verifies."""
-  work_dir = tempfile.mkdtemp(prefix=f"{cfg['job_prefix']}_")
+  job_prefix = cfg["job_prefix"]
+  github_repo = cfg["github_repo"]
+  work_dir = tempfile.mkdtemp(prefix=f"{job_prefix}_")
   log_dir = os.path.join(work_dir, "logs")
   os.makedirs(log_dir, exist_ok=True)
 
   env = _build_git_env(cfg.get("github_token", ""))
-  repo_url = f"https://github.com/{cfg['github_repo']}.git"
+  repo_url = f"https://github.com/{github_repo}.git"
   subprocess.run(
       [
           "git",
@@ -230,6 +230,9 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def cleanup_rl_jobsets(cfg: dict[str, Any]) -> None:
   """Defense-in-depth cleanup of all GKE JobSets for this run."""
+  cluster_zone = cfg["cluster_zone"]
+  cluster_project = cfg["cluster_project"]
+  job_prefix = cfg["job_prefix"]
   subprocess.run(
       [
           "gcloud",
@@ -237,19 +240,16 @@ def cleanup_rl_jobsets(cfg: dict[str, Any]) -> None:
           "clusters",
           "get-credentials",
           cfg["cluster_name"],
-          f"--zone={cfg['cluster_zone']}",
-          f"--project={cfg['cluster_project']}",
+          f"--zone={cluster_zone}",
+          f"--project={cluster_project}",
       ],
       check=False,
   )
   jobsets = [
-      f"{cfg['job_prefix']}-orch",
-      f"{cfg['job_prefix']}-train",
-      f"{cfg['job_prefix']}-roll",
-  ] + [
-      f"{cfg['job_prefix']}-roll-{i}"
-      for i in range(int(cfg["rollout_replicas"]))
-  ]
+      f"{job_prefix}-orch",
+      f"{job_prefix}-train",
+      f"{job_prefix}-roll",
+  ] + [f"{job_prefix}-roll-{i}" for i in range(int(cfg["rollout_replicas"]))]
   subprocess.run(
       [
           "kubectl",
@@ -287,9 +287,10 @@ def fire_github_callback(
   overall_state = "failed" if failed else "success"
 
   webserver_base = safe_get_from_variable("COMPOSER_WEBSERVER_BASE_URL", "")
+  dag_run_id = cfg["dag_run_id"]
   log_url = (
       f"{webserver_base}/dags/trellis_multi_host_rl_e2e/grid"
-      f"?dag_run_id={cfg['dag_run_id']}"
+      f"?dag_run_id={dag_run_id}"
       if webserver_base
       else ""
   )
