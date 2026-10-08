@@ -59,6 +59,7 @@ whitelisted_dags:
 - maxtext_configs_aot_gpu
 - maxtext_configs_aot_hybridsim
 - maxtext_convergence
+- maxtext_distillation
 - maxtext_e2e_tests
 - maxtext_e2e_tpu_checkpoint_conversion
 - maxtext_e2e_tpu_post_training
