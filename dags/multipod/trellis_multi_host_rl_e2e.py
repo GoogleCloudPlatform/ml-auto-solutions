@@ -229,6 +229,7 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
         f"Trellis Multi-Host RL E2E failed (exit={res.returncode}):"
         f" {json.dumps(summary)}"
     )
+  summary.setdefault("gcs_run_dir", cfg["gcs_run_dir"])
   return summary
 
 
@@ -319,22 +320,21 @@ def fire_github_callback(
         f"?dag_run_id={dag_run_id}"
     )
 
+  # GitHub repository_dispatch enforces a maximum of 10 top-level properties in
+  # client_payload.
   trigger_github_repository_dispatch.function(
       repo=cfg["github_repo"],
       token=cfg["github_token"],
       event_type="airflow-trellis-multi-host-rl-callback",
       client_payload={
           "state": overall_state,
-          "dag_id": "trellis_multi_host_rl_e2e",
           "dag_run_id": cfg["dag_run_id"],
-          "github_run_id": cfg["github_run_id"],
           "deployment_id": cfg["deployment_id"],
           "commit_sha": cfg["commit_sha"],
           "branch_ref": cfg["branch_ref"],
           "image_uri": cfg["image_uri"],
           "is_lkg_sweep": cfg["is_lkg_sweep"],
           "candidate_lkg_pins": cfg["candidate_lkg_pins"],
-          "gcs_run_dir": cfg["gcs_run_dir"],
           "log_url": log_url,
           "verification_summary": verification_summary or {},
       },

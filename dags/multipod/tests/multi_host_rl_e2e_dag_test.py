@@ -56,6 +56,21 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
         source.index('"clone"'),
         source.index("os.makedirs(log_dir, exist_ok=True)"),
     )
+    tree = ast.parse(source)
+    payload_dicts = [
+        kw.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        for kw in node.keywords
+        if kw.arg == "client_payload" and isinstance(kw.value, ast.Dict)
+    ]
+    self.assertEqual(len(payload_dicts), 1)
+    self.assertLessEqual(
+        len(payload_dicts[0].keys),
+        10,
+        "GitHub repository_dispatch allows at most 10 top-level properties in"
+        " client_payload",
+    )
 
   def test_build_git_env_injects_auth_header_without_token_in_url(self):
     source = self.trellis_dag.read_text(encoding="utf-8")
