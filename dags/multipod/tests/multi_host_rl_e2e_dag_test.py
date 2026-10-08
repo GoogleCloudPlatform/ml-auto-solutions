@@ -52,6 +52,7 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
     self.assertIn("_build_git_env", source)
     self.assertIn("http.https://github.com/.extraheader", source)
     self.assertIn("GITHUB_PAT_TRELLIS_CI", source)
+    self.assertIn("[:35]", source)
     self.assertLess(
         source.index('"clone"'),
         source.index("os.makedirs(log_dir, exist_ok=True)"),
