@@ -38,6 +38,17 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
     self.assertIn("airflow-trellis-multi-host-rl-callback", source)
     self.assertIn("run_multi_host_gsm8k_e2e.sh", source)
     self.assertIn("bodaborg-v5p-nap", source)
+    self.assertIn('DEFAULT_K8S_NAMESPACE = "trellis"', source)
+    self.assertIn('DEFAULT_KUEUE_QUEUE = "multislice-queue"', source)
+    self.assertIn(
+        'DEFAULT_GCS_SCRATCH = "gs://cloud-pathways-staging/tmp"', source
+    )
+    self.assertIn('"tpuv5:2x2x1"', source)
+    self.assertIn('"tpuv5:2x2x2"', source)
+    self.assertIn("--region={cluster_zone}", source)
+    self.assertIn("--zone={cluster_zone}", source)
+    self.assertIn("if not cfg:", source)
+    self.assertIn("if not cfg or not cfg.get(", source)
     self.assertIn("_build_git_env", source)
     self.assertIn("http.https://github.com/.extraheader", source)
     self.assertIn("GITHUB_PAT_TRELLIS_CI", source)

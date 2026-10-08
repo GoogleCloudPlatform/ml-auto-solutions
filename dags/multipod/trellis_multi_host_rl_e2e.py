@@ -187,29 +187,31 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
 
   log_dir = os.path.join(work_dir, "logs")
   os.makedirs(log_dir, exist_ok=True)
-  env.update({
-      "CLUSTER_PROJECT": cfg["cluster_project"],
-      "CLUSTER_ZONE": cfg["cluster_zone"],
-      "CLUSTER_NAME": cfg["cluster_name"],
-      "K8S_NAMESPACE": cfg["k8s_namespace"],
-      "KUEUE_QUEUE_NAME": cfg.get("kueue_queue_name", DEFAULT_KUEUE_QUEUE),
-      "TUNIX_IMAGE": cfg["image_uri"],
-      "COMMIT_SHA": cfg["commit_sha"],
-      "JOB_PREFIX": cfg["job_prefix"],
-      "GCS_SCRATCH_LOCATION": cfg["gcs_scratch_location"],
-      "GCS_RUN_DIR": cfg["gcs_run_dir"],
-      "TRAJECTORY_LOG_DIR": cfg["trajectory_log_dir"],
-      "MAXTEXT_CKPT": cfg["maxtext_ckpt"],
-      "MAXTEXT_OUTPUT_DIR": cfg["maxtext_output_dir"],
-      "LOG_OUTPUT_DIR": log_dir,
-      "MAX_STEPS": str(cfg["max_steps"]),
-      "ROLLOUT_REPLICAS": str(cfg["rollout_replicas"]),
-      "ROLLOUT_TPU_SLICE": cfg["rollout_tpu_slice"],
-      "TRAINER_TPU_SLICE": cfg["trainer_tpu_slice"],
-      "VERIFY_WEIGHTS": "true" if cfg["verify_weights"] else "false",
-      "WAIT_FOR_COMPLETION": "true",
-      "WAIT_TIMEOUT_SECS": str(cfg["wait_timeout_secs"]),
-  })
+  env.update(
+      {
+          "CLUSTER_PROJECT": cfg["cluster_project"],
+          "CLUSTER_ZONE": cfg["cluster_zone"],
+          "CLUSTER_NAME": cfg["cluster_name"],
+          "K8S_NAMESPACE": cfg["k8s_namespace"],
+          "KUEUE_QUEUE_NAME": cfg.get("kueue_queue_name", DEFAULT_KUEUE_QUEUE),
+          "TUNIX_IMAGE": cfg["image_uri"],
+          "COMMIT_SHA": cfg["commit_sha"],
+          "JOB_PREFIX": cfg["job_prefix"],
+          "GCS_SCRATCH_LOCATION": cfg["gcs_scratch_location"],
+          "GCS_RUN_DIR": cfg["gcs_run_dir"],
+          "TRAJECTORY_LOG_DIR": cfg["trajectory_log_dir"],
+          "MAXTEXT_CKPT": cfg["maxtext_ckpt"],
+          "MAXTEXT_OUTPUT_DIR": cfg["maxtext_output_dir"],
+          "LOG_OUTPUT_DIR": log_dir,
+          "MAX_STEPS": str(cfg["max_steps"]),
+          "ROLLOUT_REPLICAS": str(cfg["rollout_replicas"]),
+          "ROLLOUT_TPU_SLICE": cfg["rollout_tpu_slice"],
+          "TRAINER_TPU_SLICE": cfg["trainer_tpu_slice"],
+          "VERIFY_WEIGHTS": "true" if cfg["verify_weights"] else "false",
+          "WAIT_FOR_COMPLETION": "true",
+          "WAIT_TIMEOUT_SECS": str(cfg["wait_timeout_secs"]),
+      }
+  )
 
   runner_script = os.path.join(
       work_dir, "tests", "multi_host", "run_multi_host_gsm8k_e2e.sh"
@@ -231,8 +233,11 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def cleanup_rl_jobsets(cfg: dict[str, Any]) -> None:
+def cleanup_rl_jobsets(cfg: dict[str, Any] | None) -> None:
   """Defense-in-depth cleanup of all GKE JobSets for this run."""
+  if not cfg:
+    logging.warning("Skipping GKE JobSet cleanup: no run config produced.")
+    return
   cluster_zone = cfg["cluster_zone"]
   cluster_project = cfg["cluster_project"]
   job_prefix = cfg["job_prefix"]
@@ -274,24 +279,35 @@ def cleanup_rl_jobsets(cfg: dict[str, Any]) -> None:
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def fire_github_callback(
-    cfg: dict[str, Any],
+    cfg: dict[str, Any] | None,
     verification_summary: dict[str, Any] | None = None,
     **context: Any,
 ) -> None:
   """Dispatches airflow-trellis-multi-host-rl-callback to GitHub."""
-  if not cfg.get("github_token"):
+  if not cfg or not cfg.get("github_token"):
     logging.warning(
         "Skipping GitHub callback: no github_token configured for run %s.",
-        cfg.get("dag_run_id"),
+        cfg.get("dag_run_id") if cfg else "unknown",
     )
     return
 
-  dag_run = context["dag_run"]
-  task_instances = dag_run.get_task_instances() if dag_run else []
-  failed = any(
-      ti.task_id == "launch_and_verify_rl_jobsets" and ti.state != "success"
-      for ti in task_instances
+  dag_run = context.get("dag_run")
+  task_instances = (
+      dag_run.get_task_instances()
+      if dag_run and hasattr(dag_run, "get_task_instances")
+      else []
   )
+  if task_instances:
+    failed = any(
+        ti.task_id == "launch_and_verify_rl_jobsets"
+        and str(ti.state).lower()
+        not in ("success", "taskinstancestate.success")
+        for ti in task_instances
+    )
+  else:
+    failed = not bool(
+        verification_summary and verification_summary.get("passed", False)
+    )
   overall_state = "failed" if failed else "success"
 
   webserver_base = safe_get_from_variable("COMPOSER_WEBSERVER_BASE_URL", "")
