@@ -1,6 +1,7 @@
 """Utilities to get workloads logs and some utils."""
 
 from datetime import datetime, timezone, timedelta
+from enum import Flag, auto
 from typing import Optional
 from absl import logging
 import re
@@ -9,6 +10,17 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from google.cloud import logging as logging_api
 from xlml.apis import gcs
+
+
+class FilterMode(Flag):
+  """Log payload fields that `list_log_entries` text filters apply to.
+
+  Members can be combined with `|` to match against several fields, e.g.
+  `FilterMode.textPayload | FilterMode.jsonPayload_message`.
+  """
+
+  textPayload = auto()  # 0b01
+  jsonPayload_message = auto()  # 0b10
 
 
 @task
@@ -353,6 +365,10 @@ def list_log_entries(
     pod_pattern: str = ".*",
     container_name: Optional[str] = None,
     text_filter: Optional[str] = None,
+    text_filters: Optional[list[str]] = None,
+    filter_mode: FilterMode = (
+        FilterMode.textPayload | FilterMode.jsonPayload_message
+    ),
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> list[logging_api.LogEntry]:
@@ -375,6 +391,10 @@ def list_log_entries(
     container_name: Optional container name to filter logs
     text_filter: Optional comma-separated string to
       filter log entries by textPayload content
+    text_filters: Optional list of RE2 regexes. An entry matches if any regex
+      matches any of the payload fields selected by `filter_mode`.
+    filter_mode: Payload fields `text_filters` are applied to. Defaults to
+      both `textPayload` and `jsonPayload.message`.
     start_time: Optional start time for log retrieval
       (defaults to 12 hours ago)
     end_time: Optional end time for log retrieval (defaults to now)
@@ -410,6 +430,17 @@ def list_log_entries(
     conditions.append(f'resource.labels.container_name="{container_name}"')
   if text_filter:
     conditions.append(f"{text_filter}")
+  if text_filters:
+    filters = []
+    for txt in text_filters:
+      # Escape only double quotes; Logging passes regex backslashes through.
+      escaped = txt.replace('"', '\\"')
+      if FilterMode.textPayload in filter_mode:
+        filters.append(f'textPayload=~"{escaped}"')
+      if FilterMode.jsonPayload_message in filter_mode:
+        filters.append(f'jsonPayload.message=~"{escaped}"')
+    if filters:
+      conditions.append("(" + " OR ".join(filters) + ")")
 
   log_filter = " AND ".join(conditions)
 
@@ -460,15 +491,20 @@ def validate_restored_correct_checkpoint(
 ) -> None:
   """Validate the restored step is in the expected range."""
 
+  reg_save_event = r"'event_type': 'save'"
+  reg_restore_event = r"'event_type': '(emergency_)?restore'"
+  # Newer Orbax versions no longer emit an `'event_type': 'restore'` dict on
+  # regular restores, so also accept MaxText's own restore log line.
+  reg_restoring = r"restoring from this run's directory step (\d+)"
+
   entries = list_log_entries(
       project_id=project_id,
       location=location,
       cluster_name=cluster_name,
       namespace="default",
       pod_pattern=pod_pattern,
-      text_filter=(
-          "(textPayload:\"'event_type'\" OR jsonPayload.message:\"'event_type'\")"
-      ),
+      text_filters=[reg_save_event, reg_restore_event, reg_restoring],
+      filter_mode=FilterMode.textPayload | FilterMode.jsonPayload_message,
       start_time=start_time,
       end_time=end_time,
   )
@@ -488,7 +524,7 @@ def validate_restored_correct_checkpoint(
       logging.warning(f"Could not extract message from log entry: {entry}")
       continue
 
-    if re.search(r"'event_type': 'save'", message):
+    if re.search(reg_save_event, message):
       saved_step_match = re.search(r"'step': (\d+)", message)
       if not saved_step_match:
         raise AirflowFailException(
@@ -497,13 +533,15 @@ def validate_restored_correct_checkpoint(
 
       local_saved_steps_before_restore.append(int(saved_step_match.group(1)))
 
-    elif re.search(r"'event_type': '(emergency_)?restore'", message):
+    elif re.search(reg_restore_event, message) or re.search(
+        reg_restoring, message
+    ):
       logging.info("Found restore event: %s", message)
       logging.info(
           "Saved steps before restore: %s", local_saved_steps_before_restore
       )
 
-      restored_step_match = re.search(
+      restored_step_match = re.search(reg_restoring, message) or re.search(
           r"'step':\s*(?:np\.int32\()?(\d+)", message
       )
       restored_step = (
