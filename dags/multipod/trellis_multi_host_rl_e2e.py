@@ -52,8 +52,9 @@ from xlml.utils.github import validate_git_trigger
 DEFAULT_CLUSTER_PROJECT = "cloud-tpu-shared-capacity"
 DEFAULT_CLUSTER_ZONE = "europe-west4"
 DEFAULT_CLUSTER_NAME = "bodaborg-v5p-nap"
-DEFAULT_K8S_NAMESPACE = "default"
-DEFAULT_GCS_SCRATCH = "gs://cloud-tpu-tunix-eu"
+DEFAULT_K8S_NAMESPACE = "trellis"
+DEFAULT_KUEUE_QUEUE = "multislice-queue"
+DEFAULT_GCS_SCRATCH = "gs://cloud-pathways-staging/tmp"
 DEFAULT_MAXTEXT_CKPT = (
     "gs://niting-storage-europe-west4/qwen3.5-35b-a3b/scanned/0/items"
 )
@@ -132,6 +133,7 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
       "cluster_zone": str(_get("cluster_zone", DEFAULT_CLUSTER_ZONE)),
       "cluster_name": str(_get("cluster_name", DEFAULT_CLUSTER_NAME)),
       "k8s_namespace": str(_get("k8s_namespace", DEFAULT_K8S_NAMESPACE)),
+      "kueue_queue_name": str(_get("kueue_queue_name", DEFAULT_KUEUE_QUEUE)),
       "job_prefix": job_prefix,
       "gcs_scratch_location": gcs_scratch,
       "gcs_run_dir": gcs_run_dir,
@@ -190,6 +192,7 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
       "CLUSTER_ZONE": cfg["cluster_zone"],
       "CLUSTER_NAME": cfg["cluster_name"],
       "K8S_NAMESPACE": cfg["k8s_namespace"],
+      "KUEUE_QUEUE_NAME": cfg.get("kueue_queue_name", DEFAULT_KUEUE_QUEUE),
       "TUNIX_IMAGE": cfg["image_uri"],
       "COMMIT_SHA": cfg["commit_sha"],
       "JOB_PREFIX": cfg["job_prefix"],
