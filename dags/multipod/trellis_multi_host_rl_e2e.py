@@ -14,20 +14,19 @@
 
 """Trellis Multi-Host Distributed RL E2E Tests DAG.
 
-Coordinates the multi-host Trellis end-to-end RL testing pipeline for GitHub CI
-on Cloud TPU (`bodaborg-v5p-nap` in `europe-west4`) using the candidate image
-`europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/trellis/trellis-base:<sha>`:
+Lightweight, generic orchestration DAG for Trellis multi-host distributed RL
+end-to-end validation on GKE (`bodaborg-v5p-nap` in `europe-west4`).
+All workload, model, checkpoint, and TPU topology defaults live in the
+`google/trellis` repository (`tests/multi_host/run_multi_host_gsm8k_e2e.sh`)
+so that model/recipe changes do not require DAG updates:
   1. Validates the external GitHub Actions trigger via `validate_git_trigger`.
-  2. Launches and verifies the 3 disaggregated Kubernetes JobSets on GKE:
-     - Orchestrator JobSet (`jobset.cpu.yaml`, CPU controller on :20000)
-     - Trainer JobSet (`jobset.pathways.yaml`, MaxText on Pathways tpuv5:2x2x2)
-     - Rollout JobSets (`jobset.tpu.yaml`, vLLM TPU inference replicas)
-  3. Cleans up all GKE JobSets with `TriggerRule.ALL_DONE`.
+  2. Clones `google/trellis` at `commit_sha` and executes `runner_script`
+     (forwarding any optional overrides in `dag_run.conf` or `runner_env`).
+  3. Cleans up all GKE JobSets for `job_prefix` with `TriggerRule.ALL_DONE`.
   4. Fires a GitHub `repository_dispatch`
      (`airflow-trellis-multi-host-rl-callback`) event via
      `xlml.utils.github.trigger_github_repository_dispatch` with
-     `TriggerRule.ALL_DONE` to gate `:latest` / `:lkg` promotion and the
-     `deps/lkg-update` PR in `promote_or_alert_multi_host_rl.yml`.
+     `TriggerRule.ALL_DONE`.
 """
 
 import base64
@@ -53,15 +52,25 @@ DEFAULT_CLUSTER_PROJECT = "cloud-tpu-shared-capacity"
 DEFAULT_CLUSTER_ZONE = "europe-west4"
 DEFAULT_CLUSTER_NAME = "bodaborg-v5p-nap"
 DEFAULT_K8S_NAMESPACE = "trellis"
-DEFAULT_KUEUE_QUEUE = "multislice-queue"
-DEFAULT_GCS_SCRATCH = "gs://cloud-pathways-staging/tmp"
-DEFAULT_MAXTEXT_CKPT = (
-    "gs://niting-storage-europe-west4/qwen3.5-35b-a3b/scanned/0/items"
-)
-DEFAULT_IMAGE_REPO = (
-    "europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/trellis/trellis-base"
-)
+DEFAULT_RUNNER_SCRIPT = "tests/multi_host/run_multi_host_gsm8k_e2e.sh"
 GITHUB_PAT_TRELLIS_CI = safe_get_from_variable("GITHUB_PAT_TRELLIS_CI", "")
+
+# Optional dag_run.conf keys mapped to runner environment variables when
+# explicitly supplied by the caller. When omitted, the runner script in
+# google/trellis uses its own built-in defaults.
+_OPTIONAL_CONF_TO_ENV = {
+    "kueue_queue_name": "KUEUE_QUEUE_NAME",
+    "gcs_scratch_location": "GCS_SCRATCH_LOCATION",
+    "gcs_run_dir": "GCS_RUN_DIR",
+    "trajectory_log_dir": "TRAJECTORY_LOG_DIR",
+    "maxtext_ckpt": "MAXTEXT_CKPT",
+    "maxtext_output_dir": "MAXTEXT_OUTPUT_DIR",
+    "max_steps": "MAX_STEPS",
+    "rollout_replicas": "ROLLOUT_REPLICAS",
+    "rollout_tpu_slice": "ROLLOUT_TPU_SLICE",
+    "trainer_tpu_slice": "TRAINER_TPU_SLICE",
+    "wait_timeout_secs": "WAIT_TIMEOUT_SECS",
+}
 
 
 def _build_git_env(github_token: str) -> dict[str, str]:
@@ -100,14 +109,38 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
   # Keep job_prefix <= 20 chars because JobSet's coordinator label on the
   # trainer is '<job_prefix>-train-proc-0-0.<job_prefix>-train'
   # (2 * len(job_prefix) + 22 <= 63 chars).
-  job_prefix = f"tmh-{short_sha}-{sanitized_run}"[:20].strip("-")
+  default_prefix = f"tmh-{short_sha}-{sanitized_run}"[:20].strip("-")
+  job_prefix = str(_get("job_prefix", default_prefix))[:20].strip("-")
 
-  gcs_scratch = str(_get("gcs_scratch_location", DEFAULT_GCS_SCRATCH)).rstrip(
-      "/"
+  runner_env: dict[str, str] = {}
+  image_uri = str(_get("image_uri", ""))
+  if image_uri:
+    runner_env["TUNIX_IMAGE"] = image_uri
+
+  for conf_key, env_key in _OPTIONAL_CONF_TO_ENV.items():
+    val = conf.get(conf_key, params.get(conf_key))
+    if val not in (None, ""):
+      runner_env[env_key] = str(val)
+
+  if "verify_weights" in conf or "verify_weights" in params:
+    verify_val = conf.get("verify_weights", params.get("verify_weights"))
+    if verify_val is not None:
+      runner_env["VERIFY_WEIGHTS"] = "true" if bool(verify_val) else "false"
+
+  extra_env = _get("runner_env", {})
+  if isinstance(extra_env, dict):
+    for k, v in extra_env.items():
+      if k and v is not None:
+        runner_env[str(k)] = str(v)
+
+  k8s_namespace = str(
+      runner_env.get(
+          "K8S_NAMESPACE", _get("k8s_namespace", DEFAULT_K8S_NAMESPACE)
+      )
   )
-  gcs_run_dir = f"{gcs_scratch}/trellis_ci_runs/{job_prefix}"
-  trajectory_log_dir = f"{gcs_run_dir}/trajectories"
-  maxtext_output_dir = f"{gcs_run_dir}/maxtext"
+  rollout_replicas = int(
+      runner_env.get("ROLLOUT_REPLICAS", _get("rollout_replicas", 1))
+  )
 
   return {
       "dag_run_id": dag_run_id,
@@ -116,33 +149,20 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
       "github_token": str(_get("github_token", GITHUB_PAT_TRELLIS_CI)),
       "branch_ref": str(_get("branch_ref", "main")),
       "commit_sha": commit_sha,
-      "image_uri": str(_get("image_uri", f"{DEFAULT_IMAGE_REPO}:{commit_sha}")),
+      "image_uri": image_uri,
       "deployment_id": str(
           conf.get("deployment_id", params.get("deployment_id", ""))
       ),
       "is_lkg_sweep": bool(_get("is_lkg_sweep", True)),
       "candidate_lkg_pins": dict(_get("candidate_lkg_pins", {})),
-      "max_steps": int(_get("max_steps", 2)),
-      "rollout_replicas": int(_get("rollout_replicas", 1)),
-      "rollout_tpu_slice": str(_get("rollout_tpu_slice", "tpuv5:2x2x1")),
-      "trainer_tpu_slice": str(_get("trainer_tpu_slice", "tpuv5:2x2x2")),
-      "maxtext_ckpt": str(
-          _get("maxtext_ckpt", DEFAULT_MAXTEXT_CKPT) or DEFAULT_MAXTEXT_CKPT
-      ),
-      "maxtext_output_dir": str(
-          _get("maxtext_output_dir", maxtext_output_dir) or maxtext_output_dir
-      ),
-      "verify_weights": bool(_get("verify_weights", True)),
-      "wait_timeout_secs": int(_get("wait_timeout_secs", 1800)),
       "cluster_project": str(_get("cluster_project", DEFAULT_CLUSTER_PROJECT)),
       "cluster_zone": str(_get("cluster_zone", DEFAULT_CLUSTER_ZONE)),
       "cluster_name": str(_get("cluster_name", DEFAULT_CLUSTER_NAME)),
-      "k8s_namespace": str(_get("k8s_namespace", DEFAULT_K8S_NAMESPACE)),
-      "kueue_queue_name": str(_get("kueue_queue_name", DEFAULT_KUEUE_QUEUE)),
+      "k8s_namespace": k8s_namespace,
+      "rollout_replicas": rollout_replicas,
       "job_prefix": job_prefix,
-      "gcs_scratch_location": gcs_scratch,
-      "gcs_run_dir": gcs_run_dir,
-      "trajectory_log_dir": trajectory_log_dir,
+      "runner_script": str(_get("runner_script", DEFAULT_RUNNER_SCRIPT)),
+      "runner_env": runner_env,
   }
 
 
@@ -198,28 +218,16 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
           "CLUSTER_ZONE": cfg["cluster_zone"],
           "CLUSTER_NAME": cfg["cluster_name"],
           "K8S_NAMESPACE": cfg["k8s_namespace"],
-          "KUEUE_QUEUE_NAME": cfg.get("kueue_queue_name", DEFAULT_KUEUE_QUEUE),
-          "TUNIX_IMAGE": cfg["image_uri"],
           "COMMIT_SHA": cfg["commit_sha"],
           "JOB_PREFIX": cfg["job_prefix"],
-          "GCS_SCRATCH_LOCATION": cfg["gcs_scratch_location"],
-          "GCS_RUN_DIR": cfg["gcs_run_dir"],
-          "TRAJECTORY_LOG_DIR": cfg["trajectory_log_dir"],
-          "MAXTEXT_CKPT": cfg["maxtext_ckpt"],
-          "MAXTEXT_OUTPUT_DIR": cfg["maxtext_output_dir"],
           "LOG_OUTPUT_DIR": log_dir,
-          "MAX_STEPS": str(cfg["max_steps"]),
-          "ROLLOUT_REPLICAS": str(cfg["rollout_replicas"]),
-          "ROLLOUT_TPU_SLICE": cfg["rollout_tpu_slice"],
-          "TRAINER_TPU_SLICE": cfg["trainer_tpu_slice"],
-          "VERIFY_WEIGHTS": "true" if cfg["verify_weights"] else "false",
           "WAIT_FOR_COMPLETION": "true",
-          "WAIT_TIMEOUT_SECS": str(cfg["wait_timeout_secs"]),
       }
   )
+  env.update(cfg.get("runner_env") or {})
 
   runner_script = os.path.join(
-      work_dir, "tests", "multi_host", "run_multi_host_gsm8k_e2e.sh"
+      work_dir, cfg.get("runner_script", DEFAULT_RUNNER_SCRIPT)
   )
   res = subprocess.run(["bash", runner_script], env=env, check=False)
 
@@ -234,7 +242,6 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
         f"Trellis Multi-Host RL E2E failed (exit={res.returncode}):"
         f" {json.dumps(summary)}"
     )
-  summary.setdefault("gcs_run_dir", cfg["gcs_run_dir"])
   return summary
 
 
@@ -264,11 +271,12 @@ def cleanup_rl_jobsets(cfg: dict[str, Any] | None) -> None:
       ],
       check=False,
   )
+  replicas = int(cfg.get("rollout_replicas", 1))
   jobsets = [
       f"{job_prefix}-orch",
       f"{job_prefix}-train",
       f"{job_prefix}-roll",
-  ] + [f"{job_prefix}-roll-{i}" for i in range(int(cfg["rollout_replicas"]))]
+  ] + [f"{job_prefix}-roll-{i}" for i in range(replicas)]
   subprocess.run(
       [
           "kubectl",
@@ -391,13 +399,16 @@ with models.DAG(
             description="Commit SHA being tested",
         ),
         "image_uri": Param(
-            default=f"{DEFAULT_IMAGE_REPO}:latest",
-            type="string",
-            description="Candidate trellis-base Docker image URI",
+            default="",
+            type=["string", "null"],
+            description=(
+                "Optional candidate trellis-base image URI override (defaults"
+                " to runner script's TUNIX_IMAGE in google/trellis)"
+            ),
         ),
         "deployment_id": Param(
             default="",
-            type="string",
+            type=["string", "null"],
             description="Optional GitHub Deployment ID for status reporting",
         ),
         "is_lkg_sweep": Param(
@@ -410,37 +421,18 @@ with models.DAG(
             type="object",
             description="Candidate upstream commit pins built into image_uri",
         ),
-        "max_steps": Param(
-            default=2,
-            type="integer",
-            description="Number of distributed GRPO training steps to run",
-        ),
-        "rollout_replicas": Param(
-            default=1,
-            type="integer",
-            description="Number of vLLM TPU rollout JobSet slices",
-        ),
-        "rollout_tpu_slice": Param(
-            default="tpuv5:2x2x1",
+        "runner_script": Param(
+            default=DEFAULT_RUNNER_SCRIPT,
             type="string",
-            description="TPU slice topology per rollout replica",
+            description="Relative path in google/trellis to E2E runner script",
         ),
-        "trainer_tpu_slice": Param(
-            default="tpuv5:2x2x2",
-            type="string",
-            description="TPU slice topology for Pathways MaxText trainer",
-        ),
-        "maxtext_ckpt": Param(
-            default=DEFAULT_MAXTEXT_CKPT,
-            type="string",
+        "runner_env": Param(
+            default={},
+            type="object",
             description=(
-                "GCS URI of pre-converted MaxText scanned Orbax checkpoint"
+                "Optional dict of environment variable overrides passed to"
+                " runner_script"
             ),
-        ),
-        "verify_weights": Param(
-            default=True,
-            type="boolean",
-            description="Verify Raiden weight sync checksums across slices",
         ),
     },
 ) as dag:

@@ -39,12 +39,10 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
     self.assertIn("run_multi_host_gsm8k_e2e.sh", source)
     self.assertIn("bodaborg-v5p-nap", source)
     self.assertIn('DEFAULT_K8S_NAMESPACE = "trellis"', source)
-    self.assertIn('DEFAULT_KUEUE_QUEUE = "multislice-queue"', source)
-    self.assertIn(
-        'DEFAULT_GCS_SCRATCH = "gs://cloud-pathways-staging/tmp"', source
-    )
-    self.assertIn('"tpuv5:2x2x1"', source)
-    self.assertIn('"tpuv5:2x2x2"', source)
+    self.assertIn("_OPTIONAL_CONF_TO_ENV", source)
+    self.assertIn('"runner_env"', source)
+    self.assertIn('"runner_script"', source)
+    self.assertNotIn("DEFAULT_MAXTEXT_CKPT", source)
     self.assertIn("--region={cluster_zone}", source)
     self.assertIn("--zone={cluster_zone}", source)
     self.assertIn("if not cfg:", source)
@@ -58,13 +56,12 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
         source.index("os.makedirs(log_dir, exist_ok=True)"),
     )
     tree = ast.parse(source)
-    payload_dicts = [
-        kw.value
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        for kw in node.keywords
-        if kw.arg == "client_payload" and isinstance(kw.value, ast.Dict)
-    ]
+    payload_dicts = []
+    for node in ast.walk(tree):
+      if isinstance(node, ast.Call):
+        for kw in node.keywords:
+          if kw.arg == "client_payload" and isinstance(kw.value, ast.Dict):
+            payload_dicts.append(kw.value)
     self.assertEqual(len(payload_dicts), 1)
     self.assertLessEqual(
         len(payload_dicts[0].keys),
