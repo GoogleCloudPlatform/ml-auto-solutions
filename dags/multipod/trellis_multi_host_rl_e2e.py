@@ -91,15 +91,16 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
 
   dag_run_id = dag_run.run_id if dag_run else "manual-run"
   commit_sha = str(_get("commit_sha", "HEAD"))
-  short_sha = commit_sha[:7]
+  short_sha = commit_sha[:7].lower()
   sanitized_run = re.sub(r"[^a-z0-9]+", "-", dag_run_id.lower()).strip("-")
-  prefix_head = f"trellis-mh-{short_sha}-"
-  if sanitized_run.startswith(prefix_head):
-    sanitized_run = sanitized_run[len(prefix_head) :]
-  sanitized_run = sanitized_run[:16].strip("-")
-  # Keep job_prefix <= 35 chars so '<prefix>-train-pw-node-0-0-xxxxx' <= 63
-  # chars (Kubernetes pod label limit enforced by GKE vjobset.kb.io).
-  job_prefix = f"trellis-mh-{short_sha}-{sanitized_run}"[:35].strip("-")
+  for prefix_head in (f"trellis-mh-{short_sha}-", f"tmh-{short_sha}-"):
+    if sanitized_run.startswith(prefix_head):
+      sanitized_run = sanitized_run[len(prefix_head) :]
+  sanitized_run = sanitized_run[:8].strip("-")
+  # Keep job_prefix <= 20 chars because JobSet's coordinator label on the
+  # trainer is '<job_prefix>-train-proc-0-0.<job_prefix>-train'
+  # (2 * len(job_prefix) + 22 <= 63 chars).
+  job_prefix = f"tmh-{short_sha}-{sanitized_run}"[:20].strip("-")
 
   gcs_scratch = str(_get("gcs_scratch_location", DEFAULT_GCS_SCRATCH)).rstrip(
       "/"
