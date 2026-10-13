@@ -20,6 +20,7 @@ from datetime import timedelta
 
 from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
@@ -40,6 +41,10 @@ from dags.tpu_observability.utils.jobset_util import Workload
 DAG_ID = "jobset_ttr_node_reboot"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 # Keyword arguments are generated dynamically at runtime (pylint does not
 # know this signature).
@@ -90,9 +95,8 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
 
     # Keyword arguments are generated dynamically at runtime (pylint does not
     # know this signature).
-    with TaskGroupWithTimeout(  # pylint: disable=unexpected-keyword-arg
-        group_id=f"v{config.tpu_version.value}",
-        timeout=timedelta(minutes=90),
+    with TaskGroup(  # pylint: disable=unexpected-keyword-arg
+        group_id=f"v{config.tpu_version.value}"
     ):
       cluster_info = node_pool.build_node_pool_info_from_gcs_yaml(
           gcs_path=GCS_CONFIG_PATH,
@@ -111,77 +115,91 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       selector = jobset.generate_node_pool_selector(DAG_ID)
       jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
-      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
-          node_pool=cluster_info,
-          node_pool_selector=selector,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        create_node_pool = node_pool.create.override(
+            task_id="create_node_pool"
+        )(
+            node_pool=cluster_info,
+            node_pool_selector=selector,
+        ).as_setup()
 
-      startup = jobset.create_jobset_startup_tasks(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-          node_pool_selector=selector,
-          workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
+        startup = jobset.create_jobset_startup_tasks(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+            node_pool_selector=selector,
+            workload_type=Workload.JAX_TPU_BENCHMARK,
+        )
+        chain(create_node_pool, *startup.tasks)
 
-      target_pod = jobset.draw_random_pod(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      )
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        target_pod = jobset.draw_random_pod(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        )
 
-      reboot_node = jobset.operate_pod.override(task_id="reboot_node")(
-          node_pool=cluster_info,
-          operation=jobset.PodOperationSpec.reboot(),
-          pod_name=target_pod,
-          namespace="default",
-      )
+        reboot_node = jobset.operate_pod.override(task_id="reboot_node")(
+            node_pool=cluster_info,
+            operation=jobset.PodOperationSpec.reboot(),
+            pod_name=target_pod,
+            namespace="default",
+        )
 
-      wait_for_recovery = jobset.wait_for_jobset_recovered.override(
-          task_id="wait_for_recovery"
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      )
+        wait_for_recovery = jobset.wait_for_jobset_recovered.override(
+            task_id="wait_for_recovery"
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        )
 
-      verify_duration = jobset.verify_recovery_duration.override(
-          task_id="verify_recovery_duration"
-      )(
-          start_time=reboot_node,
-          end_time=wait_for_recovery,
-      )
+        verify_duration = jobset.verify_recovery_duration.override(
+            task_id="verify_recovery_duration"
+        )(
+            start_time=reboot_node,
+            end_time=wait_for_recovery,
+        )
 
-      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
-          task_id="wait_for_jobset_ttr_to_be_found",
-      )(
-          node_pool=cluster_info,
-          jobset_name=jobset_name,
-          start_time=reboot_node,
-      )
+        wait_for_metric_upload = (
+            jobset.wait_for_jobset_ttr_to_be_found.override(
+                task_id="wait_for_jobset_ttr_to_be_found",
+            )(
+                node_pool=cluster_info,
+                jobset_name=jobset_name,
+                start_time=reboot_node,
+            )
+        )
+        chain(
+            target_pod,
+            reboot_node,
+            wait_for_recovery,
+            verify_duration,
+            wait_for_metric_upload,
+        )
 
-      cleanup_workload = jobset.end_workload.override(
-          task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      )
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        cleanup_workload = jobset.end_workload.override(
+            task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        )
 
-      cleanup_node_pool = node_pool.delete.override(
-          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=cluster_info)
+        cleanup_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=cluster_info)
+        chain(cleanup_workload, cleanup_node_pool)
 
-      chain(
-          selector,
-          jobset_name,
-          create_node_pool,
-          *startup.tasks,
-          target_pod,
-          reboot_node,
-          wait_for_recovery,
-          verify_duration,
-          wait_for_metric_upload,
-          cleanup_workload,
-          cleanup_node_pool,
-      )
+      chain(pre_test, test, post_test)

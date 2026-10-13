@@ -25,12 +25,13 @@ import tempfile
 
 from airflow import models
 from airflow.decorators import task
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 from dags.common.scheduling_helper.scheduling_helper import (
     SchedulingHelper,
     get_dag_timeout,
@@ -50,11 +51,19 @@ from dags.tpu_observability.utils import tpu_info_util as tpu_info
 from dags.tpu_observability.utils.jobset_util import Workload
 from dags.tpu_observability.utils.node_pool_util import Info
 from dags.tpu_observability.utils.time_util import TimeUtil
+from dags.tpu_observability.utils.jobset_util import Workload
+from dags.tpu_observability.utils.tpu_info_util import parse_tpu_info_output
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
+from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper, get_dag_timeout
 from xlml.utils import subprocess_utils as subprocess
 
 DAG_ID = "tpu_info_metrics_verification"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
+
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
 
 
 def compare_metric_values(
@@ -118,73 +127,94 @@ def compare_metric_values(
 
 
 @task
-def get_tpu_info_metric_from_pod(
-    node_pool: node_pool.Info,
-    pod_name: str,
-    jobset_config: jobset,
-    metric_name: str,
-) -> str:
-  """Executes the 'tpu-info' command in the specified pod and returns its
-  output."""
-  with tempfile.TemporaryDirectory() as tmpdir:
-    kube_dir = tmpdir + "/kubeconfig"
-    env = os.environ.copy()
-    env["KUBECONFIG"] = kube_dir
-
-    cmd = " && ".join([
-        jobset.Command.get_credentials_command(node_pool),
-        (
-            f"kubectl --kubeconfig={kube_dir} "
-            f"exec {pod_name} -n {jobset_config.namespace} "
-            f"-- tpu-info --metric {metric_name}"
-        ),
-    ])
-
-    return subprocess.run_exec(cmd=cmd, env=env)
-
-
-@task
-def run_metric_verification(
+def verify_metric_for_all_pods(
     node_pool: Info,
+    jobset_config: jobset.JobSet,
     job_apply_time: TimeUtil,
     metric_strategy: BaseMetricStrategy,
-    comparison_data: tuple[str, list[tpu_info.Table]],
-):
-  """A generic task that uses a strategy object to verify a metric."""
-  pod_name, tpu_info_output = comparison_data
-  metric_name = metric_strategy.metric_name
-  logging.info("Verifying metric '%s' for pod: %s...", metric_name, pod_name)
+    pod_names: list[str],
+) -> list[bool]:
+  """Runs metric verification across all pods sequentially."""
 
-  start_time = job_apply_time
-  end_time = job_apply_time + datetime.timedelta(minutes=10)
+  results = []
+  failed_pods = []
+  for pod_name in pod_names:
+    logging.info(
+        "Fetching tpu-info metric '%s' for pod: %s...",
+        metric_strategy.tpu_info_metric_name,
+        pod_name,
+    )
 
-  time_series_data = metric_strategy.list_or_query_metric(
-      project_id=node_pool.project_id,
-      cluster_name=node_pool.cluster_name,
-      pod_name=pod_name,
-      start_time=start_time,
-      end_time=end_time,
-  )
+    try:
+      with tempfile.TemporaryDirectory() as tmpdir:
+        kube_dir = tmpdir + "/kubeconfig"
+        env = os.environ.copy()
+        env["KUBECONFIG"] = kube_dir
 
-  monitoring_values = metric_strategy.parse_from_monitoring(time_series_data)
-  cmd_values = metric_strategy.parse_from_tpu_info(tpu_info_output)
+        cmd = " && ".join([
+            jobset.Command.get_credentials_command(node_pool),
+            (
+                f"kubectl --kubeconfig={kube_dir} "
+                f"exec {pod_name} -n {jobset_config.namespace} "
+                f"-- tpu-info --metric {metric_strategy.tpu_info_metric_name}"
+            ),
+        ])
 
-  tolerance_for_metric = metric_strategy.tolerance_percent
-  logging.info(
-      "Using a tolerance of %.2f%% for metric '%s' comparison.",
-      tolerance_for_metric,
-      metric_strategy.dag_id_suffix,
-  )
+        output = subprocess.run_exec(cmd=cmd, env=env)
 
-  compare_metric_values(
-      cmd_values,
-      monitoring_values,
-      pod_name,
-      metric_display_name=metric_strategy.dag_id_suffix,
-      tolerance_percent=tolerance_for_metric,
-  )
+      tpu_info_output = parse_tpu_info_output(output)
 
-  return True
+      logging.info(
+          "Verifying metric '%s' for pod: %s...",
+          metric_strategy.metric_name,
+          pod_name,
+      )
+
+      start_time = job_apply_time
+      end_time = job_apply_time + datetime.timedelta(minutes=10)
+
+      time_series_data = metric_strategy.list_or_query_metric(
+          project_id=node_pool.project_id,
+          cluster_name=node_pool.cluster_name,
+          pod_name=pod_name,
+          start_time=start_time,
+          end_time=end_time,
+      )
+
+      monitoring_values = metric_strategy.parse_from_monitoring(
+          time_series_data
+      )
+      cmd_values = metric_strategy.parse_from_tpu_info(tpu_info_output)
+
+      tolerance_for_metric = metric_strategy.tolerance_percent
+      logging.info(
+          "Using a tolerance of %.2f%% for metric '%s' comparison on pod %s.",
+          tolerance_for_metric,
+          metric_strategy.dag_id_suffix,
+          pod_name,
+      )
+
+      compare_metric_values(
+          cmd_values,
+          monitoring_values,
+          pod_name,
+          metric_display_name=metric_strategy.dag_id_suffix,
+          tolerance_percent=tolerance_for_metric,
+      )
+      results.append(True)
+      logging.info("Validation succeeded for pod: %s", pod_name)
+    except Exception as e:
+      logging.error("Validation failed for pod: %s. Error: %s", pod_name, e)
+      failed_pods.append((pod_name, e))
+
+  if failed_pods:
+    failed_pod_names = [name for name, _ in failed_pods]
+    logging.error("The following pods failed validation: %s", failed_pod_names)
+    raise AirflowFailException(
+        f"Task failed because validation failed on pods: {failed_pod_names}"
+    )
+
+  return results
 
 
 @task
@@ -303,92 +333,75 @@ with models.DAG(
       cluster_info_2 = copy.deepcopy(cluster_info)
       cluster_info_2.node_pool_name = f"{cluster_info.node_pool_name}-2"
 
-      with TaskGroup(group_id="create_node_pool") as create_node_pool:
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
         create_first_node_pool = node_pool.create.override(
             task_id="node_pool_1",
         )(
             node_pool=cluster_info,
             node_pool_selector=selector,
-        )
+        ).as_setup()
 
         create_second_node_pool = node_pool.create.override(
             task_id="node_pool_2",
         )(
             node_pool=cluster_info_2,
             node_pool_selector=selector,
+        ).as_setup()
+
+        startup = jobset.create_jobset_startup_tasks(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+            node_pool_selector=selector,
+            workload_type=Workload.JAX_TPU_BENCHMARK,
+        )
+        chain([create_first_node_pool, create_second_node_pool], *startup.tasks)
+
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        verification_results = {}
+        all_verification_tasks = []
+
+        for strategy in ALL_METRIC_STRATEGIES:
+          verify_metric = verify_metric_for_all_pods.override(
+              task_id=f"verify_{strategy.dag_id_suffix}"
+          )(
+              node_pool=cluster_info,
+              jobset_config=jobset_config,
+              job_apply_time=startup.jobset_start_time,
+              metric_strategy=strategy,
+              pod_names=startup.running_pods,
+          )
+
+          all_verification_tasks.append(verify_metric)
+          verification_results[strategy.dag_id_suffix] = verify_metric
+
+        summary = summarize_results.override(
+            task_id="summarize_results", trigger_rule=TriggerRule.ALL_DONE
+        )(
+            verification_results_dict=verification_results,
+            active_pods=startup.running_pods,
+        )
+        chain(all_verification_tasks, summary)
+
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        clean_up_workload = jobset.end_workload.override(
+            task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
         )
 
-        _ = [create_first_node_pool, create_second_node_pool]
-
-      startup = jobset.create_jobset_startup_tasks(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-          node_pool_selector=selector,
-          workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
-
-      verification_results = {}
-      all_verification_groups = []
-
-      for strategy in ALL_METRIC_STRATEGIES:
-        group_id = f"verify_{strategy.dag_id_suffix}"
-
-        with TaskGroup(group_id=group_id) as verification_group:
-          tpu_info_metric_outputs = (
-              get_tpu_info_metric_from_pod.override(
-                  task_id="get_tpu_info_metric_table"
-              )
-              .partial(
-                  node_pool=cluster_info,
-                  jobset_config=jobset_config,
-                  metric_name=strategy.tpu_info_metric_name,
-              )
-              .expand(pod_name=startup.running_pods)
-          )
-
-          tpu_info_metric_output = (
-              tpu_info.parse_tpu_info_output.override(
-                  task_id="get_each_metric_table"
-              )
-              .partial()
-              .expand(output=tpu_info_metric_outputs)
-          )
-
-          verify_metric = (
-              run_metric_verification.override(task_id="run_verification")
-              .partial(
-                  node_pool=cluster_info,
-                  job_apply_time=startup.jobset_start_time,
-                  metric_strategy=strategy,
-              )
-              .expand(
-                  comparison_data=startup.running_pods.zip(
-                      tpu_info_metric_output
-                  )
-              )
-          )
-
-        all_verification_groups.append(verification_group)
-
-        verification_results[strategy.dag_id_suffix] = verify_metric
-
-      summary = summarize_results.override(
-          task_id="summarize_results", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          verification_results_dict=verification_results,
-          active_pods=startup.running_pods,
-      )
-
-      clean_up_workload = jobset.end_workload.override(
-          task_id="clean_up_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      )
-
-      with TaskGroup(group_id="cleanup_node_pool") as cleanup_node_pool:
         cleanup_first_node_pool = node_pool.delete.override(
             task_id="cleanup_node_pool_1",
             trigger_rule=TriggerRule.ALL_DONE,
@@ -399,15 +412,8 @@ with models.DAG(
             trigger_rule=TriggerRule.ALL_DONE,
         )(node_pool=cluster_info_2)
 
-        chain(cleanup_first_node_pool, cleanup_second_node_pool)
+        chain(
+            clean_up_workload, cleanup_first_node_pool, cleanup_second_node_pool
+        )
 
-      chain(
-          selector,
-          jobset_name,
-          create_node_pool,
-          *startup.tasks,
-          all_verification_groups,
-          summary,
-          clean_up_workload,
-          cleanup_node_pool,
-      )
+      chain(pre_test, test, post_test)

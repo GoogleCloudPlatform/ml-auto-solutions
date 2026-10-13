@@ -25,11 +25,13 @@ import tempfile
 
 from airflow import models
 from airflow.decorators import task
+from airflow.exceptions import AirflowFailException
 from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
 from dags import composer_env
+from dags.common.task_group_with_timeout import TaskGroupWithTimeout
 from dags.common.scheduling_helper.scheduling_helper import (
     SchedulingHelper,
     get_dag_timeout,
@@ -49,37 +51,51 @@ DAG_ID = "jobset_ttr_kill_process"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)
 SCHEDULE = SchedulingHelper.arrange_schedule_time(DAG_ID)
 
+PRE_TEST_TIMEOUT = datetime.timedelta(minutes=20)
+POST_TEST_TIMEOUT = datetime.timedelta(minutes=10)
+TEST_TIMEOUT = DAGRUN_TIMEOUT - PRE_TEST_TIMEOUT - POST_TEST_TIMEOUT
+
 
 @task
-def kill_tpu_pod_workload(info: node_pool.Info, running_pods: list) -> None:
+def kill_tpu_pod_workloads(
+    info: node_pool.Info, pod_names: list[str]
+) -> TimeUtil:
   """
-  Kills the python process on a single pod.
+  Kills the python process on a list of pods.
 
   This task retrieves cluster credentials, then attempts to kill the JAX
-  python process inside the specified pod. It ignores errors if the pod
+  python process inside each specified pod. It ignores errors if the pod
   has already been deleted to ensure pipeline continuity.
   """
-  target_pod = random.choice(running_pods)
 
+  operation_start_time = TimeUtil.now()
   with tempfile.NamedTemporaryFile() as temp_config_file:
     env = os.environ.copy()
     env["KUBECONFIG"] = temp_config_file.name
 
-    cmd = " && ".join([
-        jobset.Command.get_credentials_command(info),
-        f"kubectl exec {target_pod} -n default -- pkill -9 -f python",
-    ])
+    failed_pods = []
+    for pod_name in pod_names:
+      cmd = " && ".join([
+          jobset.Command.get_credentials_command(info),
+          f"kubectl exec {pod_name} -n default -- pkill -9 -f python",
+      ])
 
-    operation_start_time = TimeUtil.from_datetime(
-        datetime.datetime.now(datetime.timezone.utc)
-    )
+      try:
+        subprocess.run_exec(cmd, env=env)
+        logging.info("Execution succeeded for pod: %s", pod_name)
+      except subprocess.ProcessKilledException:
+        logging.info(f"Process in pod {pod_name} was terminated with SIGKILL")
+        logging.info("Execution failed for pod: %s", pod_name)
+      except Exception as e:
+        logging.error("Execution failed for pod: %s. Error: %s", pod_name, e)
+        failed_pods.append((pod_name, e))
 
-    try:
-      subprocess.run_exec(cmd, env=env)
-    except subprocess.ProcessKilledException:
-      logging.info("Process was terminated with SIGKILL")
-    except Exception as e:
-      raise e
+    if failed_pods:
+      failed_pod_names = [name for name, _ in failed_pods]
+      logging.error("The following pods failed execution: %s", failed_pod_names)
+      raise AirflowFailException(
+          f"Task failed because execution failed on pods: {failed_pod_names}"
+      )
 
   return operation_start_time
 
@@ -154,70 +170,84 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
       selector = jobset.generate_node_pool_selector(DAG_ID)
       jobset_name = jobset.generate_jobset_name(jobset_config.dag_id_prefix)
 
-      create_node_pool = node_pool.create.override(task_id="create_node_pool")(
-          node_pool=cluster_info,
-          node_pool_selector=selector,
-      )
+      with TaskGroupWithTimeout(
+          group_id="pre_test",
+          timeout=PRE_TEST_TIMEOUT,
+      ) as pre_test:
+        create_node_pool = node_pool.create.override(
+            task_id="create_node_pool"
+        )(
+            node_pool=cluster_info,
+            node_pool_selector=selector,
+        ).as_setup()
 
-      startup = jobset.create_jobset_startup_tasks(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-          node_pool_selector=selector,
-          workload_type=Workload.JAX_TPU_BENCHMARK,
-      )
+        startup = jobset.create_jobset_startup_tasks(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+            node_pool_selector=selector,
+            workload_type=Workload.JAX_TPU_BENCHMARK,
+        )
+        chain(create_node_pool, *startup.tasks)
 
-      kill_tasks = kill_tpu_pod_workload.override(
-          task_id="kill_tpu_pod_workload"
-      )(
-          info=cluster_info,
-          running_pods=startup.running_pods,
-      )
+      with TaskGroupWithTimeout(
+          group_id="test",
+          timeout=TEST_TIMEOUT,
+      ) as test:
+        kill_tasks = kill_tpu_pod_workloads.override(
+            task_id="kill_tpu_pod_workloads"
+        )(
+            info=cluster_info,
+            pod_names=startup.running_pods,
+        )
 
-      wait_for_recovery = jobset.wait_for_jobset_recovered.override(
-          task_id="wait_for_recovery"
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      )
+        wait_for_recovery = jobset.wait_for_jobset_recovered.override(
+            task_id="wait_for_recovery"
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        )
 
-      verify_duration = jobset.verify_recovery_duration.override(
-          task_id="verify_recovery_duration"
-      )(
-          start_time=kill_tasks,
-          end_time=wait_for_recovery,
-      )
+        verify_duration = jobset.verify_recovery_duration.override(
+            task_id="verify_recovery_duration"
+        )(
+            start_time=kill_tasks,
+            end_time=wait_for_recovery,
+        )
 
-      wait_for_metric_upload = jobset.wait_for_jobset_ttr_to_be_found.override(
-          task_id="wait_for_jobset_ttr_to_be_found",
-      )(
-          node_pool=cluster_info,
-          jobset_name=jobset_name,
-          start_time=kill_tasks,
-      )
+        wait_for_metric_upload = (
+            jobset.wait_for_jobset_ttr_to_be_found.override(
+                task_id="wait_for_jobset_ttr_to_be_found",
+            )(
+                node_pool=cluster_info,
+                jobset_name=jobset_name,
+                start_time=kill_tasks,
+            )
+        )
+        chain(
+            kill_tasks,
+            wait_for_recovery,
+            verify_duration,
+            wait_for_metric_upload,
+        )
 
-      cleanup_workload = jobset.end_workload.override(
-          task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
-      )(
-          node_pool=cluster_info,
-          jobset_config=jobset_config,
-          jobset_name=jobset_name,
-      )
+      with TaskGroupWithTimeout(
+          group_id="post_test",
+          timeout=POST_TEST_TIMEOUT,
+          is_teardown=True,
+      ) as post_test:
+        cleanup_workload = jobset.end_workload.override(
+            task_id="cleanup_workload", trigger_rule=TriggerRule.ALL_DONE
+        )(
+            node_pool=cluster_info,
+            jobset_config=jobset_config,
+            jobset_name=jobset_name,
+        )
 
-      cleanup_node_pool = node_pool.delete.override(
-          task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
-      )(node_pool=cluster_info)
+        cleanup_node_pool = node_pool.delete.override(
+            task_id="cleanup_node_pool", trigger_rule=TriggerRule.ALL_DONE
+        )(node_pool=cluster_info)
+        chain(cleanup_workload, cleanup_node_pool)
 
-      chain(
-          selector,
-          jobset_name,
-          create_node_pool,
-          *startup.tasks,
-          kill_tasks,
-          wait_for_recovery,
-          verify_duration,
-          wait_for_metric_upload,
-          cleanup_workload,
-          cleanup_node_pool,
-      )
+      chain(pre_test, test, post_test)
