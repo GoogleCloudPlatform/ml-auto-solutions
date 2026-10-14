@@ -129,8 +129,11 @@ with models.DAG(
       script_name = test_scripts_details["script_name"]
       if model == "gpt-oss-20b":
         script_cmd = (
-            "sed -i"
+            "export"
+            " LIBTPU_INIT_ARGS='--xla_tpu_scoped_vmem_limit_kib=81920';"
+            " sed -i -e"
             " 's|gs://runner-maxtext-logs/${MODEL_NAME}|${BASE_OUTPUT_PATH}|g'"
+            " -e 's|--max_kl_div=1.0|--max_kl_div=1.1|g'"
             " tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss*.sh && bash"
             " tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh run &&"
             f" bash tests/end_to_end/{script_name}.sh run"
