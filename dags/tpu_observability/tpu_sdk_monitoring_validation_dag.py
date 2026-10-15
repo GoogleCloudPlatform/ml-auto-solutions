@@ -181,7 +181,7 @@ with models.DAG(
         )(
             node_pool=cluster_info,
             node_pool_selector=selector,
-        ).as_setup()
+        )
 
         startup = jobset.create_jobset_startup_tasks(
             node_pool=cluster_info,
