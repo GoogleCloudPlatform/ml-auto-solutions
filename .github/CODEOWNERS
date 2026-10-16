@@ -11,7 +11,7 @@ dags/legacy_test/tests/pytorch @bhavya01 @pgmoka @qihqi @zhanyong-wan @xibinliu 
 
 dags/mantaray @qihqi @bhavya01 @pgmoka @zhanyong-wan @xibinliu @andrewyct @severus-ho @alfredyu-cienet
 
-dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee @xibinliu @andrewyct @severus-ho @alfredyu-cienet
+dags/multipod @tonyjohnchen @raymondzouu @gobbleturk @shralex @RissyRan @jiangjy1982 @notabee @xibinliu @andrewyct @severus-ho @alfredyu-cienet @dingying-ai @shz-google @fineguy
 
 dags/mlcompass @ortibazar @sganeshb @brajiang @wlzhg @xibinliu @andrewyct @severus-ho @alfredyu-cienet
 
