@@ -184,6 +184,7 @@ whitelisted_dags:
 - tf_2_18_supported
 - tf_dlrm_2_18
 - tf_nightly_supported
+- trellis_multi_host_rl_e2e
 - trt_llm_mlperf_v40
 - trt_llm_mlperf_v41
 - trtllm_bench_inference
