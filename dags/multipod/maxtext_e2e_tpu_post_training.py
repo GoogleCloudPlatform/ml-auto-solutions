@@ -96,6 +96,7 @@ with models.DAG(
   test_models = {
       "gemma3-4b": {
           "core_count": 8,
+          "to_hf_cluster": GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
           "post_training": {
               "sft": {
@@ -121,6 +122,7 @@ with models.DAG(
       },
       "gemma4-26b": {
           "core_count": 32,
+          "to_hf_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
           "post_training": {
               "sft": {
@@ -137,6 +139,7 @@ with models.DAG(
       },
       "llama3_1-70b": {
           "core_count": 64,
+          "to_hf_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
           "post_training": {
               "sft": {
@@ -153,6 +156,7 @@ with models.DAG(
       },
       "qwen3-30b": {
           "core_count": 32,
+          "to_hf_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
           "post_training": {
               "sft": {
@@ -169,6 +173,7 @@ with models.DAG(
       },
       "qwen3-vl-2b": {
           "core_count": 8,
+          "to_hf_cluster": GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_hf.sh",
           "post_training": {
               "multimodal_sft": {
@@ -180,6 +185,7 @@ with models.DAG(
       },
       "gpt-oss-20b": {
           "core_count": 32,
+          "to_hf_cluster": GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
           "post_training": {
               "sft": {
@@ -196,6 +202,7 @@ with models.DAG(
       },
       "qwen3_5-35b": {
           "core_count": 64,
+          "to_hf_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_hf.sh",
           "post_training": {
               "rl": {
@@ -292,7 +299,6 @@ with models.DAG(
           convert_to_huggingface_cmd = (
               f"export HF_TOKEN={HF_TOKEN}",
               'export HF_HOME="/mnt/shm/hf_cache"',
-              'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
               f"{to_hf_script} {run_name} {model_path} {to_hf_flags}",
           )
           convert_to_huggingface_task = gke_config.get_gke_config(
@@ -300,7 +306,7 @@ with models.DAG(
               test_name="to-hf",
               run_model_cmds=convert_to_huggingface_cmd,
               docker_image="{{ params.docker_image }}",
-              cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
+              cluster=test_config["to_hf_cluster"],
               test_owner=test_owner.SURBHI_J,
               priority="medium",
               use_gcluster=True,

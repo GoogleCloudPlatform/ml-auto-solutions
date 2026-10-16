@@ -19,10 +19,10 @@ import datetime
 from typing import Any, Literal, overload
 
 from dags import gcs_bucket
-from dags.common.vm_resource import GkeClusters, Project
+from dags.common.vm_resource import CpuVersion, GkeClusters, Project
 from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.gke_cluster_config import GkeClusterConfig
-from xlml.utils import gcluster, xpk
+from xlml.utils import gcluster, gke, xpk
 
 
 @overload
@@ -114,30 +114,53 @@ def get_gke_config(
     restart_on_exit_codes: Iterable[int] | None = None,
 ) -> task.GclusterTask | task.XpkTask:
   """Constructs a GKE task for either Cluster Toolkit (gcluster) or XPK."""
+  zone = (
+      gke.zone_to_region(cluster.zone)
+      if use_gcluster and isinstance(cluster.device_version, CpuVersion)
+      else cluster.zone
+  )
   job_gcp_config = gcp_config.GCPConfig(
       project_name=cluster.project,
-      zone=cluster.zone,
+      zone=zone,
       dataset_name=dataset_name,
       dataset_project=dataset_project,
       composer_project=composer_project,
   )
 
-  job_test_config = test_config.TpuGkeTest(
-      test_config.Tpu(
-          version=cluster.device_version,
-          cores=cluster.core_count,
-      ),
-      test_name=test_name,
-      run_model_cmds=run_model_cmds,
-      set_up_cmds=None,
-      timeout=datetime.timedelta(minutes=time_out_in_min),
-      task_owner=test_owner,
-      num_slices=num_slices,
-      cluster_name=cluster.name,
-      docker_image=docker_image,
-      namespace=cluster.namespace,
-      mounts=mounts if use_gcluster else None,
-  )
+  if isinstance(cluster.device_version, CpuVersion):
+    job_test_config = test_config.CpuGkeTest(
+        test_config.Cpu(
+            device_type=cluster.device_version,
+            machine_count=1,
+        ),
+        test_name=test_name,
+        run_model_cmds=run_model_cmds,
+        set_up_cmds=None,
+        timeout=datetime.timedelta(minutes=time_out_in_min),
+        task_owner=test_owner,
+        num_slices=num_slices,
+        cluster_name=cluster.name,
+        docker_image=docker_image,
+        namespace=cluster.namespace,
+        mounts=mounts if use_gcluster else None,
+    )
+  else:
+    job_test_config = test_config.TpuGkeTest(
+        test_config.Tpu(
+            version=cluster.device_version,
+            cores=cluster.core_count,
+        ),
+        test_name=test_name,
+        run_model_cmds=run_model_cmds,
+        set_up_cmds=None,
+        timeout=datetime.timedelta(minutes=time_out_in_min),
+        task_owner=test_owner,
+        num_slices=num_slices,
+        cluster_name=cluster.name,
+        docker_image=docker_image,
+        namespace=cluster.namespace,
+        mounts=mounts if use_gcluster else None,
+    )
   job_metric_config = user_specified_job_metric_config
   if job_metric_config is None:
     job_metric_config = (

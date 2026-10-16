@@ -157,6 +157,32 @@ class GclusterTaskTest(unittest.TestCase):
         datetime.timedelta(minutes=45),
     )
 
+  def test_get_gke_config_gcluster_cpu(self):
+    """Constructs a GclusterTask with CpuGkeTest and regional zone for CPU."""
+    gcluster_task_obj = gke_config.get_gke_config(
+        time_out_in_min=90,
+        test_name="to-mt",
+        run_model_cmds=("echo 'cpu conversion'",),
+        docker_image="gcr.io/test/image:latest",
+        cluster=GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
+        test_owner=test_owner.JACKY_F,
+        priority="medium",
+        mounts="/dev/shm;/mnt/shm;rw",
+        use_gcluster=True,
+    )
+    self.assertIsInstance(gcluster_task_obj, task.GclusterTask)
+    runner_cfg = gcluster_task_obj.runner_config
+    self.assertIsInstance(runner_cfg.task_test_config, test_config.CpuGkeTest)
+    self.assertEqual(
+        runner_cfg.task_test_config.accelerator.name, "n2-standard-64-1"
+    )
+    self.assertEqual(
+        runner_cfg.task_test_config.benchmark_id, "to-mt-n2-standard-64-1"
+    )
+    self.assertEqual(runner_cfg.task_gcp_config.zone, "us-central1")
+    self.assertEqual(runner_cfg.mounts, "/dev/shm;/mnt/shm;rw")
+    self.assertIsNone(runner_cfg.queue)
+
   def test_get_gke_config_with_name_gen_and_quarantine_gcluster(self):
     """Constructs GclusterNameGenAndQuarantineTask forwarding all parameters."""
     gcluster_task_obj = gke_config.get_gke_config_with_name_gen_and_quarantine(
