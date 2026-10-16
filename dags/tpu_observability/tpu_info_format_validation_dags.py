@@ -429,7 +429,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         )(
             node_pool=cluster_info,
             node_pool_selector=selector,
-        ).as_setup()
+        )
 
         create_second_node_pool = node_pool.create.override(
             task_id="node_pool_2",
@@ -437,7 +437,7 @@ with models.DAG(  # pylint: disable=unexpected-keyword-arg
         )(
             node_pool=cluster_info_2,
             node_pool_selector=selector,
-        ).as_setup()
+        )
 
         startup = jobset.create_jobset_startup_tasks(
             node_pool=cluster_info,
