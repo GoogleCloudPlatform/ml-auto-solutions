@@ -161,6 +161,7 @@ with models.DAG(
       training_cmd = (
           f"export HF_TOKEN={HF_TOKEN}",
           "export M_ENABLE_GOODPUT_RECORDING=true",
+          "export M_ENABLE_CHECKPOINT_CLOUD_LOGGER=true",
           f"export M_GOODPUT_JOB_NAME={goodput_job_name}",
           cleanup_cmd,
           f"{training_script} {run_name}",
