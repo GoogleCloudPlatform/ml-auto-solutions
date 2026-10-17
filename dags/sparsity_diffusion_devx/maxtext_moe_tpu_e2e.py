@@ -50,6 +50,7 @@ with models.DAG(
         "mlscale_devx",
         "v6e-256",
         "v5p-8",
+        "v5p-128",
     ],
     start_date=datetime.datetime(2024, 11, 14),
     catchup=False,
@@ -121,11 +122,58 @@ with models.DAG(
           "use_gcluster": True,
           "priority": "medium",
       },
+      # DeepSeek-V4-Pro runs 2_test_deepseek.sh as one job per slice count;
+      # seq 1024 pre-training fits v5p HBM only on 4 slices.
+      "deepseek4-1600b-logit-decode": {
+          "script_name": "tpu/deepseek/v4-1600b/2_test_deepseek",
+          "env": "RUN_SCANNED_LOGIT_CHECK=false RUN_PRETRAIN=false",
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128,
+          ),
+          "time_out_in_min": 180,
+          "owner": test_owner.YAOYU_C,
+          "use_gcluster": True,
+          "priority": "medium",
+          "images": ("stable",),
+      },
+      "deepseek4-1600b-scanned-logit": {
+          "script_name": "tpu/deepseek/v4-1600b/2_test_deepseek",
+          "env": "RUN_LOGIT=false RUN_PRETRAIN=false RUN_DECODE=false",
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128,
+          ),
+          "num_slices": 2,
+          "time_out_in_min": 120,
+          "owner": test_owner.YAOYU_C,
+          "use_gcluster": True,
+          "priority": "medium",
+          "images": ("stable",),
+      },
+      "deepseek4-1600b-pretrain": {
+          "script_name": "tpu/deepseek/v4-1600b/2_test_deepseek",
+          # Node auto-provisioning can bring slices up minutes apart.
+          "env": (
+              "RUN_LOGIT=false RUN_SCANNED_LOGIT_CHECK=false RUN_DECODE=false"
+              " PRETRAIN_EXTRA_FLAGS="
+              "jax_distributed_initialization_timeout=1800"
+          ),
+          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128,
+          ),
+          "num_slices": 4,
+          "time_out_in_min": 120,
+          "owner": test_owner.YAOYU_C,
+          "use_gcluster": True,
+          "priority": "medium",
+          "images": ("stable",),
+      },
   }
 
   unchained_tests = []
   for model, test_scripts_details in test_models_tpu.items():
     for image, image_config in docker_image.items():
+      if image not in test_scripts_details.get("images", docker_image):
+        continue
       script_name = test_scripts_details["script_name"]
       if model == "gpt-oss-20b":
         script_cmd = (
@@ -136,7 +184,10 @@ with models.DAG(
             f" bash tests/end_to_end/{script_name}.sh run"
         )
       else:
-        script_cmd = f"bash tests/end_to_end/{script_name}.sh"
+        stage_env = test_scripts_details.get("env", "")
+        script_cmd = (
+            f"{stage_env} bash tests/end_to_end/{script_name}.sh".lstrip()
+        )
       run_cmd = (
           f"export HF_TOKEN={HF_TOKEN}; export BASE_OUTPUT_PATH=$GCS_OUTPUT; "
           f"{script_cmd}"
@@ -150,6 +201,7 @@ with models.DAG(
           docker_image=image_config,
           test_owner=test_scripts_details["owner"],
           cluster=test_scripts_details["cluster"],
+          num_slices=test_scripts_details.get("num_slices", 1),
           use_gcluster=use_gcluster,
           priority=priority,
       ).run_with_quarantine(quarantine_task_group)
