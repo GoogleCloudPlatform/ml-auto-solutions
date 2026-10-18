@@ -19,14 +19,23 @@ end-to-end validation on GKE (`bodaborg-v5p-nap` in `europe-west4`).
 All workload, model, checkpoint, and TPU topology defaults live in the
 `google/trellis` repository (`tests/multi_host/run_multi_host_gsm8k_e2e.sh`)
 so that model/recipe changes do not require DAG updates:
-  1. Validates the external GitHub Actions trigger via `validate_git_trigger`.
+  1. Validates the external trigger and required parameters via
+     `validate_trigger` (no GitHub token is required to run this DAG).
   2. Clones `google/trellis` at `commit_sha` and executes `runner_script`
      (forwarding any optional overrides in `dag_run.conf` or `runner_env`).
   3. Cleans up all GKE JobSets for `job_prefix` with `TriggerRule.ALL_DONE`.
-  4. Fires a GitHub `repository_dispatch`
+  4. Optionally fires a GitHub `repository_dispatch`
      (`airflow-trellis-multi-host-rl-callback`) event via
      `xlml.utils.github.trigger_github_repository_dispatch` with
-     `TriggerRule.ALL_DONE`.
+     `TriggerRule.ALL_DONE` -- only when the caller explicitly supplies
+     `github_token` in `dag_run.conf`. GitHub Actions callers are expected to
+     poll the Airflow REST API (dagRuns state + the `return_value` XCom of
+     `launch_and_verify_rl_jobsets`) instead of relying on the callback.
+
+Credentials: the repository clone uses the `GITHUB_PAT_TRELLIS_CI` Airflow
+Variable (read-only PAT), read at task runtime and never written to XCom or
+exposed as a Param default. A caller-supplied `github_token` (callback) is
+likewise read from `dag_run.conf` at runtime only.
 """
 
 import base64
@@ -41,12 +50,13 @@ from typing import Any
 
 from airflow import models
 from airflow.decorators import task
+from airflow.exceptions import AirflowFailException
 from airflow.models.baseoperator import chain
 from airflow.models.param import Param
+from airflow.operators.python import get_current_context
 from airflow.utils.trigger_rule import TriggerRule
 from dags.common.quarantined_tests import safe_get_from_variable
 from xlml.utils.github import trigger_github_repository_dispatch
-from xlml.utils.github import validate_git_trigger
 
 DEFAULT_CLUSTER_PROJECT = "cloud-tpu-shared-capacity"
 DEFAULT_CLUSTER_ZONE = "europe-west4"
@@ -54,7 +64,11 @@ DEFAULT_CLUSTER_NAME = "bodaborg-v5p-nap"
 DEFAULT_K8S_NAMESPACE = "trellis"
 DEFAULT_ROLLOUT_REPLICAS = 2
 DEFAULT_RUNNER_SCRIPT = "tests/multi_host/run_multi_host_gsm8k_e2e.sh"
-GITHUB_PAT_TRELLIS_CI = safe_get_from_variable("GITHUB_PAT_TRELLIS_CI", "")
+# Name of the Airflow Variable holding a read-only PAT for the private
+# google/trellis repository. Resolved inside tasks at runtime (see
+# `_clone_token`), never at DAG-parse time, so the secret is not baked into
+# Param defaults, rendered templates, or XCom.
+GITHUB_PAT_TRELLIS_CI_VAR = "GITHUB_PAT_TRELLIS_CI"
 
 # Optional dag_run.conf keys mapped to runner environment variables when
 # explicitly supplied by the caller. When omitted, the runner script in
@@ -89,12 +103,76 @@ def _build_git_env(github_token: str) -> dict[str, str]:
   return env
 
 
+def _conf_and_params(context: dict[str, Any]) -> tuple[dict, dict]:
+  dag_run = context.get("dag_run")
+  conf = (dag_run.conf or {}) if dag_run else {}
+  params = context.get("params", {}) or {}
+  return conf, params
+
+
+def _callback_token(context: dict[str, Any]) -> str:
+  """Caller-supplied GitHub token for the repository_dispatch callback.
+
+  Read from `dag_run.conf` / Params at task runtime only. It is never copied
+  into the run config returned by `prepare_run_config`, so it does not end up
+  in XCom.
+  """
+  conf, params = _conf_and_params(context)
+  return str(conf.get("github_token") or params.get("github_token") or "")
+
+
+def _clone_token(context: dict[str, Any]) -> str:
+  """Token used to clone the private google/trellis repository.
+
+  Prefers an explicit caller-supplied `github_token`, otherwise the
+  `GITHUB_PAT_TRELLIS_CI` Airflow Variable (read-only PAT), resolved at task
+  runtime rather than at DAG-parse time.
+  """
+  return _callback_token(context) or safe_get_from_variable(
+      GITHUB_PAT_TRELLIS_CI_VAR, ""
+  )
+
+
+@task
+def validate_trigger() -> None:
+  """Rejects manual UI runs and runs missing the required parameters.
+
+  Unlike `xlml.utils.github.validate_git_trigger`, this does not require a
+  GitHub token: callers that poll the Airflow REST API never send one.
+  """
+  context = get_current_context()
+  dag_run = context.get("dag_run")
+  if not dag_run or not dag_run.external_trigger:
+    raise AirflowFailException(
+        "This DAG should not be run manually from the Airflow UI."
+    )
+  conf, params = _conf_and_params(context)
+
+  def _get(key: str) -> str:
+    return str(conf.get(key) or params.get(key) or "")
+
+  missing = [k for k in ("github_repo", "commit_sha") if not _get(k)]
+  if missing:
+    raise AirflowFailException(
+        f"Missing required parameters: {', '.join(missing)}."
+    )
+  if not re.fullmatch(r"[0-9a-fA-F]{40}", _get("commit_sha")):
+    raise AirflowFailException(
+        "commit_sha must be a full 40-hex commit SHA so the run tests exactly"
+        f" the commit it reports on; got {_get('commit_sha')!r}."
+    )
+
+
 @task
 def prepare_run_config(**context: Any) -> dict[str, Any]:
-  """Resolves DAG run parameters from `dag_run.conf` or Airflow Params."""
+  """Resolves DAG run parameters from `dag_run.conf` or Airflow Params.
+
+  The returned dict is persisted as XCom and therefore must never contain a
+  credential; tokens are resolved by `_clone_token` / `_callback_token` inside
+  the tasks that need them.
+  """
+  conf, params = _conf_and_params(context)
   dag_run = context["dag_run"]
-  conf = (dag_run.conf or {}) if dag_run else {}
-  params = context.get("params", {})
 
   def _get(key: str, default: Any) -> Any:
     val = conf.get(key, params.get(key, default))
@@ -151,15 +229,12 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
       "dag_run_id": dag_run_id,
       "github_repo": str(_get("github_repo", "google/trellis")),
       "github_run_id": str(_get("github_run_id", dag_run_id)),
-      "github_token": str(_get("github_token", GITHUB_PAT_TRELLIS_CI)),
+      # Whether a caller-supplied github_token exists; the token itself is
+      # deliberately NOT stored here (XCom).
+      "callback_enabled": bool(_callback_token(context)),
       "branch_ref": str(_get("branch_ref", "main")),
       "commit_sha": commit_sha,
       "image_uri": image_uri,
-      "deployment_id": str(
-          conf.get("deployment_id", params.get("deployment_id", ""))
-      ),
-      "is_lkg_sweep": bool(_get("is_lkg_sweep", True)),
-      "candidate_lkg_pins": dict(_get("candidate_lkg_pins", {})),
       "cluster_project": str(_get("cluster_project", DEFAULT_CLUSTER_PROJECT)),
       "cluster_zone": str(_get("cluster_zone", DEFAULT_CLUSTER_ZONE)),
       "cluster_name": str(_get("cluster_name", DEFAULT_CLUSTER_NAME)),
@@ -172,13 +247,15 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
 
 
 @task
-def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
+def launch_and_verify_rl_jobsets(
+    cfg: dict[str, Any], **context: Any
+) -> dict[str, Any]:
   """Clones google/trellis, runs the multi-host E2E script, and verifies."""
   job_prefix = cfg["job_prefix"]
   github_repo = cfg["github_repo"]
   work_dir = tempfile.mkdtemp(prefix=f"{job_prefix}_")
 
-  env = _build_git_env(cfg.get("github_token", ""))
+  env = _build_git_env(_clone_token(context))
   repo_url = f"https://github.com/{github_repo}.git"
   subprocess.run(
       [
@@ -194,6 +271,9 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
       env=env,
       check=True,
   )
+  # Both must succeed: with check=False a failed fetch/checkout would silently
+  # run the branch tip's runner and verifier while reporting results for
+  # `commit_sha`, misattributing a pass or failure to the wrong commit.
   if cfg["commit_sha"] and cfg["commit_sha"] != "HEAD":
     subprocess.run(
         [
@@ -207,12 +287,12 @@ def launch_and_verify_rl_jobsets(cfg: dict[str, Any]) -> dict[str, Any]:
             cfg["commit_sha"],
         ],
         env=env,
-        check=False,
+        check=True,
     )
     subprocess.run(
         ["git", "-C", work_dir, "checkout", cfg["commit_sha"]],
         env=env,
-        check=False,
+        check=True,
     )
 
   log_dir = os.path.join(work_dir, "logs")
@@ -303,12 +383,22 @@ def fire_github_callback(
     verification_summary: dict[str, Any] | None = None,
     **context: Any,
 ) -> None:
-  """Dispatches airflow-trellis-multi-host-rl-callback to GitHub."""
-  if not cfg or not cfg.get("github_token"):
-    logging.warning(
-        "Skipping GitHub callback: no github_token configured for run %s.",
+  """Optionally dispatches airflow-trellis-multi-host-rl-callback to GitHub.
+
+  Opt-in: fires only when the caller supplied `github_token` in
+  `dag_run.conf`. GitHub Actions callers poll the REST API instead, so for
+  them this task is a no-op.
+  """
+  if not cfg or not cfg.get("callback_enabled"):
+    logging.info(
+        "Skipping GitHub callback: no caller-supplied github_token for run %s"
+        " (callers are expected to poll the Airflow REST API).",
         cfg.get("dag_run_id") if cfg else "unknown",
     )
+    return
+  github_token = _callback_token(context)
+  if not github_token:
+    logging.warning("Skipping GitHub callback: github_token no longer present.")
     return
 
   dag_run = context.get("dag_run")
@@ -340,20 +430,19 @@ def fire_github_callback(
     )
 
   # GitHub repository_dispatch enforces a maximum of 10 top-level properties in
-  # client_payload.
+  # client_payload; keep headroom below that limit.
   trigger_github_repository_dispatch.function(
       repo=cfg["github_repo"],
-      token=cfg["github_token"],
+      token=github_token,
       event_type="airflow-trellis-multi-host-rl-callback",
       client_payload={
           "state": overall_state,
           "dag_run_id": cfg["dag_run_id"],
-          "deployment_id": cfg["deployment_id"],
+          "github_run_id": cfg["github_run_id"],
           "commit_sha": cfg["commit_sha"],
           "branch_ref": cfg["branch_ref"],
           "image_uri": cfg["image_uri"],
-          "is_lkg_sweep": cfg["is_lkg_sweep"],
-          "candidate_lkg_pins": cfg["candidate_lkg_pins"],
+          "job_prefix": cfg["job_prefix"],
           "log_url": log_url,
           "verification_summary": verification_summary or {},
       },
@@ -387,11 +476,14 @@ with models.DAG(
             description="GitHub Actions run ID of the originating workflow",
         ),
         "github_token": Param(
-            default=GITHUB_PAT_TRELLIS_CI,
-            type="string",
+            default="",
+            type=["string", "null"],
             description=(
-                "GitHub PAT used to clone google/trellis and fire the"
-                " repository_dispatch callback"
+                "Optional GitHub token. When set, it is used to clone"
+                " google/trellis and to fire the repository_dispatch callback;"
+                " when empty (recommended), the clone uses the"
+                f" {GITHUB_PAT_TRELLIS_CI_VAR} Airflow Variable and no callback"
+                " is sent (callers poll the REST API instead)."
             ),
         ),
         "branch_ref": Param(
@@ -412,21 +504,6 @@ with models.DAG(
                 " to runner script's TUNIX_IMAGE in google/trellis)"
             ),
         ),
-        "deployment_id": Param(
-            default="",
-            type=["string", "null"],
-            description="Optional GitHub Deployment ID for status reporting",
-        ),
-        "is_lkg_sweep": Param(
-            default=True,
-            type="boolean",
-            description="Whether to promote :lkg and open deps/lkg-update PR",
-        ),
-        "candidate_lkg_pins": Param(
-            default={},
-            type="object",
-            description="Candidate upstream commit pins built into image_uri",
-        ),
         "runner_script": Param(
             default=DEFAULT_RUNNER_SCRIPT,
             type="string",
@@ -442,12 +519,7 @@ with models.DAG(
         ),
     },
 ) as dag:
-  validate_task = validate_git_trigger(
-      repo="{{ params.github_repo }}",
-      token="{{ params.github_token }}",
-      run_id="{{ params.github_run_id or run_id }}",
-      commit_sha="{{ params.commit_sha }}",
-  )
+  validate_task = validate_trigger()
   run_cfg = prepare_run_config()
   verified = launch_and_verify_rl_jobsets(run_cfg)
   cleaned = cleanup_rl_jobsets(run_cfg)

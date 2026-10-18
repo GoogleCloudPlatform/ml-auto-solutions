@@ -72,6 +72,64 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
         " client_payload",
     )
 
+  def _function_node(self, name: str) -> ast.FunctionDef:
+    tree = ast.parse(self.trellis_dag.read_text(encoding="utf-8"))
+    nodes = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == name
+    ]
+    self.assertEqual(len(nodes), 1, f"expected exactly one def {name}")
+    return nodes[0]
+
+  def test_git_fetch_and_checkout_of_commit_sha_must_succeed(self):
+    """A failed fetch/checkout must fail the task, not silently test the tip."""
+    func = self._function_node("launch_and_verify_rl_jobsets")
+    git_calls = []
+    for node in ast.walk(func):
+      if not isinstance(node, ast.Call):
+        continue
+      if not (
+          isinstance(node.func, ast.Attribute)
+          and node.func.attr == "run"
+          and isinstance(node.func.value, ast.Name)
+          and node.func.value.id == "subprocess"
+      ):
+        continue
+      if not node.args or not isinstance(node.args[0], ast.List):
+        continue
+      first = node.args[0].elts[0] if node.args[0].elts else None
+      if isinstance(first, ast.Constant) and first.value == "git":
+        git_calls.append(node)
+    self.assertEqual(len(git_calls), 3, "expected clone, fetch, checkout")
+    for call in git_calls:
+      checks = [
+          kw.value.value
+          for kw in call.keywords
+          if kw.arg == "check" and isinstance(kw.value, ast.Constant)
+      ]
+      self.assertEqual(checks, [True], ast.dump(call.args[0])[:80])
+
+  def test_no_token_is_persisted_in_run_config_or_param_defaults(self):
+    """Tokens are resolved inside tasks at runtime, never stored in XCom."""
+    source = self.trellis_dag.read_text(encoding="utf-8")
+    func = self._function_node("prepare_run_config")
+    returned_keys = []
+    for node in ast.walk(func):
+      if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict):
+        returned_keys.extend(
+            k.value for k in node.value.keys if isinstance(k, ast.Constant)
+        )
+    self.assertIn("callback_enabled", returned_keys)
+    self.assertNotIn("github_token", returned_keys)
+    # The PAT must not be read at DAG-parse time into a Param default.
+    self.assertNotIn('safe_get_from_variable("GITHUB_PAT_TRELLIS_CI"', source)
+    self.assertIn('GITHUB_PAT_TRELLIS_CI_VAR = "GITHUB_PAT_TRELLIS_CI"', source)
+    # Trigger validation no longer requires a token (REST-polling callers send none).
+    self.assertNotIn("import validate_git_trigger", source)
+    self.assertIn("def validate_trigger", source)
+    self.assertIn("callback_enabled", source)
+
   def test_build_git_env_injects_auth_header_without_token_in_url(self):
     source = self.trellis_dag.read_text(encoding="utf-8")
     tree = ast.parse(source)
