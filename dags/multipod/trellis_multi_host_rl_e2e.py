@@ -29,13 +29,26 @@ so that model/recipe changes do not require DAG updates:
      `xlml.utils.github.trigger_github_repository_dispatch` with
      `TriggerRule.ALL_DONE` -- only when the caller explicitly supplies
      `github_token` in `dag_run.conf`. GitHub Actions callers are expected to
-     poll the Airflow REST API (dagRuns state + the `return_value` XCom of
-     `launch_and_verify_rl_jobsets`) instead of relying on the callback.
+     poll the Airflow REST API instead of relying on the callback:
+       * DAG run state (`GET /api/v1/dags/{dag_id}/dagRuns/{run_id}`): the
+         `watcher` leaf fails the run whenever any task fails, so the run
+         state is `failed` for a failed E2E (not just for a failed callback).
+       * Verifier summary: XCom key `verification_summary` of
+         `launch_and_verify_rl_jobsets`, pushed on both pass and fail (also
+         the task's `return_value` on pass). Callers must require BOTH run
+         state `success` AND `verification_summary.passed == true`.
+  5. `watcher` (`TriggerRule.ONE_FAILED`) is the final leaf that turns any
+     task failure into a failed DAG run.
 
 Credentials: the repository clone uses the `GITHUB_PAT_TRELLIS_CI` Airflow
-Variable (read-only PAT), read at task runtime and never written to XCom or
-exposed as a Param default. A caller-supplied `github_token` (callback) is
-likewise read from `dag_run.conf` at runtime only.
+Variable (read-only PAT), read at task runtime inside the git subprocess
+environment only (never in the runner's environment, Param defaults, or
+XCom). A caller-supplied `github_token` (opt-in callback) is read from
+`dag_run.conf` at task runtime and is not copied into XCom; note that
+`dag_run.conf` itself is stored in the Airflow metadata database and is
+visible to anyone with DAG-run read access (REST API and UI), so callers
+that opt in expose that token to them -- REST-polling callers should not
+send one at all.
 """
 
 import base64
@@ -126,25 +139,40 @@ def _clone_token(context: dict[str, Any]) -> str:
 
   Prefers an explicit caller-supplied `github_token`, otherwise the
   `GITHUB_PAT_TRELLIS_CI` Airflow Variable (read-only PAT), resolved at task
-  runtime rather than at DAG-parse time.
+  runtime rather than at DAG-parse time. Fails fast with an actionable
+  message when neither is set: an anonymous clone of the private repository
+  only yields git's generic "could not read Username" error.
   """
-  return _callback_token(context) or safe_get_from_variable(
+  token = _callback_token(context) or safe_get_from_variable(
       GITHUB_PAT_TRELLIS_CI_VAR, ""
   )
+  if not token:
+    raise AirflowFailException(
+        f"No GitHub token available to clone the private repository. Set the"
+        f" {GITHUB_PAT_TRELLIS_CI_VAR} Airflow Variable (read-only PAT for"
+        " google/trellis) or pass github_token in dag_run.conf."
+    )
+  return token
 
 
 @task
 def validate_trigger() -> None:
-  """Rejects manual UI runs and runs missing the required parameters.
+  """Rejects scheduler-created runs and runs missing required parameters.
 
-  Unlike `xlml.utils.github.validate_git_trigger`, this does not require a
-  GitHub token: callers that poll the Airflow REST API never send one.
+  `external_trigger` is True for both REST API and Airflow UI runs, so the
+  first check only rejects scheduler-created runs (this DAG has
+  `schedule=None`). A default UI run is rejected by the `commit_sha` check:
+  the DAG must be given the exact commit to test. Unlike
+  `xlml.utils.github.validate_git_trigger`, no GitHub token is required:
+  callers that poll the Airflow REST API never send one.
   """
   context = get_current_context()
   dag_run = context.get("dag_run")
   if not dag_run or not dag_run.external_trigger:
     raise AirflowFailException(
-        "This DAG should not be run manually from the Airflow UI."
+        "This DAG must be triggered externally (REST API,"
+        " TriggerDagRunOperator, or the UI trigger form) with explicit"
+        " parameters; scheduler-created runs are not supported."
     )
   conf, params = _conf_and_params(context)
 
@@ -250,75 +278,97 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
 def launch_and_verify_rl_jobsets(
     cfg: dict[str, Any], **context: Any
 ) -> dict[str, Any]:
-  """Clones google/trellis, runs the multi-host E2E script, and verifies."""
+  """Clones google/trellis, runs the multi-host E2E script, and verifies.
+
+  The verifier summary is pushed to XCom key `verification_summary` on both
+  pass and fail (with the runner's exit code added), so REST pollers can show
+  what failed; the task itself fails unless the runner exited 0 AND the
+  verifier reported `passed: true`.
+  """
   job_prefix = cfg["job_prefix"]
   github_repo = cfg["github_repo"]
-  work_dir = tempfile.mkdtemp(prefix=f"{job_prefix}_")
-
-  env = _build_git_env(_clone_token(context))
   repo_url = f"https://github.com/{github_repo}.git"
-  subprocess.run(
-      [
-          "git",
-          "clone",
-          "--depth",
-          "1",
-          "-b",
-          cfg["branch_ref"],
-          repo_url,
-          work_dir,
-      ],
-      env=env,
-      check=True,
-  )
-  # Both must succeed: with check=False a failed fetch/checkout would silently
-  # run the branch tip's runner and verifier while reporting results for
-  # `commit_sha`, misattributing a pass or failure to the wrong commit.
-  if cfg["commit_sha"] and cfg["commit_sha"] != "HEAD":
+
+  # The clone token lives only in the environment of the three git
+  # subprocesses. The runner (code from `commit_sha`) and everything it spawns
+  # get a clean environment: the http.extraheader would otherwise be inherited
+  # and sent on every https://github.com/ request the runner makes.
+  git_env = _build_git_env(_clone_token(context))
+
+  # TemporaryDirectory removes the private checkout, logs/ and downloaded
+  # trajectories from the Composer worker when the task ends; the summary is
+  # read before the block exits.
+  with tempfile.TemporaryDirectory(prefix=f"{job_prefix}_") as work_dir:
     subprocess.run(
         [
             "git",
-            "-C",
-            work_dir,
-            "fetch",
+            "clone",
             "--depth",
             "1",
-            "origin",
-            cfg["commit_sha"],
+            "-b",
+            cfg["branch_ref"],
+            repo_url,
+            work_dir,
         ],
-        env=env,
+        env=git_env,
         check=True,
     )
-    subprocess.run(
-        ["git", "-C", work_dir, "checkout", cfg["commit_sha"]],
-        env=env,
-        check=True,
+    # Both must succeed: with check=False a failed fetch/checkout would
+    # silently run the branch tip's runner and verifier while reporting
+    # results for `commit_sha`, misattributing a pass or failure to the wrong
+    # commit. (validate_trigger already requires a full SHA; the "HEAD" guard
+    # is defense in depth.)
+    if cfg["commit_sha"] and cfg["commit_sha"] != "HEAD":
+      subprocess.run(
+          [
+              "git",
+              "-C",
+              work_dir,
+              "fetch",
+              "--depth",
+              "1",
+              "origin",
+              cfg["commit_sha"],
+          ],
+          env=git_env,
+          check=True,
+      )
+      subprocess.run(
+          ["git", "-C", work_dir, "checkout", cfg["commit_sha"]],
+          env=git_env,
+          check=True,
+      )
+
+    log_dir = os.path.join(work_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    runner_env = os.environ.copy()
+    runner_env.update({
+        "CLUSTER_PROJECT": cfg["cluster_project"],
+        "CLUSTER_ZONE": cfg["cluster_zone"],
+        "CLUSTER_NAME": cfg["cluster_name"],
+        "K8S_NAMESPACE": cfg["k8s_namespace"],
+        "COMMIT_SHA": cfg["commit_sha"],
+        "JOB_PREFIX": cfg["job_prefix"],
+        "LOG_OUTPUT_DIR": log_dir,
+        "WAIT_FOR_COMPLETION": "true",
+    })
+    runner_env.update(cfg.get("runner_env") or {})
+
+    runner_script = os.path.join(
+        work_dir, cfg.get("runner_script", DEFAULT_RUNNER_SCRIPT)
     )
+    res = subprocess.run(["bash", runner_script], env=runner_env, check=False)
 
-  log_dir = os.path.join(work_dir, "logs")
-  os.makedirs(log_dir, exist_ok=True)
-  env.update({
-      "CLUSTER_PROJECT": cfg["cluster_project"],
-      "CLUSTER_ZONE": cfg["cluster_zone"],
-      "CLUSTER_NAME": cfg["cluster_name"],
-      "K8S_NAMESPACE": cfg["k8s_namespace"],
-      "COMMIT_SHA": cfg["commit_sha"],
-      "JOB_PREFIX": cfg["job_prefix"],
-      "LOG_OUTPUT_DIR": log_dir,
-      "WAIT_FOR_COMPLETION": "true",
-  })
-  env.update(cfg.get("runner_env") or {})
+    summary_path = os.path.join(log_dir, "verification_summary.json")
+    summary: dict[str, Any] = {}
+    if os.path.exists(summary_path):
+      with open(summary_path, "r", encoding="utf-8") as f:
+        summary = json.load(f)
 
-  runner_script = os.path.join(
-      work_dir, cfg.get("runner_script", DEFAULT_RUNNER_SCRIPT)
-  )
-  res = subprocess.run(["bash", runner_script], env=env, check=False)
-
-  summary_path = os.path.join(log_dir, "verification_summary.json")
-  summary: dict[str, Any] = {}
-  if os.path.exists(summary_path):
-    with open(summary_path, "r", encoding="utf-8") as f:
-      summary = json.load(f)
+  summary["runner_exit_code"] = res.returncode
+  ti = context.get("ti")
+  if ti is not None:
+    ti.xcom_push(key="verification_summary", value=summary)
 
   if res.returncode != 0 or not summary.get("passed", False):
     raise RuntimeError(
@@ -375,6 +425,12 @@ def cleanup_rl_jobsets(cfg: dict[str, Any] | None) -> None:
       ],
       check=False,
   )
+
+
+@task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
+def watcher() -> None:
+  """Fails the DAG run when any upstream task failed (see module docstring)."""
+  raise AirflowFailException("An upstream task failed.")
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -492,9 +548,12 @@ with models.DAG(
             description="Git branch or ref being tested",
         ),
         "commit_sha": Param(
-            default="HEAD",
-            type="string",
-            description="Commit SHA being tested",
+            default="",
+            type=["string", "null"],
+            description=(
+                "Full 40-hex commit SHA of google/trellis to test (required;"
+                " validate_trigger rejects anything else)"
+            ),
         ),
         "image_uri": Param(
             default="",
@@ -526,3 +585,12 @@ with models.DAG(
   callback = fire_github_callback(run_cfg, verified)
 
   chain(validate_task, run_cfg, verified, cleaned, callback)
+
+  # Airflow derives the DAG run state from its leaf tasks only. Without this,
+  # the ALL_DONE callback (which succeeds even when it no-ops) would be the
+  # sole leaf and a failed E2E -- or a run rejected by validate_trigger --
+  # would still end as a `success` DAG run. The watcher fails whenever any
+  # upstream task failed and is skipped on green runs, so REST pollers and the
+  # UI see the real outcome.
+  others = list(dag.tasks)
+  others >> watcher()

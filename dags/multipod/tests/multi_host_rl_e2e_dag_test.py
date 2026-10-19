@@ -19,6 +19,17 @@ import base64
 import os
 import pathlib
 import unittest
+from unittest import mock
+
+try:  # Behavioural tests need Airflow (available in CI via scripts/dag-check.sh).
+  from airflow.exceptions import AirflowFailException
+  from dags.multipod import trellis_multi_host_rl_e2e as dag_mod
+
+  _AIRFLOW_AVAILABLE = True
+except ImportError:  # pragma: no cover - exercised only without Airflow.
+  AirflowFailException = None  # pylint: disable=invalid-name
+  dag_mod = None
+  _AIRFLOW_AVAILABLE = False
 
 
 class MultiHostRlE2eDagTest(unittest.TestCase):
@@ -129,6 +140,90 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
     self.assertNotIn("import validate_git_trigger", source)
     self.assertIn("def validate_trigger", source)
     self.assertIn("callback_enabled", source)
+
+  def test_runner_env_never_contains_git_auth_header(self):
+    """The clone PAT must be scoped to the git subprocesses only."""
+    func = self._function_node("launch_and_verify_rl_jobsets")
+    runner_calls = []
+    for node in ast.walk(func):
+      if not isinstance(node, ast.Call):
+        continue
+      if not (
+          isinstance(node.func, ast.Attribute)
+          and node.func.attr == "run"
+          and node.args
+          and isinstance(node.args[0], ast.List)
+          and node.args[0].elts
+          and isinstance(node.args[0].elts[0], ast.Constant)
+          and node.args[0].elts[0].value == "bash"
+      ):
+        continue
+      runner_calls.append(node)
+    self.assertEqual(len(runner_calls), 1, "expected exactly one runner call")
+    env_kw = [kw for kw in runner_calls[0].keywords if kw.arg == "env"]
+    self.assertEqual(len(env_kw), 1)
+    self.assertIsInstance(env_kw[0].value, ast.Name)
+    self.assertEqual(env_kw[0].value.id, "runner_env")
+    source = self.trellis_dag.read_text(encoding="utf-8")
+    self.assertIn("runner_env = os.environ.copy()", source)
+    self.assertIn("tempfile.TemporaryDirectory(", source)
+    self.assertNotIn("tempfile.mkdtemp(", source)
+
+  @unittest.skipUnless(_AIRFLOW_AVAILABLE, "requires apache-airflow")
+  def test_validate_trigger_behaviour(self):
+    def _validate(conf, external=True):
+      ctx = {
+          "dag_run": mock.Mock(external_trigger=external, conf=conf),
+          "params": {"github_repo": "google/trellis", "commit_sha": ""},
+      }
+      with mock.patch.object(dag_mod, "get_current_context", return_value=ctx):
+        return dag_mod.validate_trigger.function()
+
+    full_sha = "a" * 40
+    self.assertIsNone(_validate({"commit_sha": full_sha}))
+    with self.assertRaisesRegex(AirflowFailException, "Missing required"):
+      _validate({})
+    with self.assertRaisesRegex(AirflowFailException, "40-hex"):
+      _validate({"commit_sha": "abc1234"})
+    with self.assertRaisesRegex(AirflowFailException, "triggered externally"):
+      _validate({"commit_sha": full_sha}, external=False)
+
+  @unittest.skipUnless(_AIRFLOW_AVAILABLE, "requires apache-airflow")
+  def test_clone_token_fails_fast_without_any_token(self):
+    ctx = {"dag_run": mock.Mock(conf={}), "params": {}}
+    with mock.patch.object(dag_mod, "safe_get_from_variable", return_value=""):
+      with self.assertRaisesRegex(
+          AirflowFailException, "GITHUB_PAT_TRELLIS_CI"
+      ):
+        dag_mod._clone_token(ctx)  # pylint: disable=protected-access
+    with mock.patch.object(
+        dag_mod, "safe_get_from_variable", return_value="ghp_from_variable"
+    ):
+      self.assertEqual(
+          dag_mod._clone_token(ctx),  # pylint: disable=protected-access
+          "ghp_from_variable",
+      )
+    ctx_with_conf = {
+        "dag_run": mock.Mock(conf={"github_token": "ghp_from_conf"}),
+        "params": {},
+    }
+    self.assertEqual(
+        dag_mod._clone_token(ctx_with_conf),  # pylint: disable=protected-access
+        "ghp_from_conf",
+    )
+
+  @unittest.skipUnless(_AIRFLOW_AVAILABLE, "requires apache-airflow")
+  def test_watcher_is_a_one_failed_leaf_downstream_of_every_other_task(self):
+    """A failed task must fail the DAG run, not just the callback leaf."""
+    dag = dag_mod.dag
+    watcher = dag.get_task("watcher")
+    self.assertEqual(watcher.trigger_rule, "one_failed")
+    self.assertEqual(watcher.retries, 0)
+    self.assertEqual(watcher.downstream_task_ids, set())
+    others = {t.task_id for t in dag.tasks} - {"watcher"}
+    self.assertEqual(watcher.upstream_task_ids, others)
+    leaves = {t.task_id for t in dag.tasks if not t.downstream_task_ids}
+    self.assertEqual(leaves, {"watcher"})
 
   def test_build_git_env_injects_auth_header_without_token_in_url(self):
     source = self.trellis_dag.read_text(encoding="utf-8")
