@@ -47,14 +47,31 @@ from xlml.utils.github import (
 # `DockerImage`, these are published by the MaxText build workflow and tagged
 # with the GitHub run ID, so the build mode and tag are only known at run time.
 PRE_TRAINING_DOCKER_IMAGE = (
+    "{% if params.docker_images and"
+    " params.docker_images.get('pre_training') %}"
+    "{{ params.docker_images['pre_training'] }}"
+    "{% else %}"
     "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
     "maxtext_jax_"
     "{{ params.build_mode }}:{{ params.github_run_id }}"
+    "{% endif %}"
 )
 POST_TRAINING_DOCKER_IMAGE = (
+    "{% if params.docker_images and"
+    " params.docker_images.get('post_training') %}"
+    "{{ params.docker_images['post_training'] }}"
+    "{% else %}"
     "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
     "maxtext_post_training_"
     "{{ params.build_mode }}:{{ params.github_run_id }}"
+    "{% endif %}"
+)
+CHECKPOINT_CONVERSION_DOCKER_IMAGE = (
+    f"{{% if params.test_scope == 'pre-training' %}}"
+    f"{PRE_TRAINING_DOCKER_IMAGE}"
+    f"{{% else %}}"
+    f"{POST_TRAINING_DOCKER_IMAGE}"
+    f"{{% endif %}}"
 )
 
 
@@ -143,6 +160,14 @@ with models.DAG(
                 " runs because both suites consume its checkpoints."
             ),
         ),
+        "docker_images": Param(
+            default={},
+            type=["null", "object"],
+            description=(
+                "Optional mapping of suite keys ('pre_training',"
+                " 'post_training') to full Docker image URIs."
+            ),
+        ),
     },
 ) as dag:
   validate_task = validate_git_trigger(
@@ -160,8 +185,9 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__checkpoint_conversion",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": POST_TRAINING_DOCKER_IMAGE,
+          "docker_image": CHECKPOINT_CONVERSION_DOCKER_IMAGE,
           "run_name": shared_run_name,
+          "test_scope": "{{ params.test_scope }}",
       },
       wait_for_completion=False,
   )
@@ -205,6 +231,7 @@ with models.DAG(
           "sha": "{{ params.commit_sha }}",
           "github_run_id": "{{ params.github_run_id }}",
           "test_type": "pre_training",
+          "docker_image": PRE_TRAINING_DOCKER_IMAGE,
       },
   )
 
@@ -221,6 +248,7 @@ with models.DAG(
           "sha": "{{ params.commit_sha }}",
           "github_run_id": "{{ params.github_run_id }}",
           "test_type": "post_training",
+          "docker_image": POST_TRAINING_DOCKER_IMAGE,
       },
   )
 
