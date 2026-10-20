@@ -165,7 +165,7 @@ with models.DAG(
             project_id=test_config.cluster.project,
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
-            text_filter=" AND ".join(log_filters),
+            raw_filter=" AND ".join(log_filters),
             start_time=start_time,
             end_time=end_time,
         )
