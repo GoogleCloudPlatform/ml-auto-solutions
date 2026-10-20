@@ -21,8 +21,12 @@ Serves as the shared prerequisite pipeline for MaxText E2E testing:
   DAG via ExternalTaskSensor and begin training as each model completes.
 """
 import datetime
+
 from airflow import models
+from airflow.decorators import task
+from airflow.models.baseoperator import chain
 from airflow.models.param import Param
+from airflow.operators.python import get_current_context
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
 from dags.common.quarantined_tests import safe_get_from_variable
@@ -30,6 +34,18 @@ from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
 
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+
+
+@task.short_circuit
+def post_training_enabled() -> bool:
+  """Skips post-training-only conversions when running pre-training only."""
+  context = get_current_context()
+  dag_run = context["dag_run"]
+  params = context["params"]
+  conf = (dag_run.conf if dag_run else {}) or {}
+  scope = conf.get("test_scope") or (params or {}).get("test_scope") or "all"
+  return scope != "pre-training"
+
 
 with models.DAG(
     dag_id="maxtext_e2e_tpu_checkpoint_conversion",
@@ -55,6 +71,16 @@ with models.DAG(
                 " conv-{{ ts_nodash }})"
             ),
         ),
+        "test_scope": Param(
+            default="all",
+            type="string",
+            enum=["all", "pre-training", "post-training"],
+            description=(
+                "Which Stage 2 suites will consume the converted checkpoints."
+                " Post-training-only models are skipped when set to"
+                " pre-training."
+            ),
+        ),
     },
 ) as dag:
   # pylint: disable=line-too-long
@@ -77,7 +103,11 @@ with models.DAG(
       },
       "qwen3-vl-2b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_mt.sh",
+<<<<<<< HEAD
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
+=======
+          "post_training_only": True,
+>>>>>>> 784d44f1 (feat(multipod): Support configurable Docker images and scope-based conversion image in `maxtext_e2e_tests`)
       },
       "gpt-oss-20b": {
           "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
@@ -85,7 +115,11 @@ with models.DAG(
       },
       "qwen3_5-35b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_mt.sh",
+<<<<<<< HEAD
           "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+=======
+          "post_training_only": True,
+>>>>>>> 784d44f1 (feat(multipod): Support configurable Docker images and scope-based conversion image in `maxtext_e2e_tests`)
       },
   }
   # pylint: enable=line-too-long
@@ -103,6 +137,7 @@ with models.DAG(
           f"{to_maxtext_cmd} {run_name}",
       )
 
+<<<<<<< HEAD
       convert_to_maxtext_task = (
           gke_config.get_maxtext_cpu_end_to_end_gke_config(
               time_out_in_min=120,
@@ -116,3 +151,22 @@ with models.DAG(
               mounts="/dev/shm;/mnt/shm;rw",
           ).run(skip_post_process=True)
       )
+=======
+      convert_to_maxtext_task = gke_config.get_gke_config(
+          time_out_in_min=120,
+          test_name="to-mt",
+          run_model_cmds=convert_to_maxtext_cmd,
+          docker_image="{{ params.docker_image }}",
+          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
+          test_owner=test_owner.JACKY_F,
+          priority="medium",
+          use_gcluster=True,
+          mounts="/dev/shm;/mnt/shm;rw",
+      ).run(skip_post_process=True)
+
+      if config.get("post_training_only"):
+        chain(
+            post_training_enabled(),
+            convert_to_maxtext_task,
+        )
+>>>>>>> 784d44f1 (feat(multipod): Support configurable Docker images and scope-based conversion image in `maxtext_e2e_tests`)
