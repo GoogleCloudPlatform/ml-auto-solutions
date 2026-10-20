@@ -36,7 +36,7 @@ from dags.tpu_observability.configs.common import (
 from dags.tpu_observability.utils import jobset_util as jobset
 from dags.tpu_observability.utils import node_pool_util as node_pool
 from dags.tpu_observability.utils.jobset_util import Workload
-from dags.tpu_observability.utils.time_util import TimeUtil
+from xlml.utils.time_util import TimeUtil
 
 DAG_ID = "jobset_uptime_validation"
 DAGRUN_TIMEOUT = get_dag_timeout(DAG_ID)

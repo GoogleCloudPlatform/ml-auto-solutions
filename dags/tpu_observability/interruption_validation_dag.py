@@ -16,7 +16,7 @@ from dags import composer_env
 from dags.common import test_owner
 from dags.common.vm_resource import Project
 from dags.multipod.configs.common import Platform
-from dags.tpu_observability.utils import gcp_util, time_util
+from xlml.utils import gcp_util, time_util
 
 _UNKNOWN_RESOURCE_NAME = 'Unknown'
 

@@ -28,9 +28,8 @@ from google.cloud import logging as gcp_logging
 from google.cloud.monitoring_v3 import types
 from ml_goodput_measurement import goodput_elastic
 
-# TODO(cienet): promote them as shared utility
-from dags.tpu_observability.utils.gcp_util import list_time_series
-from dags.tpu_observability.utils.time_util import TimeUtil
+from xlml.utils.gcp_util import list_time_series
+from xlml.utils.time_util import TimeUtil
 
 GOODPUT_LOG_LIST = [
     "Cumulative goodput monitoring process started for job: {workload_id}",

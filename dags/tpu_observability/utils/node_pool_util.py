@@ -28,8 +28,8 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from google.cloud import monitoring_v3
 
-from dags.tpu_observability.utils.gcp_util import list_time_series
-from dags.tpu_observability.utils.time_util import TimeUtil
+from xlml.utils.gcp_util import list_time_series
+from xlml.utils.time_util import TimeUtil
 from xlml.apis import gcs
 from xlml.utils import composer
 from xlml.utils import subprocess_utils as subprocess
