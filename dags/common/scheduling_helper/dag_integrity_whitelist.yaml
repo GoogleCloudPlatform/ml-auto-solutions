@@ -70,6 +70,7 @@ whitelisted_dags:
 - maxtext_emc_resume_from_gcs
 - maxtext_emc_save_gcs
 - maxtext_end_to_end
+- maxtext_goodput_functional_e2e
 - maxtext_gpu_end_to_end
 - maxtext_gpu_inference
 - maxtext_inference_offline_benchmark
