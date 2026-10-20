@@ -202,6 +202,7 @@ class CpuVersion(enum.Enum):
 
   M1_MEGAMEM = "m1-megamem-96"
   N2_STANDARD = "n2-standard-64"
+  N2_HIGHMEM = "n2-highmem-64"
 
 
 class RuntimeVersion(enum.Enum):
@@ -338,14 +339,21 @@ class GkeClusters:
       device_version=CpuVersion.M1_MEGAMEM,
       core_count=96,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
-      zone=Zone.US_CENTRAL1_B.value,
+      zone=Region.US_CENTRAL1.value,
   )
   CPU_N2_STANDARD_64_CLUSTER = GkeClusterConfig(
       name="shared-n2-standard-64",
       device_version=CpuVersion.N2_STANDARD,
       core_count=64,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
-      zone=Zone.US_CENTRAL1_B.value,
+      zone=Region.US_CENTRAL1.value,
+  )
+  CPU_N2_HIGHMEM_64_CLUSTER = GkeClusterConfig(
+      name="shared-n2-standard-64",
+      device_version=CpuVersion.N2_HIGHMEM,
+      core_count=64,
+      project=Project.TPU_PROD_ENV_MULTIPOD.value,
+      zone=Region.US_CENTRAL1.value,
   )
 
 

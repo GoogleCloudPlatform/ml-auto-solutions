@@ -15,7 +15,7 @@
 """MaxText E2E TPU Checkpoint Conversion DAG (Stage 1).
 
 Serves as the shared prerequisite pipeline for MaxText E2E testing:
-- Converts Hugging Face checkpoints to MaxText format on TPU v5p-8 slices.
+- Converts Hugging Face checkpoints to MaxText format on CPU clusters.
 - Saves checkpoints to GCS (gs://runner-maxtext-logs/<model>/to_maxtext/...).
 - Downstream training DAGs (pre_training and post_training) listen to this
   DAG via ExternalTaskSensor and begin training as each model completes.
@@ -61,24 +61,31 @@ with models.DAG(
   test_models = {
       "gemma3-4b": {
           "to_maxtext": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "gemma4-26b": {
           "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "llama3_1-70b": {
           "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
       },
       "qwen3-30b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
       },
       "qwen3-vl-2b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "gpt-oss-20b": {
           "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "qwen3_5-35b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
       },
   }
   # pylint: enable=line-too-long
@@ -93,18 +100,19 @@ with models.DAG(
       convert_to_maxtext_cmd = (
           f"export HF_TOKEN={HF_TOKEN}",
           'export HF_HOME="/mnt/shm/hf_cache"',
-          'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=20480"',
           f"{to_maxtext_cmd} {run_name}",
       )
 
-      convert_to_maxtext_task = gke_config.get_gke_config(
-          time_out_in_min=120,
-          test_name="to-mt",
-          run_model_cmds=convert_to_maxtext_cmd,
-          docker_image="{{ params.docker_image }}",
-          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
-          test_owner=test_owner.JACKY_F,
-          priority="medium",
-          use_gcluster=True,
-          mounts="/dev/shm;/mnt/shm;rw",
-      ).run(skip_post_process=True)
+      convert_to_maxtext_task = (
+          gke_config.get_maxtext_cpu_end_to_end_gke_config(
+              time_out_in_min=120,
+              test_name="to-mt",
+              run_model_cmds=convert_to_maxtext_cmd,
+              docker_image="{{ params.docker_image }}",
+              cluster=config["cpu_cluster"],
+              test_owner=test_owner.JACKY_F,
+              priority="very-high",
+              use_gcluster=True,
+              mounts="/dev/shm;/mnt/shm;rw",
+          ).run(skip_post_process=True)
+      )
