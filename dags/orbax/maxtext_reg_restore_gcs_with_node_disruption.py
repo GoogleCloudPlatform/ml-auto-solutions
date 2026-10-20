@@ -164,13 +164,20 @@ with models.DAG(
             )
         )
 
+        # Regular checkpointing runs on Orbax v1, which no longer logs the
+        # `'event_type': 'restore'` event; MaxText's own
+        # "restoring from this run's directory step N" line is the restore
+        # marker there. Accept either so the check works across versions.
         validate_restored_source = validation_util.validate_log_exist.override(
             task_id="validate_reg_restored_from_gcs"
         )(
             project_id=test_config.cluster.project,
             location=zone_to_region(test_config.cluster.zone),
             cluster_name=test_config.cluster.name,
-            text_filter="\"'event_type': 'restore'\"",
+            payload_regexes=[
+                validation_util.RESTORE_EVENT_PATTERN,
+                validation_util.MAXTEXT_RESTORING_PATTERN,
+            ],
             start_time=start_time,
             end_time=end_time,
         )
