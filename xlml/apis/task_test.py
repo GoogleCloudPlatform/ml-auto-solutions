@@ -157,6 +157,50 @@ class GclusterTaskTest(unittest.TestCase):
         datetime.timedelta(minutes=45),
     )
 
+  @mock.patch("xlml.utils.gcluster.run_workload")
+  def test_get_maxtext_cpu_end_to_end_gke_config_gcluster(
+      self, mock_run_workload
+  ):
+    """Constructs a GclusterTask with CpuGkeTest and regional zone for CPU."""
+    mock_run_op = mock.MagicMock()
+    mock_run_workload.override.return_value = mock_run_op
+
+    gcluster_task_obj = gke_config.get_maxtext_cpu_end_to_end_gke_config(
+        time_out_in_min=90,
+        test_name="to-mt",
+        run_model_cmds=("echo 'cpu conversion'",),
+        docker_image="gcr.io/test/image:latest",
+        cluster=GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+        test_owner=test_owner.JACKY_F,
+        priority="medium",
+        mounts="/dev/shm;/mnt/shm;rw",
+        use_gcluster=True,
+    )
+    self.assertIsInstance(gcluster_task_obj, task.GclusterTask)
+    runner_cfg = gcluster_task_obj.runner_config
+    self.assertIsInstance(runner_cfg.task_test_config, test_config.CpuGkeTest)
+    self.assertEqual(
+        runner_cfg.task_test_config.accelerator.name, "m1-megamem-96-1"
+    )
+    self.assertEqual(
+        runner_cfg.task_test_config.benchmark_id, "to-mt-m1-megamem-96-1"
+    )
+    self.assertEqual(runner_cfg.task_gcp_config.zone, "us-central1")
+    self.assertEqual(runner_cfg.mounts, "/dev/shm;/mnt/shm;rw")
+    self.assertIsNone(runner_cfg.queue)
+
+    runner = task.GclusterRunner(
+        configs=runner_cfg,
+        workload_id="test-cpu-wl",
+        gcs_path="gs://test-bucket/out",
+    )
+    with self.test_dag:
+      runner.launch_workload()
+
+    self.assertEqual(
+        mock_run_op.call_args.kwargs.get("accelerator_type"), "m1-megamem-96"
+    )
+
   def test_get_gke_config_with_name_gen_and_quarantine_gcluster(self):
     """Constructs GclusterNameGenAndQuarantineTask forwarding all parameters."""
     gcluster_task_obj = gke_config.get_gke_config_with_name_gen_and_quarantine(

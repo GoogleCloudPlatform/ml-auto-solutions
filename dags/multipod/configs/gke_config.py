@@ -648,12 +648,14 @@ def get_gke_gpt3_6b_nightly_config(
   )
 
 
+@overload
 def get_maxtext_cpu_end_to_end_gke_config(
     time_out_in_min: int,
     test_name: str,
     docker_image: str,
     test_owner: str,
     run_model_cmds: Iterable[str],
+    use_gcluster: Literal[False] = False,
     cluster: GkeClusterConfig = GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
     machine_count: int = 1,
     num_slices: int = 1,
@@ -664,8 +666,61 @@ def get_maxtext_cpu_end_to_end_gke_config(
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     base_output_directory: str = None,
     metric_aggregation_strategy: metric_config.AggregationStrategy = None,
-    restart_on_exit_codes: Iterable[int] | None = None,
 ) -> task.XpkTask:
+  pass
+
+
+@overload
+def get_maxtext_cpu_end_to_end_gke_config(
+    time_out_in_min: int,
+    test_name: str,
+    docker_image: str,
+    test_owner: str,
+    run_model_cmds: Iterable[str],
+    use_gcluster: Literal[True],
+    cluster: GkeClusterConfig = GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
+    machine_count: int = 1,
+    num_slices: int = 1,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
+    dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    base_output_directory: str = None,
+    metric_aggregation_strategy: metric_config.AggregationStrategy = None,
+    priority: str = "high",
+    max_restart: int = 0,
+    gcluster_version: str = gcluster.DEFAULT_GCLUSTER_VERSION,
+    mounts: str | Iterable[str] | None = None,
+    restart_on_exit_codes: Iterable[int] | None = None,
+) -> task.GclusterTask:
+  pass
+
+
+def get_maxtext_cpu_end_to_end_gke_config(
+    time_out_in_min: int,
+    test_name: str,
+    docker_image: str,
+    test_owner: str,
+    run_model_cmds: Iterable[str],
+    use_gcluster: bool = False,
+    cluster: GkeClusterConfig = GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
+    machine_count: int = 1,
+    num_slices: int = 1,
+    dataset_name: metric_config.DatasetOption = (
+        metric_config.DatasetOption.XLML_DATASET
+    ),
+    dataset_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
+    base_output_directory: str = None,
+    metric_aggregation_strategy: metric_config.AggregationStrategy = None,
+    priority: str = "high",
+    max_restart: int = 0,
+    gcluster_version: str = gcluster.DEFAULT_GCLUSTER_VERSION,
+    mounts: str | Iterable[str] | None = None,
+    restart_on_exit_codes: Iterable[int] | None = None,
+) -> task.GclusterTask | task.XpkTask:
+  """Constructs a CPU GKE task for either Cluster Toolkit (gcluster) or XPK."""
   job_gcp_config = gcp_config.GCPConfig(
       project_name=cluster.project,
       zone=cluster.zone,
@@ -687,6 +742,8 @@ def get_maxtext_cpu_end_to_end_gke_config(
       num_slices=num_slices,
       cluster_name=cluster.name,
       docker_image=docker_image,
+      namespace=cluster.namespace,
+      mounts=mounts if use_gcluster else None,
   )
 
   job_metric_config = (
@@ -700,6 +757,22 @@ def get_maxtext_cpu_end_to_end_gke_config(
       if base_output_directory and metric_aggregation_strategy
       else None
   )
+
+  if use_gcluster:
+    runner_config = task.GclusterRunnerConfig(
+        task_test_config=job_test_config,
+        task_gcp_config=job_gcp_config,
+        task_metric_config=job_metric_config,
+        priority=priority,
+        max_restart=max_restart,
+        restart_on_exit_codes=restart_on_exit_codes,
+        gcluster_version=gcluster_version,
+        mounts=mounts,
+        queue=cluster.queue,
+    )
+    return task.GclusterTask(
+        runner_config=runner_config,
+    )
 
   runner_config = task.XpkRunnerConfig(
       task_test_config=job_test_config,

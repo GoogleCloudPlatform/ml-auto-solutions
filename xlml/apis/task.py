@@ -565,6 +565,13 @@ class GclusterRunner(Runner):
       if mounts is None and hasattr(self.configs.task_test_config, "mounts"):
         mounts = self.configs.task_test_config.mounts
 
+      accelerator = self.configs.task_test_config.accelerator
+      accelerator_type = (
+          accelerator.device_type.value
+          if isinstance(accelerator, test_config.Cpu)
+          else accelerator.name
+      )
+
       run_workload = gcluster.run_workload.override(
           owner=self.configs.task_test_config.task_owner
       )(
@@ -576,7 +583,7 @@ class GclusterRunner(Runner):
           workload_id=self.workload_id,
           gcs_path=self.gcs_path,
           docker_image=self.configs.task_test_config.docker_image,
-          accelerator_type=self.configs.task_test_config.accelerator.name,
+          accelerator_type=accelerator_type,
           run_cmds=self.configs.task_test_config.test_script,
           num_slices=self.configs.task_test_config.num_slices,
           use_vertex_tensorboard=use_vertex_tensorboard,
