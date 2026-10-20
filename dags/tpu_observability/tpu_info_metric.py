@@ -25,11 +25,11 @@ from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import types as monitoring_types
 
 from dags.tpu_observability.utils import tpu_info_util as tpu_info
-from dags.tpu_observability.utils.gcp_util import (
+from xlml.utils.gcp_util import (
     list_time_series,
     query_time_series,
 )
-from dags.tpu_observability.utils.time_util import TimeUtil
+from xlml.utils.time_util import TimeUtil
 
 
 class _Percentiles(enum.Enum):

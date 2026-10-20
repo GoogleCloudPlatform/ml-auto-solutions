@@ -23,7 +23,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from dags.tpu_observability.utils.time_util import TimeUtil
+from xlml.utils.time_util import TimeUtil
 
 READ_QUOTA_EXCEED_ERROR = ErrorReason.Name(ErrorReason.RATE_LIMIT_EXCEEDED)
 
