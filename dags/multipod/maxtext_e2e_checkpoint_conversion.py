@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""MaxText E2E TPU Checkpoint Conversion DAG (Stage 1).
+"""MaxText E2E Checkpoint Conversion DAG (Stage 1).
 
 Serves as the shared prerequisite pipeline for MaxText E2E testing:
 - Converts Hugging Face checkpoints to MaxText format on CPU clusters.
@@ -48,13 +48,13 @@ def post_training_enabled() -> bool:
 
 
 with models.DAG(
-    dag_id="maxtext_e2e_tpu_checkpoint_conversion",
+    dag_id="maxtext_e2e_checkpoint_conversion",
     schedule=None,
     tags=[
         "maxtext",
         "conversion",
         "checkpoint",
-        "TPU",
+        "CPU",
     ],
     start_date=datetime.datetime(2026, 6, 10),
     catchup=False,
@@ -103,11 +103,8 @@ with models.DAG(
       },
       "qwen3-vl-2b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_mt.sh",
-<<<<<<< HEAD
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
-=======
           "post_training_only": True,
->>>>>>> 784d44f1 (feat(multipod): Support configurable Docker images and scope-based conversion image in `maxtext_e2e_tests`)
       },
       "gpt-oss-20b": {
           "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
@@ -115,11 +112,8 @@ with models.DAG(
       },
       "qwen3_5-35b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_mt.sh",
-<<<<<<< HEAD
           "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
-=======
           "post_training_only": True,
->>>>>>> 784d44f1 (feat(multipod): Support configurable Docker images and scope-based conversion image in `maxtext_e2e_tests`)
       },
   }
   # pylint: enable=line-too-long
@@ -137,7 +131,6 @@ with models.DAG(
           f"{to_maxtext_cmd} {run_name}",
       )
 
-<<<<<<< HEAD
       convert_to_maxtext_task = (
           gke_config.get_maxtext_cpu_end_to_end_gke_config(
               time_out_in_min=120,
@@ -151,22 +144,9 @@ with models.DAG(
               mounts="/dev/shm;/mnt/shm;rw",
           ).run(skip_post_process=True)
       )
-=======
-      convert_to_maxtext_task = gke_config.get_gke_config(
-          time_out_in_min=120,
-          test_name="to-mt",
-          run_model_cmds=convert_to_maxtext_cmd,
-          docker_image="{{ params.docker_image }}",
-          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
-          test_owner=test_owner.JACKY_F,
-          priority="medium",
-          use_gcluster=True,
-          mounts="/dev/shm;/mnt/shm;rw",
-      ).run(skip_post_process=True)
 
       if config.get("post_training_only"):
         chain(
             post_training_enabled(),
             convert_to_maxtext_task,
         )
->>>>>>> 784d44f1 (feat(multipod): Support configurable Docker images and scope-based conversion image in `maxtext_e2e_tests`)

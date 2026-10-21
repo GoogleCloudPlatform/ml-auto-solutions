@@ -16,8 +16,8 @@
 MaxText E2E Tests Orchestrator DAG.
 
 Coordinates the multi-stage MaxText end-to-end testing pipeline for GitHub CI:
-1. Stage 1 (maxtext_e2e_tpu_checkpoint_conversion):
-   Converts Hugging Face checkpoints to MaxText format on TPU v5p-8.
+1. Stage 1 (maxtext_e2e_checkpoint_conversion):
+   Converts Hugging Face checkpoints to MaxText format on CPU clusters.
 2. Stage 2 (maxtext_e2e_tpu_pre_training & maxtext_e2e_tpu_post_training):
    Triggers pre-training and post-training test suites once
    checkpoints are ready.
@@ -43,29 +43,10 @@ from xlml.utils.github import (
     validate_git_trigger,
 )
 
-# Images for the candidate build under test. Unlike the daily builds in
-# `DockerImage`, these are published by the MaxText build workflow and tagged
-# with the GitHub run ID, so the build mode and tag are only known at run time.
-PRE_TRAINING_DOCKER_IMAGE = (
-    "{% if params.docker_images and"
-    " params.docker_images.get('pre_training') %}"
-    "{{ params.docker_images['pre_training'] }}"
-    "{% else %}"
-    "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
-    "maxtext_jax_"
-    "{{ params.build_mode }}:{{ params.github_run_id }}"
-    "{% endif %}"
-)
-POST_TRAINING_DOCKER_IMAGE = (
-    "{% if params.docker_images and"
-    " params.docker_images.get('post_training') %}"
-    "{{ params.docker_images['post_training'] }}"
-    "{% else %}"
-    "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/"
-    "maxtext_post_training_"
-    "{{ params.build_mode }}:{{ params.github_run_id }}"
-    "{% endif %}"
-)
+# Images for the candidate build under test, passed in by the MaxText E2E
+# GitHub workflow through the `docker_images` param.
+PRE_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_pre_training'] }}"
+POST_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_post_training'] }}"
 CHECKPOINT_CONVERSION_DOCKER_IMAGE = (
     f"{{% if params.test_scope == 'pre-training' %}}"
     f"{PRE_TRAINING_DOCKER_IMAGE}"
@@ -161,11 +142,10 @@ with models.DAG(
             ),
         ),
         "docker_images": Param(
-            default={},
-            type=["null", "object"],
+            type="object",
             description=(
-                "Optional mapping of suite keys ('pre_training',"
-                " 'post_training') to full Docker image URIs."
+                "Mapping of suite keys ('tpu_pre_training',"
+                " 'tpu_post_training') to full Docker image URIs."
             ),
         ),
     },
@@ -181,7 +161,7 @@ with models.DAG(
 
   trigger_checkpoint_conversion = TriggerDagRunOperator(
       task_id="trigger_checkpoint_conversion",
-      trigger_dag_id="maxtext_e2e_tpu_checkpoint_conversion",
+      trigger_dag_id="maxtext_e2e_checkpoint_conversion",
       trigger_run_id="{{ run_id }}__checkpoint_conversion",
       execution_date="{{ logical_date }}",
       conf={
@@ -220,12 +200,15 @@ with models.DAG(
 
   github_callback_pre_training = trigger_github_repository_dispatch.override(
       task_id="fire_github_callback_pre_training",
-      trigger_rule=TriggerRule.ALL_SUCCESS,
+      trigger_rule=TriggerRule.NONE_SKIPPED,
   )(
       repo="{{ params.github_repo }}",
       token="{{ params.github_token }}",
       client_payload={
-          "state": "success",
+          "state": (
+              "{{ dag_run.get_task_instance("
+              "'trigger_tpu_pre_training').state }}"
+          ),
           "dag_id": "{{ dag.dag_id }}",
           "dag_run_id": "{{ run_id }}",
           "sha": "{{ params.commit_sha }}",
@@ -237,12 +220,15 @@ with models.DAG(
 
   github_callback_post_training = trigger_github_repository_dispatch.override(
       task_id="fire_github_callback_post_training",
-      trigger_rule=TriggerRule.ALL_SUCCESS,
+      trigger_rule=TriggerRule.NONE_SKIPPED,
   )(
       repo="{{ params.github_repo }}",
       token="{{ params.github_token }}",
       client_payload={
-          "state": "success",
+          "state": (
+              "{{ dag_run.get_task_instance("
+              "'trigger_tpu_post_training').state }}"
+          ),
           "dag_id": "{{ dag.dag_id }}",
           "dag_run_id": "{{ run_id }}",
           "sha": "{{ params.commit_sha }}",
