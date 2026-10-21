@@ -79,6 +79,7 @@ MICHELLE_Y = "michelle-yooh"
 SHUNING_J = "shuningjin"
 ROHAN_B = "Rohan-Bierneni"
 SNEHAL_V = "snehalv2002"
+YAOYU_C = "AusarYao28"
 
 # Inference
 XIANG_S = "sixiang-google"
