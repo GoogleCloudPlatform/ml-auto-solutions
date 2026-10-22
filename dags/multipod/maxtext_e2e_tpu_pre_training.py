@@ -15,7 +15,7 @@
 """MaxText E2E TPU Pre-Training Tests DAG (Stage 2).
 
 Executes end-to-end MaxText pre-training test workloads on Cloud TPU:
-- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion
+- Waits for model conversion in maxtext_e2e_checkpoint_conversion
   via ExternalTaskSensor.
 - Runs pre-training on dedicated TPU v5p topologies configured per
   model architecture.
@@ -212,7 +212,7 @@ with models.DAG(
 
       wait_for_conversion = ExternalTaskSensorWithBypass(
           task_id="wait_for_conversion",
-          external_dag_id="maxtext_e2e_tpu_checkpoint_conversion",
+          external_dag_id="maxtext_e2e_checkpoint_conversion",
           external_task_group_id=model,
           mode="reschedule",
           poke_interval=60,

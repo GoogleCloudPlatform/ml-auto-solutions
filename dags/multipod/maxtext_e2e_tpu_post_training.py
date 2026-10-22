@@ -16,7 +16,7 @@
 
 Executes end-to-end MaxText post-training workflows
 (SFT, Multimodal SFT, LoRA, RL) on Cloud TPU:
-- Waits for model conversion in maxtext_e2e_tpu_checkpoint_conversion
+- Waits for model conversion in maxtext_e2e_checkpoint_conversion
   via ExternalTaskSensor.
 - Executes post-training scripts with Pathways runtime persistence
   on TPU slices.
@@ -223,7 +223,7 @@ with models.DAG(
 
       wait_for_conversion = ExternalTaskSensorWithBypass(
           task_id="wait_for_conversion",
-          external_dag_id="maxtext_e2e_tpu_checkpoint_conversion",
+          external_dag_id="maxtext_e2e_checkpoint_conversion",
           external_task_group_id=model,
           mode="reschedule",
           poke_interval=60,
