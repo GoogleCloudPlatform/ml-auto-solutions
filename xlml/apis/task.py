@@ -406,6 +406,77 @@ class Runner(abc.ABC):
   def cleanup_workload(self, tear_down_of: BaseOperator) -> DAGNode:
     pass
 
+  def wait_workload_reach_to_step(
+      self,
+      expect_reach_to_step: int,
+      check_file_exists: bool,
+  ) -> DAGNode:
+    """Waits for the workload to log `expect_reach_to_step`.
+
+    Launcher-agnostic: reads pod logs through the Kubernetes API and,
+    optionally, the checkpoint commit marker from GCS, so every runner
+    shares it.
+    """
+    with TaskGroup(group_id="wait_workload") as group:
+      wait_reach_to_step = gke.wait_for_workload_reach_step.override(
+          task_id="wait_for_workload_reach_step"
+      )(
+          workload_id=self.workload_id,
+          project_id=self.configs.task_gcp_config.project_name,
+          region=gke.zone_to_region(self.configs.task_gcp_config.zone),
+          cluster_name=self.configs.task_test_config.cluster_name,
+          expect_reach_to_step=str(expect_reach_to_step),
+          namespace=self.configs.task_test_config.namespace,
+      )
+
+      task_id_wait_file_exist = "wait_for_file_to_exist"
+      wait_for_file_to_exist = gcs.wait_for_file_to_exist.override(
+          task_id=task_id_wait_file_exist
+      )(
+          file_path=(
+              f"{self.gcs_path}/{str(expect_reach_to_step)}/commit_success.txt"
+          ),
+      )
+      task_id_do_nothing = "do_nothing"
+      do_nothing = EmptyOperator(task_id=task_id_do_nothing)
+
+      @task.branch
+      def task_path_decider(check_file_exists: bool = False) -> str:
+        """Dynamically route the workflow depending on check_file_exists."""
+        if check_file_exists:
+          return f"{group.group_id}.{task_id_wait_file_exist}"
+        return f"{group.group_id}.{task_id_do_nothing}"
+
+      # Conditional checks: depending on the `check_file_exists` argument
+      # specified by the upper-level caller.
+      maybe_check_file_exists = task_path_decider(check_file_exists)
+
+      chain(
+          wait_reach_to_step,
+          maybe_check_file_exists,
+          [wait_for_file_to_exist, do_nothing],
+      )
+
+      return group
+
+  def interrupt_workload(self, is_targeting_on_last_node: bool) -> DAGNode:
+    """Deletes one of the workload's nodes to simulate an interruption.
+
+    Launcher-agnostic: uses the Kubernetes and Compute Engine APIs directly.
+    """
+    return gke.delete_node.override(
+        owner=self.configs.task_test_config.task_owner,
+        trigger_rule="none_failed",
+    )(
+        project=self.configs.task_gcp_config.project_name,
+        zone=self.configs.task_gcp_config.zone,
+        cluster_name=self.configs.task_test_config.cluster_name,
+        workload_id=self.workload_id,
+        dry_run=False,
+        last_node=is_targeting_on_last_node,
+        namespace=self.configs.task_test_config.namespace,
+    )
+
 
 @dataclasses.dataclass
 class XpkRunner(Runner):
@@ -482,67 +553,6 @@ class XpkRunner(Runner):
     ).as_teardown(
         setups=tear_down_of,
         on_failure_fail_dagrun=True,
-    )
-
-  def wait_workload_reach_to_step(
-      self,
-      expect_reach_to_step: int,
-      check_file_exists: bool,
-  ) -> DAGNode:
-    with TaskGroup(group_id="wait_workload") as group:
-      wait_reach_to_step = xpk.wait_for_workload_reach_step.override(
-          task_id="wait_for_workload_reach_step"
-      )(
-          workload_id=self.workload_id,
-          project_id=self.configs.task_gcp_config.project_name,
-          region=gke.zone_to_region(self.configs.task_gcp_config.zone),
-          cluster_name=self.configs.task_test_config.cluster_name,
-          expect_reach_to_step=str(expect_reach_to_step),
-          namespace=self.configs.task_test_config.namespace,
-      )
-
-      task_id_wait_file_exist = "wait_for_file_to_exist"
-      wait_for_file_to_exist = gcs.wait_for_file_to_exist.override(
-          task_id=task_id_wait_file_exist
-      )(
-          file_path=(
-              f"{self.gcs_path}/{str(expect_reach_to_step)}/commit_success.txt"
-          ),
-      )
-      task_id_do_nothing = "do_nothing"
-      do_nothing = EmptyOperator(task_id=task_id_do_nothing)
-
-      @task.branch
-      def task_path_decider(check_file_exists: bool = False) -> str:
-        """Dynamically route the workflow depending on check_file_exists."""
-        if check_file_exists:
-          return f"{group.group_id}.{task_id_wait_file_exist}"
-        return f"{group.group_id}.{task_id_do_nothing}"
-
-      # Conditional checks: depending on the `check_file_exists` argument
-      # specified by the upper-level caller.
-      maybe_check_file_exists = task_path_decider(check_file_exists)
-
-      chain(
-          wait_reach_to_step,
-          maybe_check_file_exists,
-          [wait_for_file_to_exist, do_nothing],
-      )
-
-      return group
-
-  def interrupt_workload(self, is_targeting_on_last_node: bool) -> DAGNode:
-    return xpk.delete_node.override(
-        owner=self.configs.task_test_config.task_owner,
-        trigger_rule="none_failed",
-    )(
-        project=self.configs.task_gcp_config.project_name,
-        zone=self.configs.task_gcp_config.zone,
-        cluster_name=self.configs.task_test_config.cluster_name,
-        workload_id=self.workload_id,
-        dry_run=False,
-        last_node=is_targeting_on_last_node,
-        namespace=self.configs.task_test_config.namespace,
     )
 
 
@@ -836,8 +846,8 @@ class GclusterTask(BaseRunnerTask):
 
 
 @dataclasses.dataclass
-class XpkNodeInterruptionTask(XpkTask):
-  """Task for running XPK workloads with node interruption."""
+class BaseRunnerNodeInterruptionTask(BaseRunnerTask):
+  """Base task for running workloads with node interruption."""
 
   expect_reach_to_step: int = 0
   last_node: bool = False
@@ -860,6 +870,22 @@ class XpkNodeInterruptionTask(XpkTask):
       )
 
       return group
+
+
+@dataclasses.dataclass
+class XpkNodeInterruptionTask(BaseRunnerNodeInterruptionTask, XpkTask):
+  """Task for running XPK workloads with node interruption."""
+
+  pass
+
+
+@dataclasses.dataclass
+class GclusterNodeInterruptionTask(
+    BaseRunnerNodeInterruptionTask, GclusterTask
+):
+  """Cluster Toolkit workloads with node interruption."""
+
+  pass
 
 
 @dataclasses.dataclass

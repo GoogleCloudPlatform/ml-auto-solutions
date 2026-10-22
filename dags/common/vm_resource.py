@@ -267,6 +267,11 @@ class GkeClusters:
       project=Project.CLOUD_TPU_MULTIPOD_DEV.value,
       zone=Zone.EUROPE_WEST4_B.value,
   )
+  # XPK/AXLearn-only alias for bodaborg-v5p-nap. Keeps a zone in `zone`
+  # because the xpk CLI expects one for regional clusters. gcluster callers
+  # must use TPU_V5P_BODABORG_NAP_CLUSTER.override(core_count=128).
+  # TODO: delete once maxtext_end_to_end, sparsity_diffusion_devx and
+  # axlearn_checkpoint_regular migrate.
   TPU_V5P_128_CLUSTER = GkeClusterConfig(
       name="bodaborg-v5p-nap",
       device_version=TpuVersion.V5P,

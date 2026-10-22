@@ -25,7 +25,7 @@ from airflow.hooks.subprocess import SubprocessHook
 from dags.common.vm_resource import GpuVersion
 from xlml.utils import composer, gke
 
-DEFAULT_GCLUSTER_VERSION = "v1.102.0"
+DEFAULT_GCLUSTER_VERSION = "v1.105.0"
 
 LOGGING_URL_FORMAT = gke.LOGGING_URL_FORMAT
 
@@ -104,18 +104,29 @@ def is_valid_gpu_version(accelerator_type: str) -> bool:
   return accelerator_type in [member.value for member in GpuVersion]
 
 
+WORKLOAD_ID_PREFIX_MAX_LEN = 19
+
+
+def get_workload_id_prefix(benchmark_id: str) -> str:
+  """Return the sanitized, truncated prefix used in gcluster workload IDs.
+
+  Workload IDs are `<prefix>-<5 hex chars>`, and pod names are derived from
+  them, so any log filter on pod names must be built from this prefix rather
+  than from the full benchmark ID.
+  """
+  clean_benchmark = (
+      re.sub(r"[^a-z0-9]+", "-", benchmark_id.lower())
+      .strip("-")[:WORKLOAD_ID_PREFIX_MAX_LEN]
+      .rstrip("-")
+  )
+  return clean_benchmark or "job"
+
+
 @task
 def generate_workload_id(benchmark_id: str) -> str:
   """Generate unique workload ID conforming to RFC 1123 for Cluster Toolkit."""
   short_id = uuid.uuid4().hex[:5]
-  clean_benchmark = (
-      re.sub(r"[^a-z0-9]+", "-", benchmark_id.lower())
-      .strip("-")[:19]
-      .rstrip("-")
-  )
-  if not clean_benchmark:
-    clean_benchmark = "job"
-  return f"{clean_benchmark}-{short_id}"
+  return f"{get_workload_id_prefix(benchmark_id)}-{short_id}"
 
 
 @task
