@@ -17,19 +17,14 @@
 
 import os
 import re
-import sys
 import tempfile
-from typing import Tuple
 import uuid
-from absl import logging
 
 from airflow.decorators import task
-from airflow.exceptions import AirflowFailException
 from airflow.hooks.subprocess import SubprocessHook
 from dags.common.vm_resource import GpuVersion
-from google.cloud import compute_v1
 from xlml.apis import metric_config
-from xlml.utils import composer, gke
+from xlml.utils import composer
 
 # NOTE: This version needs to be pinned to ensure compatibility when using
 # xpk.py for workload creation.
@@ -242,154 +237,3 @@ def clean_up_workload(
     assert (
         result.exit_code == 0
     ), f"XPK clean-up failed with code {result.exit_code}"
-
-
-@task.sensor(poke_interval=3, timeout=3600, mode="reschedule")
-def wait_for_workload_reach_step(
-    project_id: str,
-    region: str,
-    cluster_name: str,
-    workload_id: str,
-    expect_reach_to_step: str,
-    namespace: str = "default",
-) -> bool:
-  """
-  Watch any given training pod, check the given step is already reach before
-  deleting a node
-  """
-  core_api = gke.get_core_api_client(project_id, region, cluster_name)
-  pods = gke.list_workload_pods(core_api, workload_id, namespace=namespace)
-
-  if not pods.items:
-    logging.info("No pods found for workload selector: %s.", workload_id)
-    return False
-
-  if any(pod.status.phase in ["Pending"] for pod in pods.items):
-    logging.info("Some of the pods is still pending. Waiting to start")
-    return False
-
-  for pod in pods.items:
-    if pod.status.phase == "Failed":
-      # Don't keep retrying if the pod has failed
-      raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
-    elif pod.status.phase in ["Unknown"]:
-      raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
-
-  if all(pod.status.phase in ["Running"] for pod in pods.items):
-    # Pick last one running pod
-    pod = pods.items[len(pods.items) - 1]
-    logs = core_api.read_namespaced_pod_log(
-        name=pod.metadata.name, namespace=pod.metadata.namespace
-    )
-    # Check if the workload completed step reached over the expected step
-    completed_step_matches = re.findall(r"completed step: (\d+)", logs)
-    if completed_step_matches:
-      current_step = int(completed_step_matches[-1])
-      if current_step >= int(expect_reach_to_step):
-        logging.info(
-            "Reached to the expected step %s. Current step is %s.",
-            expect_reach_to_step,
-            current_step,
-        )
-        return True
-
-  logging.info("Waiting for reaching expected step %s.", expect_reach_to_step)
-
-  return False
-
-
-def extract_numbers(pod_name: str) -> Tuple[int, int]:
-  """Extract slice and pod numbers from pod name."""
-  match = re.search(r"slice-job-(\d+)-(\d+)-", pod_name)
-  if match:
-    return int(match.group(1)), int(match.group(2))
-  return (0, 0)
-
-
-def _find_target_pod_node(
-    project_id: str,
-    region: str,
-    cluster_name: str,
-    workload_id: str,
-    last_node: bool = False,
-    namespace: str = "default",
-) -> str:
-  """find the node name for the workload."""
-  core_api = gke.get_core_api_client(project_id, region, cluster_name)
-  pods = gke.list_workload_pods(core_api, workload_id, namespace=namespace)
-  pod_node_pairs = []
-  pattern = re.compile(r".*slice-job-(\d+)-(\d+)-\w+")
-
-  pod_node_pairs = [
-      (pod.metadata.name, pod.spec.node_name)
-      for pod in pods.items
-      if pod.status.phase == "Running" and pattern.match(pod.metadata.name)
-  ]
-  if not pod_node_pairs:
-    raise AirflowFailException(
-        f"No running pods found for workload {workload_id} matching pattern."
-    )
-
-  # Find the pod with the highest slice and pod numbers.
-  # Sort by slice number, then by pod number, and get the last (highest) one
-  sorted_pairs = sorted(pod_node_pairs, key=lambda x: extract_numbers(x[0]))
-  target_pod, target_node = sorted_pairs[0]
-  if last_node:
-    target_pod, target_node = sorted_pairs[-1]
-
-  logging.info("Identified Pod for node deletion:")
-  logging.info(f"  Pod Name:   {target_pod}")
-  logging.info(f"  Node Name:  {target_node}")
-  logging.info("-" * 72)
-
-  delete_info = {
-      "pod": target_pod,
-      "node": target_node,
-  }
-  return delete_info
-
-
-@task
-def delete_node(
-    cluster_name: str,
-    workload_id: str,
-    zone: str,
-    project: str,
-    dry_run: bool = False,
-    last_node: bool = False,
-    namespace: str = "default",
-) -> None:
-  """Delete node."""
-  delete_info = _find_target_pod_node(
-      project,
-      gke.zone_to_region(zone),
-      cluster_name,
-      workload_id,
-      last_node,
-      namespace=namespace,
-  )
-  node_name = delete_info["node"]
-  # Delete the specified compute instance.
-  if dry_run:
-    logging.info(
-        f"DRY RUN: Would delete node: {node_name}"
-        f"in zone: {zone} (project: {project})"
-    )
-    return
-
-  logging.info(f"Proceeding to delete node: {node_name}")
-  try:
-    # Initialize the Compute Engine client
-    instances_client = compute_v1.InstancesClient()
-
-    # Delete the instance
-    operation = instances_client.delete(
-        project=project, zone=zone, instance=node_name
-    )
-
-    logging.info(f"Deletion operation started for node: {node_name}")
-    logging.info(f"Operation: {operation.name}")
-    logging.info(f"Deletion command executed for node: {node_name}")
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    logging.info(f"Error deleting node {node_name}: {e}", file=sys.stderr)
-    sys.exit(1)

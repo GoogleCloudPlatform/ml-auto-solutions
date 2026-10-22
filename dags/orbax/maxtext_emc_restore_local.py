@@ -71,7 +71,9 @@ with models.DAG(
   )
   test_configs = [
       test_config_util.TestConfig(
-          cluster=GkeClusters.TPU_V5P_128_CLUSTER,
+          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128
+          ),
           machine_type="ct5p-hightpu-4t",
           accelerator="v5p-128",
           slices=[2],
@@ -119,6 +121,7 @@ with models.DAG(
         )()
 
         maxtext_chkpt_run_test = gke_config.get_gke_config_with_interrupt(
+            use_gcluster=True,
             num_slices=slice_num,
             cluster=test_config.cluster,
             time_out_in_min=60,

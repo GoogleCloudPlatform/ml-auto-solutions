@@ -15,7 +15,6 @@ from dags.common import test_owner
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
 from dags.orbax.util import validation_util, test_config_util
-from xlml.utils.xpk import MAIN_BRANCH
 from xlml.utils.gke import zone_to_region
 
 SCHEDULE = "45 10 * * *" if composer_env.is_prod_env() else None
@@ -72,7 +71,9 @@ with models.DAG(
   )
   test_configs = [
       test_config_util.TestConfig(
-          cluster=GkeClusters.TPU_V5P_128_CLUSTER,
+          cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+              core_count=128
+          ),
           machine_type="ct5p-hightpu-4t",
           accelerator="v5p-128",
           slices=[2],
@@ -109,6 +110,7 @@ with models.DAG(
         start_time = validation_util.generate_timestamp()
 
         maxtext_chkpt_run_test = gke_config.get_gke_config(
+            use_gcluster=True,
             num_slices=slice_num,
             cluster=test_config.cluster,
             time_out_in_min=60,
@@ -116,7 +118,6 @@ with models.DAG(
             run_model_cmds=workload_command,
             docker_image=image.value,
             test_owner=test_owner.JACKY_F,
-            xpk_branch=MAIN_BRANCH,
             priority="medium",
         ).run(skip_post_process=True)
 

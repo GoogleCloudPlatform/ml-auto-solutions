@@ -159,6 +159,41 @@ class GclusterTest(unittest.TestCase):
     self.assertEqual(res, "my-long-test-names-12345")
     self.assertFalse(res.startswith("my-long-test-names--"))
 
+  def test_get_workload_id_prefix(self):
+    """Returns the sanitized 19-char prefix shared with generate_workload_id."""
+    self.assertEqual(
+        gcluster.get_workload_id_prefix("max-reg-res-gcs-resume-training"),
+        "max-reg-res-gcs-res",
+    )
+    self.assertEqual(
+        gcluster.get_workload_id_prefix("max-reg-res-gcs-node"),
+        "max-reg-res-gcs-nod",
+    )
+    self.assertEqual(
+        gcluster.get_workload_id_prefix("max-res-gcs"), "max-res-gcs"
+    )
+    self.assertEqual(
+        gcluster.get_workload_id_prefix("my-long-test-names-extra"),
+        "my-long-test-names",
+    )
+    self.assertEqual(
+        gcluster.get_workload_id_prefix("MaxText TPU"), "maxtext-tpu"
+    )
+    self.assertEqual(gcluster.get_workload_id_prefix(""), "job")
+
+  @mock.patch("uuid.uuid4")
+  def test_generate_workload_id_starts_with_prefix(self, mock_uuid):
+    """Generated workload IDs start with get_workload_id_prefix output."""
+    fake_uuid = mock.MagicMock()
+    fake_uuid.hex = "abcdef123456"
+    mock_uuid.return_value = fake_uuid
+
+    benchmark_id = "max-reg-res-gcs-resume-training-re-2xv5p-128"
+    workload_id = gcluster.generate_workload_id.function(benchmark_id)
+    self.assertEqual(
+        workload_id, f"{gcluster.get_workload_id_prefix(benchmark_id)}-abcde"
+    )
+
   @mock.patch("tempfile.TemporaryDirectory")
   @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
   @mock.patch("xlml.utils.gcluster.SubprocessHook")
@@ -1014,6 +1049,110 @@ class GclusterTest(unittest.TestCase):
 
     self.assertIn("was interrupted", "\n".join(logs.output))
     mock_response.release_conn.assert_called_once()
+
+  def test_gke_extract_numbers_xpk_and_gcluster_pod_names(self):
+    """Parses slice and pod index from both XPK and gcluster pod names."""
+    self.assertEqual(
+        gke.extract_numbers("test-workload-slice-job-1-12-abcde"), (1, 12)
+    )
+    self.assertEqual(
+        gke.extract_numbers("max-res-gcs-emc-2xv-d05e4-main-job-0-0-m7tgv"),
+        (0, 0),
+    )
+    self.assertEqual(
+        gke.extract_numbers("max-res-gcs-emc-2xv-d05e4-main-job-1-15-x7k2p"),
+        (1, 15),
+    )
+    self.assertEqual(gke.extract_numbers("unrelated-pod-name"), (0, 0))
+
+  @staticmethod
+  def _mock_pod(name, node, phase="Running"):
+    pod = mock.MagicMock()
+    pod.metadata.name = name
+    pod.spec.node_name = node
+    pod.status.phase = phase
+    return pod
+
+  @mock.patch("xlml.utils.gke.list_workload_pods")
+  @mock.patch("xlml.utils.gke.get_core_api_client")
+  def test_gke_find_target_pod_node_gcluster_pod_names(
+      self, mock_get_client, mock_list_pods
+  ):
+    """Finds first/last node for gcluster-style `main-job` pod names."""
+    prefix = "max-res-gcs-emc-2xv-d05e4-main-job"
+    mock_pod_list = mock.MagicMock()
+    mock_pod_list.items = [
+        self._mock_pod(f"{prefix}-1-3-aaaaa", "node-1-3"),
+        self._mock_pod(f"{prefix}-0-0-bbbbb", "node-0-0"),
+        self._mock_pod(f"{prefix}-1-15-ccccc", "node-1-15"),
+        self._mock_pod(f"{prefix}-0-7-ddddd", "node-0-7", phase="Pending"),
+    ]
+    mock_list_pods.return_value = mock_pod_list
+    mock_core_api = mock.MagicMock()
+    mock_core_api.read_node.return_value.metadata.labels = {
+        "topology.kubernetes.io/zone": "europe-west4-b"
+    }
+    mock_get_client.return_value = mock_core_api
+
+    first = gke._find_target_pod_node(
+        "test-project", "europe-west4", "test-cluster", "test-workload"
+    )
+    self.assertEqual(first["pod"], f"{prefix}-0-0-bbbbb")
+    self.assertEqual(first["node"], "node-0-0")
+    self.assertEqual(first["zone"], "europe-west4-b")
+
+    last = gke._find_target_pod_node(
+        "test-project",
+        "europe-west4",
+        "test-cluster",
+        "test-workload",
+        last_node=True,
+    )
+    self.assertEqual(last["pod"], f"{prefix}-1-15-ccccc")
+    self.assertEqual(last["node"], "node-1-15")
+
+  @mock.patch("xlml.utils.gke.list_workload_pods")
+  @mock.patch("xlml.utils.gke.get_core_api_client")
+  def test_gke_find_target_pod_node_xpk_pod_names(
+      self, mock_get_client, mock_list_pods
+  ):
+    """Still finds nodes for XPK-style `slice-job` pod names."""
+    mock_pod_list = mock.MagicMock()
+    mock_pod_list.items = [
+        self._mock_pod("test-workload-slice-job-0-1-aaaaa", "node-0-1"),
+        self._mock_pod("test-workload-slice-job-0-0-bbbbb", "node-0-0"),
+    ]
+    mock_list_pods.return_value = mock_pod_list
+    mock_core_api = mock.MagicMock()
+    mock_core_api.read_node.return_value.metadata.labels = {
+        "topology.kubernetes.io/zone": "us-central2-b"
+    }
+    mock_get_client.return_value = mock_core_api
+
+    result = gke._find_target_pod_node(
+        "test-project", "us-central2", "test-cluster", "test-workload"
+    )
+    self.assertEqual(result["pod"], "test-workload-slice-job-0-0-bbbbb")
+    self.assertEqual(result["node"], "node-0-0")
+
+  @mock.patch("xlml.utils.gke.list_workload_pods")
+  @mock.patch("xlml.utils.gke.get_core_api_client")
+  def test_gke_find_target_pod_node_no_running_pods(
+      self, mock_get_client, mock_list_pods
+  ):
+    """Fails when no Running pod matches the workload pod-name pattern."""
+    mock_pod_list = mock.MagicMock()
+    mock_pod_list.items = [
+        self._mock_pod("w-main-job-0-0-aaaaa", "node-0-0", phase="Pending"),
+        self._mock_pod("w-sidecar-0", "node-0-1"),
+    ]
+    mock_list_pods.return_value = mock_pod_list
+    mock_get_client.return_value = mock.MagicMock()
+
+    with self.assertRaises(AirflowFailException):
+      gke._find_target_pod_node(
+          "test-project", "europe-west4", "test-cluster", "w"
+      )
 
 
 if __name__ == "__main__":
