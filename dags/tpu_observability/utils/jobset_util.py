@@ -1026,7 +1026,7 @@ def wait_for_jobset_ttr_to_be_found(
   return len(time_series) > 0
 
 
-@task.sensor(poke_interval=30, timeout=600, mode="poke")
+@task.sensor(poke_interval=30, timeout=600, mode="poke", retry_delay=30)
 def wait_for_all_pods_running(
     node_pool: node_pool_info, jobset_config: JobSet, jobset_name: str
 ) -> PokeReturnValue:
