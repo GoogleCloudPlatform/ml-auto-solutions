@@ -2,6 +2,7 @@
 
 import base64
 import concurrent.futures
+import dataclasses
 import datetime
 import logging
 import re
@@ -258,6 +259,64 @@ def log_workload_pod_statuses(
   logging.info("-" * 80)
 
 
+@dataclasses.dataclass
+class WorkloadState:
+  """The pods of a workload bucketed by phase, collected in a single pass.
+
+  `failed_containers` holds every container that terminated with a non-zero
+  exit code, regardless of the phase of its pod.
+  """
+
+  pending: list[kubernetes.client.V1Pod] = dataclasses.field(
+      default_factory=list
+  )
+  running: list[kubernetes.client.V1Pod] = dataclasses.field(
+      default_factory=list
+  )
+  unknown: list[kubernetes.client.V1Pod] = dataclasses.field(
+      default_factory=list
+  )
+  failed: list[kubernetes.client.V1Pod] = dataclasses.field(
+      default_factory=list
+  )
+  succeeded: list[kubernetes.client.V1Pod] = dataclasses.field(
+      default_factory=list
+  )
+  failed_containers: list[
+      tuple[kubernetes.client.V1Pod, kubernetes.client.V1ContainerStatus]
+  ] = dataclasses.field(default_factory=list)
+
+  @property
+  def active_pods(self) -> list[kubernetes.client.V1Pod]:
+    """Pods that may still change phase."""
+    return self.pending + self.running + self.unknown
+
+  @property
+  def not_completed_pods(self) -> list[kubernetes.client.V1Pod]:
+    """Pods that are not Succeeded."""
+    return self.active_pods + self.failed
+
+
+def collect_pod_state(pods: kubernetes.client.V1PodList) -> WorkloadState:
+  """Buckets the pods by phase and gathers their failed containers."""
+  state = WorkloadState()
+  buckets = {
+      "Pending": state.pending,
+      "Running": state.running,
+      "Unknown": state.unknown,
+      "Failed": state.failed,
+      "Succeeded": state.succeeded,
+  }
+  for pod in pods.items:
+    # A phase outside the five Kubernetes defines is treated as Unknown.
+    buckets.get(pod.status.phase, state.unknown).append(pod)
+    for container_status in pod.status.container_statuses or []:
+      terminated = container_status.state and container_status.state.terminated
+      if terminated and terminated.exit_code != 0:
+        state.failed_containers.append((pod, container_status))
+  return state
+
+
 LOGGING_URL_FORMAT = (
     "https://console.cloud.google.com/logs/viewer"
     "?project={project}&resource=k8s_container"
@@ -284,23 +343,26 @@ def wait_for_workload_start(
     logging.info(f"Waiting for pods of workload: {workload_id} to be created.")
     return False
 
-  for pod in pods.items:
-    if pod.status.phase in ["Pending", "Unknown"]:
+  states = collect_pod_state(pods)
+  not_started = states.pending + states.unknown
+  if not_started:
+    for pod in not_started:
       logging.info(f"Pod {pod.metadata.name} is in phase {pod.status.phase}")
-      return False
-    if pod.status.phase == "Failed":
+    return False
+  if states.failed:
+    for pod in states.failed:
       print_pod_logs(core_api, pod)
-      url = LOGGING_URL_FORMAT.format(
-          project=project_id,
-          region=region,
-          cluster=cluster_name,
-          namespace=namespace,
-          workload_id=workload_id,
-      )
-      raise AirflowFailException(
-          f"Workload {workload_id} failed during startup with pod phase:"
-          f" {pod.status.phase}. Link to logs: {url}"
-      )
+    url = LOGGING_URL_FORMAT.format(
+        project=project_id,
+        region=region,
+        cluster=cluster_name,
+        namespace=namespace,
+        workload_id=workload_id,
+    )
+    raise AirflowFailException(
+        f"Workload {workload_id} failed during startup with pod phase:"
+        f" Failed. Link to logs: {url}"
+    )
 
   logging.info("All pod(s) phase are ready to run.")
   return True
@@ -318,6 +380,14 @@ def wait_for_workload_completion(
   core_api = get_core_api_client(project_id, region, cluster_name)
   pods = list_workload_pods(core_api, workload_id, namespace=namespace)
   log_workload_pod_statuses(workload_id, pods)
+  # The link is the same whatever state the workload is in.
+  url = LOGGING_URL_FORMAT.format(
+      project=project_id,
+      region=region,
+      cluster=cluster_name,
+      namespace=namespace,
+      workload_id=workload_id,
+  )
 
   if not pods.items:
     batch_api = get_batch_api_client(project_id, region, cluster_name)
@@ -328,13 +398,6 @@ def wait_for_workload_completion(
           c.type == "Failed" and getattr(c, "status", "True") != "False"
           for c in conditions
       ):
-        url = LOGGING_URL_FORMAT.format(
-            project=project_id,
-            region=region,
-            cluster=cluster_name,
-            namespace=namespace,
-            workload_id=workload_id,
-        )
         raise AirflowFailException(
             f"Workload {workload_id} failed. Logs: {url}"
         )
@@ -353,13 +416,6 @@ def wait_for_workload_completion(
           c.get("type") == "Failed" and c.get("status", "True") != "False"
           for c in conditions
       ):
-        url = LOGGING_URL_FORMAT.format(
-            project=project_id,
-            region=region,
-            cluster=cluster_name,
-            namespace=namespace,
-            workload_id=workload_id,
-        )
         raise AirflowFailException(
             f"Workload {workload_id} JobSet failed. Logs: {url}"
         )
@@ -373,54 +429,52 @@ def wait_for_workload_completion(
     logging.info(f"No pods found for workload: {workload_id}")
     return False
 
-  for pod in pods.items:
-    if pod.status.phase in ["Pending", "Running", "Unknown"]:
-      logging.info(f"Pod {pod.metadata.name} is in phase {pod.status.phase}")
-      return False
-    if pod.status.phase == "Failed":
+  # Judge the workload from the state of all its pods at once, so the verdict
+  # does not depend on the order the API lists them in.
+  #
+  # A Failed pod does not necessarily mean the workload failed: pod damaged
+  # (e.g. the node-interruption tests delete its node) -> k8s restarts the
+  # job -> the damaged pod gets recycled. So only judge once no pod is active.
+  states = collect_pod_state(pods)
+  if states.active_pods:
+    # Still running or being restarted; keep polling.
+    logging.info(
+        f"{len(states.not_completed_pods)} of {len(pods.items)} pod(s) not"
+        f" completed, {len(states.failed)} of them failed. Logs: {url}"
+    )
+    return False
+  if states.failed:
+    # Nothing left to restart: the Failed pods are final.
+    for pod in states.failed:
       print_pod_logs(core_api, pod)
-      url = LOGGING_URL_FORMAT.format(
-          project=project_id,
-          region=region,
-          cluster=cluster_name,
-          namespace=namespace,
-          workload_id=workload_id,
-      )
-      raise AirflowFailException(
-          f"Workload {workload_id} failed with pod phase: {pod.status.phase}."
-          f" Link to logs: {url}"
-      )
+    raise AirflowFailException(
+        f"Workload {workload_id} failed with {len(states.failed)} of"
+        f" {len(pods.items)} pod(s) in phase Failed. Link to logs: {url}"
+    )
 
-  for pod in pods.items:
-    if pod.status.container_statuses:
-      for container_status in pod.status.container_statuses:
-        if (
-            container_status.state
-            and container_status.state.terminated
-            and container_status.state.terminated.exit_code != 0
-        ):
-          print_container_logs(
-              core_api,
-              namespace=namespace,
-              pod_name=pod.metadata.name,
-              container_name=(
-                  container_status.name or pod.spec.containers[0].name
-              ),
-          )
-          url = LOGGING_URL_FORMAT.format(
-              project=project_id,
-              region=region,
-              cluster=cluster_name,
-              namespace=namespace,
-              workload_id=workload_id,
-          )
-          raise AirflowFailException(
-              f"Workload {workload_id} failed with container exit code "
-              f"{container_status.state.terminated.exit_code}. Logs: {url}"
-          )
+  # Every pod is Succeeded. Confirm no container exited non-zero; the phases
+  # are final at this point, so a bad exit code is a failure rather than
+  # something to poll for again.
+  error_messages = []
+  for pod, container_status in states.failed_containers:
+    print_container_logs(
+        core_api,
+        namespace=namespace,
+        pod_name=pod.metadata.name,
+        container_name=container_status.name,
+    )
+    error_messages.append(
+        f"{pod.metadata.name}/{container_status.name} exited with code"
+        f" {container_status.state.terminated.exit_code}"
+    )
+  if error_messages:
+    raise AirflowFailException(
+        f"Workload {workload_id} failed: {', '.join(error_messages)}."
+        f" Logs: {url}"
+    )
 
   # Fetch logs for successful pods before returning
-  for pod in pods.items:
+  for pod in states.succeeded:
     print_pod_logs(core_api, pod)
 
   logging.info("All pod(s) phase are succeeded.")
