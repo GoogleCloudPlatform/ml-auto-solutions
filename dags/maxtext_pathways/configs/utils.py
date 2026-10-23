@@ -30,7 +30,7 @@ from airflow.operators.python import get_current_context
 from airflow.utils.task_group import TaskGroup
 from google.cloud import logging as gcp_logging
 
-from xlml.utils import gke, subprocess_utils, xpk
+from xlml.utils import gcluster, gke, subprocess_utils
 
 
 # TODO(cienet): Replace this with an official one.
@@ -73,7 +73,11 @@ def generate_recipe_workload_id(dag_id: str) -> tuple[str, str]:
   return name
 
 
-def generate_install_dependencies_commands() -> str:
+def generate_install_dependencies_commands(
+    cluster_name: str,
+    location: str,
+    project_id: str,
+) -> str:
   """Generate shell commands to install necessary dependencies in the Pod."""
   # fmt: off
   return " && ".join([
@@ -83,11 +87,16 @@ def generate_install_dependencies_commands() -> str:
       # Install kubectl and GKE auth plugin
       "sudo apt-get install -y kubectl google-cloud-cli-gke-gcloud-auth-plugin",
 
-      # Install xpk
-      *xpk.get_xpk_setup_cmd("/root", host=False, branch=xpk.MAIN_BRANCH),
+      # Install gcluster and configure cluster credentials
+      *gcluster.get_gcluster_setup_cmd(
+          tmpdir="/root",
+          cluster_name=cluster_name,
+          location=location,
+          project_id=project_id,
+      ),
 
       # Install dependencies for maxtext
-      "uv pip install omegaconf",
+      "pip install omegaconf",
 
       # Prepare environment for further pip installs
       "cd /deps",

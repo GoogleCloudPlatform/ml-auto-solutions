@@ -34,7 +34,7 @@ from dags.maxtext_pathways.configs.utils import (
     worker_pod_interruption,
     COLOCATED_PYTHON_IMAGE,
 )
-from xlml.utils import gke, kpo, xpk
+from xlml.utils import gcluster, gke, kpo
 
 
 @enum.unique
@@ -96,7 +96,11 @@ def generate_commands(
   Runtime modifications are made to the recipe command depending on the
   elastic mode (Pause-resume vs Replica-resize).
   """
-  env_cmds = generate_install_dependencies_commands()
+  env_cmds = generate_install_dependencies_commands(
+      cluster_name=dag_params["cluster_name"],
+      location=derived_params["region"],
+      project_id=dag_params["project"],
+  )
   recipe_cmd = recipe_instance.run_command
 
   match elastic_mode:
@@ -105,12 +109,13 @@ def generate_commands(
           r'sed -i "/python3 -m maxtext.trainers.pre_train.train/a '
           r"          f\"elastic_enabled=True\",\n"
           r"          f\"enable_single_controller=True\",\n"
+          r"          f\"grain_use_elastic_iterator=True\",\n"
           f'          \\"elastic_min_slice_count='
           f'{derived_params["elastic_min_slice_count"]}\\",\\n'
           r"          f\"colocated_python_data_input=True\",\n"
           r"          f\"tokenizer_path="
           r'"src/maxtext/assets/tokenizers/tokenizer.llama2"\"," '
-          r"benchmarks/maxtext_xpk_runner.py"
+          r"benchmarks/maxtext_ctk_runner.py"
       )
       patch_cmd_model_configs_sub = (
           r'sed -i "/model_name=\"default-basic-1\"/,/)/ { '
@@ -141,7 +146,7 @@ def generate_commands(
           r"          f\"async_checkpointing=True\",\n"
           r"          f\"enable_checkpoint_cloud_logger=True\",\n"
           r"          f\"checkpoint_period=10\",\n"
-          r'" benchmarks/maxtext_xpk_runner.py'
+          r'" benchmarks/maxtext_ctk_runner.py'
       )
       patch_cmd_model_configs_sub = (
           r'sed -i "/model_name=\"default-basic-1\"/,/xla_flags/ { '
@@ -261,10 +266,12 @@ def create_elastic_dag(
         cluster_name=fetched_params["cluster_name"],
     )
 
-    clean_up_recipe = xpk.clean_up_workload.override(task_id="clean_up_recipe")(
+    clean_up_recipe = gcluster.clean_up_workload.override(
+        task_id="clean_up_recipe"
+    )(
         workload_id=calculated_params["workload_id"],
         project_id=fetched_params["project"],
-        zone=fetched_params["zone"],
+        zone=calculated_params["region"],
         cluster_name=fetched_params["cluster_name"],
     ).as_teardown()
 
