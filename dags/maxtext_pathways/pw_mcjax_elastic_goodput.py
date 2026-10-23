@@ -46,7 +46,7 @@ from dags.maxtext_pathways.configs.utils import (
     worker_pod_interruption,
     COLOCATED_PYTHON_IMAGE,
 )
-from xlml.utils import gke, kpo, xpk
+from xlml.utils import gcluster, gke, kpo
 
 ELASTIC_TYPE = ["Pause-resume", "Replica-resize"]
 
@@ -97,7 +97,11 @@ def generate_commands(
   training and colocated Python data input.
   """
   # Initialization command.
-  env_cmds = generate_install_dependencies_commands()
+  env_cmds = generate_install_dependencies_commands(
+      cluster_name=dag_params["cluster_name"],
+      location=derived_params["region"],
+      project_id=dag_params["project"],
+  )
   recipe_cmd = recipe_instance.run_command
 
   # Patch command for enabling elastic training, good put and
@@ -122,7 +126,7 @@ def generate_commands(
       r"          f\"colocated_python_data_input=True\",\n"
       r"          f\"tokenizer_path="
       r'"src/maxtext/assets/tokenizers/tokenizer.llama2"\"," '
-      r"benchmarks/maxtext_xpk_runner.py"
+      r"benchmarks/maxtext_ctk_runner.py"
   )
 
   model_configs_checkpointing = (
@@ -415,10 +419,12 @@ def create_elastic_goodput_dag(
         using_pathways=True,
     )
 
-    clean_up_recipe = xpk.clean_up_workload.override(task_id="clean_up_recipe")(
+    clean_up_recipe = gcluster.clean_up_workload.override(
+        task_id="clean_up_recipe"
+    )(
         workload_id=calculated_params["workload_id"],
         project_id=fetched_params["project"],
-        zone=fetched_params["zone"],
+        zone=calculated_params["region"],
         cluster_name=fetched_params["cluster_name"],
     ).as_teardown()
 

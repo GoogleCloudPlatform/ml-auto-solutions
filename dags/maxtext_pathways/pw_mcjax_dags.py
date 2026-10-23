@@ -26,7 +26,7 @@ from dags.common.scheduling_helper.scheduling_helper import SchedulingHelper
 from dags.maxtext_pathways.configs import parameters as ui_params
 from dags.maxtext_pathways.configs import recipe_config as recipe_cfg
 from dags.maxtext_pathways.configs.utils import get_dag_parameters, generate_install_dependencies_commands, generate_derived_parameters
-from xlml.utils import kpo, xpk, gke
+from xlml.utils import gcluster, gke, kpo
 
 
 @task
@@ -35,7 +35,11 @@ def generate_commands(
 ) -> str:
   """Generates a command string using the config and derived parameters."""
   # Initialization command.
-  env_cmds = generate_install_dependencies_commands()
+  env_cmds = generate_install_dependencies_commands(
+      cluster_name=dag_params["cluster_name"],
+      location=derived_params["region"],
+      project_id=dag_params["project"],
+  )
   recipe_cmd = recipe_instance.run_command
 
   # Combine parameters to further generate the final command.
@@ -134,12 +138,12 @@ with models.DAG(
       cluster_name=fetched_params["cluster_name"],
   )
 
-  clean_up_recipe = xpk.clean_up_workload.override(
+  clean_up_recipe = gcluster.clean_up_workload.override(
       task_id="clean_up_recipe",
   )(
       workload_id=calculated_params["workload_id"],
       project_id=fetched_params["project"],
-      zone=fetched_params["zone"],
+      zone=calculated_params["region"],
       cluster_name=fetched_params["cluster_name"],
   ).as_teardown()
 

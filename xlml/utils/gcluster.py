@@ -17,6 +17,7 @@
 from collections.abc import Iterable, Sequence
 import os
 import re
+import shlex
 import tempfile
 import uuid
 
@@ -42,12 +43,8 @@ def _run_command(
     )
 
 
-def _setup_gcluster(
-    tmpdir: str,
-    version: str,
-    env: dict[str, str],
-) -> str:
-  """Download, unpack, and prepare the gcluster binary."""
+def _get_gcluster_paths(tmpdir: str, version: str) -> tuple[str, str, str, str]:
+  """Return (bin_dir, bundle_path, gcluster_bin, bundle_url) for gcluster."""
   bin_dir = os.path.join(tmpdir, "bin")
   bundle_path = os.path.join(tmpdir, "gcluster_bundle.tgz")
   gcluster_bin = os.path.join(bin_dir, "gcluster")
@@ -55,14 +52,36 @@ def _setup_gcluster(
       "https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/"
       f"download/{version}/gcluster_bundle_linux_amd64.tgz"
   )
+  return bin_dir, bundle_path, gcluster_bin, bundle_url
+
+
+def _download_gcluster_command(bundle_url: str, bundle_path: str) -> list[str]:
+  """Construct curl command to download the gcluster bundle."""
+  return ["curl", "-fsSL", bundle_url, "-o", bundle_path]
+
+
+def _extract_gcluster_command(bundle_path: str, bin_dir: str) -> list[str]:
+  """Construct tar command to extract the gcluster bundle."""
+  return ["tar", "-xzf", bundle_path, "-C", bin_dir]
+
+
+def _setup_gcluster(
+    tmpdir: str,
+    version: str,
+    env: dict[str, str],
+) -> str:
+  """Download, unpack, and prepare the gcluster binary."""
+  bin_dir, bundle_path, gcluster_bin, bundle_url = _get_gcluster_paths(
+      tmpdir, version
+  )
 
   os.makedirs(bin_dir, exist_ok=True)
   _run_command(
-      ["curl", "-fsSL", bundle_url, "-o", bundle_path],
+      _download_gcluster_command(bundle_url, bundle_path),
       env,
   )
   _run_command(
-      ["tar", "-xzf", bundle_path, "-C", bin_dir],
+      _extract_gcluster_command(bundle_path, bin_dir),
       env,
   )
   if os.path.exists(gcluster_bin):
@@ -96,6 +115,39 @@ def _set_namespace_command(namespace: str) -> list[str]:
       "set-context",
       "--current",
       f"--namespace={namespace}",
+  ]
+
+
+def get_gcluster_setup_cmd(
+    tmpdir: str,
+    cluster_name: str,
+    location: str,
+    project_id: str,
+    version: str = DEFAULT_GCLUSTER_VERSION,
+    namespace: str = "default",
+) -> list[str]:
+  """Construct shell commands to install gcluster and configure credentials."""
+  bin_dir, bundle_path, gcluster_bin, bundle_url = _get_gcluster_paths(
+      tmpdir, version
+  )
+  kubeconfig_path = os.path.join(tmpdir, "gcluster_kube.conf")
+  return [
+      "set -xue",
+      f"mkdir -p {shlex.quote(bin_dir)}",
+      shlex.join(_download_gcluster_command(bundle_url, bundle_path)),
+      shlex.join(_extract_gcluster_command(bundle_path, bin_dir)),
+      f"chmod 755 {shlex.quote(gcluster_bin)}",
+      f"export PATH={shlex.quote(bin_dir)}:$PATH",
+      f"export KUBECONFIG={shlex.quote(kubeconfig_path)}",
+      "unset KUBERNETES_SERVICE_HOST KUBERNETES_SERVICE_PORT",
+      shlex.join(
+          _get_credentials_command(
+              cluster_name=cluster_name,
+              location=location,
+              project_id=project_id,
+          )
+      ),
+      shlex.join(_set_namespace_command(namespace)),
   ]
 
 
