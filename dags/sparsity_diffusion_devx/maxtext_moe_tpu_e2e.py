@@ -123,10 +123,13 @@ with models.DAG(
           "priority": "medium",
       },
       # DeepSeek-V4-Pro runs 2_test_deepseek.sh as one job per slice count;
-      # seq 1024 pre-training fits v5p HBM only on 4 slices.
+      # seq 1024 pre-training and SFT fit v5p HBM only on 4 slices.
       "deepseek4-1600b-logit-decode": {
           "script_name": "tpu/deepseek/v4-1600b/2_test_deepseek",
-          "env": "RUN_SCANNED_LOGIT_CHECK=false RUN_PRETRAIN=false",
+          "env": (
+              "RUN_SCANNED_LOGIT_CHECK=false RUN_PRETRAIN=false"
+              " RUN_SFT=false"
+          ),
           "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
               core_count=128,
           ),
@@ -138,7 +141,10 @@ with models.DAG(
       },
       "deepseek4-1600b-scanned-logit": {
           "script_name": "tpu/deepseek/v4-1600b/2_test_deepseek",
-          "env": "RUN_LOGIT=false RUN_PRETRAIN=false RUN_DECODE=false",
+          "env": (
+              "RUN_LOGIT=false RUN_PRETRAIN=false RUN_SFT=false"
+              " RUN_DECODE=false"
+          ),
           "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
               core_count=128,
           ),
