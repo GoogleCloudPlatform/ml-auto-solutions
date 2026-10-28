@@ -42,6 +42,11 @@ from dags.multipod.configs import gke_config
 # HF token retrieved from Airflow Variables for secure credential management
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
+# The v6e queue only has TPU quota in a daily 4-hour window that the E2E suites
+# share with other tests, so a training job can wait for quota for longer than
+# the default 60 minutes before it starts.
+WORKLOAD_PROVISION_TIMEOUT = datetime.timedelta(hours=3)
+
 
 class ExternalTaskSensorWithBypass(ExternalTaskSensor):
   """Sensor that passes immediately if wait_for_conversion param is False."""
@@ -95,7 +100,7 @@ with models.DAG(
   # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
-          "core_count": 8,
+          "core_count": 4,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
           "post_training": {
@@ -115,7 +120,7 @@ with models.DAG(
               "rl": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma3-4b/rl/{run_name}/checkpoints/actor/2/model_params",
-                  "core_count": 32,
+                  "core_count": 16,
                   "to_hf_flags": "false false",
               },
           },
@@ -133,12 +138,13 @@ with models.DAG(
               "rl": {
                   "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/gemma4-26b/rl/{run_name}/checkpoints/actor/2/model_params",
+                  "core_count": 64,
                   "to_hf_flags": "false false",
               },
           },
       },
       "llama3_1-70b": {
-          "core_count": 64,
+          "core_count": 32,
           "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
           "post_training": {
@@ -150,12 +156,13 @@ with models.DAG(
               "rl": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/rl/{run_name}/checkpoints/actor/2/model_params",
+                  "core_count": 64,
                   "to_hf_flags": "false true",
               },
           },
       },
       "qwen3-30b": {
-          "core_count": 32,
+          "core_count": 16,
           "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
           "post_training": {
@@ -167,12 +174,13 @@ with models.DAG(
               "rl": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_rl.sh",
                   "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/rl/{run_name}/checkpoints/actor/2/model_params",
+                  "core_count": 64,
                   "to_hf_flags": "true",
               },
           },
       },
       "qwen3-vl-2b": {
-          "core_count": 8,
+          "core_count": 4,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
           "to_huggingface": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_hf.sh",
           "post_training": {
@@ -267,10 +275,12 @@ with models.DAG(
                   environment_variables + [f"{command} {run_name} true"]
               ),
           )
+          base_tpu_cluster = GkeClusters.TPU_V6E_BODABORG_NAP_CLUSTER
           training_core_count = mode_test_config.get(
-              "core_count", test_config.get("core_count", 8)
+              "core_count",
+              test_config.get("core_count", base_tpu_cluster.core_count),
           )
-          training_cluster = GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+          training_cluster = base_tpu_cluster.override(
               core_count=training_core_count
           )
           mode_short_name = "multim" if mode == "multimodal_sft" else mode
@@ -286,6 +296,7 @@ with models.DAG(
               priority="medium",
               max_restart=3,
               use_gcluster=True,
+              workload_provision_timeout=WORKLOAD_PROVISION_TIMEOUT,
           ).run(skip_post_process=True)
 
           check_goodput_task = check_workload_goodput(

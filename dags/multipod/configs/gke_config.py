@@ -50,6 +50,9 @@ def get_gke_config(
     use_pathways: bool = False,
     xpk_branch: str = xpk.MAIN_BRANCH,
     restart_on_exit_codes: Iterable[int] | None = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
 ) -> task.XpkTask:
   pass
 
@@ -81,6 +84,9 @@ def get_gke_config(
     mounts: str | Iterable[str] | None = None,
     pathways_gcs_location: str = "",
     restart_on_exit_codes: Iterable[int] | None = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
 ) -> task.GclusterTask:
   pass
 
@@ -112,6 +118,9 @@ def get_gke_config(
     pathways_gcs_location: str = "",
     xpk_branch: str = xpk.MAIN_BRANCH,
     restart_on_exit_codes: Iterable[int] | None = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
 ) -> task.GclusterTask | task.XpkTask:
   """Constructs a GKE task for either Cluster Toolkit (gcluster) or XPK."""
   job_gcp_config = gcp_config.GCPConfig(
@@ -167,6 +176,7 @@ def get_gke_config(
         pathways_gcs_location=pathways_gcs_location,
         mounts=mounts,
         queue=cluster.queue,
+        workload_provision_timeout=workload_provision_timeout,
     )
     return task.GclusterTask(
         runner_config=runner_config,
@@ -183,6 +193,7 @@ def get_gke_config(
       ramdisk_directory=ramdisk_directory,
       mtc_enabled=mtc_enabled,
       use_pathways=use_pathways,
+      workload_provision_timeout=workload_provision_timeout,
   )
   return task.XpkTask(
       runner_config=runner_config,

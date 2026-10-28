@@ -23,10 +23,21 @@ import uuid
 
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
-from dags.common.vm_resource import GpuVersion
+from dags.common.vm_resource import GpuVersion, MachineVersion
 from xlml.utils import composer, gke
 
 DEFAULT_GCLUSTER_VERSION = "v1.105.0"
+
+# Multi-host v6e slices run only on ct6e-standard-4t hosts (ct6e-standard-8t is
+# single-host). gcluster cannot resolve the "v6e" shorthand in a cluster that
+# has node pools of both types, so request the machine type with the topology.
+_V6E_MULTI_HOST_TOPOLOGIES = {
+    "v6e-16": "4x4",
+    "v6e-32": "4x8",
+    "v6e-64": "8x8",
+    "v6e-128": "8x16",
+    "v6e-256": "16x16",
+}
 
 LOGGING_URL_FORMAT = gke.LOGGING_URL_FORMAT
 
@@ -230,6 +241,10 @@ def run_workload(
     env.pop("KUBERNETES_SERVICE_PORT", None)
 
     gcluster_bin = _setup_gcluster(tmpdir, gcluster_version, env)
+    topology = _V6E_MULTI_HOST_TOPOLOGIES.get(accelerator_type)
+    compute_type = (
+        MachineVersion.CT6E_STAND_4T.value if topology else accelerator_type
+    )
     slice_keyword = (
         "--num-nodes"
         if is_valid_gpu_version(accelerator_type)
@@ -245,7 +260,7 @@ def run_workload(
         f"--project={cluster_project}",
         f"--name={workload_id}",
         f"--command={run_cmds}",
-        f"--compute-type={accelerator_type}",
+        f"--compute-type={compute_type}",
         f"--image={docker_image}",
         f"{slice_keyword}={num_slices}",
         f"--priority={priority}",
@@ -257,6 +272,8 @@ def run_workload(
       submit_cmd.append(f"--queue={queue}")
     if namespace:
       submit_cmd.append(f"--gke-namespace={namespace}")
+    if topology:
+      submit_cmd.append(f"--topology={topology}")
     if use_pathways:
       submit_cmd.append("--pathways")
       location = pathways_gcs_location or f"{gcs_path}/pathways"

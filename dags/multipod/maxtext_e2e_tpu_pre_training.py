@@ -17,7 +17,7 @@
 Executes end-to-end MaxText pre-training test workloads on Cloud TPU:
 - Waits for model conversion in maxtext_e2e_checkpoint_conversion
   via ExternalTaskSensor.
-- Runs pre-training on dedicated TPU v5p topologies configured per
+- Runs pre-training on dedicated TPU v6e topologies configured per
   model architecture.
 - Converts trained checkpoints back to Hugging Face format
   to verify weight fidelity.
@@ -38,6 +38,11 @@ from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
 
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+
+# The v6e queue only has TPU quota in a daily 4-hour window that the E2E suites
+# share with other tests, so a training job can wait for quota for longer than
+# the default 60 minutes before it starts.
+WORKLOAD_PROVISION_TIMEOUT = datetime.timedelta(hours=3)
 
 
 class ExternalTaskSensorWithBypass(ExternalTaskSensor):
@@ -91,7 +96,7 @@ with models.DAG(
   # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
-          "core_count": 8,
+          "core_count": 4,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
           "training": {
               "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3.sh",
@@ -165,8 +170,11 @@ with models.DAG(
           cleanup_cmd,
           f"{training_script} {run_name}",
       )
-      training_core_count = test_config.get("core_count", 8)
-      training_cluster = GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(
+      base_tpu_cluster = GkeClusters.TPU_V6E_BODABORG_NAP_CLUSTER
+      training_core_count = test_config.get(
+          "core_count", base_tpu_cluster.core_count
+      )
+      training_cluster = base_tpu_cluster.override(
           core_count=training_core_count
       )
       training_task = gke_config.get_gke_config(
@@ -180,6 +188,7 @@ with models.DAG(
           max_restart=3,
           restart_on_exit_codes=[137, 143],
           use_gcluster=True,
+          workload_provision_timeout=WORKLOAD_PROVISION_TIMEOUT,
       ).run(skip_post_process=True)
 
       check_goodput_task = check_workload_goodput(

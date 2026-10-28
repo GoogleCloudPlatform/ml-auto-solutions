@@ -88,6 +88,10 @@ class GclusterTaskTest(unittest.TestCase):
     self.assertEqual(test_cfg.accelerator.cores, 64)
     self.assertEqual(test_cfg.namespace, "custom-ns")
     self.assertEqual(gcluster_task_obj.runner_config.queue, "custom-queue")
+    self.assertEqual(
+        gcluster_task_obj.runner_config.workload_provision_timeout,
+        datetime.timedelta(minutes=60),
+    )
 
   def test_get_gke_config_gcluster(self):
     """Constructs a GclusterTask forwarding all configuration parameters."""
@@ -108,6 +112,7 @@ class GclusterTaskTest(unittest.TestCase):
         gcluster_version="v1.102.0",
         mounts=["/dev/shm;/dev/shm;rw"],
         use_gcluster=True,
+        workload_provision_timeout=datetime.timedelta(hours=3),
     )
     self.assertIsInstance(gcluster_task_obj, task.GclusterTask)
     self.assertIsInstance(gcluster_task_obj, task.BaseRunnerTask)
@@ -123,6 +128,9 @@ class GclusterTaskTest(unittest.TestCase):
         runner_cfg.pathways_gcs_location, "gs://custom-bucket/scratch"
     )
     self.assertEqual(runner_cfg.gcluster_version, "v1.102.0")
+    self.assertEqual(
+        runner_cfg.workload_provision_timeout, datetime.timedelta(hours=3)
+    )
     self.assertEqual(runner_cfg.mounts, ["/dev/shm;/dev/shm;rw"])
     self.assertEqual(
         runner_cfg.task_gcp_config.project_name,
