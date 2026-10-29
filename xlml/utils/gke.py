@@ -652,6 +652,15 @@ def zone_to_region(zone: str) -> str:
   return zone_terms[0] + "-" + zone_terms[1]
 
 
+# Compute Engine zones look like `europe-west4-b`; regions like `europe-west4`.
+_ZONE_PATTERN = re.compile(r"^[a-z]+-[a-z]+\d+-[a-z]$")
+
+
+def is_zone(location: str) -> bool:
+  """Whether `location` is a Compute Engine zone (rather than a region)."""
+  return bool(location) and _ZONE_PATTERN.match(location) is not None
+
+
 @task.sensor(poke_interval=3, timeout=3600, mode="reschedule")
 def wait_for_workload_reach_step(
     project_id: str,
@@ -672,38 +681,66 @@ def wait_for_workload_reach_step(
     logging.info("No pods found for workload selector: %s.", workload_id)
     return False
 
-  if any(pod.status.phase in ["Pending"] for pod in pods.items):
+  states = collect_pod_state(pods)
+
+  # Report a dead pod before waiting on the others: a Pending peer must not
+  # keep the sensor polling until its timeout when the workload has already
+  # failed.
+  if states.failed:
+    # Don't keep retrying if the pod has failed
+    raise AirflowFailException(
+        f"Bad pod phase: Failed ({len(states.failed)} of {len(pods.items)}"
+        " pod(s))"
+    )
+  if states.unknown:
+    raise RuntimeError(f"Bad pod phase: {states.unknown[0].status.phase}")
+
+  if states.pending:
     logging.info("Some of the pods is still pending. Waiting to start")
     return False
 
-  for pod in pods.items:
-    if pod.status.phase == "Failed":
-      # Don't keep retrying if the pod has failed
-      raise AirflowFailException(f"Bad pod phase: {pod.status.phase}")
-    elif pod.status.phase in ["Unknown"]:
-      raise RuntimeError(f"Bad pod phase: {pod.status.phase}")
-
-  if all(pod.status.phase in ["Running"] for pod in pods.items):
+  if len(states.running) == len(pods.items):
     # Pick last one running pod
-    pod = pods.items[len(pods.items) - 1]
-    logs = core_api.read_namespaced_pod_log(
-        name=pod.metadata.name, namespace=pod.metadata.namespace
-    )
-    # Check if the workload completed step reached over the expected step
-    completed_step_matches = re.findall(r"completed step: (\d+)", logs)
-    if completed_step_matches:
-      current_step = int(completed_step_matches[-1])
-      if current_step >= int(expect_reach_to_step):
-        logging.info(
-            "Reached to the expected step %s. Current step is %s.",
-            expect_reach_to_step,
-            current_step,
-        )
-        return True
+    pod = states.running[-1]
+    current_step = _latest_completed_step(core_api, pod)
+    if current_step is not None and current_step >= int(expect_reach_to_step):
+      logging.info(
+          "Reached to the expected step %s. Current step is %s.",
+          expect_reach_to_step,
+          current_step,
+      )
+      return True
 
   logging.info("Waiting for reaching expected step %s.", expect_reach_to_step)
 
   return False
+
+
+# Trailing log lines scanned for the latest `completed step:` marker on each
+# poll. MaxText logs one marker per step, so this spans the chatty stretches
+# around checkpoint saves; the full log is only read if the tail has none.
+STEP_LOG_TAIL_LINES = 1000
+_COMPLETED_STEP_PATTERN = re.compile(r"completed step: (\d+)")
+
+
+def _latest_completed_step(
+    core_api: kubernetes.client.CoreV1Api, pod: kubernetes.client.V1Pod
+) -> Optional[int]:
+  """Returns the last step `pod` logged as completed, or None if none yet.
+
+  The sensor polls every few seconds, so this reads only the tail of the log
+  rather than the whole log each time, falling back to the full log when the
+  tail holds no step marker.
+  """
+  for tail_lines in (STEP_LOG_TAIL_LINES, None):
+    log_kwargs = {} if tail_lines is None else {"tail_lines": tail_lines}
+    logs = core_api.read_namespaced_pod_log(
+        name=pod.metadata.name, namespace=pod.metadata.namespace, **log_kwargs
+    )
+    completed_step_matches = _COMPLETED_STEP_PATTERN.findall(logs)
+    if completed_step_matches:
+      return int(completed_step_matches[-1])
+  return None
 
 
 # Workload pod names are `<workload>-slice-job-<slice>-<index>-<hash>` on XPK
@@ -726,8 +763,15 @@ def _find_target_pod_node(
     workload_id: str,
     last_node: bool = False,
     namespace: str = "default",
+    cluster_location: Optional[str] = None,
 ) -> str:
-  """find the node name for the workload."""
+  """find the node name for the workload.
+
+  Args:
+    cluster_location: The location the caller addressed the cluster by. Used
+      as the node's zone only if the node carries no zone label and the
+      location is itself a zone (zonal cluster); a region is never used.
+  """
   core_api = get_core_api_client(project_id, region, cluster_name)
   pods = list_workload_pods(core_api, workload_id, namespace=namespace)
 
@@ -751,19 +795,29 @@ def _find_target_pod_node(
     target_pod, target_node = sorted_pairs[-1]
 
   # The node's own topology label is the authoritative source for its zone.
-  # The cluster location cannot be used as a substitute: for a regional
-  # cluster it is a region, and even for a zonal cluster the caller may have
-  # passed a region (gcluster clusters carry a region in their zone field).
-  # Compute Engine rejects a region, so fail here rather than fall back.
+  # The cluster location is only a substitute when it is itself a zone: for a
+  # regional cluster it is a region (gcluster clusters carry a region in their
+  # zone field), which Compute Engine rejects, so in that case fail rather
+  # than guess.
   node = core_api.read_node(name=target_node)
   labels = (node.metadata.labels or {}) if node.metadata else {}
   target_zone = labels.get("topology.kubernetes.io/zone") or labels.get(
       "failure-domain.beta.kubernetes.io/zone"
   )
+  if not target_zone and cluster_location and is_zone(cluster_location):
+    logging.warning(
+        "Node %s (pod %s) has no zone label; using the zonal cluster"
+        " location %s.",
+        target_node,
+        target_pod,
+        cluster_location,
+    )
+    target_zone = cluster_location
   if not target_zone:
     raise AirflowFailException(
-        f"Node {target_node} (pod {target_pod}) has no zone label;"
-        " refusing to delete without a verified zone."
+        f"Node {target_node} (pod {target_pod}) has no zone label and the"
+        f" cluster location {cluster_location!r} is not a zone; refusing to"
+        " delete without a verified zone."
     )
 
   logging.info("Identified Pod for node deletion:")
@@ -780,6 +834,11 @@ def _find_target_pod_node(
   return delete_info
 
 
+# Upper bound on how long `delete_node` waits for Compute Engine to finish
+# deleting the instance. Node deletion normally completes within minutes.
+NODE_DELETE_TIMEOUT_SECONDS = 600
+
+
 @task
 def delete_node(
     cluster_name: str,
@@ -790,7 +849,12 @@ def delete_node(
     last_node: bool = False,
     namespace: str = "default",
 ) -> None:
-  """Delete node."""
+  """Deletes one of the workload's nodes and waits for the deletion to finish.
+
+  `zone` is the location the cluster is addressed by. It is a region for
+  gcluster clusters, so the instance zone comes from the node's own label and
+  `zone` is only used as a fallback when it is itself a zone.
+  """
   delete_info = _find_target_pod_node(
       project,
       zone_to_region(zone),
@@ -798,11 +862,9 @@ def delete_node(
       workload_id,
       last_node,
       namespace=namespace,
+      cluster_location=zone,
   )
   node_name = delete_info["node"]
-  # `zone` only locates the cluster above; it holds a region for gcluster
-  # clusters and would be rejected by the Compute Engine API, so the instance
-  # zone always comes from the node's own label.
   node_zone = delete_info["zone"]
   # Delete the specified compute instance.
   if dry_run:
@@ -821,10 +883,23 @@ def delete_node(
     operation = instances_client.delete(
         project=project, zone=node_zone, instance=node_name
     )
-
     logging.info(f"Deletion operation started for node: {node_name}")
     logging.info(f"Operation: {operation.name}")
-    logging.info(f"Deletion command executed for node: {node_name}")
+
+    # `delete` only submits a long-running operation. Wait for it so the
+    # interruption flow does not continue with the node still alive, and
+    # surface a failed deletion instead of reporting success.
+    operation.result(timeout=NODE_DELETE_TIMEOUT_SECONDS)
+    if operation.error_code:
+      raise AirflowFailException(
+          f"Deleting node {node_name} failed: [{operation.error_code}]"
+          f" {operation.error_message}"
+      )
+    for warning in getattr(operation, "warnings", None) or []:
+      logging.warning(
+          f"Deleting node {node_name}: {warning.code}: {warning.message}"
+      )
+    logging.info(f"Deleted node: {node_name}")
   except Exception:
     logging.error(f"Error deleting node {node_name}")
     raise
