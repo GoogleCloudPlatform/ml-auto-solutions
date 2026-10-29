@@ -418,8 +418,15 @@ class Runner(abc.ABC):
     shares it.
     """
     with TaskGroup(group_id="wait_workload") as group:
+      # The step must be reached within the workload's own time limit, so
+      # bound the sensor by it instead of the sensor's fixed default.
+      overrides = {"task_id": "wait_for_workload_reach_step"}
+      if self.configs.task_test_config.timeout:
+        overrides["timeout"] = int(
+            self.configs.task_test_config.timeout.total_seconds()
+        )
       wait_reach_to_step = gke.wait_for_workload_reach_step.override(
-          task_id="wait_for_workload_reach_step"
+          **overrides
       )(
           workload_id=self.workload_id,
           project_id=self.configs.task_gcp_config.project_name,
