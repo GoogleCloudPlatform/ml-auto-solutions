@@ -64,7 +64,7 @@ with models.DAG(
         'bash tests/end_to_end/tpu/test_sft_trainer.sh',
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
-        cluster=GkeClusters.TPU_V5P_8_CLUSTER,
+        cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
         time_out_in_min=60,
         test_name=f'sft-trainer-{mode.value}',
         run_model_cmds=command,

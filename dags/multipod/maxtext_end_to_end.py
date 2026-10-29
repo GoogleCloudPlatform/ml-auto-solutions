@@ -105,7 +105,7 @@ with models.DAG(
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=model_cmds,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
-        cluster=GkeClusters.TPU_V5P_8_CLUSTER,
+        cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
         test_owner=test_config["owner"],
         priority="medium",
     ).run_with_quarantine(quarantine_task_group)
@@ -132,7 +132,7 @@ with models.DAG(
           },
           {
               "script_name": "tpu/gemma/7b/2_test_gemma",
-              "cluster": GkeClusters.TPU_V5P_8_CLUSTER,
+              "cluster": GkeClusters.TPU_V5P_8_CLUSTER_V2,
               "time_out_in_min": 60,
           },
       ],
