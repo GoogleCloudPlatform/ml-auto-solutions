@@ -62,7 +62,7 @@ with models.DAG(
       )
       maxtext_v4_configs_test = gke_config.get_gke_config(
           num_slices=1,
-          cluster=GkeClusters.TPU_V5P_8_CLUSTER,
+          cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
           time_out_in_min=60,
           test_name=f"maxtext-checkpointing-{mode.value}-{chkpt_mode}",
           run_model_cmds=command,
@@ -77,7 +77,7 @@ with models.DAG(
     # successfully loaded across different sharding strategies.
     gke_config.get_gke_config(
         num_slices=2,
-        cluster=GkeClusters.TPU_V5P_8_CLUSTER,
+        cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
         time_out_in_min=60,
         test_name=f"maxtext-checkpoint-resharding-{mode.value}",
         run_model_cmds=(
