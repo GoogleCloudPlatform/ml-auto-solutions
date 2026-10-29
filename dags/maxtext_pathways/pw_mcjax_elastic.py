@@ -82,8 +82,8 @@ replica_params.update({
 })
 
 
-# TODO(cienet): Remove the temporary local code once these changes have been
-# merged into the maxtext repository.
+# TODO(b/576036761): Remove the temporary branch checkout once
+# feat/benchmarks-elastic-goodput-ckpt-flags is merged into maxtext.
 @task
 def generate_commands(
     dag_params: dict,
@@ -101,60 +101,15 @@ def generate_commands(
       location=derived_params["region"],
       project_id=dag_params["project"],
   )
+  checkout_branch_cmd = (
+      "git clone --depth=1 https://github.com/AI-Hypercomputer/maxtext.git "
+      "/tmp/maxtext && "
+      "git -C /tmp/maxtext fetch --depth=2 origin "
+      "feat/benchmarks-elastic-goodput-ckpt-flags && "
+      "git -C /tmp/maxtext cherry-pick --no-commit FETCH_HEAD && "
+      "cp -r /tmp/maxtext/benchmarks /deps/"
+  )
   recipe_cmd = recipe_instance.run_command
-
-  match elastic_mode:
-    case ElasticType.PAUSE_RESUME:
-      patch_cmd_runner = (
-          r'sed -i "/python3 -m maxtext.trainers.pre_train.train/a '
-          r"          f\"elastic_enabled=True\",\n"
-          r"          f\"enable_single_controller=True\",\n"
-          r"          f\"grain_use_elastic_iterator=True\",\n"
-          f'          \\"elastic_min_slice_count='
-          f'{derived_params["elastic_min_slice_count"]}\\",\\n'
-          r"          f\"colocated_python_data_input=True\",\n"
-          r"          f\"tokenizer_path="
-          r'"src/maxtext/assets/tokenizers/tokenizer.llama2"\"," '
-          r"benchmarks/maxtext_ctk_runner.py"
-      )
-      patch_cmd_model_configs_sub = (
-          r'sed -i "/model_name=\"default-basic-1\"/,/)/ { '
-          r"s/\"dataset_type\": \"synthetic\"/\"dataset_type\": \"grain\"/; "
-          r"s/\"dataset_path\":/# \"dataset_path\":/; "
-          r'}" benchmarks/maxtext_trillium_model_configs.py'
-      )
-      insert_line = (
-          r"            \"grain_train_files\": \"gs://tess-tpu-dataloading-"
-          r"us-central1/array-record/c4/en/3.0.1/c4-train.array_record*\","
-      )
-      patch_cmd_model_configs_add = (
-          'sed -i $\'/"dataset_type": "grain"/a \\\n'
-          + insert_line
-          + "' benchmarks/maxtext_trillium_model_configs.py"
-      )
-    case ElasticType.REPLICA_RESIZE:
-      patch_cmd_runner = (
-          r'sed -i "/python3 -m maxtext.trainers.pre_train.train/a '
-          r"          f\"elastic_enabled=True\",\n"
-          r"          f\"enable_single_controller=True\",\n"
-          f'          \\"elastic_min_slice_count='
-          f'{derived_params["elastic_min_slice_count"]}\\",\\n'
-          r"          f\"enable_pathways_goodput=True\",\n"
-          r"          f\"enable_goodput_recording=True\",\n"
-          r"          f\"goodput_upload_interval_seconds=30\",\n"
-          r"          f\"monitor_goodput=True\",\n"
-          r"          f\"async_checkpointing=True\",\n"
-          r"          f\"enable_checkpoint_cloud_logger=True\",\n"
-          r"          f\"checkpoint_period=10\",\n"
-          r'" benchmarks/maxtext_ctk_runner.py'
-      )
-      patch_cmd_model_configs_sub = (
-          r'sed -i "/model_name=\"default-basic-1\"/,/xla_flags/ { '
-          r"s/\"enable_checkpointing\": False/\"enable_checkpointing\": True/; "
-          r"/\"profiler\":/d; "
-          r'}" benchmarks/maxtext_trillium_model_configs.py'
-      )
-      patch_cmd_model_configs_add = None
 
   # Append recipe flags
   all_params = {**dag_params, **derived_params}
@@ -177,21 +132,64 @@ def generate_commands(
           f"--num_elastic_slices={derived_params['num_elastic_slices']} "
           " --sidecar_name=external'"
       )
+      recipe_cmd += (
+          " --worker_flags='--cloud_pathways_sidecar_shm_directory=/tmp/sidecar "
+          "--enable_metrics_collection=false "
+          " --xla_tpu_use_enhanced_launch_barrier=true'"
+      )
+      recipe_cmd += " --elastic_enabled=True"
+      recipe_cmd += " --enable_checkpointing=True"
+      recipe_cmd += " --async_checkpointing=True"
+      recipe_cmd += " --enable_checkpoint_cloud_logger=True"
+      recipe_cmd += " --checkpoint_period=100"
+      recipe_cmd += " --enable_single_controller=True"
+      recipe_cmd += (
+          " --elastic_min_slice_count="
+          f"{derived_params['elastic_min_slice_count']}"
+      )
+      recipe_cmd += " --colocated_python_data_input=True"
+      recipe_cmd += (
+          " --tokenizer_path='src/maxtext/assets/tokenizers/tokenizer.llama2'"
+      )
+      recipe_cmd += " --dataset_type='grain'"
+      recipe_cmd += (
+          " --grain_train_files='gs://tess-tpu-dataloading-"
+          "us-central1/array-record/c4/en/3.0.1/c4-train.array_record*'"
+      )
+      recipe_cmd += " --maxtext_override='grain_use_elastic_iterator=True'"
+      recipe_cmd += " --maxtext_override='packing=False'"
+      recipe_cmd += " --maxtext_override='elastic_timeout_seconds=3600'"
+      recipe_cmd += " --maxtext_override='grain_worker_count=0'"
+
+      recipe_cmd += " --maxtext_override='colocated_python_checkpointing=True'"
+
     case ElasticType.REPLICA_RESIZE:
       recipe_cmd += " --benchmark_steps=3000"
       recipe_cmd += (
           f" --proxy_flags='--virtual_slices={derived_params['topology']} "
           f"--num_elastic_slices={derived_params['num_elastic_slices']}'"
       )
+      recipe_cmd += " --elastic_enabled=True"
+      recipe_cmd += " --enable_single_controller=True"
+      recipe_cmd += (
+          " --elastic_min_slice_count="
+          f"{derived_params['elastic_min_slice_count']}"
+      )
+      recipe_cmd += " --enable_pathways_goodput=True"
+      recipe_cmd += " --enable_goodput_recording=True"
+      recipe_cmd += " --goodput_upload_interval_seconds=30"
+      recipe_cmd += " --monitor_goodput=True"
+      recipe_cmd += " --enable_checkpointing=True"
+      recipe_cmd += " --async_checkpointing=True"
+      recipe_cmd += " --enable_checkpoint_cloud_logger=True"
+      recipe_cmd += " --checkpoint_period=100"
+      recipe_cmd += " --maxtext_override='profiler='"
 
   recipe_cmd += " --skip-validation"
   formatted_cmds = recipe_cmd.replace(" --", " \n  --")
   logging.info(f"\n {formatted_cmds}")
 
-  command_steps = [env_cmds, patch_cmd_runner, patch_cmd_model_configs_sub]
-  if patch_cmd_model_configs_add:
-    command_steps.append(patch_cmd_model_configs_add)
-  command_steps.append(recipe_cmd)
+  command_steps = [env_cmds, checkout_branch_cmd, recipe_cmd]
 
   return " && ".join(command_steps)
 
