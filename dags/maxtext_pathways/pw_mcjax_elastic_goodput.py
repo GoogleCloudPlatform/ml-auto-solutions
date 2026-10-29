@@ -87,6 +87,8 @@ replica_params.update({
 })
 
 
+# TODO(b/576036761): Remove the temporary branch checkout once
+# feat/benchmarks-elastic-goodput-ckpt-flags is merged into maxtext.
 @task
 def generate_commands(
     dag_params: dict, derived_params: dict, recipe_instance: recipe_cfg.Recipe
@@ -102,58 +104,12 @@ def generate_commands(
       location=derived_params["region"],
       project_id=dag_params["project"],
   )
+  checkout_branch_cmd = (
+      "git clone --depth=1 --branch feat/benchmarks-elastic-goodput-ckpt-flags "
+      "https://github.com/AI-Hypercomputer/maxtext.git /tmp/maxtext && "
+      "cp -r /tmp/maxtext/benchmarks /deps/"
+  )
   recipe_cmd = recipe_instance.run_command
-
-  # Patch command for enabling elastic training, good put and
-  # colocated Python data input.
-  patch_cmd_runner = (
-      r'sed -i "/python3 -m maxtext.trainers.pre_train.train/a '
-      # enable elastice training
-      r"          f\"elastic_enabled=True\",\n"
-      r"          f\"enable_single_controller=True\",\n"
-      f'          \\"elastic_min_slice_count='
-      f'{derived_params["elastic_min_slice_count"]}\\",\\n'
-      # enable goodput setting
-      r"          f\"enable_pathways_goodput=True\",\n"
-      r"          f\"enable_goodput_recording=True\",\n"
-      r"          f\"goodput_upload_interval_seconds=30\",\n"
-      r"          f\"monitor_goodput=True\",\n"
-      # enanble checkpointing for elastic training
-      r"          f\"async_checkpointing=True\",\n"
-      r"          f\"enable_checkpoint_cloud_logger=True\",\n"
-      r"          f\"checkpoint_period=10\","
-      # enable colocated python data input
-      r"          f\"colocated_python_data_input=True\",\n"
-      r"          f\"tokenizer_path="
-      r'"src/maxtext/assets/tokenizers/tokenizer.llama2"\"," '
-      r"benchmarks/maxtext_ctk_runner.py"
-  )
-
-  model_configs_checkpointing = (
-      r'sed -i "/model_name=\"default-basic-1\"/,/xla_flags/ { '
-      r"s/\"enable_checkpointing\": False/\"enable_checkpointing\": True/; "
-      r"/\"profiler\":/d; "
-      r'}" benchmarks/maxtext_trillium_model_configs.py'
-  )
-
-  # Patch command to modify dataset configuration for default_basic_1.
-  model_configs_grain = (
-      r'sed -i "/model_name=\"default-basic-1\"/,/)/ { '
-      r"s/\"dataset_type\": \"synthetic\"/\"dataset_type\": \"grain\"/; "
-      r"s/\"dataset_path\":/# \"dataset_path\":/; "
-      r'}" benchmarks/maxtext_trillium_model_configs.py'
-  )
-  # Text to be inserted after the line matching '"dataset_type": "grain"'
-  insert_line = (
-      r"            \"grain_train_files\": \"gs://tess-tpu-dataloading-"
-      r"us-central1/array-record/c4/en/3.0.1/c4-train.array_record*\","
-  )
-  # Patch command to modify dataset configuration: append grain_train_files.
-  model_configs_grain_sub = (
-      'sed -i $\'/"dataset_type": "grain"/a \\\n'
-      + insert_line
-      + "' benchmarks/maxtext_trillium_model_configs.py"
-  )
 
   # Combine parameters to further generate the final command.
   all_params = {**dag_params, **derived_params}
@@ -175,16 +131,48 @@ def generate_commands(
       f"--num_elastic_slices={derived_params['num_elastic_slices']} "
       " --sidecar_name=external'"
   )
+  recipe_cmd += (
+      " --worker_flags='--cloud_pathways_sidecar_shm_directory=/tmp/sidecar "
+      "--enable_metrics_collection=false "
+      " --xla_tpu_use_enhanced_launch_barrier=true'"
+  )
+  # Enable elastic training.
+  recipe_cmd += " --elastic_enabled=True"
+  recipe_cmd += " --enable_single_controller=True"
+  recipe_cmd += (
+      f" --elastic_min_slice_count={derived_params['elastic_min_slice_count']}"
+  )
+  # Enable goodput setting.
+  recipe_cmd += " --enable_pathways_goodput=True"
+  recipe_cmd += " --enable_goodput_recording=True"
+  recipe_cmd += " --goodput_upload_interval_seconds=30"
+  recipe_cmd += " --monitor_goodput=True"
+  # Enable checkpointing for elastic training.
+  recipe_cmd += " --enable_checkpointing=True"
+  recipe_cmd += " --async_checkpointing=True"
+  recipe_cmd += " --enable_checkpoint_cloud_logger=True"
+  recipe_cmd += " --checkpoint_period=100"
+  # Enable colocated python data input and grain dataset.
+  recipe_cmd += " --colocated_python_data_input=True"
+  recipe_cmd += (
+      " --tokenizer_path='src/maxtext/assets/tokenizers/tokenizer.llama2'"
+  )
+  recipe_cmd += " --dataset_type='grain'"
+  recipe_cmd += (
+      " --grain_train_files='gs://tess-tpu-dataloading-"
+      "us-central1/array-record/c4/en/3.0.1/c4-train.array_record*'"
+  )
+  recipe_cmd += " --maxtext_override='grain_use_elastic_iterator=True'"
+  recipe_cmd += " --maxtext_override='packing=False'"
+  recipe_cmd += " --maxtext_override='elastic_timeout_seconds=3600'"
+  recipe_cmd += " --maxtext_override='grain_worker_count=0'"
   # Add the skip-validation flag in the recipe to bypass xpk checks.
   recipe_cmd += " --skip-validation"
   formatted_cmds = recipe_cmd.replace(" --", " \n  --")
   logging.info(f"\n {formatted_cmds}")
   commands = " && ".join([
       env_cmds,
-      patch_cmd_runner,
-      model_configs_checkpointing,
-      model_configs_grain,
-      model_configs_grain_sub,
+      checkout_branch_cmd,
       recipe_cmd,
   ])
 
