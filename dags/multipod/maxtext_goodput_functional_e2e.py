@@ -33,7 +33,11 @@ against Cloud Logging, TensorBoard, and Cloud Monitoring:
 """
 
 import datetime
+import inspect
+import multiprocessing
 import os
+import subprocess
+import sys
 import tempfile
 import time
 from typing import Any
@@ -60,13 +64,40 @@ DEFAULT_CLUSTER = GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER
 
 # Calibrated Goodput regression thresholds (%) across all 19 model workloads in
 # maxtext_e2e_tpu_pre_training and maxtext_e2e_tpu_post_training on TPU v5p,
-# derived from multi-day production E2E runs sampled from 2026-10-07 to
+# derived from 8 multi-day production E2E runs sampled from 2026-10-07 to
 # 2026-10-18:
-#   - Pre-training (5 models, McJAX, profile mean: 56.93%)
-#   - Post-training SFT (5 models, Pathways, profile mean: 62.67%)
-#   - Post-training Multimodal SFT (2 models, Pathways, profile mean: 59.55%)
-#   - Post-training LoRA (1 model, Pathways, profile mean: 41.13%)
-#   - Post-training RL (6 models, Pathways, profile mean: 39.23%)
+#   - e2e-37554031629 [2026-10-07], e2e-37709768700 [2026-10-08],
+#   - e2e-38329333842 [2026-10-13], e2e-38491519053 [2026-10-14],
+#   - e2e-38661394317 [2026-10-15], e2e-38830862063 [2026-10-16],
+#   - e2e-38987522429 [2026-10-17], e2e-39084001154 [2026-10-18].
+#
+# Per-workload empirical distribution across the sampled runs:
+#   Workload                     |  Mean  | StdDev |  Min   |  Max   | n | Floor
+#   -----------------------------+--------+--------+--------+--------+---+------
+#   Pre-training (McJAX, profile mean: 56.93%)
+#   gemma3-4b-pre                | 59.49% |  0.70% | 58.80% | 60.82% | 6 | 50.0%
+#   gemma4-26b-pre               | 52.96% |  2.26% | 50.51% | 55.15% | 4 | 45.0%
+#   llama3_1-70b-pre             | 57.08% |  0.86% | 55.87% | 58.19% | 6 | 45.0%
+#   qwen3-30b-pre                | 62.24% |  1.63% | 59.87% | 63.95% | 6 | 50.0%
+#   gpt-oss-20b-pre              | 48.88% |  1.02% | 47.41% | 49.59% | 4 | 40.0%
+#   Post-training SFT (Pathways, profile mean: 62.67%)
+#   gemma3-4b-sft                | 61.46% |  2.19% | 57.63% | 63.57% | 6 | 50.0%
+#   gemma4-26b-sft               | 71.97% |  1.46% | 70.09% | 73.66% | 4 | 60.0%
+#   llama3_1-70b-sft             | 74.74% |  2.16% | 71.10% | 77.63% | 6 | 60.0%
+#   qwen3-30b-sft                | 55.02% |  2.37% | 52.74% | 59.65% | 6 | 45.0%
+#   gpt-oss-20b-sft              | 48.57% | 14.33% | 36.20% | 66.40% | 4 | 30.0%
+#   Post-training Multimodal SFT (Pathways, profile mean: 59.55%)
+#   gemma3-4b-multimodal_sft     | 58.20% |  0.53% | 57.53% | 58.83% | 6 | 50.0%
+#   qwen3-vl-2b-multimodal_sft   | 60.89% |  0.22% | 60.56% | 61.10% | 6 | 50.0%
+#   Post-training LoRA (Pathways, profile mean: 41.13%)
+#   gemma3-4b-lora               | 41.13% |  0.87% | 40.20% | 42.56% | 6 | 35.0%
+#   Post-training RL (Pathways, profile mean: 39.23%)
+#   gemma3-4b-rl                 | 42.70% |  0.19% | 42.52% | 42.89% | 3 | 35.0%
+#   gemma4-26b-rl                | 35.04% |  0.00% | 35.04% | 35.04% | 1 | 25.0%
+#   llama3_1-70b-rl              | 44.95% |  0.56% | 44.50% | 45.58% | 3 | 35.0%
+#   qwen3-30b-rl                 | 46.34% |  2.20% | 44.65% | 48.82% | 3 | 35.0%
+#   gpt-oss-20b-rl               | 42.88% |  9.93% | 35.86% | 49.90% | 2 | 30.0%
+#   qwen3_5-35b-rl               | 21.91% |  0.51% | 21.32% | 22.21% | 3 | 15.0%
 #
 # In `"models"`, each model maps to `(baseline_goodput_pct, min_threshold_pct)`:
 #   - `baseline_goodput_pct`: Empirical multi-day mean Goodput (%) across the
@@ -144,6 +175,24 @@ _TEST_CKPT_RESTORE_TIME = datetime.timedelta(seconds=2)
 _TEST_OTHER_GAP_TIME = datetime.timedelta(seconds=5)
 _TEST_DISRUPTION_DOWNTIME = datetime.timedelta(seconds=10)
 _TEST_TOTAL_STEPS = 4
+_FINAL_FLUSH_TIMEOUT_SECONDS = 30.0
+_STALE_E2E_RUN_WARNING_AGE = datetime.timedelta(days=2)
+
+
+def _resolve_composer_project_id() -> str:
+  """Resolves the local Composer GCP project ID for synthetic logs and GCM.
+
+  The Composer service account has read access to real E2E workload logs in the
+  TPU cluster project (`cloud-tpu-shared-capacity`), but only has write
+  permissions for synthetic Cloud Logging entries (Scenarios 2 and 3) and Cloud
+  Monitoring time series (Scenario 4) in its own Composer host project.
+  """
+  os.environ.pop("GOOGLE_CLOUD_PROJECT", None)
+  project_id = gcp_logging.Client().project
+  if not project_id:
+    raise RuntimeError("Could not resolve Composer GCP project ID from ADC.")
+  logging.info("Resolved Composer host project_id=%s", project_id)
+  return project_id
 
 
 def _flush_recorder(recorder: goodput.GoodputRecorder) -> None:
@@ -159,49 +208,57 @@ def _calculate_workload_goodput(
     max_attempts: int = 12,
     retry_delay_s: float = 5.0,
     configured_ideal_step_time: float | None = None,
-) -> tuple[float, dict[Any, Any], int, dict[int, float]]:
-  """Instantiates GoodputCalculator in a temp cache dir and queries metrics."""
-  with tempfile.TemporaryDirectory() as cache_dir:
-    calculator = goodput.GoodputCalculator(
-        job_name=workload_id,
-        logger_name=f"goodput_{workload_id}",
-        using_pathways=using_pathways,
-        cache_dir=cache_dir,
-    )
-    last_err: Exception | None = None
-    for attempt in range(max_attempts):
+    expected_total_time_s: float | None = None,
+) -> tuple[float, dict[Any, Any], int, dict[int, float], dict[str, Any]]:
+  """Instantiates GoodputCalculator in a fresh temp cache dir per attempt."""
+  last_err: Exception | None = None
+  for attempt in range(max_attempts):
+    with tempfile.TemporaryDirectory() as cache_dir:
+      calculator = goodput.GoodputCalculator(
+          job_name=workload_id,
+          logger_name=f"goodput_{workload_id}",
+          using_pathways=using_pathways,
+          cache_dir=cache_dir,
+      )
       try:
         job_goodput, badput_breakdown, last_step = calculator.get_job_goodput(
             include_badput_breakdown=True
         )
-        # pylint: disable=protected-access
-        if calculator._goodput_cache.get_job_end_time() is None:
-          raise ValueError("job_end_time not yet indexed in Cloud Logging")
-        # pylint: enable=protected-access
-        break
+        details = calculator.get_job_goodput_details()
+        total_elapsed_s = float(details.get("total_elapsed_time", 0.0))
+        if (
+            expected_total_time_s is not None
+            and abs(total_elapsed_s - expected_total_time_s) > 0.5
+        ):
+          raise ValueError(
+              f"total_elapsed_time ({total_elapsed_s:.2f}s) does not yet match "
+              f"expected {expected_total_time_s:.2f}s (job_end_time not yet "
+              "indexed in Cloud Logging)"
+          )
+        step_deviations = (
+            calculator.get_step_deviation(
+                configured_ideal_step_time=configured_ideal_step_time
+            )
+            if configured_ideal_step_time is not None
+            else {}
+        )
+        return (
+            job_goodput,
+            badput_breakdown,
+            last_step,
+            step_deviations,
+            details,
+        )
       except ValueError as err:
         if max_attempts == 1:
           raise
         last_err = err
-        # pylint: disable=protected-access
-        calculator._goodput_cache.clear_cache()
-        calculator._cloud_logger.job_start_time = None
-        # pylint: enable=protected-access
         if attempt + 1 < max_attempts:
           time.sleep(retry_delay_s)
-    else:
-      raise RuntimeError(
-          f"Goodput query failed after {max_attempts} attempts"
-      ) from last_err
 
-    step_deviations = (
-        calculator.get_step_deviation(
-            configured_ideal_step_time=configured_ideal_step_time
-        )
-        if configured_ideal_step_time is not None
-        else {}
-    )
-    return job_goodput, badput_breakdown, last_step, step_deviations
+  raise RuntimeError(
+      f"Goodput query failed after {max_attempts} attempts"
+  ) from last_err
 
 
 @task
@@ -222,9 +279,9 @@ def resolve_e2e_run_name(
       for mode in (cfg["mode"],)
       for model in cfg["models"]
   ]
-  start_iso = (
-      datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)
-  ).isoformat()
+  total_expected = len(expected_prefixes)
+  now_utc = datetime.datetime.now(datetime.timezone.utc)
+  start_iso = (now_utc - datetime.timedelta(days=7)).isoformat()
   entries = gcp_logging.Client(project=project_id).list_entries(
       filter_=(
           'resource.type="k8s_container" '
@@ -236,6 +293,7 @@ def resolve_e2e_run_name(
   )
 
   completed_by_run: dict[str, set[str]] = {}
+  latest_ts_by_run: dict[str, datetime.datetime] = {}
   for entry in entries:
     job_name = (
         str(entry.payload.get("job_name", ""))
@@ -246,13 +304,57 @@ def resolve_e2e_run_name(
       if job_name.startswith(f"{prefix}-"):
         run_name = job_name.removeprefix(f"{prefix}-")
         completed_by_run.setdefault(run_name, set()).add(prefix)
-        if len(completed_by_run[run_name]) == len(expected_prefixes):
-          logging.info("Selected completed E2E run: %s", run_name)
+        if entry.timestamp is not None and (
+            run_name not in latest_ts_by_run
+            or entry.timestamp > latest_ts_by_run[run_name]
+        ):
+          latest_ts_by_run[run_name] = entry.timestamp
+        if len(completed_by_run[run_name]) == total_expected:
+          for skipped_run, skipped_prefixes in completed_by_run.items():
+            if skipped_run != run_name:
+              skipped_ts = latest_ts_by_run.get(skipped_run)
+              logging.info(
+                  "Skipping incomplete/in-progress E2E run %s "
+                  "(%d/%d workloads complete, latest job_end=%s)",
+                  skipped_run,
+                  len(skipped_prefixes),
+                  total_expected,
+                  skipped_ts.isoformat() if skipped_ts else "unknown",
+              )
+          selected_ts = latest_ts_by_run.get(run_name, now_utc)
+          run_age = now_utc - selected_ts
+          age_hours = run_age.total_seconds() / 3600.0
+          logging.info(
+              "Selected completed E2E run: %s (%d/%d workloads complete, "
+              "latest job_end=%s, age=%.1fh)",
+              run_name,
+              total_expected,
+              total_expected,
+              selected_ts.isoformat(),
+              age_hours,
+          )
+          if run_age > _STALE_E2E_RUN_WARNING_AGE:
+            logging.warning(
+                "Selected E2E run %s is %.1f hours old (> %s); recent E2E "
+                "runs may be failing or incomplete.",
+                run_name,
+                age_hours,
+                _STALE_E2E_RUN_WARNING_AGE,
+            )
           return run_name
         break
 
+  for partial_run, partial_prefixes in completed_by_run.items():
+    partial_ts = latest_ts_by_run.get(partial_run)
+    logging.info(
+        "Incomplete E2E run %s: %d/%d workloads complete (latest job_end=%s)",
+        partial_run,
+        len(partial_prefixes),
+        total_expected,
+        partial_ts.isoformat() if partial_ts else "unknown",
+    )
   raise RuntimeError(
-      f"No completed E2E run ({len(expected_prefixes)} workloads) found in "
+      f"No completed E2E run ({total_expected} workloads) found in "
       f"{project_id} over the last 7 days."
   )
 
@@ -274,7 +376,13 @@ def verify_steady_state_goodput(
   for model_name, (baseline_pct, threshold) in profile["models"].items():
     workload_id = f"{model_name}-{mode}-{run_name}"
     try:
-      job_goodput, badput_breakdown, last_step, _ = _calculate_workload_goodput(
+      (
+          job_goodput,
+          badput_breakdown,
+          last_step,
+          _,
+          _,
+      ) = _calculate_workload_goodput(
           workload_id=workload_id,
           using_pathways=using_pathways,
           max_attempts=1,
@@ -320,6 +428,9 @@ def badput_attribution_breakdown(
   UNPRODUCTIVE_CHECKPOINT_RESTORE_TIME, CUSTOM_BADPUT_EVENTS, and OTHER) and
   asserts that GoodputCalculator accurately attributes each BadputType bucket.
   """
+  composer_project_id = _resolve_composer_project_id()
+  os.environ["GOOGLE_CLOUD_PROJECT"] = composer_project_id
+
   workload_id = f"goodput-func-badput-breakdown-{ts_nodash}"
   logger_name = f"goodput_{workload_id}"
 
@@ -376,34 +487,42 @@ def badput_attribution_breakdown(
   ckpt_restore_s = _TEST_CKPT_RESTORE_TIME.total_seconds()
 
   # 6. Checkpoint save and restore entries in the goodput logger stream.
-  # pylint: disable=protected-access
-  recorder._cloud_logger.write_cloud_logging_entry({
-      "job_name": workload_id,
-      "step": 2,
-      "event_type": "save",
-      "directory": f"gs://runner-maxtext-logs/{workload_id}",
-      "reached_preemption": False,
-      "synchronous": True,
-      "wait_for_prev_start_time": curr_time.timestamp() - 10.0,
-      "wait_for_prev_duration_secs": 0.5,
-      "checkpointer_blocking_start_time": curr_time.timestamp() - 9.0,
-      "checkpointer_blocking_duration_secs": 1.5,
-      "get_old_steps_start_time": curr_time.timestamp() - 7.0,
-      "get_old_steps_duration_secs": 1.0,
-      "checkpoint_manager_blocking_start_time": curr_time.timestamp() - 10.0,
-      "checkpoint_manager_blocking_duration_secs": ckpt_save_s,
-  })
-  recorder._cloud_logger.write_cloud_logging_entry({
-      "job_name": workload_id,
-      "step": 0,
-      "event_type": "restore",
-      "directory": f"gs://runner-maxtext-logs/{workload_id}",
-      "checkpointer_start_time": job_start.timestamp() + 5.0,
-      "checkpointer_duration_secs": ckpt_restore_s,
-      "checkpoint_manager_start_time": job_start.timestamp() + 5.0,
-      "checkpoint_manager_duration_secs": ckpt_restore_s,
-  })
-  # pylint: enable=protected-access
+  ckpt_logger = gcp_logging.Client(project=composer_project_id).logger(
+      logger_name
+  )
+  ckpt_logger.log_struct(
+      {
+          "job_name": workload_id,
+          "step": 2,
+          "event_type": "save",
+          "directory": f"gs://runner-maxtext-logs/{workload_id}",
+          "reached_preemption": False,
+          "synchronous": True,
+          "wait_for_prev_start_time": curr_time.timestamp() - 10.0,
+          "wait_for_prev_duration_secs": 0.5,
+          "checkpointer_blocking_start_time": curr_time.timestamp() - 9.0,
+          "checkpointer_blocking_duration_secs": 1.5,
+          "get_old_steps_start_time": curr_time.timestamp() - 7.0,
+          "get_old_steps_duration_secs": 1.0,
+          "checkpoint_manager_blocking_start_time": curr_time.timestamp()
+          - 10.0,
+          "checkpoint_manager_blocking_duration_secs": ckpt_save_s,
+      },
+      severity="INFO",
+  )
+  ckpt_logger.log_struct(
+      {
+          "job_name": workload_id,
+          "step": 0,
+          "event_type": "restore",
+          "directory": f"gs://runner-maxtext-logs/{workload_id}",
+          "checkpointer_start_time": job_start.timestamp() + 5.0,
+          "checkpointer_duration_secs": ckpt_restore_s,
+          "checkpoint_manager_start_time": job_start.timestamp() + 5.0,
+          "checkpoint_manager_duration_secs": ckpt_restore_s,
+      },
+      severity="INFO",
+  )
 
   # 7. Job end time.
   job_end = curr_time
@@ -412,8 +531,15 @@ def badput_attribution_breakdown(
 
   total_time_s = (job_end - job_start).total_seconds()
 
-  job_goodput, badput_breakdown, last_step, _ = _calculate_workload_goodput(
+  (
+      job_goodput,
+      badput_breakdown,
+      last_step,
+      _,
+      _,
+  ) = _calculate_workload_goodput(
       workload_id=workload_id,
+      expected_total_time_s=total_time_s,
   )
 
   log_goodput_summary(
@@ -488,6 +614,9 @@ def disruption_recovery_and_step_deviation(
   GoodputCalculator.get_step_deviation() to verify wasted progress badput,
   infrastructure recovery badput, and step deviation calculation end-to-end.
   """
+  composer_project_id = _resolve_composer_project_id()
+  os.environ["GOOGLE_CLOUD_PROJECT"] = composer_project_id
+
   workload_id = f"goodput-func-disruption-{ts_nodash}"
   logger_name = f"goodput_{workload_id}"
 
@@ -542,17 +671,24 @@ def disruption_recovery_and_step_deviation(
     if step == 3:
       curr_time += _TEST_ANOMALOUS_STEP_EXTRA_TIME
 
-  recorder.record_job_end_time(curr_time)
+  job_end = curr_time
+  recorder.record_job_end_time(job_end)
   _flush_recorder(recorder)
+
+  total_time_s = (job_end - job_start).total_seconds()
+  step_s = _TEST_STEP_TIME.total_seconds()
+  anomalous_extra_s = _TEST_ANOMALOUS_STEP_EXTRA_TIME.total_seconds()
 
   (
       job_goodput,
       badput_breakdown,
       last_step,
       step_deviations,
+      details,
   ) = _calculate_workload_goodput(
       workload_id=workload_id,
-      configured_ideal_step_time=_TEST_STEP_TIME.total_seconds(),
+      configured_ideal_step_time=step_s,
+      expected_total_time_s=total_time_s,
   )
 
   log_goodput_summary(
@@ -564,30 +700,59 @@ def disruption_recovery_and_step_deviation(
   logging.info("[disruption_recovery] Step deviations: %s", step_deviations)
 
   assert last_step == 5, f"Expected last_step=5 after recovery, got {last_step}"
-  assert 0.0 < job_goodput < 100.0, f"Unexpected goodput: {job_goodput:.2f}%"
+  disruption_count = details.get("disruption_count")
+  assert (
+      disruption_count == 1
+  ), f"Expected disruption_count=1, got {disruption_count}"
 
-  for disruption_type in (
-      goodput.BadputType.WASTED_PROGRESS_FROM_DISRUPTION,
-      goodput.BadputType.INFRASTRUCTURE_RECOVERY_FROM_DISRUPTION,
-  ):
-    disruption_pct = float(badput_breakdown.get(disruption_type, 0.0))
-    assert disruption_pct > 0.0, (
-        f"Expected positive {disruption_type.name} badput, "
-        f"got {disruption_pct:.2f}%"
+  # Productive time: Segment 1 steps 0..1 (2 * 10s = 20s) + Segment 2 steps 2..5
+  # (4 * 10s + 20s anomaly = 60s) = 80s out of 148s (54.05%).
+  expected_productive_s = 6 * step_s + anomalous_extra_s
+  expected_goodput_pct = (expected_productive_s / total_time_s) * 100
+  assert abs(job_goodput - expected_goodput_pct) <= 0.5, (
+      f"Goodput mismatch: expected {expected_goodput_pct:.2f}%, "
+      f"got {job_goodput:.2f}%"
+  )
+
+  expected_badput_durations = {
+      goodput.BadputType.WASTED_PROGRESS_FROM_DISRUPTION: 2 * step_s,
+      goodput.BadputType.INFRASTRUCTURE_RECOVERY_FROM_DISRUPTION: (
+          step_s + _TEST_DISRUPTION_DOWNTIME.total_seconds()
+      ),
+      goodput.BadputType.TPU_INITIALIZATION: (
+          2 * _TEST_TPU_INIT_TIME.total_seconds()
+      ),
+      goodput.BadputType.TRAINING_PREP: (
+          2 * _TEST_TRAINING_PREPARATION_TIME.total_seconds()
+      ),
+      goodput.BadputType.DATA_LOADING_SYNC: (
+          2 * _TEST_SYNC_DATA_LOADING_TIME.total_seconds()
+      ),
+  }
+  badput_times = details.get("badput_time", {})
+  for badput_type, expected_s in expected_badput_durations.items():
+    actual_s = float(badput_times.get(badput_type, 0.0))
+    assert abs(actual_s - expected_s) <= 0.5, (
+        f"{badput_type.name} duration mismatch: expected {expected_s:.2f}s, "
+        f"got {actual_s:.2f}s"
+    )
+    expected_pct = (expected_s / total_time_s) * 100
+    actual_pct = float(badput_breakdown.get(badput_type, 0.0))
+    assert abs(actual_pct - expected_pct) <= 0.5, (
+        f"{badput_type.name} pct mismatch: expected {expected_pct:.2f}%, "
+        f"got {actual_pct:.2f}%"
     )
 
-  anomalous_extra_s = _TEST_ANOMALOUS_STEP_EXTRA_TIME.total_seconds()
   assert step_deviations, "Expected non-empty step_deviations dictionary"
   assert (
       3 in step_deviations
   ), f"Expected anomalous step 3 in step_deviations, got {step_deviations}"
-  assert abs(step_deviations[3] - anomalous_extra_s) <= 0.5, (
-      f"Expected step 3 deviation ~{anomalous_extra_s}s, "
-      f"got {step_deviations[3]:.2f}s"
-  )
-  assert (
-      abs(step_deviations[2]) <= 0.5
-  ), f"Expected normal step 2 deviation ~0s, got {step_deviations[2]:.2f}s"
+  for step_num, actual_dev in step_deviations.items():
+    expected_dev = anomalous_extra_s if step_num == 3 else 0.0
+    assert abs(actual_dev - expected_dev) <= 0.5, (
+        f"Expected step {step_num} deviation ~{expected_dev:.2f}s, "
+        f"got {actual_dev:.2f}s"
+    )
 
 
 def _query_gcm_goodput_time_series_with_retry(
@@ -616,6 +781,74 @@ def _query_gcm_goodput_time_series_with_retry(
   return []
 
 
+def _run_goodput_monitor_worker_lifecycle(
+    log_project_id: str,
+    gcm_project_id: str,
+    target_workload_id: str,
+    logger_name: str,
+    using_pathways_str: str,
+    tb_dir: str,
+    cache_dir: str,
+    final_flush_timeout_str: str,
+) -> None:
+  """Runs GoodputMonitor background uploaders in a non-daemonic interpreter."""
+  os.environ["GOOGLE_CLOUD_PROJECT"] = log_project_id
+  using_pathways = using_pathways_str.lower() == "true"
+  final_flush_timeout = float(final_flush_timeout_str)
+
+  gcp_options = monitoring.GCPOptions(
+      enable_gcp_goodput_metrics=True,
+      enable_gcp_step_deviation_metrics=True,
+      project_id=gcm_project_id,
+      acc_type="v5p-8",
+      replica_id="0",
+  )
+
+  goodput_monitor = monitoring.GoodputMonitor(
+      job_name=target_workload_id,
+      logger_name=logger_name,
+      tensorboard_dir=tb_dir,
+      upload_interval=1,
+      monitoring_enabled=True,
+      pathway_enabled=using_pathways,
+      include_badput_breakdown=True,
+      include_step_deviation=True,
+      configured_ideal_step_time=1.0,
+      step_deviation_interval_seconds=1,
+      gcp_options=gcp_options,
+      final_flush_timeout_seconds=final_flush_timeout,
+      cache_dir=cache_dir,
+  )
+
+  goodput_monitor.start_goodput_uploader()
+  goodput_monitor.start_step_deviation_uploader()
+
+  worker_procs = multiprocessing.active_children()
+  assert len(worker_procs) == 2 and all(
+      proc.is_alive() for proc in worker_procs
+  ), (
+      "Expected 2 active child processes after starting GoodputMonitor "
+      f"uploaders, got {[ (p.name, p.is_alive()) for p in worker_procs ]}"
+  )
+
+  # Allow background workers to run a couple of upload intervals.
+  time.sleep(3)
+
+  goodput_monitor.stop_goodput_uploader()
+  goodput_monitor.stop_step_deviation_uploader()
+
+  assert not multiprocessing.active_children(), (
+      "Expected no active child processes after stopping GoodputMonitor "
+      f"uploaders, got {multiprocessing.active_children()}"
+  )
+  for proc in worker_procs:
+    assert not proc.is_alive() and proc.exitcode == 0, (
+        f"Expected GoodputMonitor child process {proc.name} to exit cleanly "
+        f"with exitcode=0, got is_alive={proc.is_alive()}, "
+        f"exitcode={proc.exitcode}"
+    )
+
+
 @task
 def goodput_monitor_and_final_flush(
     project_id: str,
@@ -626,14 +859,26 @@ def goodput_monitor_and_final_flush(
   Connects to both Pre-Training (`gemma3-4b-pre-<run_name>`,
   pathway_enabled=False) and Post-Training (`gemma3-4b-sft-<run_name>`,
   pathway_enabled=True) E2E workload stream in Cloud Logging and verifies:
-  1. GoodputMonitor uploader lifecycle (monitor_goodput=True,
-     GCPOptions(enable_gcp_goodput_metrics=True)) and clean final flush on
-     stop_goodput_uploader().
-  2. Flushed TensorBoard scalar event files written by GoodputMonitor.
+  1. GoodputMonitor background uploader lifecycle (start_goodput_uploader(),
+     start_step_deviation_uploader(), GCPOptions) and clean background process
+     exit (exitcode == 0) on stop_goodput_uploader() and
+     stop_step_deviation_uploader().
+  2. Flushed TensorBoard scalar event files written by GoodputMonitor (both
+     goodput and step_deviation scalars).
   3. Background uploads of compute.googleapis.com/workload/goodput_time time
      series to Google Cloud Monitoring.
   """
+  composer_project_id = _resolve_composer_project_id()
+  # Read real E2E workload logs from the TPU cluster project while sending
+  # Cloud Monitoring metrics to the Composer host project.
   os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
+  worker_src = (
+      "import multiprocessing, os, sys, time\n"
+      "from ml_goodput_measurement import monitoring\n"
+      + inspect.getsource(_run_goodput_monitor_worker_lifecycle)
+      + "\n_run_goodput_monitor_worker_lifecycle(*sys.argv[1:])\n"
+  )
+
   for profile_label, prof_cfg in GOODPUT_BASELINE_PROFILES.items():
     mode = prof_cfg["mode"]
     using_pathways = prof_cfg["using_pathways"]
@@ -641,10 +886,11 @@ def goodput_monitor_and_final_flush(
     logger_name = f"goodput_{target_workload_id}"
     logging.info(
         "[goodput_monitor:%s] Running GoodputMonitor uploader lifecycle test "
-        "against workload=%s (pathway_enabled=%s)",
+        "against workload=%s (pathway_enabled=%s, gcm_project=%s)",
         profile_label,
         target_workload_id,
         using_pathways,
+        composer_project_id,
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -653,47 +899,29 @@ def goodput_monitor_and_final_flush(
       os.makedirs(tb_dir, exist_ok=True)
       os.makedirs(cache_dir, exist_ok=True)
 
-      gcp_options = monitoring.GCPOptions(
-          enable_gcp_goodput_metrics=True,
-          enable_gcp_step_deviation_metrics=True,
-          acc_type="v5p-8",
-          replica_id="0",
+      # Run GoodputMonitor in a fresh Python interpreter subprocess so its
+      # child multiprocessing.Process workers are not blocked by Airflow's
+      # daemonic task runner process.
+      subprocess.run(
+          [
+              sys.executable,
+              "-c",
+              worker_src,
+              project_id,
+              composer_project_id,
+              target_workload_id,
+              logger_name,
+              str(using_pathways),
+              tb_dir,
+              cache_dir,
+              str(_FINAL_FLUSH_TIMEOUT_SECONDS),
+          ],
+          check=True,
+          timeout=120,
       )
-
-      goodput_monitor = monitoring.GoodputMonitor(
-          job_name=target_workload_id,
-          logger_name=logger_name,
-          tensorboard_dir=tb_dir,
-          upload_interval=1,
-          monitoring_enabled=True,
-          pathway_enabled=using_pathways,
-          include_badput_breakdown=True,
-          include_step_deviation=True,
-          configured_ideal_step_time=1.0,
-          step_deviation_interval_seconds=1,
-          gcp_options=gcp_options,
-          final_flush_timeout_seconds=None,
-          cache_dir=cache_dir,
-      )
-
-      # Run final flush synchronously in-process
-      goodput_monitor.stop_goodput_uploader()
-      goodput_monitor.stop_step_deviation_uploader()
-
-      # Assert background processes exited cleanly on final flush.
-      # pylint: disable=protected-access
-      assert (
-          goodput_monitor._goodput_process is None
-      ), "Expected _goodput_process to be None after stop_goodput_uploader()"
-      assert goodput_monitor._step_deviation_process is None, (
-          "Expected _step_deviation_process to be None after "
-          "stop_step_deviation_uploader()"
-      )
-      # pylint: enable=protected-access
       logging.info(
-          "[goodput_monitor:%s] Verified stop_goodput_uploader() and "
-          "stop_step_deviation_uploader() clean shutdown "
-          "(_goodput_process=None, _step_deviation_process=None)",
+          "[goodput_monitor:%s] Verified background uploader processes "
+          "started and exited cleanly with exitcode=0",
           profile_label,
       )
 
@@ -720,12 +948,22 @@ def goodput_monitor_and_final_flush(
           "Expected flushed TensorBoard scalar events (>40B header) in "
           f"{tb_goodput_dir}, got file sizes {tb_sizes}"
       )
+      tb_payload = b"".join(
+          open(os.path.join(tb_goodput_dir, fname), "rb").read()
+          for fname in tb_files
+      )
+      assert b"goodput/goodput" in tb_payload, (
+          f"Expected 'goodput/goodput' scalar tag in {tb_goodput_dir} event "
+          "files"
+      )
+      assert b"step_deviation" in tb_payload, (
+          f"Expected 'step_deviation' scalar tag in {tb_goodput_dir} event "
+          "files"
+      )
 
-      gcm_project_id = gcp_options.project_id or project_id
-
-    # Verify background upload to Google Cloud Monitoring for the workload.
+    # Verify background upload to Google Cloud Monitoring in Composer project.
     gcm_series = _query_gcm_goodput_time_series_with_retry(
-        project_id=gcm_project_id,
+        project_id=composer_project_id,
         workload_id=target_workload_id,
     )
     logging.info(
@@ -734,11 +972,11 @@ def goodput_monitor_and_final_flush(
         profile_label,
         len(gcm_series),
         target_workload_id,
-        gcm_project_id,
+        composer_project_id,
     )
     assert gcm_series, (
         "Expected compute.googleapis.com/workload/goodput_time time series in "
-        f"Cloud Monitoring (project={gcm_project_id}) for "
+        f"Cloud Monitoring (project={composer_project_id}) for "
         f"workload_id={target_workload_id}, found none"
     )
     latest_goodput_time = gcm_series[0].points[0].value.double_value
@@ -772,7 +1010,9 @@ with models.DAG(
     catchup=False,
     default_args={
         "owner": test_owner.KEVIN_Y,
-        "retries": 0,
+        "retries": 1,
+        "retry_delay": datetime.timedelta(minutes=1),
+        "execution_timeout": datetime.timedelta(minutes=30),
     },
     params={
         "target_e2e_run_name": Param(
@@ -822,8 +1062,6 @@ with models.DAG(
       resolved_run_name,
       [
           steady_group,
-          badput_breakdown_task,
-          disruption_recovery_task,
           monitor_flush_task,
       ],
   )
