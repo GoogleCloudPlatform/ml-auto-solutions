@@ -64,57 +64,38 @@ DEFAULT_CLUSTER = GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER
 
 # Calibrated Goodput regression thresholds (%) across all 19 model workloads in
 # maxtext_e2e_tpu_pre_training and maxtext_e2e_tpu_post_training on TPU v5p,
-# derived from 8 multi-day production E2E runs sampled from 2026-10-07 to
-# 2026-10-18:
+# derived from 19 clean production E2E runs sampled from 2026-10-07 through
+# 2026-10-31 (n=8..19 per workload; excludes manual re-triggered run IDs
+# e2e-39349266743, e2e-20261028, and e2e-35548888871 whose log streams collided
+# across re-runs):
 #   - e2e-37554031629 [2026-10-07], e2e-37709768700 [2026-10-08],
 #   - e2e-38329333842 [2026-10-13], e2e-38491519053 [2026-10-14],
 #   - e2e-38661394317 [2026-10-15], e2e-38830862063 [2026-10-16],
-#   - e2e-38987522429 [2026-10-17], e2e-39084001154 [2026-10-18].
-#
-# Per-workload empirical distribution across the sampled runs:
-#   Workload                     |  Mean  | StdDev |  Min   |  Max   | n | Floor
-#   -----------------------------+--------+--------+--------+--------+---+------
-#   Pre-training (McJAX, profile mean: 56.93%)
-#   gemma3-4b-pre                | 59.49% |  0.70% | 58.80% | 60.82% | 6 | 50.0%
-#   gemma4-26b-pre               | 52.96% |  2.26% | 50.51% | 55.15% | 4 | 45.0%
-#   llama3_1-70b-pre             | 57.08% |  0.86% | 55.87% | 58.19% | 6 | 45.0%
-#   qwen3-30b-pre                | 62.24% |  1.63% | 59.87% | 63.95% | 6 | 50.0%
-#   gpt-oss-20b-pre              | 48.88% |  1.02% | 47.41% | 49.59% | 4 | 40.0%
-#   Post-training SFT (Pathways, profile mean: 62.67%)
-#   gemma3-4b-sft                | 61.46% |  2.19% | 57.63% | 63.57% | 6 | 50.0%
-#   gemma4-26b-sft               | 71.97% |  1.46% | 70.09% | 73.66% | 4 | 60.0%
-#   llama3_1-70b-sft             | 74.74% |  2.16% | 71.10% | 77.63% | 6 | 60.0%
-#   qwen3-30b-sft                | 55.02% |  2.37% | 52.74% | 59.65% | 6 | 45.0%
-#   gpt-oss-20b-sft              | 48.57% | 14.33% | 36.20% | 66.40% | 4 | 30.0%
-#   Post-training Multimodal SFT (Pathways, profile mean: 59.55%)
-#   gemma3-4b-multimodal_sft     | 58.20% |  0.53% | 57.53% | 58.83% | 6 | 50.0%
-#   qwen3-vl-2b-multimodal_sft   | 60.89% |  0.22% | 60.56% | 61.10% | 6 | 50.0%
-#   Post-training LoRA (Pathways, profile mean: 41.13%)
-#   gemma3-4b-lora               | 41.13% |  0.87% | 40.20% | 42.56% | 6 | 35.0%
-#   Post-training RL (Pathways, profile mean: 39.23%)
-#   gemma3-4b-rl                 | 42.70% |  0.19% | 42.52% | 42.89% | 3 | 35.0%
-#   gemma4-26b-rl                | 35.04% |  0.00% | 35.04% | 35.04% | 1 | 25.0%
-#   llama3_1-70b-rl              | 44.95% |  0.56% | 44.50% | 45.58% | 3 | 35.0%
-#   qwen3-30b-rl                 | 46.34% |  2.20% | 44.65% | 48.82% | 3 | 35.0%
-#   gpt-oss-20b-rl               | 42.88% |  9.93% | 35.86% | 49.90% | 2 | 30.0%
-#   qwen3_5-35b-rl               | 21.91% |  0.51% | 21.32% | 22.21% | 3 | 15.0%
+#   - e2e-38987522429 [2026-10-17], e2e-39084001154 [2026-10-18],
+#   - e2e-39182250448 [2026-10-19], e2e-39522880081 [2026-10-21],
+#   - e2e-39859670492 [2026-10-22], e2e-39879790491 [2026-10-23],
+#   - e2e-40046143711 [2026-10-24], e2e-40147960398 [2026-10-25],
+#   - e2e-40250805234 [2026-10-26], e2e-40280714740 [2026-10-26],
+#   - e2e-40428169524 [2026-10-27], e2e-40609490996 [2026-10-28],
+#   - e2e-40794761146 [2026-10-29].
 #
 # In `"models"`, each model maps to `(baseline_goodput_pct, min_threshold_pct)`:
-#   - `baseline_goodput_pct`: Empirical multi-day mean Goodput (%) across the
-#     sampled runs (logged for reference when a regression occurs).
-#   - `min_threshold_pct`: Minimum acceptable Goodput (%) regression floor (~3
-#     standard deviations below the empirical mean) asserted by Scenario 1.
+#   - `baseline_goodput_pct`: Empirical mean Goodput (%) across the sampled
+#     runs (logged for reference when a regression occurs).
+#   - `min_threshold_pct`: Largest 5%-multiple at least 5 percentage points
+#     below the observed minimum (`floor((min - 5) / 5) * 5`) asserted by
+#     Scenario 1.
 GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
     "pre_training": {
         "mode": "pre",
         "using_pathways": False,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (59.49, 50.0),
-            "gemma4-26b": (52.96, 45.0),
-            "llama3_1-70b": (57.08, 45.0),
-            "qwen3-30b": (62.24, 50.0),
-            "gpt-oss-20b": (48.88, 40.0),
+            "gemma3-4b": (59.60, 50.0),
+            "gemma4-26b": (52.59, 45.0),
+            "llama3_1-70b": (56.41, 45.0),
+            "qwen3-30b": (61.58, 50.0),
+            "gpt-oss-20b": (47.68, 40.0),
         },
     },
     "post_training_sft": {
@@ -122,11 +103,11 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (61.46, 50.0),
-            "gemma4-26b": (71.97, 60.0),
-            "llama3_1-70b": (74.74, 60.0),
-            "qwen3-30b": (55.02, 45.0),
-            "gpt-oss-20b": (48.57, 30.0),
+            "gemma3-4b": (60.05, 50.0),
+            "gemma4-26b": (70.07, 60.0),
+            "llama3_1-70b": (75.45, 65.0),
+            "qwen3-30b": (54.53, 40.0),
+            "gpt-oss-20b": (47.27, 20.0),
         },
     },
     "post_training_multimodal_sft": {
@@ -134,8 +115,8 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (58.20, 50.0),
-            "qwen3-vl-2b": (60.89, 50.0),
+            "gemma3-4b": (58.01, 50.0),
+            "qwen3-vl-2b": (60.32, 50.0),
         },
     },
     "post_training_lora": {
@@ -143,7 +124,7 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (41.13, 35.0),
+            "gemma3-4b": (41.52, 35.0),
         },
     },
     "post_training_rl": {
@@ -151,12 +132,12 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (42.70, 35.0),
-            "gemma4-26b": (35.04, 25.0),
-            "llama3_1-70b": (44.95, 35.0),
-            "qwen3-30b": (46.34, 35.0),
-            "gpt-oss-20b": (42.88, 30.0),
-            "qwen3_5-35b": (21.91, 15.0),
+            "gemma3-4b": (42.33, 35.0),
+            "gemma4-26b": (35.28, 25.0),
+            "llama3_1-70b": (44.77, 35.0),
+            "qwen3-30b": (48.02, 35.0),
+            "gpt-oss-20b": (39.49, 20.0),
+            "qwen3_5-35b": (22.53, 15.0),
         },
     },
 }
@@ -419,7 +400,7 @@ def verify_steady_state_goodput(
 @task
 def badput_attribution_breakdown(
     ts_nodash: str,
-    try_number: str = "1",
+    attempt_number: str = "1",
 ) -> None:
   """Scenario 2: Badput Attribution & Breakdown Functional Test.
 
@@ -433,7 +414,7 @@ def badput_attribution_breakdown(
   os.environ["GOOGLE_CLOUD_PROJECT"] = composer_project_id
 
   now_utc = datetime.datetime.now(datetime.timezone.utc)
-  attempt_id = f"{ts_nodash}-try{try_number}-{int(now_utc.timestamp())}"
+  attempt_id = f"{ts_nodash}-try{attempt_number}-{int(now_utc.timestamp())}"
   workload_id = f"goodput-func-badput-breakdown-{attempt_id}"
   logger_name = f"goodput_{workload_id}"
 
@@ -608,7 +589,7 @@ def badput_attribution_breakdown(
 @task
 def disruption_recovery_and_step_deviation(
     ts_nodash: str,
-    try_number: str = "1",
+    attempt_number: str = "1",
 ) -> None:
   """Scenario 3: Disruption / Recovery & Step Deviation Functional Test.
 
@@ -621,7 +602,7 @@ def disruption_recovery_and_step_deviation(
   os.environ["GOOGLE_CLOUD_PROJECT"] = composer_project_id
 
   now_utc = datetime.datetime.now(datetime.timezone.utc)
-  attempt_id = f"{ts_nodash}-try{try_number}-{int(now_utc.timestamp())}"
+  attempt_id = f"{ts_nodash}-try{attempt_number}-{int(now_utc.timestamp())}"
   workload_id = f"goodput-func-disruption-{attempt_id}"
   logger_name = f"goodput_{workload_id}"
 
@@ -1034,7 +1015,7 @@ with models.DAG(
     },
 ) as dag:
   ts_nodash_param = "{{ ts_nodash }}"
-  try_number_param = "{{ ti.try_number }}"
+  attempt_number_param = "{{ ti.try_number }}"
   e2e_project_id = DEFAULT_CLUSTER.project
 
   resolved_run_name = resolve_e2e_run_name(
@@ -1054,11 +1035,11 @@ with models.DAG(
 
   badput_breakdown_task = badput_attribution_breakdown(
       ts_nodash=ts_nodash_param,
-      try_number=try_number_param,
+      attempt_number=attempt_number_param,
   )
   disruption_recovery_task = disruption_recovery_and_step_deviation(
       ts_nodash=ts_nodash_param,
-      try_number=try_number_param,
+      attempt_number=attempt_number_param,
   )
   monitor_flush_task = goodput_monitor_and_final_flush(
       project_id=e2e_project_id,
