@@ -231,9 +231,9 @@ def _calculate_workload_goodput(
             and abs(total_elapsed_s - expected_total_time_s) > 0.5
         ):
           raise ValueError(
-              f"total_elapsed_time ({total_elapsed_s:.2f}s) does not yet match "
-              f"expected {expected_total_time_s:.2f}s (job_end_time not yet "
-              "indexed in Cloud Logging)"
+              f"total_elapsed_time ({total_elapsed_s:.2f}s) does not match "
+              f"expected {expected_total_time_s:.2f}s (log entries may still "
+              "be indexing in Cloud Logging)"
           )
         step_deviations = (
             calculator.get_step_deviation(
@@ -419,6 +419,7 @@ def verify_steady_state_goodput(
 @task
 def badput_attribution_breakdown(
     ts_nodash: str,
+    try_number: str = "1",
 ) -> None:
   """Scenario 2: Badput Attribution & Breakdown Functional Test.
 
@@ -431,10 +432,11 @@ def badput_attribution_breakdown(
   composer_project_id = _resolve_composer_project_id()
   os.environ["GOOGLE_CLOUD_PROJECT"] = composer_project_id
 
-  workload_id = f"goodput-func-badput-breakdown-{ts_nodash}"
+  now_utc = datetime.datetime.now(datetime.timezone.utc)
+  attempt_id = f"{ts_nodash}-try{try_number}-{int(now_utc.timestamp())}"
+  workload_id = f"goodput-func-badput-breakdown-{attempt_id}"
   logger_name = f"goodput_{workload_id}"
 
-  now_utc = datetime.datetime.now(datetime.timezone.utc)
   job_start = now_utc - datetime.timedelta(minutes=10)
   curr_time = job_start
 
@@ -606,6 +608,7 @@ def badput_attribution_breakdown(
 @task
 def disruption_recovery_and_step_deviation(
     ts_nodash: str,
+    try_number: str = "1",
 ) -> None:
   """Scenario 3: Disruption / Recovery & Step Deviation Functional Test.
 
@@ -617,10 +620,11 @@ def disruption_recovery_and_step_deviation(
   composer_project_id = _resolve_composer_project_id()
   os.environ["GOOGLE_CLOUD_PROJECT"] = composer_project_id
 
-  workload_id = f"goodput-func-disruption-{ts_nodash}"
+  now_utc = datetime.datetime.now(datetime.timezone.utc)
+  attempt_id = f"{ts_nodash}-try{try_number}-{int(now_utc.timestamp())}"
+  workload_id = f"goodput-func-disruption-{attempt_id}"
   logger_name = f"goodput_{workload_id}"
 
-  now_utc = datetime.datetime.now(datetime.timezone.utc)
   job_start = now_utc - datetime.timedelta(minutes=10)
   curr_time = job_start
 
@@ -1030,6 +1034,7 @@ with models.DAG(
     },
 ) as dag:
   ts_nodash_param = "{{ ts_nodash }}"
+  try_number_param = "{{ ti.try_number }}"
   e2e_project_id = DEFAULT_CLUSTER.project
 
   resolved_run_name = resolve_e2e_run_name(
@@ -1049,9 +1054,11 @@ with models.DAG(
 
   badput_breakdown_task = badput_attribution_breakdown(
       ts_nodash=ts_nodash_param,
+      try_number=try_number_param,
   )
   disruption_recovery_task = disruption_recovery_and_step_deviation(
       ts_nodash=ts_nodash_param,
+      try_number=try_number_param,
   )
   monitor_flush_task = goodput_monitor_and_final_flush(
       project_id=e2e_project_id,
