@@ -392,7 +392,7 @@ def check_logs_stream(
           effective_since_time,
       )
 
-    container_name = "jax-tpu"
+    container_name = "workload-container"
     pod_name = first_pod["metadata"]["name"]
     pod_namespace = first_pod["metadata"].get("namespace", "default")
 
