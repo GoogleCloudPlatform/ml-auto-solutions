@@ -95,6 +95,7 @@ class Region(enum.Enum):
   ASIA_NORTHEAST1 = "asia-northeast1"
   US_EAST5 = "us-east5"
   EUROPE_WEST4 = "europe-west4"
+  SOUTHAMERICA_WEST1 = "southamerica-west1"
 
 
 class Zone(enum.Enum):
@@ -324,6 +325,17 @@ class GkeClusters:
       core_count=16,
       project=Project.TPU_PROD_ENV_ONE_VM.value,
       zone=Zone.US_EAST5_C.value,
+  )
+  # Regional node-auto-provisioning cluster for gcluster callers. Pick the
+  # slice size with override(core_count=...); a v6e chip has one core.
+  TPU_V6E_BODABORG_NAP_CLUSTER = GkeClusterConfig(
+      name="bodaborg-v6e-nap",
+      device_version=TpuVersion.TRILLIUM,
+      core_count=4,
+      project=Project.CLOUD_TPU_SHARED_CAPACITY.value,
+      zone=Region.SOUTHAMERICA_WEST1.value,
+      namespace="ubench-regression-tests",
+      queue="default",
   )
   GPU_A3_CLUSTER = GkeClusterConfig(
       name="ninacai-maxtext-a3",

@@ -251,6 +251,48 @@ class GclusterTest(unittest.TestCase):
         "/tmp/mock_gcluster_dir/gcluster_kube.conf",
     )
 
+  @mock.patch("tempfile.TemporaryDirectory")
+  @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
+  @mock.patch("xlml.utils.gcluster.SubprocessHook")
+  def test_run_workload_v6e_machine_type(
+      self, mock_hook_cls, mock_log_meta, mock_tempdir
+  ):
+    """Requests ct6e-standard-4t with a topology for multi-host v6e slices."""
+    del mock_log_meta
+    mock_tempdir.return_value.__enter__.return_value = "/tmp/mock_gcluster_dir"
+    mock_hook = mock.MagicMock()
+    mock_result = mock.MagicMock()
+    mock_result.exit_code = 0
+    mock_hook.run_command.return_value = mock_result
+    mock_hook_cls.return_value = mock_hook
+
+    for accelerator_type, expected in (
+        ("v6e-32", ["--compute-type=ct6e-standard-4t", "--topology=4x8"]),
+        ("v6e-64", ["--compute-type=ct6e-standard-4t", "--topology=8x8"]),
+        ("v6e-4", ["--compute-type=v6e-4"]),
+    ):
+      with self.subTest(accelerator_type=accelerator_type):
+        mock_hook.run_command.reset_mock()
+        gcluster.run_workload.function(
+            task_id="run_workload",
+            cluster_project="test-project",
+            zone="southamerica-west1",
+            cluster_name="test-cluster",
+            benchmark_id="test-bench",
+            workload_id="test-workload-12345",
+            gcs_path="gs://test-bucket/output",
+            docker_image="us-docker.pkg.dev/img:latest",
+            accelerator_type=accelerator_type,
+            run_cmds="bash run.sh",
+        )
+        submit_cmd = mock_hook.run_command.call_args_list[4][0][0]
+        compute_and_topology = [
+            arg
+            for arg in submit_cmd
+            if arg.startswith(("--compute-type=", "--topology="))
+        ]
+        self.assertEqual(compute_and_topology, expected)
+
   @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
   @mock.patch("xlml.utils.gcluster.SubprocessHook")
   def test_run_workload_gpu_and_mtc_and_restarts(
