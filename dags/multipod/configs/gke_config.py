@@ -772,6 +772,9 @@ def get_maxtext_cpu_end_to_end_gke_config(
     composer_project: str = Project.CLOUD_ML_AUTO_SOLUTIONS.value,
     base_output_directory: str = None,
     metric_aggregation_strategy: metric_config.AggregationStrategy = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
 ) -> task.XpkTask:
   pass
 
@@ -799,6 +802,9 @@ def get_maxtext_cpu_end_to_end_gke_config(
     gcluster_version: str = gcluster.DEFAULT_GCLUSTER_VERSION,
     mounts: str | Iterable[str] | None = None,
     restart_on_exit_codes: Iterable[int] | None = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
 ) -> task.GclusterTask:
   pass
 
@@ -825,6 +831,9 @@ def get_maxtext_cpu_end_to_end_gke_config(
     gcluster_version: str = gcluster.DEFAULT_GCLUSTER_VERSION,
     mounts: str | Iterable[str] | None = None,
     restart_on_exit_codes: Iterable[int] | None = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
 ) -> task.GclusterTask | task.XpkTask:
   """Constructs a CPU GKE task for either Cluster Toolkit (gcluster) or XPK."""
   job_gcp_config = gcp_config.GCPConfig(
@@ -875,6 +884,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
         gcluster_version=gcluster_version,
         mounts=mounts,
         queue=cluster.queue,
+        workload_provision_timeout=workload_provision_timeout,
     )
     return task.GclusterTask(
         runner_config=runner_config,
@@ -884,6 +894,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
       task_test_config=job_test_config,
       task_gcp_config=job_gcp_config,
       task_metric_config=job_metric_config,
+      workload_provision_timeout=workload_provision_timeout,
   )
 
   return task.XpkTask(

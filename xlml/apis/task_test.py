@@ -183,6 +183,7 @@ class GclusterTaskTest(unittest.TestCase):
         priority="medium",
         mounts="/dev/shm;/mnt/shm;rw",
         use_gcluster=True,
+        workload_provision_timeout=datetime.timedelta(hours=3),
     )
     self.assertIsInstance(gcluster_task_obj, task.GclusterTask)
     runner_cfg = gcluster_task_obj.runner_config
@@ -196,6 +197,9 @@ class GclusterTaskTest(unittest.TestCase):
     self.assertEqual(runner_cfg.task_gcp_config.zone, "us-central1")
     self.assertEqual(runner_cfg.mounts, "/dev/shm;/mnt/shm;rw")
     self.assertIsNone(runner_cfg.queue)
+    self.assertEqual(
+        runner_cfg.workload_provision_timeout, datetime.timedelta(hours=3)
+    )
 
     runner = task.GclusterRunner(
         configs=runner_cfg,
@@ -207,6 +211,22 @@ class GclusterTaskTest(unittest.TestCase):
 
     self.assertEqual(
         mock_run_op.call_args.kwargs.get("accelerator_type"), "m1-megamem-96"
+    )
+
+  def test_get_maxtext_cpu_end_to_end_gke_config_default_timeout(self):
+    """Keeps the default provisioning timeout when none is given."""
+    gcluster_task_obj = gke_config.get_maxtext_cpu_end_to_end_gke_config(
+        time_out_in_min=90,
+        test_name="to-hf",
+        run_model_cmds=("echo 'cpu conversion'",),
+        docker_image="gcr.io/test/image:latest",
+        cluster=GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+        test_owner=test_owner.SURBHI_J,
+        use_gcluster=True,
+    )
+    self.assertEqual(
+        gcluster_task_obj.runner_config.workload_provision_timeout,
+        datetime.timedelta(minutes=60),
     )
 
   def test_get_gke_config_with_name_gen_and_quarantine_gcluster(self):
