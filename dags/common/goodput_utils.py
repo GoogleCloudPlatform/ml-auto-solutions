@@ -15,10 +15,58 @@
 """Common Goodput measurement utilities and tasks."""
 
 import os
+from typing import Any
 
 from absl import logging
 from airflow.decorators import task
 from ml_goodput_measurement import goodput
+
+
+def log_goodput_summary(
+    job_goodput: float,
+    badput_breakdown: dict[Any, Any],
+    last_step: int,
+    scenario_name: str | None = None,
+) -> None:
+  """Logs Goodput and per-category Badput breakdown for a workload or scenario.
+
+  Args:
+    job_goodput: Computed cumulative Goodput percentage.
+    badput_breakdown: Mapping from BadputType to percentage (or nested dict of
+      event_name -> percentage for CUSTOM_BADPUT_EVENTS).
+    last_step: Last productive training step recorded.
+    scenario_name: Optional label prefixed to each log line (e.g.,
+      "[steady_state:pre_training]").
+  """
+  prefix = f"[{scenario_name}] " if scenario_name else ""
+  logging.info("%sLast step recorded: %d", prefix, last_step)
+  logging.info("%sGoodput (%%): %.2f%%", prefix, job_goodput)
+  logging.info("%s--- Badput Breakdown ---", prefix)
+
+  for badput_type, percentage in badput_breakdown.items():
+    if badput_type == goodput.BadputType.CUSTOM_BADPUT_EVENTS:
+      if isinstance(percentage, dict) and percentage:
+        logging.info("%sBadput due to %s:", prefix, badput_type.name)
+        for event_name, event_percentage in percentage.items():
+          logging.info(
+              "%s  - %s: %.2f%%",
+              prefix,
+              event_name,
+              event_percentage,
+          )
+      else:
+        logging.info(
+            "%sBadput due to %s: 0.00%%",
+            prefix,
+            badput_type.name,
+        )
+    else:
+      logging.info(
+          "%sBadput due to %s: %.2f%%",
+          prefix,
+          badput_type.name,
+          percentage,
+      )
 
 
 @task
@@ -72,17 +120,8 @@ def check_workload_goodput(
       last_step,
   ) = goodput_calculator.get_job_goodput(include_badput_breakdown=True)
 
-  logging.info(f"Last step recorded: {last_step}")
-  logging.info(f"Goodput (%): {current_goodput:.2f}%")
-  logging.info("\n--- Badput Breakdown ---")
-
-  for badput_type, percentage in badput_breakdown.items():
-    if badput_type == goodput.BadputType.CUSTOM_BADPUT_EVENTS:
-      logging.info(f"Badput due to {badput_type}:")
-      custom_events = percentage
-      if isinstance(custom_events, dict):
-        for event_name, event_percentage in custom_events.items():
-          logging.info(f"  - {event_name}: {event_percentage:.2f}%")
-    else:
-      # Access the name attribute of the enum member
-      logging.info(f"Badput due to {badput_type.name}: {percentage:.2f}%")
+  log_goodput_summary(
+      job_goodput=current_goodput,
+      badput_breakdown=badput_breakdown,
+      last_step=last_step,
+  )
