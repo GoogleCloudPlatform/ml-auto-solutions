@@ -141,6 +141,16 @@ with models.DAG(
           "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
           "to_hf_flags": "true",
       },
+      "qwen3-4b": {
+          "core_count": 4,
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
+          "training": {
+              "command": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3.sh",
+              "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-4b/train/{run_name}/checkpoints/1/items",
+          },
+          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
+          "to_hf_flags": "true",
+      },
       "gpt-oss-20b": {
           "core_count": 32,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
