@@ -60,7 +60,6 @@ with models.DAG(
         f'export BASE_OUTPUT_DIRECTORY={base_output_directory}',
         'export STEPS=1000',
         'export PROMPT="Suggest some famous landmarks in London."',
-        'pip install transformers==4.57.3',
         'bash tests/end_to_end/tpu/test_sft_trainer.sh',
     )
     maxtext_v4_configs_test = gke_config.get_gke_config(
