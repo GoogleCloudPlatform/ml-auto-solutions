@@ -101,6 +101,10 @@ with models.DAG(
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
           "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
       },
+      "qwen3-4b": {
+          "to_maxtext": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
+      },
       "qwen3-vl-2b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_mt.sh",
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,

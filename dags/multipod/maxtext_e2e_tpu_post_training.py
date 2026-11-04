@@ -185,6 +185,24 @@ with models.DAG(
               },
           },
       },
+      "qwen3-4b": {
+          "core_count": 4,
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
+          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
+          "post_training": {
+              "sft": {
+                  "command": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_sft.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-4b/sft/{run_name}/checkpoints/2/model_params",
+                  "to_hf_flags": "true",
+              },
+              "rl": {
+                  "command": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_rl.sh",
+                  "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-4b/rl/{run_name}/checkpoints/actor/2/model_params",
+                  "core_count": 16,
+                  "to_hf_flags": "true",
+              },
+          },
+      },
       "qwen3-vl-2b": {
           "core_count": 4,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
