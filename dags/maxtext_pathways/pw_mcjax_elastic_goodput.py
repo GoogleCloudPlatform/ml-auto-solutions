@@ -379,6 +379,8 @@ def create_elastic_goodput_dag(
         project_id=fetched_params["project"],
         region=calculated_params["region"],
         cluster_name=fetched_params["cluster_name"],
+        use_pathways=True,
+        workload_kind=gke.WorkloadKind.JOBSET,
     )
 
     check_goodput_logs = check_gcp_logs_exist.override(

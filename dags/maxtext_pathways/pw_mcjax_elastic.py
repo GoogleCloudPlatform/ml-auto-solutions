@@ -262,6 +262,8 @@ def create_elastic_dag(
         project_id=fetched_params["project"],
         region=calculated_params["region"],
         cluster_name=fetched_params["cluster_name"],
+        use_pathways=True,
+        workload_kind=gke.WorkloadKind.JOBSET,
     )
 
     clean_up_recipe = gcluster.clean_up_workload.override(
