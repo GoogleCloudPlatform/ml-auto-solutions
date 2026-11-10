@@ -112,7 +112,7 @@ with models.DAG(
       if gke_docker_image is not None:
         jax_gke_v5p_8 = (
             jax_tests_gke_config.get_jax_distributed_initialize_config(
-                cluster=GkeClusters.TPU_V5P_8_CLUSTER,
+                cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
                 time_out_in_min=60,
                 num_slices=num_slices,
                 test_name=f"{default_test_name}-gke-{test_mode.value}",
