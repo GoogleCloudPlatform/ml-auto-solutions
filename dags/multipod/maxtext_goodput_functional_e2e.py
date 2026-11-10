@@ -54,48 +54,45 @@ from ml_goodput_measurement import monitoring
 
 from dags import composer_env
 from dags.common import test_owner
-from dags.common.goodput_utils import log_goodput_summary
+from dags.common.goodput_utils import (
+    configure_calculator_run_isolation,
+    log_goodput_summary,
+)
 from dags.common.vm_resource import GkeClusters
 from xlml.utils import gcp_util, time_util
 
 DAG_ID = "maxtext_goodput_functional_e2e"
 SCHEDULED_TIME = "0 10 * * *" if composer_env.is_prod_env() else None
-DEFAULT_CLUSTER = GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER
+DEFAULT_CLUSTER = GkeClusters.TPU_V6E_BODABORG_NAP_CLUSTER
 
-# Calibrated Goodput regression thresholds (%) across all 19 model workloads in
-# maxtext_e2e_tpu_pre_training and maxtext_e2e_tpu_post_training on TPU v5p,
-# derived from 19 clean production E2E runs sampled from 2026-10-07 through
-# 2026-10-31 (n=8..19 per workload; excludes manual re-triggered run IDs
-# e2e-39349266743, e2e-20261028, and e2e-35548888871 whose log streams collided
-# across re-runs):
-#   - e2e-37554031629 [2026-10-07], e2e-37709768700 [2026-10-08],
-#   - e2e-38329333842 [2026-10-13], e2e-38491519053 [2026-10-14],
-#   - e2e-38661394317 [2026-10-15], e2e-38830862063 [2026-10-16],
-#   - e2e-38987522429 [2026-10-17], e2e-39084001154 [2026-10-18],
-#   - e2e-39182250448 [2026-10-19], e2e-39522880081 [2026-10-21],
-#   - e2e-39859670492 [2026-10-22], e2e-39879790491 [2026-10-23],
-#   - e2e-40046143711 [2026-10-24], e2e-40147960398 [2026-10-25],
-#   - e2e-40250805234 [2026-10-26], e2e-40280714740 [2026-10-26],
-#   - e2e-40428169524 [2026-10-27], e2e-40609490996 [2026-10-28],
-#   - e2e-40794761146 [2026-10-29].
+# Calibrated Goodput regression thresholds (%) across all 22 model workloads in
+# maxtext_e2e_tpu_pre_training and maxtext_e2e_tpu_post_training on TPU v6e,
+# derived from 9 production E2E runs sampled from 2026-11-04 through
+# 2026-11-09 (n=5..9 clean single-attempt runs per workload):
+#   - e2e-41748547965 [2026-11-04], e2e-41765212109 [2026-11-04],
+#   - e2e-41959691255 [2026-11-05], e2e-42154675101 [2026-11-06],
+#   - e2e-42271925851 [2026-11-06], e2e-42332539248 [2026-11-07],
+#   - e2e-42441447843 [2026-11-08], e2e-42554778214 [2026-11-09],
+#   - e2e-42554272725 [2026-11-09].
 #
 # In `"models"`, each model maps to `(baseline_goodput_pct, min_threshold_pct)`:
 #   - `baseline_goodput_pct`: Empirical mean Goodput (%) across the sampled
 #     runs (logged for reference when a regression occurs).
 #   - `min_threshold_pct`: Largest 5%-multiple at least 5 percentage points
-#     below the observed minimum (`floor((min - 5) / 5) * 5`) asserted by
-#     Scenario 1.
+#     below the observed minimum (`max(5.0, floor((min - 5) / 5) * 5)`)
+#     asserted by Scenario 1.
 GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
     "pre_training": {
         "mode": "pre",
         "using_pathways": False,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (59.60, 50.0),
-            "gemma4-26b": (52.59, 45.0),
-            "llama3_1-70b": (56.41, 45.0),
-            "qwen3-30b": (61.58, 50.0),
-            "gpt-oss-20b": (47.68, 40.0),
+            "gemma3-4b": (59.95, 50.0),
+            "gemma4-26b": (42.94, 35.0),
+            "llama3_1-70b": (62.45, 55.0),
+            "qwen3-30b": (45.47, 35.0),
+            "qwen3-4b": (45.02, 30.0),
+            "gpt-oss-20b": (53.09, 45.0),
         },
     },
     "post_training_sft": {
@@ -103,11 +100,12 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (60.05, 50.0),
-            "gemma4-26b": (70.07, 60.0),
-            "llama3_1-70b": (75.45, 65.0),
-            "qwen3-30b": (54.53, 40.0),
-            "gpt-oss-20b": (47.27, 20.0),
+            "gemma3-4b": (55.81, 45.0),
+            "gemma4-26b": (66.86, 60.0),
+            "llama3_1-70b": (62.05, 50.0),
+            "qwen3-30b": (58.48, 50.0),
+            "qwen3-4b": (49.27, 40.0),
+            "gpt-oss-20b": (43.13, 20.0),
         },
     },
     "post_training_multimodal_sft": {
@@ -115,8 +113,8 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (58.01, 50.0),
-            "qwen3-vl-2b": (60.32, 50.0),
+            "gemma3-4b": (61.67, 50.0),
+            "qwen3-vl-2b": (62.22, 50.0),
         },
     },
     "post_training_lora": {
@@ -124,7 +122,7 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (41.52, 35.0),
+            "gemma3-4b": (26.61, 15.0),
         },
     },
     "post_training_rl": {
@@ -132,12 +130,13 @@ GOODPUT_BASELINE_PROFILES: dict[str, dict[str, Any]] = {
         "using_pathways": True,
         "total_steps": 2,
         "models": {
-            "gemma3-4b": (42.33, 35.0),
-            "gemma4-26b": (35.28, 25.0),
-            "llama3_1-70b": (44.77, 35.0),
-            "qwen3-30b": (48.02, 35.0),
-            "gpt-oss-20b": (39.49, 20.0),
-            "qwen3_5-35b": (22.53, 15.0),
+            "gemma3-4b": (32.44, 20.0),
+            "gemma4-26b": (25.84, 15.0),
+            "llama3_1-70b": (17.40, 10.0),
+            "qwen3-30b": (9.28, 5.0),
+            "qwen3-4b": (6.25, 5.0),
+            "gpt-oss-20b": (26.91, 15.0),
+            "qwen3_5-35b": (18.10, 10.0),
         },
     },
 }
@@ -190,6 +189,7 @@ def _calculate_workload_goodput(
     retry_delay_s: float = 5.0,
     configured_ideal_step_time: float | None = None,
     expected_total_time_s: float | None = None,
+    isolate_latest_run: bool = False,
 ) -> tuple[float, dict[Any, Any], int, dict[int, float], dict[str, Any]]:
   """Instantiates GoodputCalculator in a fresh temp cache dir per attempt."""
   last_err: Exception | None = None
@@ -201,6 +201,8 @@ def _calculate_workload_goodput(
           using_pathways=using_pathways,
           cache_dir=cache_dir,
       )
+      if isolate_latest_run:
+        configure_calculator_run_isolation(calculator)
       try:
         job_goodput, badput_breakdown, last_step = calculator.get_job_goodput(
             include_badput_breakdown=True
@@ -367,6 +369,7 @@ def verify_steady_state_goodput(
           workload_id=workload_id,
           using_pathways=using_pathways,
           max_attempts=1,
+          isolate_latest_run=True,
       )
     except Exception as err:  # pylint: disable=broad-exception-caught
       failures.append(f"[{workload_id}] Failed to query Goodput: {err}")
@@ -785,7 +788,7 @@ def _run_goodput_monitor_worker_lifecycle(
       enable_gcp_goodput_metrics=True,
       enable_gcp_step_deviation_metrics=True,
       project_id=gcm_project_id,
-      acc_type="v5p-8",
+      acc_type="v6e-8",
       replica_id="0",
   )
 
@@ -989,7 +992,7 @@ with models.DAG(
         "nightly",
         "mlscale_devx",
         "TPU",
-        "v5p-8",
+        "v6e-8",
     ],
     start_date=datetime.datetime(2026, 6, 10),
     catchup=False,
@@ -1008,7 +1011,7 @@ with models.DAG(
                 "maxtext_e2e_tpu_pre_training and "
                 "maxtext_e2e_tpu_post_training to query in Cloud Logging for "
                 "Goodput verification (e.g. e2e-39084001154). Leave empty to "
-                "automatically discover the latest E2E run where all 19 model "
+                "automatically discover the latest E2E run where all 22 model "
                 "workloads have completed."
             ),
         ),

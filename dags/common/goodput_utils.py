@@ -22,6 +22,74 @@ from airflow.decorators import task
 from ml_goodput_measurement import goodput
 
 
+def isolate_latest_completed_run_entries(
+    entries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+  """Slices Cloud Logging entries to the latest completed run.
+
+  In E2E pre-training and post-training DAGs, `cleanup_cmd` deletes the
+  checkpoint directory on every retry so each retry starts from step 0. If a
+  workload stream contains multiple attempts (for example, an Attempt 1 pod
+  restart before `job_end_time`, a manual task re-run with the same
+  `run_name`, or a trailing aborted retry after a completed run), this helper
+  slices `entries` to `[last_job_start_before_last_end .. last_job_end]` so
+  `GoodputCalculator` evaluates only the latest completed attempt.
+
+  Args:
+    entries: Chronological list of Cloud Logging payload dicts returned by
+      `CloudLogger.read_cloud_logging_entries()`.
+
+  Returns:
+    Sliced list of entries corresponding to the latest completed run.
+  """
+  end_indices = [
+      idx for idx, entry in enumerate(entries) if "job_end_time" in entry
+  ]
+  if not end_indices:
+    return entries
+  last_end = end_indices[-1]
+  start_indices = [
+      idx for idx in range(last_end + 1) if "job_start_time" in entries[idx]
+  ]
+  if not start_indices:
+    return entries[: last_end + 1]
+  last_start = start_indices[-1]
+  if last_start > 0 or last_end < len(entries) - 1:
+    dropped_attempts = sum(
+        1
+        for entry in entries[:last_start] + entries[last_end + 1 :]
+        if "job_start_time" in entry
+    )
+    logging.warning(
+        "Isolated latest completed run (dropped %d attempt(s)).",
+        dropped_attempts,
+    )
+  return entries[last_start : last_end + 1]
+
+
+def configure_calculator_run_isolation(
+    calculator: goodput.GoodputCalculator,
+) -> None:
+  """Wraps calculator's CloudLogger to isolate the latest completed run."""
+  cloud_logger = getattr(calculator, "_cloud_logger", None)
+  orig_read = getattr(cloud_logger, "read_cloud_logging_entries", None)
+  if not callable(orig_read):
+    logging.warning(
+        "Cannot install Goodput run isolation hook on %s: "
+        "_cloud_logger.read_cloud_logging_entries is unavailable.",
+        type(calculator).__name__,
+    )
+    return
+
+  def _isolated_read(*args: Any, **kwargs: Any) -> Any:
+    result = orig_read(*args, **kwargs)
+    if isinstance(result, tuple) and result:
+      return (isolate_latest_completed_run_entries(result[0]), *result[1:])
+    return isolate_latest_completed_run_entries(result)
+
+  cloud_logger.read_cloud_logging_entries = _isolated_read
+
+
 def log_goodput_summary(
     job_goodput: float,
     badput_breakdown: dict[Any, Any],
