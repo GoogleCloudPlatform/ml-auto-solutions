@@ -48,6 +48,7 @@ with models.DAG(
         "stable",
         "nightly",
         "mlscale_devx",
+        "v6e-32",
         "v6e-256",
         "v5p-8",
         "v5p-128",
@@ -116,7 +117,9 @@ with models.DAG(
       },
       "gpt-oss-20b": {
           "script_name": "tpu/gpt_oss/20b/test_gpt_oss",
-          "cluster": GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER,
+          "cluster": GkeClusters.TPU_V6E_BODABORG_NAP_CLUSTER.override(
+              core_count=32,
+          ),
           "time_out_in_min": 180,
           "owner": test_owner.SHUNING_J,
           "use_gcluster": True,
