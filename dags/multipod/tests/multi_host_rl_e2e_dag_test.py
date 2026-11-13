@@ -16,10 +16,21 @@
 
 import ast
 import base64
+import io
+import json
+import logging
 import os
 import pathlib
+import re
+import shutil
+import subprocess
+import tarfile
+import tempfile
+from typing import Any
 import unittest
 from unittest import mock
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 try:  # Behavioural tests need Airflow (available in CI via scripts/dag-check.sh).
   from airflow.exceptions import AirflowFailException
@@ -32,8 +43,24 @@ except ImportError:  # pragma: no cover - exercised only without Airflow.
   _AIRFLOW_AVAILABLE = False
 
 
+class _FallbackFailError(Exception):
+  """Stand-in for AirflowFailException when Airflow is not installed."""
+
+
+def _make_app_layer_blob(entries: dict[str, tuple[bytes, int]]) -> bytes:
+  """Builds an in-memory gzipped tar layer for the given entries."""
+  buf = io.BytesIO()
+  with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+    for path, (data, mode) in entries.items():
+      info = tarfile.TarInfo(name=path)
+      info.size = len(data)
+      info.mode = mode
+      tf.addfile(info, io.BytesIO(data))
+  return buf.getvalue()
+
+
 class MultiHostRlE2eDagTest(unittest.TestCase):
-  """Tests syntax, trigger rules, and git auth helpers for the Trellis DAG."""
+  """Tests syntax, trigger rules, and staging helpers for the Trellis DAG."""
 
   def setUp(self):
     super().setUp()
@@ -61,6 +88,7 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
     self.assertIn("if not cfg:", source)
     self.assertIn("if not cfg or not cfg.get(", source)
     self.assertIn("_build_git_env", source)
+    self.assertIn("_stage_work_dir_from_image", source)
     self.assertIn("http.https://github.com/.extraheader", source)
     self.assertIn("GITHUB_PAT_TRELLIS_CI", source)
     self.assertIn("[:20]", source)
@@ -258,6 +286,469 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
         env_with_token["GIT_CONFIG_VALUE_0"],
         f"AUTHORIZATION: basic {expected_b64}",
     )
+
+  def _load_image_staging_helpers(self) -> dict[str, object]:
+    source = self.trellis_dag.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    wanted_assigns = {
+        "DEFAULT_RUNNER_SCRIPT",
+        "_AR_IMAGE_URI_RE",
+        "_OCI_MANIFEST_ACCEPT",
+        "_STAGED_APP_PREFIXES",
+    }
+    wanted_funcs = {
+        "_ar_get",
+        "_build_git_env",
+        "_normalize_runner_script",
+        "_stage_work_dir_from_image",
+        "launch_and_verify_rl_jobsets",
+    }
+    body = []
+    for node in tree.body:
+      if isinstance(node, ast.Assign):
+        names = {t.id for t in node.targets if isinstance(t, ast.Name)}
+        if names & wanted_assigns:
+          body.append(node)
+      elif isinstance(node, ast.FunctionDef) and node.name in wanted_funcs:
+        body.append(node)
+    mod = ast.Module(body=body, type_ignores=[])
+    namespace: dict[str, object] = {
+        "AirflowFailException": AirflowFailException or _FallbackFailError,
+        "Any": Any,
+        "base64": base64,
+        "json": json,
+        "logging": logging,
+        "os": os,
+        "re": re,
+        "shutil": shutil,
+        "subprocess": subprocess,
+        "tarfile": tarfile,
+        "tempfile": tempfile,
+        "urllib_error": urllib_error,
+        "urllib_request": urllib_request,
+        "task": lambda fn: fn,
+        "_clone_token": lambda _ctx: "ghp_stub_token",
+    }
+    exec(compile(mod, filename="<ast>", mode="exec"), namespace)  # pylint: disable=exec-used
+    return namespace
+
+  def _run_stage_from_responses(
+      self,
+      ns: dict[str, object],
+      responses: dict[str, bytes],
+      work_dir: str,
+      image_uri: str = (
+          "europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/"
+          "trellis/trellis-base:mytag"
+      ),
+      runner_script: str | None = None,
+  ) -> None:
+    ns["_ar_get"] = lambda url, token, accept=None: responses[url]
+    completed = subprocess.CompletedProcess(
+        args=["gcloud"], returncode=0, stdout="mock_access_token\n", stderr=""
+    )
+    with mock.patch.object(
+        subprocess, "run", autospec=True, return_value=completed
+    ):
+      if runner_script is None:
+        ns["_stage_work_dir_from_image"](image_uri, work_dir)
+      else:
+        ns["_stage_work_dir_from_image"](image_uri, work_dir, runner_script)
+
+  def _sample_layer_blob(self) -> bytes:
+    return _make_app_layer_blob({
+        "app/tests/multi_host/run_multi_host_gsm8k_e2e.sh": (
+            b"#!/usr/bin/env bash\necho ok\n",
+            0o755,
+        ),
+        "app/tests/multi_host/k8s_launcher.sh": (b"#!/bin/bash\n", 0o755),
+        "app/docker/base/lkg.env": (b"TUNIX_COMMIT=deadbeef\n", 0o644),
+        "app/experimental/unrelated.txt": (b"ignored\n", 0o644),
+    })
+
+  def _sample_run_cfg(self, image_uri: str) -> dict[str, Any]:
+    return {
+        "dag_run_id": "manual-run",
+        "github_repo": "google/trellis",
+        "branch_ref": "main",
+        "commit_sha": "a" * 40,
+        "image_uri": image_uri,
+        "cluster_project": "cloud-tpu-shared-capacity",
+        "cluster_zone": "europe-west4",
+        "cluster_name": "bodaborg-v5p-nap",
+        "k8s_namespace": "trellis",
+        "job_prefix": "tmh-aaaaaaa-manual",
+        "runner_script": "tests/multi_host/run_multi_host_gsm8k_e2e.sh",
+        "runner_env": {},
+    }
+
+  def test_ar_get_returns_body_and_wraps_http_error(self):
+    ns = self._load_image_staging_helpers()
+    ar_get = ns["_ar_get"]
+    fail_exc = ns["AirflowFailException"]
+    fake_resp = mock.MagicMock()
+    fake_resp.read.return_value = b'{"ok": true}'
+    fake_resp.__enter__.return_value = fake_resp
+    fake_resp.__exit__.return_value = False
+    with mock.patch.object(
+        urllib_request, "urlopen", autospec=True, return_value=fake_resp
+    ) as mock_urlopen:
+      body = ar_get(
+          "https://europe-west4-docker.pkg.dev/v2/repo/manifests/tag",
+          "tok123",
+          accept="application/vnd.oci.image.manifest.v1+json",
+      )
+    self.assertEqual(body, b'{"ok": true}')
+    req = mock_urlopen.call_args.args[0]
+    self.assertEqual(req.get_header("Authorization"), "Bearer tok123")
+    self.assertEqual(
+        req.get_header("Accept"),
+        "application/vnd.oci.image.manifest.v1+json",
+    )
+
+    http_err = urllib_error.HTTPError(
+        url="https://europe-west4-docker.pkg.dev/v2/repo/manifests/missing",
+        code=404,
+        msg="Not Found",
+        hdrs=None,
+        fp=None,
+    )
+    with mock.patch.object(
+        urllib_request, "urlopen", autospec=True, side_effect=http_err
+    ):
+      with self.assertRaisesRegex(fail_exc, "HTTP 404: Not Found"):
+        ar_get(http_err.url, "tok123")
+
+  def test_stage_work_dir_from_image_extracts_runner_and_lkg_env(self):
+    ns = self._load_image_staging_helpers()
+    stage_fn = ns["_stage_work_dir_from_image"]
+    fail_exc = ns["AirflowFailException"]
+    layer_blob = self._sample_layer_blob()
+    base = (
+        "https://europe-west4-docker.pkg.dev/v2/"
+        "cloud-tpu-multipod-dev/trellis/trellis-base"
+    )
+    zero_digest = "sha256:" + "1" * 64
+    cfg_digest = "sha256:" + "2" * 64
+    layer_digest = "sha256:" + "4" * 64
+    index_doc = {
+        "manifests": [{
+            "digest": zero_digest,
+            "platform": {"architecture": "amd64", "os": "linux"},
+        }]
+    }
+    manifest_doc = {
+        "config": {"digest": cfg_digest},
+        "layers": [
+            {"digest": "sha256:" + "3" * 64},
+            {"digest": layer_digest},
+        ],
+    }
+    config_doc = {
+        "history": [
+            {"created_by": "RUN apt-get update"},
+            {"created_by": "WORKDIR /app", "empty_layer": True},
+            {"created_by": "COPY . /app # buildkit"},
+        ]
+    }
+    responses = {
+        f"{base}/manifests/mytag": json.dumps(index_doc).encode(),
+        f"{base}/manifests/{zero_digest}": json.dumps(manifest_doc).encode(),
+        f"{base}/blobs/{cfg_digest}": json.dumps(config_doc).encode(),
+        f"{base}/blobs/{layer_digest}": layer_blob,
+    }
+    with tempfile.TemporaryDirectory() as work_dir:
+      self._run_stage_from_responses(ns, responses, work_dir)
+      runner = os.path.join(
+          work_dir, "tests", "multi_host", "run_multi_host_gsm8k_e2e.sh"
+      )
+      lkg = os.path.join(work_dir, "docker", "base", "lkg.env")
+      unrelated = os.path.join(work_dir, "experimental", "unrelated.txt")
+      self.assertTrue(os.path.isfile(runner))
+      self.assertEqual(os.stat(runner).st_mode & 0o777, 0o755)
+      self.assertTrue(os.path.isfile(lkg))
+      self.assertFalse(os.path.exists(unrelated))
+
+    with tempfile.TemporaryDirectory() as work_dir:
+      with self.assertRaisesRegex(fail_exc, "Unsupported Artifact Registry"):
+        stage_fn("gcr.io/not-artifact-registry/image:latest", work_dir)
+
+  def test_stage_work_dir_from_image_handles_single_manifest_without_index(
+      self,
+  ):
+    ns = self._load_image_staging_helpers()
+    base = (
+        "https://europe-west4-docker.pkg.dev/v2/"
+        "cloud-tpu-multipod-dev/trellis/trellis-base"
+    )
+    cfg_digest = "sha256:" + "2" * 64
+    layer_digest = "sha256:" + "4" * 64
+    manifest_doc = {
+        "config": {"digest": cfg_digest},
+        "layers": [{"digest": layer_digest}],
+    }
+    config_doc = {
+        "history": [{"created_by": "COPY . /app # buildkit"}],
+    }
+    responses = {
+        f"{base}/manifests/mytag": json.dumps(manifest_doc).encode(),
+        f"{base}/blobs/{cfg_digest}": json.dumps(config_doc).encode(),
+        f"{base}/blobs/{layer_digest}": self._sample_layer_blob(),
+    }
+    with tempfile.TemporaryDirectory() as work_dir:
+      self._run_stage_from_responses(ns, responses, work_dir)
+      runner = os.path.join(
+          work_dir, "tests", "multi_host", "run_multi_host_gsm8k_e2e.sh"
+      )
+      lkg = os.path.join(work_dir, "docker", "base", "lkg.env")
+      self.assertTrue(os.path.isfile(runner))
+      self.assertTrue(os.path.isfile(lkg))
+
+  def test_stage_work_dir_from_image_ignores_null_platform_in_index(self):
+    ns = self._load_image_staging_helpers()
+    base = (
+        "https://europe-west4-docker.pkg.dev/v2/"
+        "cloud-tpu-multipod-dev/trellis/trellis-base"
+    )
+    amd64_digest = "sha256:" + "1" * 64
+    cfg_digest = "sha256:" + "2" * 64
+    layer_digest = "sha256:" + "4" * 64
+    index_doc = {
+        "manifests": [
+            {"digest": "sha256:" + "9" * 64, "platform": None},
+            {
+                "digest": amd64_digest,
+                "platform": {"architecture": "amd64", "os": "linux"},
+            },
+        ]
+    }
+    manifest_doc = {
+        "config": {"digest": cfg_digest},
+        "layers": [{"digest": layer_digest}],
+    }
+    config_doc = {
+        "history": [{"created_by": "COPY . /app # buildkit"}],
+    }
+    responses = {
+        f"{base}/manifests/mytag": json.dumps(index_doc).encode(),
+        f"{base}/manifests/{amd64_digest}": json.dumps(manifest_doc).encode(),
+        f"{base}/blobs/{cfg_digest}": json.dumps(config_doc).encode(),
+        f"{base}/blobs/{layer_digest}": self._sample_layer_blob(),
+    }
+    with tempfile.TemporaryDirectory() as work_dir:
+      self._run_stage_from_responses(ns, responses, work_dir)
+      runner = os.path.join(
+          work_dir, "tests", "multi_host", "run_multi_host_gsm8k_e2e.sh"
+      )
+      self.assertTrue(os.path.isfile(runner))
+
+  def test_stage_work_dir_from_image_fails_on_history_layer_mismatch(self):
+    ns = self._load_image_staging_helpers()
+    fail_exc = ns["AirflowFailException"]
+    base = (
+        "https://europe-west4-docker.pkg.dev/v2/"
+        "cloud-tpu-multipod-dev/trellis/trellis-base"
+    )
+    cfg_digest = "sha256:" + "2" * 64
+    manifest_doc = {
+        "config": {"digest": cfg_digest},
+        "layers": [
+            {"digest": "sha256:" + "3" * 64},
+            {"digest": "sha256:" + "4" * 64},
+        ],
+    }
+    config_doc = {
+        "history": [{"created_by": "COPY . /app # buildkit"}],
+    }
+    responses = {
+        f"{base}/manifests/mytag": json.dumps(manifest_doc).encode(),
+        f"{base}/blobs/{cfg_digest}": json.dumps(config_doc).encode(),
+    }
+    with tempfile.TemporaryDirectory() as work_dir:
+      with self.assertRaisesRegex(fail_exc, "history/layer count mismatch"):
+        self._run_stage_from_responses(ns, responses, work_dir)
+
+  def test_stage_work_dir_from_image_fails_when_app_layer_or_runner_missing(
+      self,
+  ):
+    ns = self._load_image_staging_helpers()
+    fail_exc = ns["AirflowFailException"]
+    base = (
+        "https://europe-west4-docker.pkg.dev/v2/"
+        "cloud-tpu-multipod-dev/trellis/trellis-base"
+    )
+    cfg_digest = "sha256:" + "2" * 64
+    layer_digest = "sha256:" + "4" * 64
+    manifest_doc = {
+        "config": {"digest": cfg_digest},
+        "layers": [{"digest": layer_digest}],
+    }
+    no_copy_config = {"history": [{"created_by": "RUN apt-get update"}]}
+    no_copy_responses = {
+        f"{base}/manifests/mytag": json.dumps(manifest_doc).encode(),
+        f"{base}/blobs/{cfg_digest}": json.dumps(no_copy_config).encode(),
+    }
+    with tempfile.TemporaryDirectory() as work_dir:
+      with self.assertRaisesRegex(fail_exc, "Could not locate the COPY"):
+        self._run_stage_from_responses(ns, no_copy_responses, work_dir)
+
+    copy_config = {"history": [{"created_by": "COPY . /app # buildkit"}]}
+    missing_runner_blob = _make_app_layer_blob({
+        "app/docker/base/lkg.env": (b"TUNIX_COMMIT=deadbeef\n", 0o644),
+    })
+    missing_runner_responses = {
+        f"{base}/manifests/mytag": json.dumps(manifest_doc).encode(),
+        f"{base}/blobs/{cfg_digest}": json.dumps(copy_config).encode(),
+        f"{base}/blobs/{layer_digest}": missing_runner_blob,
+    }
+    with tempfile.TemporaryDirectory() as work_dir:
+      with self.assertRaisesRegex(fail_exc, "was not found in /app"):
+        self._run_stage_from_responses(ns, missing_runner_responses, work_dir)
+
+  def test_normalize_runner_script_validates_and_normalizes_paths(self):
+    ns = self._load_image_staging_helpers()
+    normalize_fn = ns["_normalize_runner_script"]
+    stage_fn = ns["_stage_work_dir_from_image"]
+    fail_exc = ns["AirflowFailException"]
+    self.assertEqual(
+        normalize_fn("./tests/multi_host/run_multi_host_gsm8k_e2e.sh"),
+        "tests/multi_host/run_multi_host_gsm8k_e2e.sh",
+    )
+    for bad_path in (
+        "",
+        "   ",
+        ".",
+        "/",
+        "/tests/multi_host/run_multi_host_gsm8k_e2e.sh",
+        "../outside.sh",
+        "tests/../../outside.sh",
+    ):
+      with self.subTest(bad_path=bad_path):
+        with self.assertRaises(fail_exc):
+          normalize_fn(bad_path)
+    with tempfile.TemporaryDirectory() as work_dir:
+      with self.assertRaises(fail_exc):
+        stage_fn(
+            "europe-west4-docker.pkg.dev/p/r/trellis-base:tag",
+            work_dir,
+            "/tests/multi_host/run_multi_host_gsm8k_e2e.sh",
+        )
+
+  def test_launch_and_verify_rl_jobsets_stages_from_image_when_image_uri_set(
+      self,
+  ):
+    ns = self._load_image_staging_helpers()
+    launch_fn = ns["launch_and_verify_rl_jobsets"]
+    staged_calls = []
+
+    def _fake_stage(image_uri, work_dir, runner_script):
+      staged_calls.append((image_uri, work_dir, runner_script))
+
+    ns["_stage_work_dir_from_image"] = _fake_stage
+    ns["_clone_token"] = mock.Mock(
+        side_effect=AssertionError("_clone_token must not be called")
+    )
+    bash_calls = []
+
+    def _fake_run(cmd, env=None, check=False):
+      del check
+      bash_calls.append((cmd, env))
+      summary_path = os.path.join(
+          env["LOG_OUTPUT_DIR"], "verification_summary.json"
+      )
+      with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump({"passed": True}, f)
+      return subprocess.CompletedProcess(args=cmd, returncode=0)
+
+    cfg = self._sample_run_cfg(
+        "europe-west4-docker.pkg.dev/p/r/trellis-base:sha123"
+    )
+    cfg["runner_script"] = "./tests/multi_host/run_multi_host_gsm8k_e2e.sh"
+    ti = mock.Mock()
+    with mock.patch.object(
+        subprocess, "run", autospec=True, side_effect=_fake_run
+    ):
+      result = launch_fn(cfg, ti=ti)
+
+    expected_rel = "tests/multi_host/run_multi_host_gsm8k_e2e.sh"
+    self.assertEqual(len(staged_calls), 1)
+    staged_uri, staged_dir, staged_runner = staged_calls[0]
+    self.assertEqual(staged_uri, cfg["image_uri"])
+    self.assertEqual(staged_runner, expected_rel)
+    self.assertEqual(len(bash_calls), 1)
+    self.assertEqual(
+        bash_calls[0][0], ["bash", os.path.join(staged_dir, expected_rel)]
+    )
+    self.assertEqual(result, {"passed": True, "runner_exit_code": 0})
+    ti.xcom_push.assert_called_once_with(
+        key="verification_summary",
+        value={"passed": True, "runner_exit_code": 0},
+    )
+
+  def test_launch_and_verify_rl_jobsets_falls_back_to_git_clone_without_image(
+      self,
+  ):
+    ns = self._load_image_staging_helpers()
+    launch_fn = ns["launch_and_verify_rl_jobsets"]
+    ns["_stage_work_dir_from_image"] = mock.Mock(
+        side_effect=AssertionError("image staging must not be called")
+    )
+    clone_token_mock = mock.Mock(return_value="ghp_test_token")
+    ns["_clone_token"] = clone_token_mock
+    recorded_calls = []
+
+    def _fake_run(cmd, env=None, check=False):
+      del check
+      recorded_calls.append((cmd, env))
+      if cmd[0] == "bash":
+        summary_path = os.path.join(
+            env["LOG_OUTPUT_DIR"], "verification_summary.json"
+        )
+        with open(summary_path, "w", encoding="utf-8") as f:
+          json.dump({"passed": True}, f)
+      return subprocess.CompletedProcess(args=cmd, returncode=0)
+
+    cfg = self._sample_run_cfg("")
+    ti = mock.Mock()
+    with mock.patch.object(
+        subprocess, "run", autospec=True, side_effect=_fake_run
+    ):
+      result = launch_fn(cfg, ti=ti)
+
+    clone_token_mock.assert_called_once()
+    git_calls = [(cmd, env) for cmd, env in recorded_calls if cmd[0] == "git"]
+    bash_calls = [(cmd, env) for cmd, env in recorded_calls if cmd[0] == "bash"]
+    self.assertEqual(len(git_calls), 3)
+    self.assertEqual(git_calls[0][0][1], "clone")
+    self.assertEqual(git_calls[1][0][3], "fetch")
+    self.assertEqual(git_calls[2][0][3], "checkout")
+    for _, git_env in git_calls:
+      self.assertIn("GIT_CONFIG_VALUE_0", git_env)
+    self.assertEqual(len(bash_calls), 1)
+    self.assertNotIn("GIT_CONFIG_VALUE_0", bash_calls[0][1])
+    self.assertEqual(result, {"passed": True, "runner_exit_code": 0})
+
+  def test_launch_and_verify_rl_jobsets_rejects_escaping_runner_script(self):
+    ns = self._load_image_staging_helpers()
+    launch_fn = ns["launch_and_verify_rl_jobsets"]
+    fail_exc = ns["AirflowFailException"]
+    ns["_stage_work_dir_from_image"] = mock.Mock(
+        side_effect=AssertionError("should fail before staging")
+    )
+    ns["_clone_token"] = mock.Mock(
+        side_effect=AssertionError("should fail before clone")
+    )
+    for bad_runner in ("/tests/multi_host/run.sh", "../outside.sh"):
+      cfg = self._sample_run_cfg("europe-west4-docker.pkg.dev/p/r/img:tag")
+      cfg["runner_script"] = bad_runner
+      with mock.patch.object(
+          subprocess,
+          "run",
+          autospec=True,
+          side_effect=AssertionError("should fail before subprocess"),
+      ):
+        with self.assertRaises(fail_exc):
+          launch_fn(cfg)
 
 
 if __name__ == "__main__":

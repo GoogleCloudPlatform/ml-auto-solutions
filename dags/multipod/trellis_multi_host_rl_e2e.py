@@ -21,8 +21,12 @@ All workload, model, checkpoint, and TPU topology defaults live in the
 so that model/recipe changes do not require DAG updates:
   1. Validates the external trigger and required parameters via
      `validate_trigger` (no GitHub token is required to run this DAG).
-  2. Clones `google/trellis` at `commit_sha` and executes `runner_script`
-     (forwarding any optional overrides in `dag_run.conf` or `runner_env`).
+  2. Stages the `google/trellis` runner and recipe files into `work_dir` -- by
+     extracting `/app` from the candidate `image_uri` in Artifact Registry when
+     `image_uri` is provided (so no GitHub credential is needed in Composer),
+     or by cloning `google/trellis` at `commit_sha` otherwise -- and executes
+     `runner_script` (forwarding any optional overrides in `dag_run.conf` or
+     `runner_env`).
   3. Cleans up all GKE JobSets for `job_prefix` with `TriggerRule.ALL_DONE`.
   4. Optionally fires a GitHub `repository_dispatch`
      (`airflow-trellis-multi-host-rl-callback`) event via
@@ -40,15 +44,18 @@ so that model/recipe changes do not require DAG updates:
   5. `watcher` (`TriggerRule.ONE_FAILED`) is the final leaf that turns any
      task failure into a failed DAG run.
 
-Credentials: the repository clone uses the `GITHUB_PAT_TRELLIS_CI` Airflow
+Credentials: when `image_uri` is supplied (standard for `google/trellis` CI),
+the runner scripts and `docker/base/lkg.env` are extracted directly from the
+`/app` layer of `image_uri` in Artifact Registry using the Composer worker's
+Google Cloud identity, requiring no GitHub credential. When `image_uri` is
+omitted, the repository clone falls back to the `GITHUB_PAT_TRELLIS_CI` Airflow
 Variable (read-only PAT), read at task runtime inside the git subprocess
-environment only (never in the runner's environment, Param defaults, or
-XCom). A caller-supplied `github_token` (opt-in callback) is read from
-`dag_run.conf` at task runtime and is not copied into XCom; note that
-`dag_run.conf` itself is stored in the Airflow metadata database and is
-visible to anyone with DAG-run read access (REST API and UI), so callers
-that opt in expose that token to them -- REST-polling callers should not
-send one at all.
+environment only (never in the runner's environment, Param defaults, or XCom).
+A caller-supplied `github_token` (opt-in callback) is read from `dag_run.conf`
+at task runtime and is not copied into XCom; note that `dag_run.conf` itself is
+stored in the Airflow metadata database and is visible to anyone with DAG-run
+read access (REST API and UI), so callers that opt in expose that token to
+them -- REST-polling callers should not send one at all.
 """
 
 import base64
@@ -57,9 +64,13 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
+import tarfile
 import tempfile
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from airflow import models
 from airflow.decorators import task
@@ -78,10 +89,25 @@ DEFAULT_K8S_NAMESPACE = "trellis"
 DEFAULT_ROLLOUT_REPLICAS = 2
 DEFAULT_RUNNER_SCRIPT = "tests/multi_host/run_multi_host_gsm8k_e2e.sh"
 # Name of the Airflow Variable holding a read-only PAT for the private
-# google/trellis repository. Resolved inside tasks at runtime (see
-# `_clone_token`), never at DAG-parse time, so the secret is not baked into
-# Param defaults, rendered templates, or XCom.
+# google/trellis repository (used only when `image_uri` is not supplied).
+# Resolved inside tasks at runtime (see `_clone_token`), never at DAG-parse
+# time, so the secret is not baked into Param defaults, rendered templates, or
+# XCom.
 GITHUB_PAT_TRELLIS_CI_VAR = "GITHUB_PAT_TRELLIS_CI"
+
+_AR_IMAGE_URI_RE = re.compile(
+    r"^(?P<host>[a-z0-9-]+-docker\.pkg\.dev)/(?P<repo>[^:@]+?)"
+    r"(?::(?P<tag>[^@:]+))?(?:@(?P<digest>sha256:[0-9a-fA-F]{64}))?$"
+)
+_OCI_MANIFEST_ACCEPT = (
+    "application/vnd.oci.image.manifest.v1+json, "
+    "application/vnd.docker.distribution.manifest.v2+json, "
+    "application/vnd.oci.image.index.v1+json, "
+    "application/vnd.docker.distribution.manifest.list.v2+json"
+)
+# Only these repository-relative prefixes inside `/app` are needed on the
+# Composer worker to launch and verify the multi-host E2E test.
+_STAGED_APP_PREFIXES = ("tests/multi_host", "docker/base/lkg.env")
 
 # Optional dag_run.conf keys mapped to runner environment variables when
 # explicitly supplied by the caller. When omitted, the runner script in
@@ -114,6 +140,162 @@ def _build_git_env(github_token: str) -> dict[str, str]:
     env["GIT_CONFIG_KEY_0"] = "http.https://github.com/.extraheader"
     env["GIT_CONFIG_VALUE_0"] = f"AUTHORIZATION: basic {basic_auth}"
   return env
+
+
+def _ar_get(url: str, token: str, accept: str | None = None) -> bytes:
+  """Performs an authenticated GET against Artifact Registry."""
+  headers = {"Authorization": f"Bearer {token}"}
+  if accept:
+    headers["Accept"] = accept
+  req = urllib_request.Request(url, headers=headers)
+  try:
+    with urllib_request.urlopen(req, timeout=60) as resp:
+      return resp.read()
+  except urllib_error.HTTPError as exc:
+    raise AirflowFailException(
+        f"Artifact Registry GET {url} failed with HTTP {exc.code}:"
+        f" {exc.reason}."
+    ) from exc
+
+
+def _normalize_runner_script(runner_script: str) -> str:
+  """Validates and normalizes `runner_script` as a relative path."""
+  raw = (runner_script or "").strip()
+  if not raw or os.path.isabs(raw):
+    raise AirflowFailException(
+        "runner_script must be a non-empty relative path inside the"
+        f" repository; got {runner_script!r}."
+    )
+  norm = os.path.normpath(raw)
+  if (
+      norm in ("", ".")
+      or os.path.isabs(norm)
+      or norm == ".."
+      or norm.startswith(f"..{os.sep}")
+  ):
+    raise AirflowFailException(
+        "runner_script must stay inside the repository work_dir;"
+        f" got {runner_script!r}."
+    )
+  return norm
+
+
+def _stage_work_dir_from_image(
+    image_uri: str,
+    work_dir: str,
+    runner_script: str = DEFAULT_RUNNER_SCRIPT,
+) -> None:
+  """Extracts test files from an Artifact Registry `trellis-base` image.
+
+  `docker/base/Dockerfile` copies the repository checkout into `/app` (`COPY .
+  /app`), including `tests/multi_host/*` and the resolved `docker/base/lkg.env`
+  for the build under test. Downloading only that single layer (~4 MB) via the
+  Artifact Registry HTTP v2 API avoids pulling the full multi-GB image or
+  requiring a GitHub PAT on the Composer worker.
+
+  Args:
+    image_uri: Artifact Registry image URI (`<region>-docker.pkg.dev/...`).
+    work_dir: Destination directory on the Composer worker.
+    runner_script: Relative path to the runner script inside the repository.
+  """
+  norm_runner = _normalize_runner_script(runner_script)
+  match = _AR_IMAGE_URI_RE.match(image_uri.strip())
+  if not match:
+    raise AirflowFailException(
+        f"Unsupported Artifact Registry image_uri: {image_uri!r}."
+    )
+  host = match.group("host")
+  repo = match.group("repo")
+  ref = match.group("digest") or match.group("tag") or "latest"
+  token = subprocess.run(
+      ["gcloud", "auth", "print-access-token"],
+      capture_output=True,
+      text=True,
+      check=True,
+  ).stdout.strip()
+  base_url = f"https://{host}/v2/{repo}"
+  manifest = json.loads(
+      _ar_get(f"{base_url}/manifests/{ref}", token, _OCI_MANIFEST_ACCEPT)
+  )
+  if "manifests" in manifest:
+    manifests = manifest["manifests"]
+    if not manifests:
+      raise AirflowFailException(
+          f"Manifest index for {image_uri} contains no image manifests."
+      )
+    amd64_entry = next(
+        (
+            entry
+            for entry in manifests
+            if (entry.get("platform") or {}).get("architecture") == "amd64"
+        ),
+        manifests[0],
+    )
+    amd64_digest = amd64_entry["digest"]
+    manifest = json.loads(
+        _ar_get(
+            f"{base_url}/manifests/{amd64_digest}",
+            token,
+            _OCI_MANIFEST_ACCEPT,
+        )
+    )
+  config_digest = manifest["config"]["digest"]
+  config = json.loads(_ar_get(f"{base_url}/blobs/{config_digest}", token))
+  non_empty_history = [
+      entry
+      for entry in config.get("history", [])
+      if not entry.get("empty_layer")
+  ]
+  layers = manifest.get("layers", [])
+  if len(non_empty_history) != len(layers):
+    raise AirflowFailException(
+        f"Image {image_uri} history/layer count mismatch:"
+        f" {len(non_empty_history)} non-empty history entries vs"
+        f" {len(layers)} layers."
+    )
+  app_layer_digest = None
+  for idx in range(len(layers) - 1, -1, -1):
+    created_by = non_empty_history[idx].get("created_by") or ""
+    if "COPY . /app" in created_by:
+      app_layer_digest = layers[idx]["digest"]
+      break
+  if not app_layer_digest:
+    raise AirflowFailException(
+        f"Could not locate the COPY . /app layer in {image_uri}."
+    )
+  allowed_prefixes = (*_STAGED_APP_PREFIXES, norm_runner)
+  blob = _ar_get(f"{base_url}/blobs/{app_layer_digest}", token)
+  with tempfile.NamedTemporaryFile(suffix=".tar.gz") as tmp_tar:
+    tmp_tar.write(blob)
+    tmp_tar.flush()
+    with tarfile.open(tmp_tar.name, "r:*") as archive:
+      for member in archive.getmembers():
+        norm_path = os.path.normpath(member.name).lstrip("/")
+        if not norm_path.startswith("app/"):
+          continue
+        rel_path = norm_path[4:]
+        if not rel_path or ".." in rel_path.split("/"):
+          continue
+        if not any(
+            rel_path == prefix or rel_path.startswith(f"{prefix}/")
+            for prefix in allowed_prefixes
+        ):
+          continue
+        dest_path = os.path.join(work_dir, rel_path)
+        if member.isdir():
+          os.makedirs(dest_path, exist_ok=True)
+        elif member.isfile():
+          os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+          extracted = archive.extractfile(member)
+          if extracted is not None:
+            with extracted, open(dest_path, "wb") as dst_file:
+              shutil.copyfileobj(extracted, dst_file)
+            os.chmod(dest_path, member.mode & 0o777)
+  staged_runner = os.path.join(work_dir, norm_runner)
+  if not os.path.isfile(staged_runner):
+    raise AirflowFailException(
+        f"Runner script {norm_runner} was not found in /app of {image_uri}."
+    )
 
 
 def _conf_and_params(context: dict[str, Any]) -> tuple[dict, dict]:
@@ -278,7 +460,13 @@ def prepare_run_config(**context: Any) -> dict[str, Any]:
 def launch_and_verify_rl_jobsets(
     cfg: dict[str, Any], **context: Any
 ) -> dict[str, Any]:
-  """Clones google/trellis, runs the multi-host E2E script, and verifies.
+  """Stages google/trellis, runs the multi-host E2E script, and verifies.
+
+  When `cfg["image_uri"]` is set (standard for `google/trellis` CI), the runner
+  scripts and `docker/base/lkg.env` are extracted directly from the `/app`
+  layer of `image_uri` in Artifact Registry using the Composer worker's Google
+  Cloud credentials, so no GitHub token is required. Otherwise, falls back to
+  cloning `google/trellis` with `_clone_token`.
 
   The verifier summary is pushed to XCom key `verification_summary` on both
   pass and fail (with the runner's exit code added), so REST pollers can show
@@ -288,56 +476,71 @@ def launch_and_verify_rl_jobsets(
   job_prefix = cfg["job_prefix"]
   github_repo = cfg["github_repo"]
   repo_url = f"https://github.com/{github_repo}.git"
+  image_uri = (cfg.get("image_uri") or "").strip()
+  raw_runner_script = cfg.get("runner_script")
+  rel_runner_script = _normalize_runner_script(
+      DEFAULT_RUNNER_SCRIPT
+      if raw_runner_script is None
+      else str(raw_runner_script)
+  )
 
-  # The clone token lives only in the environment of the three git
-  # subprocesses. The runner (code from `commit_sha`) and everything it spawns
-  # get a clean environment: the http.extraheader would otherwise be inherited
-  # and sent on every https://github.com/ request the runner makes.
-  git_env = _build_git_env(_clone_token(context))
-
-  # TemporaryDirectory removes the private checkout, logs/ and downloaded
+  # TemporaryDirectory removes the staged files, logs/ and downloaded
   # trajectories from the Composer worker when the task ends; the summary is
   # read before the block exits.
   with tempfile.TemporaryDirectory(prefix=f"{job_prefix}_") as work_dir:
-    subprocess.run(
-        [
-            "git",
-            "clone",
-            "--depth",
-            "1",
-            "-b",
-            cfg["branch_ref"],
-            repo_url,
-            work_dir,
-        ],
-        env=git_env,
-        check=True,
-    )
-    # Both must succeed: with check=False a failed fetch/checkout would
-    # silently run the branch tip's runner and verifier while reporting
-    # results for `commit_sha`, misattributing a pass or failure to the wrong
-    # commit. (validate_trigger already requires a full SHA; the "HEAD" guard
-    # is defense in depth.)
-    if cfg["commit_sha"] and cfg["commit_sha"] != "HEAD":
+    if image_uri:
+      logging.info(
+          "Staging %s test files from Artifact Registry image %s.",
+          github_repo,
+          image_uri,
+      )
+      _stage_work_dir_from_image(image_uri, work_dir, rel_runner_script)
+    else:
+      # The clone token lives only in the environment of the three git
+      # subprocesses. The runner (code from `commit_sha`) and everything it
+      # spawns get a clean environment: the http.extraheader would otherwise be
+      # inherited and sent on every https://github.com/ request the runner
+      # makes.
+      git_env = _build_git_env(_clone_token(context))
       subprocess.run(
           [
               "git",
-              "-C",
-              work_dir,
-              "fetch",
+              "clone",
               "--depth",
               "1",
-              "origin",
-              cfg["commit_sha"],
+              "-b",
+              cfg["branch_ref"],
+              repo_url,
+              work_dir,
           ],
           env=git_env,
           check=True,
       )
-      subprocess.run(
-          ["git", "-C", work_dir, "checkout", cfg["commit_sha"]],
-          env=git_env,
-          check=True,
-      )
+      # Both must succeed: with check=False a failed fetch/checkout would
+      # silently run the branch tip's runner and verifier while reporting
+      # results for `commit_sha`, misattributing a pass or failure to the wrong
+      # commit. (validate_trigger already requires a full SHA; the "HEAD" guard
+      # is defense in depth.)
+      if cfg["commit_sha"] and cfg["commit_sha"] != "HEAD":
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                work_dir,
+                "fetch",
+                "--depth",
+                "1",
+                "origin",
+                cfg["commit_sha"],
+            ],
+            env=git_env,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", work_dir, "checkout", cfg["commit_sha"]],
+            env=git_env,
+            check=True,
+        )
 
     log_dir = os.path.join(work_dir, "logs")
     os.makedirs(log_dir, exist_ok=True)
@@ -354,9 +557,7 @@ def launch_and_verify_rl_jobsets(
     })
     runner_env.update(cfg.get("runner_env") or {})
 
-    runner_script = os.path.join(
-        work_dir, cfg.get("runner_script", DEFAULT_RUNNER_SCRIPT)
-    )
+    runner_script = os.path.join(work_dir, rel_runner_script)
     res = subprocess.run(["bash", runner_script], env=runner_env, check=False)
 
     summary_path = os.path.join(log_dir, "verification_summary.json")
@@ -536,9 +737,9 @@ with models.DAG(
             type=["string", "null"],
             description=(
                 "Optional GitHub token. When set, it is used to clone"
-                " google/trellis and to fire the repository_dispatch callback;"
-                " when empty (recommended), the clone uses the"
-                f" {GITHUB_PAT_TRELLIS_CI_VAR} Airflow Variable and no callback"
+                " google/trellis (when image_uri is omitted) and to fire the"
+                " repository_dispatch callback; when empty (recommended),"
+                " image_uri is staged from Artifact Registry and no callback"
                 " is sent (callers poll the REST API instead)."
             ),
         ),
@@ -559,8 +760,9 @@ with models.DAG(
             default="",
             type=["string", "null"],
             description=(
-                "Optional candidate trellis-base image URI override (defaults"
-                " to runner script's TUNIX_IMAGE in google/trellis)"
+                "Candidate trellis-base image URI in Artifact Registry. When"
+                " set, the runner scripts and lkg.env are staged directly from"
+                " the image's /app layer without needing a GitHub token."
             ),
         ),
         "runner_script": Param(
