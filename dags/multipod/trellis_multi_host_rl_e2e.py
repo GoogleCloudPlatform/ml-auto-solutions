@@ -158,6 +158,28 @@ def _ar_get(url: str, token: str, accept: str | None = None) -> bytes:
     ) from exc
 
 
+def _normalize_runner_script(runner_script: str) -> str:
+  """Validates and normalizes `runner_script` as a relative path."""
+  raw = (runner_script or "").strip()
+  if not raw or os.path.isabs(raw):
+    raise AirflowFailException(
+        "runner_script must be a non-empty relative path inside the"
+        f" repository; got {runner_script!r}."
+    )
+  norm = os.path.normpath(raw)
+  if (
+      norm in ("", ".")
+      or os.path.isabs(norm)
+      or norm == ".."
+      or norm.startswith(f"..{os.sep}")
+  ):
+    raise AirflowFailException(
+        "runner_script must stay inside the repository work_dir;"
+        f" got {runner_script!r}."
+    )
+  return norm
+
+
 def _stage_work_dir_from_image(
     image_uri: str,
     work_dir: str,
@@ -176,6 +198,7 @@ def _stage_work_dir_from_image(
     work_dir: Destination directory on the Composer worker.
     runner_script: Relative path to the runner script inside the repository.
   """
+  norm_runner = _normalize_runner_script(runner_script)
   match = _AR_IMAGE_URI_RE.match(image_uri.strip())
   if not match:
     raise AirflowFailException(
@@ -204,7 +227,7 @@ def _stage_work_dir_from_image(
         (
             entry
             for entry in manifests
-            if entry.get("platform", {}).get("architecture") == "amd64"
+            if (entry.get("platform") or {}).get("architecture") == "amd64"
         ),
         manifests[0],
     )
@@ -224,8 +247,14 @@ def _stage_work_dir_from_image(
       if not entry.get("empty_layer")
   ]
   layers = manifest.get("layers", [])
+  if len(non_empty_history) != len(layers):
+    raise AirflowFailException(
+        f"Image {image_uri} history/layer count mismatch:"
+        f" {len(non_empty_history)} non-empty history entries vs"
+        f" {len(layers)} layers."
+    )
   app_layer_digest = None
-  for idx in range(min(len(non_empty_history), len(layers)) - 1, -1, -1):
+  for idx in range(len(layers) - 1, -1, -1):
     created_by = non_empty_history[idx].get("created_by") or ""
     if "COPY . /app" in created_by:
       app_layer_digest = layers[idx]["digest"]
@@ -234,7 +263,6 @@ def _stage_work_dir_from_image(
     raise AirflowFailException(
         f"Could not locate the COPY . /app layer in {image_uri}."
     )
-  norm_runner = os.path.normpath(runner_script).lstrip("/")
   allowed_prefixes = (*_STAGED_APP_PREFIXES, norm_runner)
   blob = _ar_get(f"{base_url}/blobs/{app_layer_digest}", token)
   with tempfile.NamedTemporaryFile(suffix=".tar.gz") as tmp_tar:
@@ -449,7 +477,12 @@ def launch_and_verify_rl_jobsets(
   github_repo = cfg["github_repo"]
   repo_url = f"https://github.com/{github_repo}.git"
   image_uri = (cfg.get("image_uri") or "").strip()
-  rel_runner_script = cfg.get("runner_script", DEFAULT_RUNNER_SCRIPT)
+  raw_runner_script = cfg.get("runner_script")
+  rel_runner_script = _normalize_runner_script(
+      DEFAULT_RUNNER_SCRIPT
+      if raw_runner_script is None
+      else str(raw_runner_script)
+  )
 
   # TemporaryDirectory removes the staged files, logs/ and downloaded
   # trajectories from the Composer worker when the task ends; the summary is
