@@ -16,10 +16,19 @@
 
 import ast
 import base64
+import io
+import json
 import os
 import pathlib
+import re
+import shutil
+import subprocess
+import tarfile
+import tempfile
 import unittest
 from unittest import mock
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 try:  # Behavioural tests need Airflow (available in CI via scripts/dag-check.sh).
   from airflow.exceptions import AirflowFailException
@@ -32,8 +41,24 @@ except ImportError:  # pragma: no cover - exercised only without Airflow.
   _AIRFLOW_AVAILABLE = False
 
 
+class _FallbackFailError(Exception):
+  """Stand-in for AirflowFailException when Airflow is not installed."""
+
+
+def _make_app_layer_blob(entries: dict[str, tuple[bytes, int]]) -> bytes:
+  """Builds an in-memory gzipped tar layer for the given entries."""
+  buf = io.BytesIO()
+  with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+    for path, (data, mode) in entries.items():
+      info = tarfile.TarInfo(name=path)
+      info.size = len(data)
+      info.mode = mode
+      tf.addfile(info, io.BytesIO(data))
+  return buf.getvalue()
+
+
 class MultiHostRlE2eDagTest(unittest.TestCase):
-  """Tests syntax, trigger rules, and git auth helpers for the Trellis DAG."""
+  """Tests syntax, trigger rules, and staging helpers for the Trellis DAG."""
 
   def setUp(self):
     super().setUp()
@@ -61,6 +86,7 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
     self.assertIn("if not cfg:", source)
     self.assertIn("if not cfg or not cfg.get(", source)
     self.assertIn("_build_git_env", source)
+    self.assertIn("_stage_work_dir_from_image", source)
     self.assertIn("http.https://github.com/.extraheader", source)
     self.assertIn("GITHUB_PAT_TRELLIS_CI", source)
     self.assertIn("[:20]", source)
@@ -258,6 +284,111 @@ class MultiHostRlE2eDagTest(unittest.TestCase):
         env_with_token["GIT_CONFIG_VALUE_0"],
         f"AUTHORIZATION: basic {expected_b64}",
     )
+
+  def _load_image_staging_helpers(self) -> dict[str, object]:
+    source = self.trellis_dag.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    wanted_assigns = {
+        "DEFAULT_RUNNER_SCRIPT",
+        "_AR_IMAGE_URI_RE",
+        "_OCI_MANIFEST_ACCEPT",
+        "_STAGED_APP_PREFIXES",
+    }
+    wanted_funcs = {"_ar_get", "_stage_work_dir_from_image"}
+    body = []
+    for node in tree.body:
+      if isinstance(node, ast.Assign):
+        names = {t.id for t in node.targets if isinstance(t, ast.Name)}
+        if names & wanted_assigns:
+          body.append(node)
+      elif isinstance(node, ast.FunctionDef) and node.name in wanted_funcs:
+        body.append(node)
+    mod = ast.Module(body=body, type_ignores=[])
+    namespace: dict[str, object] = {
+        "AirflowFailException": AirflowFailException or _FallbackFailError,
+        "json": json,
+        "os": os,
+        "re": re,
+        "shutil": shutil,
+        "subprocess": subprocess,
+        "tarfile": tarfile,
+        "tempfile": tempfile,
+        "urllib_error": urllib_error,
+        "urllib_request": urllib_request,
+    }
+    exec(compile(mod, filename="<ast>", mode="exec"), namespace)  # pylint: disable=exec-used
+    return namespace
+
+  def test_stage_work_dir_from_image_extracts_runner_and_lkg_env(self):
+    ns = self._load_image_staging_helpers()
+    stage_fn = ns["_stage_work_dir_from_image"]
+    fail_exc = ns["AirflowFailException"]
+    layer_blob = _make_app_layer_blob({
+        "app/tests/multi_host/run_multi_host_gsm8k_e2e.sh": (
+            b"#!/usr/bin/env bash\necho ok\n",
+            0o755,
+        ),
+        "app/tests/multi_host/k8s_launcher.sh": (b"#!/bin/bash\n", 0o755),
+        "app/docker/base/lkg.env": (b"TUNIX_COMMIT=deadbeef\n", 0o644),
+        "app/experimental/unrelated.txt": (b"ignored\n", 0o644),
+    })
+    base = (
+        "https://europe-west4-docker.pkg.dev/v2/"
+        "cloud-tpu-multipod-dev/trellis/trellis-base"
+    )
+    index_doc = {
+        "manifests": [{
+            "digest": "sha256:" + "1" * 64,
+            "platform": {"architecture": "amd64", "os": "linux"},
+        }]
+    }
+    manifest_doc = {
+        "config": {"digest": "sha256:" + "2" * 64},
+        "layers": [
+            {"digest": "sha256:" + "3" * 64},
+            {"digest": "sha256:" + "4" * 64},
+        ],
+    }
+    config_doc = {
+        "history": [
+            {"created_by": "RUN apt-get update"},
+            {"created_by": "WORKDIR /app", "empty_layer": True},
+            {"created_by": "COPY . /app # buildkit"},
+        ]
+    }
+    zero_digest = "sha256:" + "1" * 64
+    cfg_digest = "sha256:" + "2" * 64
+    layer_digest = "sha256:" + "4" * 64
+    responses = {
+        f"{base}/manifests/mytag": json.dumps(index_doc).encode(),
+        f"{base}/manifests/{zero_digest}": json.dumps(manifest_doc).encode(),
+        f"{base}/blobs/{cfg_digest}": json.dumps(config_doc).encode(),
+        f"{base}/blobs/{layer_digest}": layer_blob,
+    }
+    ns["_ar_get"] = lambda url, token, accept=None: responses[url]
+    completed = subprocess.CompletedProcess(
+        args=["gcloud"], returncode=0, stdout="mock_access_token\n", stderr=""
+    )
+    with tempfile.TemporaryDirectory() as work_dir:
+      with mock.patch.object(subprocess, "run", return_value=completed):
+        stage_fn(
+            "europe-west4-docker.pkg.dev/cloud-tpu-multipod-dev/"
+            "trellis/trellis-base:mytag",
+            work_dir,
+        )
+      runner = os.path.join(
+          work_dir, "tests", "multi_host", "run_multi_host_gsm8k_e2e.sh"
+      )
+      lkg = os.path.join(work_dir, "docker", "base", "lkg.env")
+      unrelated = os.path.join(work_dir, "experimental", "unrelated.txt")
+      self.assertTrue(os.path.isfile(runner))
+      self.assertEqual(os.stat(runner).st_mode & 0o777, 0o755)
+      self.assertTrue(os.path.isfile(lkg))
+      self.assertFalse(os.path.exists(unrelated))
+
+    with tempfile.TemporaryDirectory() as work_dir:
+      with self.assertRaisesRegex(fail_exc, "Unsupported Artifact Registry"):
+        stage_fn("gcr.io/not-artifact-registry/image:latest", work_dir)
 
 
 if __name__ == "__main__":
