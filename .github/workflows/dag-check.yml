@@ -4,12 +4,16 @@ name: DAG Check
 on:
   pull_request:
     branches: [master]
-    types: [opened, synchronize, edited]
+    types: [opened, synchronize]
 
   push:
     branches: [master]
 
   workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   dags:
