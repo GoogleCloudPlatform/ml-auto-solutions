@@ -95,11 +95,11 @@ with models.DAG(
       },
       "llama3_1-70b": {
           "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
-          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
       },
       "qwen3-30b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
-          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
       },
       "qwen3-4b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_mt.sh",
@@ -116,7 +116,7 @@ with models.DAG(
       },
       "qwen3_5-35b": {
           "to_maxtext": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_mt.sh",
-          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
           "post_training_only": True,
       },
   }

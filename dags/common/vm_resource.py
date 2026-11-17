@@ -202,8 +202,8 @@ class CpuVersion(enum.Enum):
   """Common CPU versions."""
 
   M1_MEGAMEM = "m1-megamem-96"
-  N2_STANDARD = "n2-standard-64"
-  N2_HIGHMEM = "n2-highmem-64"
+  N2_HIGHMEM_64 = "n2-highmem-64"
+  N2_HIGHMEM_128 = "n2-highmem-128"
 
 
 class RuntimeVersion(enum.Enum):
@@ -358,19 +358,23 @@ class GkeClusters:
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
       zone=Region.US_CENTRAL1.value,
   )
-  CPU_N2_STANDARD_64_CLUSTER = GkeClusterConfig(
+  CPU_N2_HIGHMEM_64_CLUSTER = GkeClusterConfig(
       name="shared-n2-standard-64",
-      device_version=CpuVersion.N2_STANDARD,
+      device_version=CpuVersion.N2_HIGHMEM_64,
       core_count=64,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
       zone=Region.US_CENTRAL1.value,
   )
-  CPU_N2_HIGHMEM_64_CLUSTER = GkeClusterConfig(
-      name="shared-n2-standard-64",
-      device_version=CpuVersion.N2_HIGHMEM,
-      core_count=64,
+  # Scale-to-zero cluster for 30B-70B checkpoint conversions that do not fit in
+  # n2-highmem-64 (b/585190987). Use with gcluster only: XPK has no
+  # n2-highmem-128 device type.
+  CPU_N2_HIGHMEM_128_CLUSTER = GkeClusterConfig(
+      name="shared-n2-highmem-128",
+      device_version=CpuVersion.N2_HIGHMEM_128,
+      core_count=128,
       project=Project.TPU_PROD_ENV_MULTIPOD.value,
       zone=Region.US_CENTRAL1.value,
+      queue="default",
   )
 
 

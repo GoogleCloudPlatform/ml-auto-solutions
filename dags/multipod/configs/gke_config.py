@@ -19,10 +19,16 @@ import datetime
 from typing import Any, Literal, overload
 
 from dags import gcs_bucket
-from dags.common.vm_resource import GkeClusters, Project
+from dags.common.vm_resource import CpuVersion, GkeClusters, Project
 from xlml.apis import gcp_config, metric_config, task, test_config
 from xlml.apis.gke_cluster_config import GkeClusterConfig
 from xlml.utils import gcluster, xpk
+
+# XPK has no n2-highmem CPU device types, so clusters with these machines can
+# only be used through Cluster Toolkit (gcluster).
+_GCLUSTER_ONLY_CPU_VERSIONS = frozenset(
+    {CpuVersion.N2_HIGHMEM_64, CpuVersion.N2_HIGHMEM_128}
+)
 
 
 @overload
@@ -762,7 +768,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
     test_owner: str,
     run_model_cmds: Iterable[str],
     use_gcluster: Literal[False] = False,
-    cluster: GkeClusterConfig = GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
+    cluster: GkeClusterConfig = GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
     machine_count: int = 1,
     num_slices: int = 1,
     dataset_name: metric_config.DatasetOption = (
@@ -787,7 +793,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
     test_owner: str,
     run_model_cmds: Iterable[str],
     use_gcluster: Literal[True],
-    cluster: GkeClusterConfig = GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
+    cluster: GkeClusterConfig = GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
     machine_count: int = 1,
     num_slices: int = 1,
     dataset_name: metric_config.DatasetOption = (
@@ -816,7 +822,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
     test_owner: str,
     run_model_cmds: Iterable[str],
     use_gcluster: bool = False,
-    cluster: GkeClusterConfig = GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
+    cluster: GkeClusterConfig = GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
     machine_count: int = 1,
     num_slices: int = 1,
     dataset_name: metric_config.DatasetOption = (
@@ -836,6 +842,11 @@ def get_maxtext_cpu_end_to_end_gke_config(
     ),
 ) -> task.GclusterTask | task.XpkTask:
   """Constructs a CPU GKE task for either Cluster Toolkit (gcluster) or XPK."""
+  if not use_gcluster and cluster.device_version in _GCLUSTER_ONLY_CPU_VERSIONS:
+    raise ValueError(
+        f"{cluster.name} ({cluster.device_version.value}) is gcluster-only;"
+        " pass use_gcluster=True."
+    )
   job_gcp_config = gcp_config.GCPConfig(
       project_name=cluster.project,
       zone=cluster.zone,
