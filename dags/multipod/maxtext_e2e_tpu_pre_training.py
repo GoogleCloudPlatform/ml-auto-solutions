@@ -36,12 +36,6 @@ from dags.common.goodput_utils import check_workload_goodput
 from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
-from xlml.apis import task
-
-# The m1-megamem-96 CPU cluster runs only two conversion jobs at a time, and one
-# E2E run queues more conversion jobs than that, so a to-HF job on that cluster
-# can wait for longer than the default 60 minutes before it starts.
-CPU_WORKLOAD_PROVISION_TIMEOUT = datetime.timedelta(hours=3)
 
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
@@ -124,7 +118,7 @@ with models.DAG(
       },
       "llama3_1-70b": {
           "core_count": 64,
-          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
           "training": {
               "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/llama3.1-70b/train/{run_name}/checkpoints/1/items",
@@ -133,7 +127,7 @@ with models.DAG(
       },
       "qwen3-30b": {
           "core_count": 32,
-          "cpu_cluster": GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER,
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
           "training": {
               "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3.sh",
               "maxtext_ckpt_path": "gs://runner-maxtext-logs/qwen3-30b-a3b-base/train/{run_name}/checkpoints/1/items",
@@ -236,12 +230,6 @@ with models.DAG(
               priority="very-high",
               use_gcluster=True,
               mounts="/dev/shm;/mnt/shm;rw",
-              workload_provision_timeout=(
-                  CPU_WORKLOAD_PROVISION_TIMEOUT
-                  if test_config["cpu_cluster"]
-                  is GkeClusters.CPU_M1_MEGAMEM_96_CLUSTER
-                  else task.RunnerConfig.workload_provision_timeout
-              ),
           ).run(skip_post_process=True)
       )
 

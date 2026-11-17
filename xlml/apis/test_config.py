@@ -129,7 +129,7 @@ class Cpu(Accelerator):
   """Represents a single Cloud CPU instance.
 
   Attributes:
-    device_type: CPU device type. E.g., `m1-megamem-96-1` or `n2-standard-64-1`.
+    device_type: CPU device type. E.g., `m1-megamem-96` or `n2-highmem-64`.
   """
 
   device_type: CpuVersion
@@ -137,7 +137,7 @@ class Cpu(Accelerator):
 
   @property
   def name(self):
-    """Name of this CPU type (e.g. 'n2-standard-64-1')."""
+    """Name of this CPU type (e.g. 'n2-highmem-64-1')."""
     return f'{self.device_type.value}-{self.machine_count}'
 
 

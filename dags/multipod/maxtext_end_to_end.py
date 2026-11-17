@@ -120,8 +120,11 @@ with models.DAG(
       "gemma-7b": [
           {
               "script_name": "tpu/gemma/7b/1_test_gemma",
-              "cluster": GkeClusters.CPU_N2_STANDARD_64_CLUSTER,
+              "cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
               "time_out_in_min": 60,
+              # XPK has no n2-highmem-64 device type, so this conversion
+              # runs through Cluster Toolkit (gcluster) instead.
+              "use_gcluster": True,
           },
           {
               "script_name": "tpu/gemma/7b/2_test_gemma",
@@ -158,6 +161,7 @@ with models.DAG(
           docker_image=img_val,
           test_owner=test_owner.ANISHA_M,
           cluster=scripts_details[0]["cluster"],
+          use_gcluster=scripts_details[0].get("use_gcluster", False),
       ).run(gcs_location=shared_gcs_location)
       script_name_tpu = scripts_details[1]["script_name"]
       training_tpu = gke_config.get_gke_config(
