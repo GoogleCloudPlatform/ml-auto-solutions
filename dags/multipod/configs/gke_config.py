@@ -640,16 +640,75 @@ def get_gke_maxtext_nightly_config(
   )
 
 
+@overload
 def get_maxtext_end_to_end_gpu_gke_test_config(
     time_out_in_min: int,
     test_name: str,
-    run_model_cmds: str,
+    run_model_cmds: Iterable[str],
     cluster: GkeClusterConfig,
     test_owner: str,
     docker_image: str,
     num_slices: int = 1,
     restart_on_exit_codes: Iterable[int] | None = None,
+    *,
+    use_gcluster: Literal[False] = False,
 ) -> task.XpkTask:
+  pass
+
+
+@overload
+def get_maxtext_end_to_end_gpu_gke_test_config(
+    time_out_in_min: int,
+    test_name: str,
+    run_model_cmds: Iterable[str],
+    cluster: GkeClusterConfig,
+    test_owner: str,
+    docker_image: str,
+    num_slices: int = 1,
+    restart_on_exit_codes: Iterable[int] | None = None,
+    *,
+    use_gcluster: Literal[True],
+    priority: str = "high",
+    max_restart: int = 0,
+    gcluster_version: str = gcluster.DEFAULT_GCLUSTER_VERSION,
+    mounts: str | Iterable[str] | None = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
+    gke_scheduler: str | None = gcluster.GPU_TOPOLOGY_AWARE_SCHEDULER,
+    apply_with_kubectl: bool = False,
+) -> task.GclusterTask:
+  pass
+
+
+def get_maxtext_end_to_end_gpu_gke_test_config(
+    time_out_in_min: int,
+    test_name: str,
+    run_model_cmds: Iterable[str],
+    cluster: GkeClusterConfig,
+    test_owner: str,
+    docker_image: str,
+    num_slices: int = 1,
+    restart_on_exit_codes: Iterable[int] | None = None,
+    *,
+    use_gcluster: bool = False,
+    priority: str = "high",
+    max_restart: int = 0,
+    gcluster_version: str = gcluster.DEFAULT_GCLUSTER_VERSION,
+    mounts: str | Iterable[str] | None = None,
+    workload_provision_timeout: datetime.timedelta = (
+        task.RunnerConfig.workload_provision_timeout
+    ),
+    gke_scheduler: str | None = gcluster.GPU_TOPOLOGY_AWARE_SCHEDULER,
+    apply_with_kubectl: bool = False,
+) -> task.GclusterTask | task.XpkTask:
+  """Constructs a GPU GKE task for either Cluster Toolkit (gcluster) or XPK.
+
+  For GPUs `num_slices` is the number of nodes: Cluster Toolkit submits it as
+  `--num-nodes` and, for more than one node, sets up the JAX rendezvous.
+  `gke_scheduler` and `apply_with_kubectl` apply to Cluster Toolkit only; see
+  `gcluster.run_workload`.
+  """
   job_gcp_config = gcp_config.GCPConfig(
       project_name=cluster.project,
       zone=cluster.zone,
@@ -672,7 +731,27 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       cluster_name=cluster.name,
       docker_image=docker_image,
       num_slices=num_slices,
+      namespace=cluster.namespace,
+      mounts=mounts if use_gcluster else None,
   )
+
+  if use_gcluster:
+    runner_config = task.GclusterRunnerConfig(
+        task_test_config=job_test_config,
+        task_gcp_config=job_gcp_config,
+        priority=priority,
+        max_restart=max_restart,
+        restart_on_exit_codes=restart_on_exit_codes,
+        gcluster_version=gcluster_version,
+        mounts=mounts,
+        queue=cluster.queue,
+        workload_provision_timeout=workload_provision_timeout,
+        gke_scheduler=gke_scheduler,
+        apply_with_kubectl=apply_with_kubectl,
+    )
+    return task.GclusterTask(
+        runner_config=runner_config,
+    )
 
   runner_config = task.XpkRunnerConfig(
       task_test_config=job_test_config,

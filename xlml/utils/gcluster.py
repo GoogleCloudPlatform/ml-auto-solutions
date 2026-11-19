@@ -167,6 +167,31 @@ def is_valid_gpu_version(accelerator_type: str) -> bool:
   return accelerator_type in [member.value for member in GpuVersion]
 
 
+# Port of the JAX distributed coordinator in multi-node GPU workloads.
+GPU_JAX_COORDINATOR_PORT = 6002
+
+# Scheduler that GPU workloads ask GKE for by default. gcluster then also adds
+# a scheduling gate to the pods, which GKE's topology-aware placement lifts.
+GPU_TOPOLOGY_AWARE_SCHEDULER = "gke.io/topology-aware-auto"
+
+
+def get_gpu_multi_node_env(workload_id: str, num_nodes: int) -> list[str]:
+  """Return the JAX rendezvous variables of a multi-node GPU workload.
+
+  gcluster's GPU JobSet runs one pod per node in its `main-job` replicated job
+  but sets none of the variables MaxText's `hardware=gpu` path reads to start
+  JAX's distributed runtime. Pod 0 hosts the coordinator, which the other pods
+  reach through the JobSet's headless service as `<pod hostname>.<JobSet>`.
+  The rank (`NODE_RANK`) differs per pod, so `run_workload` exports it from
+  the Job completion index in the command instead.
+  """
+  return [
+      f"JAX_COORDINATOR_IP={workload_id}-main-job-0-0.{workload_id}",
+      f"JAX_COORDINATOR_PORT={GPU_JAX_COORDINATOR_PORT}",
+      f"NNODES={num_nodes}",
+  ]
+
+
 WORKLOAD_ID_PREFIX_MAX_LEN = 19
 
 
@@ -217,8 +242,18 @@ def run_workload(
     namespace: str = "default",
     mounts: str | Iterable[str] | None = None,
     queue: str = "default",
+    gke_scheduler: str | None = GPU_TOPOLOGY_AWARE_SCHEDULER,
+    apply_with_kubectl: bool = False,
 ):
-  """Run workload through Cluster Toolkit (gcluster) tool."""
+  """Run workload through Cluster Toolkit (gcluster) tool.
+
+  `gke_scheduler` is the scheduler GPU workloads ask for; None uses the
+  cluster's default scheduler. With `apply_with_kubectl`, gcluster only renders
+  the JobSet (`--dry-run-out`) and kubectl creates it. The dry run skips
+  gcluster's cluster validation, which on a cluster with an older Kueue than
+  gcluster supports offers to re-install Kueue, deleting every queued and
+  suspended workload.
+  """
   composer.log_metadata_for_xlml_dashboard({
       "cluster_project": cluster_project,
       "zone": zone,
@@ -245,11 +280,11 @@ def run_workload(
     compute_type = (
         MachineVersion.CT6E_STAND_4T.value if topology else accelerator_type
     )
-    slice_keyword = (
-        "--num-nodes"
-        if is_valid_gpu_version(accelerator_type)
-        else "--num-slices"
-    )
+    is_gpu = is_valid_gpu_version(accelerator_type)
+    slice_keyword = "--num-nodes" if is_gpu else "--num-slices"
+    is_multi_node_gpu = is_gpu and num_slices > 1
+    if is_multi_node_gpu:
+      run_cmds = f"export NODE_RANK=${{JOB_COMPLETION_INDEX}}; {run_cmds}"
 
     submit_cmd = [
         gcluster_bin,
@@ -289,13 +324,20 @@ def run_workload(
     codes = [] if restart_on_exit_codes is None else list(restart_on_exit_codes)
     if codes:
       submit_cmd.append(f"--restart-on-exit-codes={','.join(map(str, codes))}")
-    if is_valid_gpu_version(accelerator_type):
-      submit_cmd.append("--gke-scheduler=gke.io/topology-aware-auto")
+    if is_gpu and gke_scheduler:
+      submit_cmd.append(f"--gke-scheduler={gke_scheduler}")
+    if is_multi_node_gpu:
+      for gpu_env in get_gpu_multi_node_env(workload_id, num_slices):
+        submit_cmd.append(f"--env={gpu_env}")
 
     if mounts:
       mount_list = [mounts] if isinstance(mounts, str) else list(mounts)
       for m in mount_list:
         submit_cmd.append(f"--mount={m}")
+
+    manifest_path = os.path.join(tmpdir, f"{workload_id}.yaml")
+    if apply_with_kubectl:
+      submit_cmd.append(f"--dry-run-out={manifest_path}")
 
     _run_command(
         _get_credentials_command(
@@ -307,6 +349,11 @@ def run_workload(
     )
     _run_command(_set_namespace_command(namespace), env)
     _run_command(submit_cmd, env)
+    if apply_with_kubectl:
+      apply_cmd = ["kubectl", "apply", "-f", manifest_path]
+      if namespace:
+        apply_cmd.insert(2, f"--namespace={namespace}")
+      _run_command(apply_cmd, env)
 
 
 @task(trigger_rule="all_done")

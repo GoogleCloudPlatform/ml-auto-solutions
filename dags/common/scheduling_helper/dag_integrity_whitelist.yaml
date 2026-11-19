@@ -61,6 +61,7 @@ whitelisted_dags:
 - maxtext_convergence
 - maxtext_distillation
 - maxtext_e2e_checkpoint_conversion
+- maxtext_e2e_gpu_pre_training
 - maxtext_e2e_tests
 - maxtext_e2e_tpu_post_training
 - maxtext_e2e_tpu_pre_training

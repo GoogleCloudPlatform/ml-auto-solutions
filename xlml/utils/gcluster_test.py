@@ -122,6 +122,7 @@ class GclusterTest(unittest.TestCase):
   def test_is_valid_gpu_version(self):
     """Validates GPU accelerator types against supported models."""
     self.assertTrue(gcluster.is_valid_gpu_version(GpuVersion.H100.value))
+    self.assertTrue(gcluster.is_valid_gpu_version(GpuVersion.H100_MEGA.value))
     self.assertTrue(
         gcluster.is_valid_gpu_version(GpuVersion.XPK_H100_MEGA.value)
     )
@@ -333,6 +334,160 @@ class GclusterTest(unittest.TestCase):
     self.assertIn("--restarts=5", submit_cmd)
     self.assertIn("--gke-scheduler=gke.io/topology-aware-auto", submit_cmd)
     self.assertIn("--mount=/dev/shm;/dev/shm;rw", submit_cmd)
+
+  @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
+  @mock.patch("xlml.utils.gcluster.SubprocessHook")
+  def test_run_workload_multi_node_gpu_rendezvous(
+      self, mock_hook_cls, mock_log_meta
+  ):
+    """Supplies the JAX rendezvous variables to multi-node GPU workloads."""
+    del mock_log_meta
+    mock_hook = mock.MagicMock()
+    mock_result = mock.MagicMock()
+    mock_result.exit_code = 0
+    mock_hook.run_command.return_value = mock_result
+    mock_hook_cls.return_value = mock_hook
+
+    gcluster.run_workload.function(
+        task_id="run_workload",
+        cluster_project="test-project",
+        zone="us-east5",
+        cluster_name="test-cluster",
+        benchmark_id="test-bench",
+        workload_id="test-workload-12345",
+        gcs_path="gs://test-bucket/output",
+        docker_image="us-docker.pkg.dev/img:latest",
+        accelerator_type=GpuVersion.H100_MEGA.value,
+        run_cmds="bash run.sh",
+        num_slices=2,
+    )
+
+    submit_cmd = mock_hook.run_command.call_args_list[4][0][0]
+    self.assertIn("--compute-type=nvidia-h100-mega-80gb", submit_cmd)
+    self.assertIn("--num-nodes=2", submit_cmd)
+    self.assertIn(
+        "--command=export NODE_RANK=${JOB_COMPLETION_INDEX}; bash run.sh",
+        submit_cmd,
+    )
+    self.assertIn(
+        "--env=JAX_COORDINATOR_IP="
+        "test-workload-12345-main-job-0-0.test-workload-12345",
+        submit_cmd,
+    )
+    self.assertIn("--env=JAX_COORDINATOR_PORT=6002", submit_cmd)
+    self.assertIn("--env=NNODES=2", submit_cmd)
+
+  @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
+  @mock.patch("xlml.utils.gcluster.SubprocessHook")
+  def test_run_workload_no_rendezvous_for_single_node_or_tpu(
+      self, mock_hook_cls, mock_log_meta
+  ):
+    """Leaves single-node GPU and multi-slice TPU workloads unchanged."""
+    del mock_log_meta
+    mock_hook = mock.MagicMock()
+    mock_result = mock.MagicMock()
+    mock_result.exit_code = 0
+    mock_hook.run_command.return_value = mock_result
+    mock_hook_cls.return_value = mock_hook
+
+    for accelerator_type, num_slices in (
+        (GpuVersion.H100_MEGA.value, 1),
+        ("v6e-4", 2),
+    ):
+      with self.subTest(accelerator_type=accelerator_type):
+        mock_hook.run_command.reset_mock()
+        gcluster.run_workload.function(
+            task_id="run_workload",
+            cluster_project="test-project",
+            zone="us-east5",
+            cluster_name="test-cluster",
+            benchmark_id="test-bench",
+            workload_id="test-workload-12345",
+            gcs_path="gs://test-bucket/output",
+            docker_image="us-docker.pkg.dev/img:latest",
+            accelerator_type=accelerator_type,
+            run_cmds="bash run.sh",
+            num_slices=num_slices,
+        )
+        submit_cmd = mock_hook.run_command.call_args_list[4][0][0]
+        self.assertIn("--command=bash run.sh", submit_cmd)
+        for arg in submit_cmd:
+          self.assertFalse(arg.startswith("--env=JAX_COORDINATOR_IP="))
+          self.assertFalse(arg.startswith("--env=NNODES="))
+
+  @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
+  @mock.patch("xlml.utils.gcluster.SubprocessHook")
+  def test_run_workload_gpu_without_scheduler(
+      self, mock_hook_cls, mock_log_meta
+  ):
+    """Omits --gke-scheduler for GPU workloads when gke_scheduler is None."""
+    del mock_log_meta
+    mock_hook = mock.MagicMock()
+    mock_result = mock.MagicMock()
+    mock_result.exit_code = 0
+    mock_hook.run_command.return_value = mock_result
+    mock_hook_cls.return_value = mock_hook
+
+    gcluster.run_workload.function(
+        task_id="run_workload",
+        cluster_project="test-project",
+        zone="us-east5",
+        cluster_name="test-cluster",
+        benchmark_id="test-bench",
+        workload_id="test-workload-12345",
+        gcs_path="gs://test-bucket/output",
+        docker_image="us-docker.pkg.dev/img:latest",
+        accelerator_type=GpuVersion.H100_MEGA.value,
+        run_cmds="bash run.sh",
+        num_slices=2,
+        gke_scheduler=None,
+    )
+
+    submit_cmd = mock_hook.run_command.call_args_list[4][0][0]
+    self.assertIn("--num-nodes=2", submit_cmd)
+    for arg in submit_cmd:
+      self.assertFalse(arg.startswith("--gke-scheduler"))
+
+  @mock.patch("tempfile.TemporaryDirectory")
+  @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
+  @mock.patch("xlml.utils.gcluster.SubprocessHook")
+  def test_run_workload_apply_with_kubectl(
+      self, mock_hook_cls, mock_log_meta, mock_tempdir
+  ):
+    """Renders the JobSet with a gcluster dry run and applies it with kubectl."""
+    del mock_log_meta
+    mock_tempdir.return_value.__enter__.return_value = "/tmp/mock_gcluster_dir"
+    mock_hook = mock.MagicMock()
+    mock_result = mock.MagicMock()
+    mock_result.exit_code = 0
+    mock_hook.run_command.return_value = mock_result
+    mock_hook_cls.return_value = mock_hook
+
+    gcluster.run_workload.function(
+        task_id="run_workload",
+        cluster_project="test-project",
+        zone="us-east5",
+        cluster_name="test-cluster",
+        benchmark_id="test-bench",
+        workload_id="test-workload-12345",
+        gcs_path="gs://test-bucket/output",
+        docker_image="us-docker.pkg.dev/img:latest",
+        accelerator_type=GpuVersion.H100_MEGA.value,
+        run_cmds="bash run.sh",
+        num_slices=2,
+        namespace="default",
+        apply_with_kubectl=True,
+    )
+
+    manifest = "/tmp/mock_gcluster_dir/test-workload-12345.yaml"
+    self.assertEqual(mock_hook.run_command.call_count, 6)
+    submit_cmd = mock_hook.run_command.call_args_list[4][0][0]
+    self.assertIn("submit", submit_cmd)
+    self.assertIn(f"--dry-run-out={manifest}", submit_cmd)
+    self.assertEqual(
+        mock_hook.run_command.call_args_list[5][0][0],
+        ["kubectl", "apply", "--namespace=default", "-f", manifest],
+    )
 
   @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
   @mock.patch("xlml.utils.gcluster.SubprocessHook")
