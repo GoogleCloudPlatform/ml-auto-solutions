@@ -87,8 +87,6 @@ replica_params.update({
 })
 
 
-# TODO(b/576036761): Remove the temporary branch checkout once
-# feat/benchmarks-elastic-goodput-ckpt-flags is merged into maxtext.
 @task
 def generate_commands(
     dag_params: dict, derived_params: dict, recipe_instance: recipe_cfg.Recipe
@@ -103,11 +101,6 @@ def generate_commands(
       cluster_name=dag_params["cluster_name"],
       location=derived_params["region"],
       project_id=dag_params["project"],
-  )
-  checkout_branch_cmd = (
-      "git clone --depth=1 --branch feat/benchmarks-elastic-goodput-ckpt-flags "
-      "https://github.com/AI-Hypercomputer/maxtext.git /tmp/maxtext && "
-      "cp -r /tmp/maxtext/benchmarks /deps/"
   )
   recipe_cmd = recipe_instance.run_command
 
@@ -170,11 +163,7 @@ def generate_commands(
   recipe_cmd += " --skip-validation"
   formatted_cmds = recipe_cmd.replace(" --", " \n  --")
   logging.info(f"\n {formatted_cmds}")
-  commands = " && ".join([
-      env_cmds,
-      checkout_branch_cmd,
-      recipe_cmd,
-  ])
+  commands = " && ".join([env_cmds, recipe_cmd])
 
   return commands
 
@@ -379,8 +368,6 @@ def create_elastic_goodput_dag(
         project_id=fetched_params["project"],
         region=calculated_params["region"],
         cluster_name=fetched_params["cluster_name"],
-        use_pathways=True,
-        workload_kind=gke.WorkloadKind.JOBSET,
     )
 
     check_goodput_logs = check_gcp_logs_exist.override(
