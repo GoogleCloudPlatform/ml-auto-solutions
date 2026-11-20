@@ -192,6 +192,9 @@ class GpuVersion(enum.Enum):
   A100 = "nvidia-tesla-a100"
   A100_80G = "nvidia-a100-80gb"
   H100 = "nvidia-h100-80gb"
+  # GKE accelerator label of a3-megagpu-8g nodes, which Cluster Toolkit also
+  # accepts as the compute type.
+  H100_MEGA = "nvidia-h100-mega-80gb"
   H200 = "nvidia-h200-80gb"
   XPK_H100 = "h100-80gb-8"
   XPK_H100_MEGA = "h100-mega-80gb-8"
@@ -350,6 +353,19 @@ class GkeClusters:
       core_count=8,
       project=Project.SUPERCOMPUTER_TESTING.value,
       zone=Zone.US_EAST5_A.value,
+  )
+  # Its Kueue (v0.13.3) is older than the v0.15.2 Cluster Toolkit needs, and
+  # `gcluster job submit` then offers to re-install Kueue, which deletes every
+  # queued and suspended workload in the cluster, so submit with
+  # `apply_with_kubectl` until Kueue is upgraded.
+  GPU_A3M_16_CLUSTER = GkeClusterConfig(
+      name="a3m-16",
+      device_version=GpuVersion.H100_MEGA,
+      core_count=8,
+      project="cienet-cmcs",
+      zone=Region.US_EAST5.value,
+      namespace="default",
+      queue="a3-mega",
   )
   CPU_M1_MEGAMEM_96_CLUSTER = GkeClusterConfig(
       name="m1-megamem-96-shared",

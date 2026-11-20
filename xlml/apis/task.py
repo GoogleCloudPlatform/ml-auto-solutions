@@ -390,6 +390,11 @@ class GclusterRunnerConfig(RunnerConfig):
   mounts: str | Iterable[str] | None = None
   queue: str = "default"
   pathways_gcs_location: str = ""
+  # Scheduler for GPU workloads; None uses the cluster's default scheduler.
+  gke_scheduler: str | None = gcluster.GPU_TOPOLOGY_AWARE_SCHEDULER
+  # Render the JobSet with gcluster and create it with kubectl, skipping
+  # gcluster's cluster validation (see `gcluster.run_workload`).
+  apply_with_kubectl: bool = False
   workload_kind: gke.WorkloadKind = gke.WorkloadKind.JOBSET
 
 
@@ -626,6 +631,8 @@ class GclusterRunner(Runner):
           namespace=self.configs.task_test_config.namespace,
           mounts=mounts,
           queue=self.configs.queue,
+          gke_scheduler=self.configs.gke_scheduler,
+          apply_with_kubectl=self.configs.apply_with_kubectl,
       )
       wait_for_workload_start = gke.wait_for_workload_start.override(
           timeout=self.configs.workload_provision_timeout.total_seconds()

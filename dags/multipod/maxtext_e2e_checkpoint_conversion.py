@@ -17,8 +17,9 @@
 Serves as the shared prerequisite pipeline for MaxText E2E testing:
 - Converts Hugging Face checkpoints to MaxText format on CPU clusters.
 - Saves checkpoints to GCS (gs://runner-maxtext-logs/<model>/to_maxtext/...).
-- Downstream training DAGs (pre_training and post_training) listen to this
-  DAG via ExternalTaskSensor and begin training as each model completes.
+- Downstream training DAGs (TPU pre-training, TPU post-training and GPU
+  pre-training) listen to this DAG via ExternalTaskSensor and begin training
+  as each model completes.
 """
 import datetime
 
@@ -36,15 +37,25 @@ from dags.multipod.configs import gke_config
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
 
 
-@task.short_circuit
-def post_training_enabled() -> bool:
-  """Skips post-training-only conversions when running pre-training only."""
+def _get_test_scope() -> str:
+  """Resolves the requested scope, defaulting to running every suite."""
   context = get_current_context()
   dag_run = context["dag_run"]
   params = context["params"]
   conf = (dag_run.conf if dag_run else {}) or {}
-  scope = conf.get("test_scope") or (params or {}).get("test_scope") or "all"
-  return scope != "pre-training"
+  return conf.get("test_scope") or (params or {}).get("test_scope") or "all"
+
+
+@task.short_circuit
+def post_training_enabled() -> bool:
+  """Skips post-training-only conversions unless post-training will run."""
+  return _get_test_scope() in ("all", "post-training")
+
+
+@task.short_circuit
+def gpu_pre_training_enabled() -> bool:
+  """Skips GPU-only conversions unless GPU pre-training will run."""
+  return _get_test_scope() in ("all", "gpu-pre-training")
 
 
 with models.DAG(
@@ -74,11 +85,11 @@ with models.DAG(
         "test_scope": Param(
             default="all",
             type="string",
-            enum=["all", "pre-training", "post-training"],
+            enum=["all", "pre-training", "post-training", "gpu-pre-training"],
             description=(
                 "Which Stage 2 suites will consume the converted checkpoints."
-                " Post-training-only models are skipped when set to"
-                " pre-training."
+                " Post-training-only models are skipped unless post-training"
+                " runs, and GPU-only models unless GPU pre-training runs."
             ),
         ),
     },
@@ -119,6 +130,11 @@ with models.DAG(
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
           "post_training_only": True,
       },
+      "llama3_1-8b": {
+          "to_maxtext": "bash tests/end_to_end/cpu/llama3.1/8b/test_llama3.1_8b_to_mt.sh",
+          "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
+          "gpu_pre_training_only": True,
+      },
   }
   # pylint: enable=line-too-long
 
@@ -152,5 +168,10 @@ with models.DAG(
       if config.get("post_training_only"):
         chain(
             post_training_enabled(),
+            convert_to_maxtext_task,
+        )
+      elif config.get("gpu_pre_training_only"):
+        chain(
+            gpu_pre_training_enabled(),
             convert_to_maxtext_task,
         )
