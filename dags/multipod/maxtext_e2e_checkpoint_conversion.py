@@ -48,8 +48,8 @@ def _get_test_scope() -> str:
 
 @task.short_circuit
 def post_training_enabled() -> bool:
-  """Skips post-training-only conversions unless post-training will run."""
-  return _get_test_scope() in ("all", "post-training")
+  """Skips post-training-only conversions unless TPU post-training will run."""
+  return _get_test_scope() in ("all", "tpu-post-training")
 
 
 @task.short_circuit
@@ -85,11 +85,17 @@ with models.DAG(
         "test_scope": Param(
             default="all",
             type="string",
-            enum=["all", "pre-training", "post-training", "gpu-pre-training"],
+            enum=[
+                "all",
+                "tpu-pre-training",
+                "tpu-post-training",
+                "gpu-pre-training",
+            ],
             description=(
                 "Which Stage 2 suites will consume the converted checkpoints."
-                " Post-training-only models are skipped unless post-training"
-                " runs, and GPU-only models unless GPU pre-training runs."
+                " Post-training-only models are skipped unless TPU"
+                " post-training runs, and GPU-only models unless GPU"
+                " pre-training runs."
             ),
         ),
     },
