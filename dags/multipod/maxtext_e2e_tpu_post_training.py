@@ -38,6 +38,7 @@ from dags.common.goodput_utils import check_workload_goodput
 from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
+from dags.multipod.util import decode_check
 
 # HF token retrieved from Airflow Variables for secure credential management
 HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
@@ -323,6 +324,14 @@ with models.DAG(
               using_pathways=True,
           )
 
+          check_decode_task = decode_check.check_decode_output(
+              workload_id=decode_check.workload_id_of(training_task),
+              project_id=training_cluster.project,
+              cluster_name=training_cluster.name,
+              namespace=training_cluster.namespace,
+              test_name=f"{model} {mode}",
+          )
+
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
           to_hf_script = test_config["to_huggingface"]
           convert_to_huggingface_cmd = (
@@ -347,5 +356,9 @@ with models.DAG(
           chain(
               wait_for_conversion,
               training_task,
-              [check_goodput_task, convert_to_huggingface_task],
+              [
+                  check_goodput_task,
+                  check_decode_task,
+                  convert_to_huggingface_task,
+              ],
           )
