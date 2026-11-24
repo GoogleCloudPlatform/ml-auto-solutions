@@ -47,6 +47,23 @@ def post_training_enabled() -> bool:
   return scope != "pre-training"
 
 
+# TODO(KevinYenky): Use the tests/end_to_end/cpu/ paths directly and remove this
+# helper once all images the E2E DAGs run include AI-Hypercomputer/maxtext#6453.
+def _e2e_script(rel_path: str) -> str:
+  """Returns a shell command that runs a MaxText checkpoint conversion script.
+
+  MaxText is moving the conversion scripts from tests/end_to_end/tpu/ to
+  tests/end_to_end/cpu/. Until every image has the move, run the tpu/ copy
+  when the image still has it and the cpu/ copy otherwise.
+  """
+  tpu_path = f"tests/end_to_end/tpu/{rel_path}"
+  cpu_path = f"tests/end_to_end/cpu/{rel_path}"
+  return (
+      f'bash "$(if [ -f {tpu_path} ]; then echo {tpu_path};'
+      f' else echo {cpu_path}; fi)"'
+  )
+
+
 with models.DAG(
     dag_id="maxtext_e2e_checkpoint_conversion",
     schedule=None,
@@ -86,36 +103,36 @@ with models.DAG(
   # pylint: disable=line-too-long
   test_models = {
       "gemma3-4b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_mt.sh",
+          "to_maxtext": _e2e_script("gemma3/4b/test_gemma3_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "gemma4-26b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_mt.sh",
+          "to_maxtext": _e2e_script("gemma4/26b/test_gemma4_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "llama3_1-70b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_mt.sh",
+          "to_maxtext": _e2e_script("llama3.1/70b/test_llama3.1_70b_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
       },
       "qwen3-30b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_mt.sh",
+          "to_maxtext": _e2e_script("qwen3/30b/test_qwen3_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
       },
       "qwen3-4b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_mt.sh",
+          "to_maxtext": _e2e_script("qwen3/4b/test_qwen3_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "qwen3-vl-2b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_mt.sh",
+          "to_maxtext": _e2e_script("qwen3/vl_2b/test_qwen3_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
           "post_training_only": True,
       },
       "gpt-oss-20b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh",
+          "to_maxtext": _e2e_script("gpt_oss/20b/test_gpt_oss_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
       },
       "qwen3_5-35b": {
-          "to_maxtext": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_mt.sh",
+          "to_maxtext": _e2e_script("qwen3.5/35b/test_qwen3.5_to_mt.sh"),
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
           "post_training_only": True,
       },

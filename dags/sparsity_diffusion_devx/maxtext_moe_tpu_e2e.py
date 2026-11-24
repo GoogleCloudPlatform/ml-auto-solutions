@@ -185,11 +185,19 @@ with models.DAG(
         continue
       script_name = test_scripts_details["script_name"]
       if model == "gpt-oss-20b":
+        # MaxText is moving test_gpt_oss_to_mt.sh from tpu/ to cpu/, so run
+        # whichever copy the image has. The sed below does not reach the cpu/
+        # copy, which reads BASE_OUTPUT_PATH itself.
+        # TODO(KevinYenky): Call the cpu/ copy directly and drop this fallback
+        # once all images this DAG runs include AI-Hypercomputer/maxtext#6453.
+        to_mt = "gpt_oss/20b/test_gpt_oss_to_mt.sh"
         script_cmd = (
             "sed -i"
             " 's|gs://runner-maxtext-logs/${MODEL_NAME}|${BASE_OUTPUT_PATH}|g'"
             " tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss*.sh && bash"
-            " tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_mt.sh run &&"
+            f' "$(if [ -f tests/end_to_end/tpu/{to_mt} ];'
+            f" then echo tests/end_to_end/tpu/{to_mt};"
+            f' else echo tests/end_to_end/cpu/{to_mt}; fi)" run &&'
             f" bash tests/end_to_end/{script_name}.sh run"
         )
       else:

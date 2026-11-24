@@ -64,6 +64,23 @@ class ExternalTaskSensorWithBypass(ExternalTaskSensor):
     return super().poke(context, session=session)
 
 
+# TODO(KevinYenky): Use the tests/end_to_end/cpu/ paths directly and remove this
+# helper once all images the E2E DAGs run include AI-Hypercomputer/maxtext#6453.
+def _e2e_script(rel_path: str) -> str:
+  """Returns a shell command that runs a MaxText checkpoint conversion script.
+
+  MaxText is moving the conversion scripts from tests/end_to_end/tpu/ to
+  tests/end_to_end/cpu/. Until every image has the move, run the tpu/ copy
+  when the image still has it and the cpu/ copy otherwise.
+  """
+  tpu_path = f"tests/end_to_end/tpu/{rel_path}"
+  cpu_path = f"tests/end_to_end/cpu/{rel_path}"
+  return (
+      f'bash "$(if [ -f {tpu_path} ]; then echo {tpu_path};'
+      f' else echo {cpu_path}; fi)"'
+  )
+
+
 with models.DAG(
     dag_id="maxtext_e2e_tpu_post_training",
     schedule=None,
@@ -102,7 +119,7 @@ with models.DAG(
       "gemma3-4b": {
           "core_count": 4,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_to_hf.sh",
+          "to_huggingface": _e2e_script("gemma3/4b/test_gemma3_to_hf.sh"),
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gemma3/4b/test_gemma3_sft.sh",
@@ -128,7 +145,7 @@ with models.DAG(
       "gemma4-26b": {
           "core_count": 32,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_to_hf.sh",
+          "to_huggingface": _e2e_script("gemma4/26b/test_gemma4_to_hf.sh"),
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gemma4/26b/test_gemma4_sft.sh",
@@ -146,7 +163,9 @@ with models.DAG(
       "llama3_1-70b": {
           "core_count": 32,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_to_hf.sh",
+          "to_huggingface": _e2e_script(
+              "llama3.1/70b/test_llama3.1_70b_to_hf.sh"
+          ),
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/llama3.1/70b/test_llama3.1_70b_sft.sh",
@@ -164,7 +183,7 @@ with models.DAG(
       "qwen3-30b": {
           "core_count": 16,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_to_hf.sh",
+          "to_huggingface": _e2e_script("qwen3/30b/test_qwen3_to_hf.sh"),
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/30b/test_qwen3_sft.sh",
@@ -182,7 +201,7 @@ with models.DAG(
       "qwen3-4b": {
           "core_count": 4,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_to_hf.sh",
+          "to_huggingface": _e2e_script("qwen3/4b/test_qwen3_to_hf.sh"),
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/4b/test_qwen3_sft.sh",
@@ -200,7 +219,7 @@ with models.DAG(
       "qwen3-vl-2b": {
           "core_count": 4,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_to_hf.sh",
+          "to_huggingface": _e2e_script("qwen3/vl_2b/test_qwen3_to_hf.sh"),
           "post_training": {
               "multimodal_sft": {
                   "command": "bash tests/end_to_end/tpu/qwen3/vl_2b/test_qwen3_multimodal_sft.sh",
@@ -212,7 +231,7 @@ with models.DAG(
       "gpt-oss-20b": {
           "core_count": 32,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_64_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_to_hf.sh",
+          "to_huggingface": _e2e_script("gpt_oss/20b/test_gpt_oss_to_hf.sh"),
           "post_training": {
               "sft": {
                   "command": "bash tests/end_to_end/tpu/gpt_oss/20b/test_gpt_oss_sft.sh",
@@ -229,7 +248,7 @@ with models.DAG(
       "qwen3_5-35b": {
           "core_count": 64,
           "cpu_cluster": GkeClusters.CPU_N2_HIGHMEM_128_CLUSTER,
-          "to_huggingface": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_to_hf.sh",
+          "to_huggingface": _e2e_script("qwen3.5/35b/test_qwen3.5_to_hf.sh"),
           "post_training": {
               "rl": {
                   "command": "bash tests/end_to_end/tpu/qwen3.5/35b/test_qwen3.5_rl.sh",
