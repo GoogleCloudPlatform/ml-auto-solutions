@@ -20,6 +20,8 @@ Executes end-to-end MaxText post-training workflows
   via ExternalTaskSensor.
 - Executes post-training scripts with Pathways runtime persistence
   on TPU slices.
+- Records the Pathways images that each workload runs, see
+  dags/multipod/util/pathways_images.py.
 - Converts post-trained checkpoints back to Hugging Face format
   to verify weight fidelity.
 """
@@ -38,6 +40,8 @@ from dags.common.goodput_utils import check_workload_goodput
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.util import decode_check
+from dags.multipod.util import pathways_images
+from xlml.utils import gke
 
 # Environment variable -> Airflow Variable that holds its value. The value
 # is read when the task runs; it must not be put in a command.
@@ -261,12 +265,12 @@ with models.DAG(
   }
   # pylint: enable=line-too-long
 
+  run_name = "{{ params.run_name if params.run_name else 'post-' ~ ts_nodash }}"
+  # The Pathways images that each training workload ran, by test.
+  pathways_records = {}
+
   for model, test_config in test_models.items():
     with TaskGroup(group_id=model) as model_group:
-      run_name = (
-          "{{ params.run_name if params.run_name else 'post-' ~ ts_nodash }}"
-      )
-
       wait_for_conversion = ExternalTaskSensorWithBypass(
           task_id="wait_for_conversion",
           external_dag_id="maxtext_e2e_checkpoint_conversion",
@@ -351,6 +355,21 @@ with models.DAG(
               test_name=f"{model} {mode}",
           )
 
+          # Reads the Pathways images while the workload runs: its pods are
+          # deleted when it ends.
+          record_pathways_task = pathways_images.record_pathways_images(
+              workload_id=decode_check.workload_id_of(training_task),
+              project_id=training_cluster.project,
+              region=gke.zone_to_region(training_cluster.zone),
+              cluster_name=training_cluster.name,
+              namespace=training_cluster.namespace,
+          )
+          chain(
+              pathways_images.workload_start_of(training_task),
+              record_pathways_task,
+          )
+          pathways_records[f"{model} {mode}"] = record_pathways_task
+
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
           to_hf_script = test_config["to_huggingface"]
           convert_to_huggingface_cmd = (
@@ -381,3 +400,7 @@ with models.DAG(
                   convert_to_huggingface_task,
               ],
           )
+
+  pathways_images.write_pathways_images(
+      records=pathways_records, run_name=run_name, dag_run_id="{{ run_id }}"
+  )
