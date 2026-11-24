@@ -19,14 +19,15 @@ from airflow import models
 from airflow.models.baseoperator import chain
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
-from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import DockerImage, GkeClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.configs.common import SetupMode
 
 # Run once a day at 10 am UTC (2 am PST)
 SCHEDULED_TIME = '0 10 * * *' if composer_env.is_prod_env() else None
-HF_TOKEN = safe_get_from_variable('HF_TOKEN', None)
+# Environment variable -> Airflow Variable that holds its value. The value
+# is read when the task runs; it must not be put in a command.
+SECRET_ENV = {'HF_TOKEN': 'HF_TOKEN'}
 
 with models.DAG(
     dag_id='maxtext_sft_trainer',
@@ -52,7 +53,6 @@ with models.DAG(
   test = []
   for mode, image in docker_images:
     command = (
-        f'export HF_TOKEN={HF_TOKEN}',
         'export PRE_TRAINED_MODEL=llama2-7b',
         'export PRE_TRAINED_MODEL_TOKENIZER=meta-llama/Llama-2-7b-chat-hf',
         'export PRE_TRAINED_MODEL_CKPT_PATH='
@@ -67,6 +67,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f'sft-trainer-{mode.value}',
         run_model_cmds=command,
+        secret_env=SECRET_ENV,
         docker_image=image.value,
         test_owner=test_owner.SURBHI_J,
     ).run()

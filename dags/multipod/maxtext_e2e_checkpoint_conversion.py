@@ -30,11 +30,12 @@ from airflow.models.param import Param
 from airflow.operators.python import get_current_context
 from airflow.utils.task_group import TaskGroup
 from dags.common import test_owner
-from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
 
-HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+# Environment variable -> Airflow Variable that holds its value. The value
+# is read when the task runs; it must not be put in a command.
+SECRET_ENV = {"HF_TOKEN": "HF_TOKEN"}
 
 
 def _get_test_scope() -> str:
@@ -170,7 +171,6 @@ with models.DAG(
 
       to_maxtext_cmd = config["to_maxtext"]
       convert_to_maxtext_cmd = (
-          f"export HF_TOKEN={HF_TOKEN}",
           'export HF_HOME="/mnt/shm/hf_cache"',
           f"{to_maxtext_cmd} {run_name}",
       )
@@ -180,6 +180,7 @@ with models.DAG(
               time_out_in_min=120,
               test_name="to-mt",
               run_model_cmds=convert_to_maxtext_cmd,
+              secret_env=SECRET_ENV,
               docker_image="{{ params.docker_image }}",
               cluster=config["cpu_cluster"],
               test_owner=test_owner.JACKY_F,

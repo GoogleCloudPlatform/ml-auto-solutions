@@ -35,13 +35,13 @@ from airflow.utils.task_group import TaskGroup
 
 from dags.common import test_owner
 from dags.common.goodput_utils import check_workload_goodput
-from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import GkeClusters
 from dags.multipod.configs import gke_config
 from dags.multipod.util import decode_check
 
-# HF token retrieved from Airflow Variables for secure credential management
-HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+# Environment variable -> Airflow Variable that holds its value. The value
+# is read when the task runs; it must not be put in a command.
+SECRET_ENV = {"HF_TOKEN": "HF_TOKEN"}
 
 # The v6e queue only has TPU quota in a daily 4-hour window that the E2E suites
 # share with other tests, so a training job can wait for quota for longer than
@@ -293,7 +293,6 @@ with models.DAG(
           )
 
           environment_variables = [
-              f"export HF_TOKEN={HF_TOKEN}",
               "export M_ENABLE_GOODPUT_RECORDING=true",
               f"export M_GOODPUT_JOB_NAME={goodput_job_name}",
               "export TPU_MIN_LOG_LEVEL=0",
@@ -328,6 +327,7 @@ with models.DAG(
               cluster=training_cluster,
               test_name=mode_short_name,
               run_model_cmds=training_cmd,
+              secret_env=SECRET_ENV,
               docker_image="{{ params.docker_image }}",
               test_owner=test_owner.SURBHI_J,
               use_pathways=True,
@@ -354,7 +354,6 @@ with models.DAG(
           to_hf_flags = mode_test_config.get("to_hf_flags", "false true")
           to_hf_script = test_config["to_huggingface"]
           convert_to_huggingface_cmd = (
-              f"export HF_TOKEN={HF_TOKEN}",
               'export HF_HOME="/mnt/shm/hf_cache"',
               f"{to_hf_script} {run_name} {model_path} {to_hf_flags}",
           )
@@ -363,6 +362,7 @@ with models.DAG(
                   time_out_in_min=90,
                   test_name="to-hf",
                   run_model_cmds=convert_to_huggingface_cmd,
+                  secret_env=SECRET_ENV,
                   docker_image="{{ params.docker_image }}",
                   cluster=test_config["cpu_cluster"],
                   test_owner=test_owner.SURBHI_J,

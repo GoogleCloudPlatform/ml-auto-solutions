@@ -30,7 +30,7 @@ import time
 from typing import Dict, Iterable
 import uuid
 from xlml.apis import gcp_config, test_config
-from xlml.utils import ssh, composer
+from xlml.utils import secret, ssh, composer
 
 
 def get_image_from_family(project: str, family: str) -> compute_v1.Image:
@@ -507,6 +507,7 @@ def ssh_host(
     cmds: Iterable[str],
     ssh_keys: ssh.SshKeys,
     env: Dict[str, str] = None,
+    secret_env: Dict[str, str] = None,
 ) -> None:
   """SSH GPU and run commands in multi process.
 
@@ -515,8 +516,16 @@ def ssh_host(
    cmds: The commands to run on a GPU.
    ssh_keys: The SSH key pair to use for authentication.
    env: environment variables to be pass to the ssh runner session using dict.
+   secret_env: secrets to add to `env`, as a map from environment variable
+     name to Airflow Variable name. See `TestConfig.secret_env`.
   """
-  pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
+  secrets = secret.resolve_env(secret_env)
+  if secrets:
+    env = {**(env or {}), **secrets}
+
+  pkey = paramiko.RSAKey.from_private_key(
+      io.StringIO(ssh.load_private_key(ssh_keys))
+  )
   logging.info(f"Connecting to IP addresses {ip_address}")
 
   ssh_group = fabric.ThreadingGroup(

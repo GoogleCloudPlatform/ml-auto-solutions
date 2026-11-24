@@ -24,7 +24,7 @@ import uuid
 from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags.common.vm_resource import GpuVersion, MachineVersion
-from xlml.utils import composer, gke
+from xlml.utils import composer, gke, secret
 
 DEFAULT_GCLUSTER_VERSION = "v1.105.0"
 
@@ -45,12 +45,22 @@ LOGGING_URL_FORMAT = gke.LOGGING_URL_FORMAT
 def _run_command(
     command: Sequence[str],
     env: dict[str, str],
+    redact: Iterable[str] = (),
 ) -> None:
-  """Run a subprocess command and raise an error on non-zero exit code."""
+  """Run a subprocess command and raise an error on non-zero exit code.
+
+  Args:
+    command: The command and its arguments.
+    env: Environment of the subprocess.
+    redact: Secret values to remove from the error message.
+  """
   result = SubprocessHook().run_command(list(command), env=env)
   if result.exit_code != 0:
+    shown = " ".join(command)
+    for value in redact:
+      shown = shown.replace(value, "***")
     raise RuntimeError(
-        f"Command {' '.join(command)} failed with exit code {result.exit_code}"
+        f"Command {shown} failed with exit code {result.exit_code}"
     )
 
 
@@ -244,6 +254,7 @@ def run_workload(
     queue: str = "default",
     gke_scheduler: str | None = GPU_TOPOLOGY_AWARE_SCHEDULER,
     apply_with_kubectl: bool = False,
+    secret_env: dict[str, str] | None = None,
 ):
   """Run workload through Cluster Toolkit (gcluster) tool.
 
@@ -339,6 +350,12 @@ def run_workload(
     if apply_with_kubectl:
       submit_cmd.append(f"--dry-run-out={manifest_path}")
 
+    # gcluster only accepts KEY=VALUE, so the value is in the arguments of this
+    # process. It stays out of the workload command, and so out of pod logs.
+    secrets = secret.resolve_env(secret_env)
+    for name, value in secrets.items():
+      submit_cmd.append(f"--env={name}={value}")
+
     _run_command(
         _get_credentials_command(
             cluster_name=cluster_name,
@@ -348,7 +365,7 @@ def run_workload(
         env,
     )
     _run_command(_set_namespace_command(namespace), env)
-    _run_command(submit_cmd, env)
+    _run_command(submit_cmd, env, redact=secrets.values())
     if apply_with_kubectl:
       apply_cmd = ["kubectl", "apply", "-f", manifest_path]
       if namespace:

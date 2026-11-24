@@ -231,6 +231,9 @@ if composer_env.is_prod_env() or composer_env.is_dev_env():
         "echo ${project} && "
         "echo ${zone} && "
         "echo ${tpu_name} && "
+        # Stop tracing here: the text of the next command contains HF_TOKEN,
+        # and `set -x` would print it to the task log.
+        "set +x && "
         "yes 'y' | sudo gcloud alpha compute tpus tpu-vm ssh manfei-2025-v6e-4-cloud-ml-auto-solu --zone=europe-west4-a "
         "--project=cloud-ml-auto-solutions --ssh-key-file=/home/airflow/.ssh/google_compute_engine --strict-host-key-checking=no "
         '--internal-ip --worker=all --command \' \

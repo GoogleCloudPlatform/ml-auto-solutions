@@ -153,6 +153,10 @@ class TestConfig(abc.ABC, Generic[A]):
     timeout: Test timeout.
     task_owner: Task owner username or link.
     gcs_subfolder: Subfolder name for default GCS bucket.
+    secret_env: Secrets the test needs, as a map from environment variable
+      name to the name of the Airflow Variable that holds the value. The value
+      is read when the task runs and passed as an environment variable. Never
+      put a secret in a command: scripts run under `set -x`.
   """
 
   accelerator: A
@@ -161,6 +165,7 @@ class TestConfig(abc.ABC, Generic[A]):
   )
   task_owner: str = attrs.field(default='unowned', kw_only=True)
   gcs_subfolder: str = attrs.field(default='unowned', kw_only=True)
+  secret_env: dict[str, str] = attrs.field(factory=dict, kw_only=True)
 
   @property
   @abc.abstractmethod

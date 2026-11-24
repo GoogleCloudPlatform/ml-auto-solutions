@@ -31,7 +31,7 @@ from airflow.operators.python import get_current_context
 from airflow.models import Variable
 from airflow.exceptions import AirflowFailException
 from xlml.apis import gcp_config, test_config
-from xlml.utils import ssh, startup_script, composer
+from xlml.utils import secret, ssh, startup_script, composer
 import fabric
 import google.api_core.exceptions
 import google.auth
@@ -356,6 +356,7 @@ def ssh_tpu(
     ssh_keys: ssh.SshKeys,
     all_workers: bool,
     env: Dict[str, str] = None,
+    secret_env: Dict[str, str] = None,
 ) -> None:
   """SSH TPU and run commands in multi process.
 
@@ -366,7 +367,13 @@ def ssh_tpu(
    all_workers: The flag to define if run commands on all workers or worker 0
      only.
    env: environment variables to be pass to the ssh runner session using dict.
+   secret_env: secrets to add to `env`, as a map from environment variable
+     name to Airflow Variable name. See `TestConfig.secret_env`.
   """
+  secrets = secret.resolve_env(secret_env)
+  if secrets:
+    env = {**(env or {}), **secrets}
+
   creds, _ = google.auth.default()
   client = tpu_api.TpuClient(credentials=creds)
 
@@ -394,7 +401,9 @@ def ssh_tpu(
 
   logging.info(f'Connecting to IP addresses of workers: {ip_addresses}')
 
-  pkey = paramiko.RSAKey.from_private_key(io.StringIO(ssh_keys.private))
+  pkey = paramiko.RSAKey.from_private_key(
+      io.StringIO(ssh.load_private_key(ssh_keys))
+  )
   ssh_group = fabric.ThreadingGroup(
       *ip_addresses,
       connect_kwargs={

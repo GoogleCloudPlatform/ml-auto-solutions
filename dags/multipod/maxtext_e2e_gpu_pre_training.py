@@ -34,11 +34,12 @@ from airflow.utils.task_group import TaskGroup
 
 from dags.common import test_owner
 from dags.common.goodput_utils import check_workload_goodput
-from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import DockerImage, GkeClusters
 from dags.multipod.configs import gke_config
 
-HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+# Environment variable -> Airflow Variable that holds its value. The value
+# is read when the task runs; it must not be put in a command.
+SECRET_ENV = {"HF_TOKEN": "HF_TOKEN"}
 
 GPU_CLUSTER = GkeClusters.GPU_A3M_16_CLUSTER
 
@@ -169,7 +170,6 @@ with models.DAG(
 
       training_script = test_config["training"]["command"]
       training_cmd = (
-          f"export HF_TOKEN={HF_TOKEN}",
           *GPU_ENV_CMDS,
           "export M_ENABLE_GOODPUT_RECORDING=true",
           "export M_ENABLE_CHECKPOINT_CLOUD_LOGGER=true",
@@ -182,6 +182,7 @@ with models.DAG(
           time_out_in_min=test_config.get("time_out_in_min", 60),
           test_name="pre",
           run_model_cmds=training_cmd,
+          secret_env=SECRET_ENV,
           docker_image="{{ params.docker_image }}",
           cluster=GPU_CLUSTER,
           test_owner=test_owner.KEVIN_Y,
@@ -205,7 +206,6 @@ with models.DAG(
       to_hf_script = test_config["to_huggingface"]
 
       convert_to_huggingface_cmd = (
-          f"export HF_TOKEN={HF_TOKEN}",
           'export HF_HOME="/mnt/shm/hf_cache"',
           f"{to_hf_script} {gpu_run_name} {model_path} {to_hf_flags}",
       )
@@ -214,6 +214,7 @@ with models.DAG(
               time_out_in_min=90,
               test_name="to-hf",
               run_model_cmds=convert_to_huggingface_cmd,
+              secret_env=SECRET_ENV,
               docker_image="{{ params.docker_image }}",
               cluster=test_config["cpu_cluster"],
               test_owner=test_owner.KEVIN_Y,

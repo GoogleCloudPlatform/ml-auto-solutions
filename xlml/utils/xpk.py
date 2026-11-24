@@ -24,7 +24,7 @@ from airflow.decorators import task
 from airflow.hooks.subprocess import SubprocessHook
 from dags.common.vm_resource import GpuVersion
 from xlml.apis import metric_config
-from xlml.utils import composer
+from xlml.utils import composer, secret
 
 # NOTE: This version needs to be pinned to ensure compatibility when using
 # xpk.py for workload creation.
@@ -123,6 +123,7 @@ def run_workload(
     # to avoid workload preemption by manual tests.
     priority: str = "high",
     namespace: str = "default",
+    secret_env: dict[str, str] | None = None,
 ):
   """Run workload through xpk tool."""
 
@@ -160,8 +161,8 @@ def run_workload(
         f" --{multi_keyword}={num_slices} --docker-image={docker_image}"
         f" --project={cluster_project} --zone={zone}"
         f" --priority={priority}"
-        f" --env {metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
     )
+    gcs_output_env = f"{metric_config.SshEnvVars.GCS_OUTPUT.name}={gcs_path}"
 
     if namespace and namespace != "default":
       workload_create_cmd += f" --namespace={namespace}"
@@ -196,11 +197,28 @@ def run_workload(
           "pip install -U google-cloud-aiplatform cloud-accelerator-diagnostics"
       )
       cmds.append(vertex_ai_dependency)
+    # The env file lists secret names only: xpk takes each value from its own
+    # environment, so no value is in the command line or in its `set -x` trace.
+    # xpk does not accept --env together with --env-file, so GCS_OUTPUT goes
+    # into the file as well.
+    secrets = secret.resolve_env(secret_env)
+    if secrets:
+      env_file = os.path.join(tmpdir, "secret_env")
+      with open(env_file, "w", encoding="utf-8") as f:
+        f.write(gcs_output_env + "\n")
+        f.write("".join(f"{name}\n" for name in secrets))
+      workload_create_cmd += f" --env-file={env_file}"
+    else:
+      workload_create_cmd += f" --env {gcs_output_env}"
     cmds.append(workload_create_cmd)
     hook = SubprocessHook()
     result = hook.run_command(
         ["bash", "-c", ";".join(cmds)],
-        env={**os.environ, "KUBECONFIG": os.path.join(tmpdir, "xpk.conf")},
+        env={
+            **os.environ,
+            "KUBECONFIG": os.path.join(tmpdir, "xpk.conf"),
+            **secrets,
+        },
     )
     assert (
         result.exit_code == 0

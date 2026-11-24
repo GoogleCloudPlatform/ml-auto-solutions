@@ -1825,5 +1825,52 @@ class GclusterTest(unittest.TestCase):
     mock_instances_client_cls.assert_not_called()
 
 
+class GclusterSecretEnvTest(unittest.TestCase):
+
+  @mock.patch("xlml.utils.gcluster.secret.resolve_env")
+  @mock.patch("tempfile.TemporaryDirectory")
+  @mock.patch("xlml.utils.composer.log_metadata_for_xlml_dashboard")
+  @mock.patch("xlml.utils.gcluster.SubprocessHook")
+  def test_run_workload_passes_secret_as_env(
+      self, mock_hook_cls, _, mock_tempdir, mock_resolve
+  ):
+    """The secret is an --env argument and is not in the workload command."""
+    mock_tempdir.return_value.__enter__.return_value = "/tmp/mock_gcluster_dir"
+    mock_resolve.return_value = {"HF_TOKEN": "hf_canary"}
+    mock_hook = mock_hook_cls.return_value
+    mock_hook.run_command.return_value.exit_code = 0
+
+    gcluster.run_workload.function(
+        task_id="run_workload",
+        cluster_project="test-project",
+        zone="us-central1-a",
+        cluster_name="test-cluster",
+        benchmark_id="test-bench",
+        workload_id="test-workload-12345",
+        gcs_path="gs://test-bucket/output",
+        docker_image="us-docker.pkg.dev/img:latest",
+        accelerator_type="v4-8",
+        run_cmds="set -xue;bash run.sh",
+        secret_env={"HF_TOKEN": "HF_TOKEN_MOE"},
+    )
+
+    mock_resolve.assert_called_once_with({"HF_TOKEN": "HF_TOKEN_MOE"})
+    submit_cmd = mock_hook.run_command.call_args_list[-1][0][0]
+    self.assertIn("--env=HF_TOKEN=hf_canary", submit_cmd)
+    self.assertIn("--command=set -xue;bash run.sh", submit_cmd)
+
+  @mock.patch("xlml.utils.gcluster.SubprocessHook")
+  def test_run_command_error_hides_secret(self, mock_hook_cls):
+    mock_hook_cls.return_value.run_command.return_value.exit_code = 1
+
+    with self.assertRaises(RuntimeError) as ctx:
+      gcluster._run_command(
+          ["gcluster", "--env=HF_TOKEN=hf_canary"], {}, redact=["hf_canary"]
+      )
+
+    self.assertNotIn("hf_canary", str(ctx.exception))
+    self.assertIn("--env=HF_TOKEN=***", str(ctx.exception))
+
+
 if __name__ == "__main__":
   unittest.main()

@@ -134,7 +134,6 @@ class RLTestConfig:
       self,
       loss_algo: LossAlgo,
       run_name: str,
-      hf_token: str,
       num_slices: int = 1,
   ) -> tuple[str]:
     """Generates the RL training command as a tuple for GKE compatibility."""
@@ -163,7 +162,6 @@ class RLTestConfig:
     )
 
     environment_variables = [
-        f"export HF_TOKEN={hf_token}",
         "export TPU_MIN_LOG_LEVEL=0",
         "export TF_CPP_MIN_LOG_LEVEL=0",
         "export TPU_STDERR_LOG_LEVEL=0",
@@ -258,14 +256,11 @@ class SFTTestConfig:
     self.load_parameters_path = load_parameters_path
     self.sft_config_path = sft_config_path
 
-  def generate_sft_training_command(
-      self, run_name: str, hf_token: str
-  ) -> tuple[str]:
+  def generate_sft_training_command(self, run_name: str) -> tuple[str]:
     """Generates the SFT training command as a tuple for GKE compatibility.
 
     Args:
       run_name: The run name for the training job.
-      hf_token: The HuggingFace token for authentication.
 
     Returns:
       A tuple containing the SFT training command string.
@@ -276,7 +271,6 @@ class SFTTestConfig:
         f"base_output_directory={self.base_dir} "
         f"model_name={self.model_name} "
         f"load_parameters_path={self.load_parameters_path} "
-        f"hf_access_token={hf_token} "
         f"tokenizer_path={self.tokenizer_path} "
         f"steps={self.steps} "
         "per_device_batch_size=1 "
@@ -285,7 +279,6 @@ class SFTTestConfig:
         "enable_single_controller=True"
     )
     command = " && ".join([
-        f"export HF_TOKEN={hf_token}",
         "export JAX_PLATFORMS=proxy",
         "export JAX_BACKEND_TARGET=grpc://127.0.0.1:29000",
         "export ENABLE_PATHWAYS_PERSISTENCE=1",

@@ -177,6 +177,7 @@ def run_queued_resource_test(
             metric_config.SshEnvVars.GCS_OUTPUT.name: output_location,
             **custom_env,
         },
+        secret_env=task_test_config.secret_env,
     )
 
     clean_up = tpu.delete_queued_resource.override(group_id="clean_up")(
@@ -534,6 +535,7 @@ class XpkRunner(Runner):
           max_restart=self.configs.max_restart,
           priority=self.configs.priority,
           namespace=self.configs.task_test_config.namespace,
+          secret_env=self.configs.task_test_config.secret_env,
       )
       wait_for_workload_start = gke.wait_for_workload_start.override(
           timeout=self.configs.workload_provision_timeout.total_seconds()
@@ -633,6 +635,7 @@ class GclusterRunner(Runner):
           queue=self.configs.queue,
           gke_scheduler=self.configs.gke_scheduler,
           apply_with_kubectl=self.configs.apply_with_kubectl,
+          secret_env=self.configs.task_test_config.secret_env,
       )
       wait_for_workload_start = gke.wait_for_workload_start.override(
           timeout=self.configs.workload_provision_timeout.total_seconds()
@@ -1232,6 +1235,7 @@ class GpuCreateResourceTask(BaseTask):
         self.task_test_config.test_script,
         ssh_keys,
         env,
+        self.task_test_config.secret_env,
     )
 
   def post_process(

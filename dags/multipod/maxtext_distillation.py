@@ -20,14 +20,15 @@ from airflow import models
 
 from dags import composer_env, gcs_bucket
 from dags.common import test_owner
-from dags.common.quarantined_tests import safe_get_from_variable
 from dags.common.vm_resource import DockerImage, GkeClusters
 from dags.multipod.configs import gke_config
 
 DAG_ID = "maxtext_distillation"
 # Run once a day at 11 am UTC (3 am PST)
 SCHEDULED_TIME = "0 11 * * *" if composer_env.is_prod_env() else None
-HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+# Environment variable -> Airflow Variable that holds its value. The value
+# is read when the task runs; it must not be put in a command.
+SECRET_ENV = {"HF_TOKEN": "HF_TOKEN"}
 
 with models.DAG(
     dag_id=DAG_ID,
@@ -53,7 +54,6 @@ with models.DAG(
   run_name = "distill-nightly-{{ ts_nodash | lower }}"
 
   command = (
-      f"export HF_TOKEN={HF_TOKEN}",
       "export PYTHONPATH=/deps/src:/app/src",
       'export LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=61440"',
       "export TMPDIR=/dev/shm",
@@ -67,7 +67,6 @@ with models.DAG(
           f" run_name={run_name}"
           f" base_output_directory={base_output_directory}"
           f" teacher_overrides.load_parameters_path={teacher_ckpt_path}"
-          f" hf_access_token={HF_TOKEN}"
           " distill_alpha=0.5"
           " distill_temperature=1.0"
           " distill_beta=1.0"
@@ -86,6 +85,7 @@ with models.DAG(
       cluster=GkeClusters.TPU_V5P_BODABORG_NAP_CLUSTER.override(core_count=32),
       test_name="distill-nightly",
       run_model_cmds=command,
+      secret_env=SECRET_ENV,
       docker_image=DockerImage.MAXTEXT_POST_TRAINING_NIGHTLY.value,
       test_owner=test_owner.EMMA_L,
       priority="medium",

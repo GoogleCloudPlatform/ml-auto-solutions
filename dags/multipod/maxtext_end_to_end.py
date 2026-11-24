@@ -20,7 +20,7 @@ from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.utils.task_group import TaskGroup
 from dags import composer_env
-from dags.common.quarantined_tests import QuarantineTests, safe_get_from_variable
+from dags.common.quarantined_tests import QuarantineTests
 from dags.common import test_owner
 from dags.common.vm_resource import GkeClusters, DockerImage
 from dags.multipod.configs import gke_config
@@ -28,7 +28,9 @@ from xlml.utils import name_format
 
 # Run once a day at 4 am UTC (8 pm PST)
 SCHEDULED_TIME = "0 7 * * *" if composer_env.is_prod_env() else None
-HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+# Environment variable -> Airflow Variable that holds its value. The value
+# is read when the task runs; it must not be put in a command.
+SECRET_ENV = {"HF_TOKEN": "HF_TOKEN"}
 
 
 with models.DAG(
@@ -81,13 +83,12 @@ with models.DAG(
   )
 
   for model, test_config in test_models_tpu.items():
-    model_cmds = (f"export HF_TOKEN={HF_TOKEN}",) + tuple(
-        test_config["commands"]
-    )
+    model_cmds = tuple(test_config["commands"])
     stable_tpu = gke_config.get_gke_config(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-stable-{model}",
         run_model_cmds=model_cmds,
+        secret_env=SECRET_ENV,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_STABLE.value,
         cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
         test_owner=test_config["owner"],
@@ -97,6 +98,7 @@ with models.DAG(
         time_out_in_min=60,
         test_name=f"{test_name_prefix}-nightly-{model}",
         run_model_cmds=model_cmds,
+        secret_env=SECRET_ENV,
         docker_image=DockerImage.MAXTEXT_TPU_JAX_NIGHTLY.value,
         cluster=GkeClusters.TPU_V5P_8_CLUSTER_V2,
         test_owner=test_config["owner"],

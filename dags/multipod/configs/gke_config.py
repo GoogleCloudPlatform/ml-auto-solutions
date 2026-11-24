@@ -59,6 +59,7 @@ def get_gke_config(
     workload_provision_timeout: datetime.timedelta = (
         task.RunnerConfig.workload_provision_timeout
     ),
+    secret_env: dict[str, str] | None = None,
 ) -> task.XpkTask:
   pass
 
@@ -93,6 +94,7 @@ def get_gke_config(
     workload_provision_timeout: datetime.timedelta = (
         task.RunnerConfig.workload_provision_timeout
     ),
+    secret_env: dict[str, str] | None = None,
 ) -> task.GclusterTask:
   pass
 
@@ -127,6 +129,7 @@ def get_gke_config(
     workload_provision_timeout: datetime.timedelta = (
         task.RunnerConfig.workload_provision_timeout
     ),
+    secret_env: dict[str, str] | None = None,
 ) -> task.GclusterTask | task.XpkTask:
   """Constructs a GKE task for either Cluster Toolkit (gcluster) or XPK."""
   job_gcp_config = gcp_config.GCPConfig(
@@ -152,6 +155,7 @@ def get_gke_config(
       docker_image=docker_image,
       namespace=cluster.namespace,
       mounts=mounts if use_gcluster else None,
+      secret_env=secret_env or {},
   )
   job_metric_config = user_specified_job_metric_config
   if job_metric_config is None:
@@ -652,6 +656,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     restart_on_exit_codes: Iterable[int] | None = None,
     *,
     use_gcluster: Literal[False] = False,
+    secret_env: dict[str, str] | None = None,
 ) -> task.XpkTask:
   pass
 
@@ -677,6 +682,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     ),
     gke_scheduler: str | None = gcluster.GPU_TOPOLOGY_AWARE_SCHEDULER,
     apply_with_kubectl: bool = False,
+    secret_env: dict[str, str] | None = None,
 ) -> task.GclusterTask:
   pass
 
@@ -701,6 +707,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
     ),
     gke_scheduler: str | None = gcluster.GPU_TOPOLOGY_AWARE_SCHEDULER,
     apply_with_kubectl: bool = False,
+    secret_env: dict[str, str] | None = None,
 ) -> task.GclusterTask | task.XpkTask:
   """Constructs a GPU GKE task for either Cluster Toolkit (gcluster) or XPK.
 
@@ -733,6 +740,7 @@ def get_maxtext_end_to_end_gpu_gke_test_config(
       num_slices=num_slices,
       namespace=cluster.namespace,
       mounts=mounts if use_gcluster else None,
+      secret_env=secret_env or {},
   )
 
   if use_gcluster:
@@ -860,6 +868,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
     workload_provision_timeout: datetime.timedelta = (
         task.RunnerConfig.workload_provision_timeout
     ),
+    secret_env: dict[str, str] | None = None,
 ) -> task.XpkTask:
   pass
 
@@ -890,6 +899,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
     workload_provision_timeout: datetime.timedelta = (
         task.RunnerConfig.workload_provision_timeout
     ),
+    secret_env: dict[str, str] | None = None,
 ) -> task.GclusterTask:
   pass
 
@@ -919,6 +929,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
     workload_provision_timeout: datetime.timedelta = (
         task.RunnerConfig.workload_provision_timeout
     ),
+    secret_env: dict[str, str] | None = None,
 ) -> task.GclusterTask | task.XpkTask:
   """Constructs a CPU GKE task for either Cluster Toolkit (gcluster) or XPK."""
   if not use_gcluster and cluster.device_version in _GCLUSTER_ONLY_CPU_VERSIONS:
@@ -949,6 +960,7 @@ def get_maxtext_cpu_end_to_end_gke_config(
       docker_image=docker_image,
       namespace=cluster.namespace,
       mounts=mounts if use_gcluster else None,
+      secret_env=secret_env or {},
   )
 
   job_metric_config = (

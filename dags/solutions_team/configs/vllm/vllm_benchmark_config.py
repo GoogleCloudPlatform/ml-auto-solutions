@@ -20,7 +20,6 @@ import json
 import os
 from typing import Dict
 
-from dags.common.quarantined_tests import safe_get_from_variable
 from xlml.apis import gcp_config, metric_config, task, test_config
 from dags.common import test_owner
 from dags.multipod.configs import common
@@ -30,7 +29,9 @@ from dags.common.vm_resource import MachineVersion, ImageFamily, ImageProject, G
 PROJECT_NAME = Project.CLOUD_ML_AUTO_SOLUTIONS.value
 RUNTIME_IMAGE = RuntimeVersion.TPU_UBUNTU2204_BASE.value
 GCS_SUBFOLDER_PREFIX = test_owner.Team.SOLUTIONS_TEAM.value
-HF_TOKEN = safe_get_from_variable("HF_TOKEN", None)
+# Environment variable -> Airflow Variable that holds its value. The value
+# is read when the task runs; it must not be put in a command.
+SECRET_ENV = {"HF_TOKEN": "HF_TOKEN"}
 VLLM_TPU_DOCKER_IMAGE = "gcr.io/cloud-tpu-v2-images/vllm-tpu-nightly:latest"
 VLLM_TPU_CONTAINER = "vllm-tpu-container"
 
@@ -119,8 +120,6 @@ def get_gpu_vllm_benchmark_cmds(
 
   run_cmds = [
       "export PATH=$PATH:/home/cloud-ml-auto-solutions/vllm:/home/cloud-ml-auto-solutions/.local/bin",
-      # HF_TOKEN is set in Composer environment variables
-      f"export HF_TOKEN={HF_TOKEN}",
       # Start virtual environment
       '[[ -f ".env/bin/activate" ]] && source .env/bin/activate',
       # Start vllm in the background
@@ -181,16 +180,15 @@ def get_tpu_vllm_benchmark_cmds(
   run_cmds = [
       f"export CONTAINER_NAME={VLLM_TPU_CONTAINER}",
       # Start vllm in the background and wait for server to come up
-      f"sudo docker exec $CONTAINER_NAME /bin/bash -c 'export HF_TOKEN={HF_TOKEN} && vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 & sleep 600'",
+      f"sudo --preserve-env=HF_TOKEN docker exec -e HF_TOKEN $CONTAINER_NAME /bin/bash -c 'vllm serve {model_id} --swap-space 16  --disable-log-requests --tensor_parallel_size={num_chips} --max-model-len=2048 --num-scheduler-steps=4 & sleep 600'",
   ]
 
   for request_rate in request_rates:
-    benchmark_cmd_fmt = "sudo docker exec $CONTAINER_NAME /bin/bash -c \"export HF_TOKEN={HF_TOKEN} && python inference-benchmark/benchmark_serving.py --stream-request --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model {model_id} --tokenizer {model_id} --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'\""
+    benchmark_cmd_fmt = "sudo --preserve-env=HF_TOKEN docker exec -e HF_TOKEN $CONTAINER_NAME /bin/bash -c \"python inference-benchmark/benchmark_serving.py --stream-request --host localhost --port 8000 --num-prompts {num_prompts} --max-input-length 1024 --max-output-length 1024 --dataset ShareGPT_V3_unfiltered_cleaned_split.json --save-json-results --model {model_id} --tokenizer {model_id} --request-rate {request_rate} --additional-metadata-metrics-to-save '{additional_metadata}'\""
 
     benchmark_cmds = [
         # Run benchmark inside the container
         benchmark_cmd_fmt.format(
-            HF_TOKEN=HF_TOKEN,
             num_prompts=num_prompts,
             model_id=model_id,
             request_rate=request_rate,
@@ -260,6 +258,7 @@ def get_gpu_vllm_gce_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
+      secret_env=SECRET_ENV,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RICHARD_L,
       gcs_subfolder=f"{GCS_SUBFOLDER_PREFIX}/vllm_benchmark",
@@ -332,6 +331,7 @@ def get_tpu_vllm_gce_config(
       test_name=test_name,
       set_up_cmds=set_up_cmds,
       run_model_cmds=run_model_cmds,
+      secret_env=SECRET_ENV,
       timeout=datetime.timedelta(minutes=time_out_in_min),
       task_owner=test_owner.RICHARD_L,
       num_slices=num_slices,
