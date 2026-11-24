@@ -18,12 +18,14 @@ MaxText E2E Tests Orchestrator DAG.
 Coordinates the multi-stage MaxText end-to-end testing pipeline for GitHub CI:
 1. Stage 1 (maxtext_e2e_checkpoint_conversion):
    Converts Hugging Face checkpoints to MaxText format on CPU clusters.
-2. Stage 2 (maxtext_e2e_tpu_pre_training & maxtext_e2e_tpu_post_training):
-   Triggers pre-training and post-training test suites once
-   checkpoints are ready.
-   The `test_scope` param selects which of the two suites run, so manual or
-   GitHub-triggered runs can exercise a single suite without burning TPU
-   capacity on the other one.
+2. Stage 2 (maxtext_e2e_tpu_pre_training, maxtext_e2e_tpu_post_training &
+   maxtext_e2e_gpu_pre_training):
+   Triggers the TPU pre-training, TPU post-training and GPU pre-training
+   test suites once checkpoints are ready.
+   The `test_scope` param selects which of the suites run, so the TPU and GPU
+   image pipelines can each test their own images (`tpu` and
+   `gpu-pre-training`), and manual runs can exercise a single suite without
+   burning TPU or GPU capacity on the others.
 3. Callbacks & Reporting:
    Fires GitHub repository_dispatch events upon stage completion
    for automated CI.
@@ -45,13 +47,21 @@ from xlml.utils.github import (
 
 # Images for the candidate build under test, passed in by the MaxText E2E
 # GitHub workflow through the `docker_images` param.
-PRE_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_pre_training'] }}"
-POST_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_post_training'] }}"
+TPU_PRE_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_pre_training'] }}"
+TPU_POST_TRAINING_DOCKER_IMAGE = (
+    "{{ params.docker_images['tpu_post_training'] }}"
+)
+GPU_PRE_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['gpu_pre_training'] }}"
+# Conversion runs on CPU clusters. GPU-only runs pass only the GPU image, which
+# is amd64 and runs on CPU too. The post-training image is needed only for the
+# post-training-only models, which are skipped unless post-training runs.
 CHECKPOINT_CONVERSION_DOCKER_IMAGE = (
-    f"{{% if params.test_scope == 'pre-training' %}}"
-    f"{PRE_TRAINING_DOCKER_IMAGE}"
+    f"{{% if params.test_scope == 'gpu-pre-training' %}}"
+    f"{GPU_PRE_TRAINING_DOCKER_IMAGE}"
+    f"{{% elif params.test_scope == 'tpu-pre-training' %}}"
+    f"{TPU_PRE_TRAINING_DOCKER_IMAGE}"
     f"{{% else %}}"
-    f"{POST_TRAINING_DOCKER_IMAGE}"
+    f"{TPU_POST_TRAINING_DOCKER_IMAGE}"
     f"{{% endif %}}"
 )
 
@@ -59,17 +69,21 @@ CHECKPOINT_CONVERSION_DOCKER_IMAGE = (
 class TestScope(enum.IntFlag):
   """Stage 2 suites selected by the `test_scope` param."""
 
-  PRE_TRAINING = enum.auto()
-  POST_TRAINING = enum.auto()
+  TPU_PRE_TRAINING = enum.auto()
+  TPU_POST_TRAINING = enum.auto()
+  GPU_PRE_TRAINING = enum.auto()
 
-  ALL = PRE_TRAINING | POST_TRAINING
+  TPU = TPU_PRE_TRAINING | TPU_POST_TRAINING
+  ALL = TPU | GPU_PRE_TRAINING
 
   @classmethod
   def from_string(cls, value: str) -> "TestScope":
     return {
         "all": cls.ALL,
-        "pre-training": cls.PRE_TRAINING,
-        "post-training": cls.POST_TRAINING,
+        "tpu": cls.TPU,
+        "tpu-pre-training": cls.TPU_PRE_TRAINING,
+        "tpu-post-training": cls.TPU_POST_TRAINING,
+        "gpu-pre-training": cls.GPU_PRE_TRAINING,
     }[value]
 
 
@@ -135,17 +149,25 @@ with models.DAG(
         "test_scope": Param(
             default="all",
             type="string",
-            enum=["all", "pre-training", "post-training"],
+            enum=[
+                "all",
+                "tpu",
+                "tpu-pre-training",
+                "tpu-post-training",
+                "gpu-pre-training",
+            ],
             description=(
-                "Which Stage 2 suites to run. Checkpoint conversion always"
-                " runs because both suites consume its checkpoints."
+                "Which Stage 2 suites to run; tpu runs both TPU suites."
+                " Checkpoint conversion always runs because every suite"
+                " consumes its checkpoints."
             ),
         ),
         "docker_images": Param(
             type="object",
             description=(
                 "Mapping of suite keys ('tpu_pre_training',"
-                " 'tpu_post_training') to full Docker image URIs."
+                " 'tpu_post_training', 'gpu_pre_training') to full Docker"
+                " image URIs."
             ),
         ),
     },
@@ -178,7 +200,7 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__pre_training",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": PRE_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_PRE_TRAINING_DOCKER_IMAGE,
           "run_name": shared_run_name,
       },
       wait_for_completion=True,
@@ -191,7 +213,20 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__post_training",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": POST_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_POST_TRAINING_DOCKER_IMAGE,
+          "run_name": shared_run_name,
+      },
+      wait_for_completion=True,
+      poke_interval=600,  # check every 10 minutes for child DAG completion
+  )
+
+  trigger_gpu_pre_training = TriggerDagRunOperator(
+      task_id="trigger_gpu_pre_training",
+      trigger_dag_id="maxtext_e2e_gpu_pre_training",
+      trigger_run_id="{{ run_id }}__gpu_pre_training",
+      execution_date="{{ logical_date }}",
+      conf={
+          "docker_image": GPU_PRE_TRAINING_DOCKER_IMAGE,
           "run_name": shared_run_name,
       },
       wait_for_completion=True,
@@ -214,7 +249,7 @@ with models.DAG(
           "sha": "{{ params.commit_sha }}",
           "github_run_id": "{{ params.github_run_id }}",
           "test_type": "pre_training",
-          "docker_image": PRE_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_PRE_TRAINING_DOCKER_IMAGE,
       },
   )
 
@@ -234,12 +269,35 @@ with models.DAG(
           "sha": "{{ params.commit_sha }}",
           "github_run_id": "{{ params.github_run_id }}",
           "test_type": "post_training",
-          "docker_image": POST_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_POST_TRAINING_DOCKER_IMAGE,
       },
   )
 
-  # Checkpoint conversion is never gated: both suites wait on its per-model task
-  # groups through an ExternalTaskSensor and share the converted checkpoints.
+  github_callback_gpu_pre_training = (
+      trigger_github_repository_dispatch.override(
+          task_id="fire_github_callback_gpu_pre_training",
+          trigger_rule=TriggerRule.NONE_SKIPPED,
+      )(
+          repo="{{ params.github_repo }}",
+          token="{{ params.github_token }}",
+          client_payload={
+              "state": (
+                  "{{ dag_run.get_task_instance("
+                  "'trigger_gpu_pre_training').state }}"
+              ),
+              "dag_id": "{{ dag.dag_id }}",
+              "dag_run_id": "{{ run_id }}",
+              "sha": "{{ params.commit_sha }}",
+              "github_run_id": "{{ params.github_run_id }}",
+              "test_type": "gpu_pre_training",
+              "docker_image": GPU_PRE_TRAINING_DOCKER_IMAGE,
+          },
+      )
+  )
+
+  # Checkpoint conversion is never gated: every suite waits on its per-model
+  # task groups through an ExternalTaskSensor and shares the converted
+  # checkpoints.
   chain(
       validate_task,
       trigger_checkpoint_conversion,
@@ -247,7 +305,7 @@ with models.DAG(
   chain(
       validate_task,
       test_scope_enabled.override(task_id="pre_training_enabled")(
-          TestScope.PRE_TRAINING.value
+          TestScope.TPU_PRE_TRAINING.value
       ),
       trigger_pre_training,
       github_callback_pre_training,
@@ -255,8 +313,16 @@ with models.DAG(
   chain(
       validate_task,
       test_scope_enabled.override(task_id="post_training_enabled")(
-          TestScope.POST_TRAINING.value
+          TestScope.TPU_POST_TRAINING.value
       ),
       trigger_post_training,
       github_callback_post_training,
+  )
+  chain(
+      validate_task,
+      test_scope_enabled.override(task_id="gpu_pre_training_enabled")(
+          TestScope.GPU_PRE_TRAINING.value
+      ),
+      trigger_gpu_pre_training,
+      github_callback_gpu_pre_training,
   )
