@@ -49,7 +49,7 @@ def _get_test_scope() -> str:
 @task.short_circuit
 def post_training_enabled() -> bool:
   """Skips post-training-only conversions unless TPU post-training will run."""
-  return _get_test_scope() in ("all", "tpu-post-training")
+  return _get_test_scope() in ("all", "tpu", "tpu-post-training")
 
 
 @task.short_circuit
@@ -87,6 +87,7 @@ with models.DAG(
             type="string",
             enum=[
                 "all",
+                "tpu",
                 "tpu-pre-training",
                 "tpu-post-training",
                 "gpu-pre-training",

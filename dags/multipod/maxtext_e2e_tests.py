@@ -22,9 +22,10 @@ Coordinates the multi-stage MaxText end-to-end testing pipeline for GitHub CI:
    maxtext_e2e_gpu_pre_training):
    Triggers the TPU pre-training, TPU post-training and GPU pre-training
    test suites once checkpoints are ready.
-   The `test_scope` param selects which of the suites run, so manual or
-   GitHub-triggered runs can exercise a single suite without burning TPU or
-   GPU capacity on the others.
+   The `test_scope` param selects which of the suites run, so the TPU and GPU
+   image pipelines can each test their own images (`tpu` and
+   `gpu-pre-training`), and manual runs can exercise a single suite without
+   burning TPU or GPU capacity on the others.
 3. Callbacks & Reporting:
    Fires GitHub repository_dispatch events upon stage completion
    for automated CI.
@@ -46,16 +47,21 @@ from xlml.utils.github import (
 
 # Images for the candidate build under test, passed in by the MaxText E2E
 # GitHub workflow through the `docker_images` param.
-PRE_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_pre_training'] }}"
-POST_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_post_training'] }}"
+TPU_PRE_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['tpu_pre_training'] }}"
+TPU_POST_TRAINING_DOCKER_IMAGE = (
+    "{{ params.docker_images['tpu_post_training'] }}"
+)
 GPU_PRE_TRAINING_DOCKER_IMAGE = "{{ params.docker_images['gpu_pre_training'] }}"
-# Conversion runs on CPU clusters. The post-training image is needed only for
-# the post-training-only models, which are skipped unless post-training runs.
+# Conversion runs on CPU clusters. GPU-only runs pass only the GPU image, which
+# is amd64 and runs on CPU too. The post-training image is needed only for the
+# post-training-only models, which are skipped unless post-training runs.
 CHECKPOINT_CONVERSION_DOCKER_IMAGE = (
-    f"{{% if params.test_scope in ('tpu-pre-training', 'gpu-pre-training') %}}"
-    f"{PRE_TRAINING_DOCKER_IMAGE}"
+    f"{{% if params.test_scope == 'gpu-pre-training' %}}"
+    f"{GPU_PRE_TRAINING_DOCKER_IMAGE}"
+    f"{{% elif params.test_scope == 'tpu-pre-training' %}}"
+    f"{TPU_PRE_TRAINING_DOCKER_IMAGE}"
     f"{{% else %}}"
-    f"{POST_TRAINING_DOCKER_IMAGE}"
+    f"{TPU_POST_TRAINING_DOCKER_IMAGE}"
     f"{{% endif %}}"
 )
 
@@ -67,12 +73,14 @@ class TestScope(enum.IntFlag):
   TPU_POST_TRAINING = enum.auto()
   GPU_PRE_TRAINING = enum.auto()
 
-  ALL = TPU_PRE_TRAINING | TPU_POST_TRAINING | GPU_PRE_TRAINING
+  TPU = TPU_PRE_TRAINING | TPU_POST_TRAINING
+  ALL = TPU | GPU_PRE_TRAINING
 
   @classmethod
   def from_string(cls, value: str) -> "TestScope":
     return {
         "all": cls.ALL,
+        "tpu": cls.TPU,
         "tpu-pre-training": cls.TPU_PRE_TRAINING,
         "tpu-post-training": cls.TPU_POST_TRAINING,
         "gpu-pre-training": cls.GPU_PRE_TRAINING,
@@ -143,13 +151,15 @@ with models.DAG(
             type="string",
             enum=[
                 "all",
+                "tpu",
                 "tpu-pre-training",
                 "tpu-post-training",
                 "gpu-pre-training",
             ],
             description=(
-                "Which Stage 2 suites to run. Checkpoint conversion always"
-                " runs because every suite consumes its checkpoints."
+                "Which Stage 2 suites to run; tpu runs both TPU suites."
+                " Checkpoint conversion always runs because every suite"
+                " consumes its checkpoints."
             ),
         ),
         "docker_images": Param(
@@ -190,7 +200,7 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__pre_training",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": PRE_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_PRE_TRAINING_DOCKER_IMAGE,
           "run_name": shared_run_name,
       },
       wait_for_completion=True,
@@ -203,7 +213,7 @@ with models.DAG(
       trigger_run_id="{{ run_id }}__post_training",
       execution_date="{{ logical_date }}",
       conf={
-          "docker_image": POST_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_POST_TRAINING_DOCKER_IMAGE,
           "run_name": shared_run_name,
       },
       wait_for_completion=True,
@@ -239,7 +249,7 @@ with models.DAG(
           "sha": "{{ params.commit_sha }}",
           "github_run_id": "{{ params.github_run_id }}",
           "test_type": "pre_training",
-          "docker_image": PRE_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_PRE_TRAINING_DOCKER_IMAGE,
       },
   )
 
@@ -259,7 +269,7 @@ with models.DAG(
           "sha": "{{ params.commit_sha }}",
           "github_run_id": "{{ params.github_run_id }}",
           "test_type": "post_training",
-          "docker_image": POST_TRAINING_DOCKER_IMAGE,
+          "docker_image": TPU_POST_TRAINING_DOCKER_IMAGE,
       },
   )
 
