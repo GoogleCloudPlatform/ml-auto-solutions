@@ -1140,13 +1140,12 @@ class SafetensorsUtilTest(unittest.TestCase):
         {
             "hf-to-gcs-qwen3-0_6b",
             "hf-to-gcs-gemma2-2b",
-            "hf-to-gcs-qwen3-30b-a3b",
             "hf-to-gcs-llama3_1-70b",
         },
     )
     group_ids = all_group_ids - hf_to_gcs_ids
     self.assertEqual(len(group_ids), len(safetensors_dag.TEST_SPECS))
-    # Phase 1: four models, each with 1 and 2 slices on the v6e cluster
+    # Phase 1: three models, each with 1 and 2 slices on the v6e cluster
     self.assertEqual(
         group_ids,
         {
@@ -1154,8 +1153,6 @@ class SafetensorsUtilTest(unittest.TestCase):
             "qwen3-0_6b-2x-v6e-8",
             "gemma2-2b-v6e-8",
             "gemma2-2b-2x-v6e-8",
-            "qwen3-30b-a3b-v6e-16",
-            "qwen3-30b-a3b-2x-v6e-16",
             "llama3_1-70b-v6e-64",
             "llama3_1-70b-2x-v6e-64",
         },

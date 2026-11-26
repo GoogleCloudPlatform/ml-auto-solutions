@@ -15,7 +15,7 @@
 """MaxText E2E TPU safetensors_dynamic vs. to_maxtext Checkpoint Comparison DAG.
 
 Supports two execution modes (`run_mode`) across configurable models and
-one- and two-slice TPU v6e topologies (`v6e-8`, `v6e-16`, `v6e-64`):
+one- and two-slice TPU v6e topologies (`v6e-8`, `v6e-64`):
 1. `e2e_only` mode:
    - Standalone `safetensors_dynamic` loading (`source_checkpoint_layout=
      safetensors_dynamic`) with 2 pre-training steps on C4 (`to-mt` and
@@ -566,8 +566,9 @@ def create_safetensors_comparison_task_group(
   return model_group
 
 
-# qwen3-30b-a3b has 18,867 tensors; reading them from the US bucket takes more
-# than 40 minutes on the v6e cluster (southamerica-west1), so it gets 120 min.
+# TODO(KevinYenky): Add qwen3-30b-a3b back (`v6e-16`, 1 and 2 slices,
+# `sparse_matmul=false`, 120 min) once slow safetensors read of checkpoints with
+# many small tensors fixed.
 TEST_SPECS: tuple[SafetensorsComparisonSpec, ...] = (
     SafetensorsComparisonSpec(
         model_name="qwen3-0.6b",
@@ -598,24 +599,6 @@ TEST_SPECS: tuple[SafetensorsComparisonSpec, ...] = (
         weight_dtype="bfloat16",
         to_maxtext_save_dtype="float32",
         extra_maxtext_flags=("dcn_data_parallelism=2",),
-    ),
-    SafetensorsComparisonSpec(
-        model_name="qwen3-30b-a3b",
-        hf_repo="Qwen/Qwen3-30B-A3B-Thinking-2507",
-        core_count=16,
-        num_slices=1,
-        weight_dtype="bfloat16",
-        extra_maxtext_flags=("sparse_matmul=false",),
-        time_out_in_min=120,
-    ),
-    SafetensorsComparisonSpec(
-        model_name="qwen3-30b-a3b",
-        hf_repo="Qwen/Qwen3-30B-A3B-Thinking-2507",
-        core_count=16,
-        num_slices=2,
-        weight_dtype="bfloat16",
-        extra_maxtext_flags=("sparse_matmul=false", "dcn_data_parallelism=2"),
-        time_out_in_min=120,
     ),
     SafetensorsComparisonSpec(
         model_name="llama3.1-70b",
