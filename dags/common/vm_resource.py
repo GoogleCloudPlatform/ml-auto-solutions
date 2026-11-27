@@ -440,13 +440,15 @@ class DockerImage(enum.Enum):
       "gcr.io/tpu-prod-env-multipod/maxdiffusion_stable_stack_candidate:"
       f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
+  # The GPU images are built per CPU architecture and tagged amd64-<date> and
+  # arm64-<date>. The A3 GPU clusters are amd64.
   MAXTEXT_GPU_JAX_STABLE = (
       "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/maxtext_gpu_jax_stable:"
-      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+      f"amd64-{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   MAXTEXT_GPU_JAX_NIGHTLY = (
       "us-docker.pkg.dev/tpu-prod-env-multipod/maxtext-images/maxtext_gpu_jax_nightly:"
-      f"{datetime.datetime.today().strftime('%Y-%m-%d')}"
+      f"amd64-{datetime.datetime.today().strftime('%Y-%m-%d')}"
   )
   CLOUD_HYBRIDSIM_NIGHTLY = (
       "us-docker.pkg.dev/cloud-tpu-v2-images-dev/hybridsim/"
